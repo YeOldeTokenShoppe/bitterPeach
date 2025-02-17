@@ -1,0 +1,108 @@
+body {
+  /* background-color: #1c1c1c; */
+
+  /* height: 100vh; */
+  /* display: flex;
+  align-items: center;
+  justify-content: center; */
+}
+
+:root {
+  --bg: #1c1c1c;
+
+  /* --text-height: 3rem; */
+}
+
+.sparkle-transparent {
+  --bg: #fe3633;
+}
+.sparkle-transparent {
+  /* width: 100%; */
+  /* height: var(--text-height); */
+  font-size: 5px;
+  text-align: center;
+  /* line-height: var(--text-height); */
+  /* color: white; */
+  /* font-weight: 700; */
+
+  /* letter-spacing: 5px; */
+  /* z-index: 100; */
+  position: relative;
+  text-shadow: 0px 0px 0px transparent;
+}
+
+.sparkle-purple {
+  --bg: #864db8;
+}
+.sparkle-purple {
+  /* width: 100%; */
+  /* height: var(--text-height); */
+  font-size: 5px;
+  text-align: center;
+  /* line-height: var(--text-height); */
+  /* color: white; */
+  /* font-weight: 700; */
+
+  /* letter-spacing: 5px; */
+  /* z-index: 100; */
+  position: relative;
+  text-shadow: 0px 0px 0px transparent;
+}
+
+.star {
+  --star-size: 10px;
+  --star-life: 59s;
+
+  --start-left: 0px;
+  --start-top: 0px;
+
+  --end-left: 0px;
+  --end-top: 0px;
+
+  --star-color: #f1c40f;
+
+  width: var(--star-size);
+  height: var(--star-size);
+  left: var(--end-left);
+  top: var(--end-top);
+  z-index: -1;
+  background: var(--star-color);
+  position: absolute;
+  mix-blend-mode: lighten;
+  animation: slide var(--star-life) ease-in forwards;
+}
+
+.star:after {
+  display: block;
+  content: "";
+  width: var(--star-size);
+  height: var(--star-size);
+  background-color: var(--bg);
+  border-radius: 100%;
+  position: relative;
+  top: calc(var(--star-size) / 2 * -1);
+  left: calc(var(--star-size) / 2 * -1);
+  box-shadow: var(--star-size) var(--star-size) var(--bg),
+    var(--star-size) 0px var(--bg), 0px var(--star-size) var(--bg);
+}
+
+@keyframes slide {
+  0% {
+    left: var(--start-left);
+    top: var(--start-top);
+    transform: rotate(0deg);
+    opacity: 0;
+  }
+  100% {
+    left: var(--end-left);
+    top: var(--end-top);
+    transform: rotate(calc(180deg * var(--star-life-num))) scale(0.5);
+    opacity: 0.9;
+  }
+}
+/* sparkle.css */
+/* @media (max-width: 550px) {
+  .sparkle .star {
+    display: none;
+  }
+} */

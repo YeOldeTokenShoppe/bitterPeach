@@ -1,0 +1,179 @@
+:root {
+  --blackberry: #1e1f2a;
+  --wisteria: #c79de2;
+  --bubblegum: #fca8ce;
+  --lemon-drop: #fecb40;
+  --grass: #99c868;
+  --serene-sea: #60c5dd;
+}
+
+@property --gradient-angle {
+  inherits: false;
+  initial-value: 0deg;
+  syntax: "<angle>";
+}
+
+@keyframes gradient-spin {
+  to {
+    --gradient-angle: 360deg;
+  }
+}
+
+.gradient-border-effect-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+.gradient-border-effect {
+  /* animation: gradient-spin 5s linear infinite; */
+  background: linear-gradient(to bottom, var(--blackberry), var(--blackberry))
+      padding-box,
+    conic-gradient(
+        from var(--gradient-angle),
+        var(--wisteria),
+        var(--bubblegum),
+        var(--lemon-drop),
+        var(--grass),
+        var(--serene-sea),
+        var(--wisteria)
+      )
+      border-box; /* Updated colors */
+  border: 5px solid transparent;
+  border-radius: 20px;
+  position: relative;
+  display: inline-block;
+  z-index: 0;
+
+  /* padding: 10px;  */
+  /* Add padding to avoid overlap */
+}
+
+.gradient-border-effect::before {
+  background: transparent; /* Change to transparent */
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 15px;
+  z-index: 0;
+  will-change: transform;
+}
+
+.gradient-border-effect::after {
+  /* animation: gradient-spin 5s linear infinite; */
+  /* Slow down animation */
+  background: conic-gradient(
+    from var(--gradient-angle),
+    var(--wisteria),
+    var(--bubblegum),
+    var(--lemon-drop),
+    var(--grass),
+    var(--serene-sea),
+    var(--wisteria)
+  ); /* Updated colors */
+
+  border-radius: 15px;
+  content: "";
+  position: absolute;
+  inset: 0;
+  /* filter: blur(0px); */
+  z-index: -1; /* Place behind everything */
+}
+
+.gradient-border-content {
+  position: relative;
+  z-index: 1; /* Place content on top */
+}
+
+.image-effect1 {
+  position: relative;
+  display: inline-block;
+  border-radius: 80%;
+  padding: 10px;
+  /* Adjust padding as needed */
+  will-change: transform;
+  background-color: transparent; /* Ensure transparent background */
+}
+
+.image-effect1::before {
+  /* animation: gradient-spin 5s linear infinite; */
+  background: conic-gradient(
+    from var(--gradient-angle),
+    var(--wisteria),
+    var(--bubblegum),
+    var(--lemon-drop),
+    var(--grass),
+    var(--serene-sea),
+    var(--wisteria)
+  );
+  /* background: white; */
+  border-radius: 90%;
+  content: "";
+  position: absolute;
+  inset: 25px;
+  z-index: -1; /* Place behind the image */
+  filter: blur(10px); /* Reduce blur */
+  /* background-color: transparent;   */
+}
+
+.irregular-image {
+  border-radius: 50%;
+  position: relative;
+  z-index: 1; /* Place image on top */
+  display: block;
+  background-color: transparent; /* Ensure transparent background */
+}
+.safari-effect::before {
+  /* Stationary glow effect for Safari */
+  /* background: radial-gradient(
+    circle at center,
+    rgba(255, 255, 255, 0.5) 0%,
+    rgba(255, 255, 255, 0.3) 50%,
+    rgba(255, 255, 255, 0) 100%
+  ); */
+  /* content: ""; */
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  bottom: -10px;
+  left: -10px;
+  z-index: -10;
+  border-radius: 1%; /* Make the glow round */
+}
+.image-effect2 {
+  position: relative;
+  display: inline-block;
+  border-radius: 10px;
+  padding: 10px, 15px, 10px, 10px;
+
+  inset: 25px;
+  /* Adjust padding as needed */
+  will-change: transform;
+  background-color: transparent; /* Ensure transparent background */
+}
+
+.image-effect2::before {
+  /* animation: gradient-spin 5s linear infinite; */
+  background: conic-gradient(
+    from var(--gradient-angle),
+    var(--wisteria),
+    var(--bubblegum),
+    var(--lemon-drop),
+    var(--grass),
+    var(--serene-sea),
+    var(--wisteria)
+  );
+  /* background: white; */
+  border-radius: 10px;
+  inset: 15px;
+  content: "";
+  position: absolute;
+  /* inset: 15px; */
+  z-index: -1; /* Place behind the image */
+  filter: blur(50px); /* Reduce blur */
+  /* background-color: transparent;   */
+}
+.css-gmuwbf {
+  margin: auto !important;
+}

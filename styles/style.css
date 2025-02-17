@@ -1,0 +1,80 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  /* background-color: #190A05; */
+  background-color: #19100e;
+  -webkit-font-smoothing: antialiased;
+  font-family: "Inter", sans-serif;
+}
+
+.webgl {
+  position: fixed;
+  top: 0;
+  left: 0;
+  outline: none;
+  cursor: grab;
+}
+
+#deathOverlay {
+  display: none;
+  position: fixed;
+  opacity: 0;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(255, 0, 0, 0.8); /* Red color with some transparency */
+  z-index: 1000;
+}
+
+#deathTextBox {
+  display: none;
+  position: fixed;
+  opacity: 0;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 20px;
+  background-color: rgba(0, 0, 0, 0.7); /* Semi-transparent black */
+  color: white;
+  font-family: "Arial", sans-serif;
+  font-size: 24px;
+  border-radius: 10px;
+  text-align: center;
+  z-index: 1001;
+}
+.sky {
+  position: absolute;
+  width: 100%;
+  background: #4b79a1; /* Fallback for old browsers */
+  background: -webkit-linear-gradient(
+    to top,
+    #283e51,
+    #0a2342
+  ); /* Chrome 10-25, Safari 5.1-6 */
+  background: linear-gradient(
+    to top,
+    #283e51,
+    #0a2342
+  ); /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
+  height: 100vh;
+  z-index: -1;
+}
+
+.stars {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: url(http://www.script-tutorials.com/demos/360/images/stars.png)
+    repeat top center;
+  z-index: -1;
+}

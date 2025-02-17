@@ -1,0 +1,102 @@
+.container8 {
+  margin: 0 auto;
+  width: 110px;
+  height: 190px;
+  position: relative;
+  perspective: 1000px;
+  perspective-origin: center center;
+  top: 50px;
+}
+
+.carousel8 {
+  height: 100%;
+  width: 100%;
+  position: absolute;
+  transform-style: preserve-3d;
+  transition: transform 1s;
+}
+.upload,
+.next,
+.prev {
+  color: #444;
+  position: absolute;
+  top: 110px;
+  width: 3rem;
+  /* padding: 0.3em 0.5em; */
+  cursor: pointer;
+  background: #ccc;
+  border-radius: 5px;
+  border-top: 1px solid #fff;
+  box-shadow: 0 5px 0 #999;
+  transition: box-shadow 0.1s, top 0.1s;
+}
+.upload:hover,
+.next:hover,
+.prev:hover {
+  color: #000;
+}
+.upload:active,
+.next:active,
+.prev:active {
+  top: 110px;
+  box-shadow: 0 1px 0 #999;
+}
+.next {
+  right: -1rem;
+}
+.prev {
+  left: -1rem;
+}
+/* .item8 {
+    transform: rotateY(90deg) translateZ(250px);
+  } */
+
+.item8 {
+  display: block;
+  position: absolute;
+
+  width: 95px;
+  height: 95px;
+
+  opacity: 0.95;
+  /* border-radius: 10px; */
+  /* transform: rotateY(200deg) translateZ(200px); */
+}
+.item8 img {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  z-index: -1;
+  margin: auto;
+}
+
+.frameStyle {
+  position: absolute;
+  left: 50%;
+  bottom: 20%;
+  transform: translate(-50%, -50%);
+  height: 100% !important;
+  width: 8rem !important;
+  object-fit: contain;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.selectedImage {
+  border: 3px solid green;
+}
+.avatarImage {
+  border-radius: 50%;
+
+  position: absolute;
+  top: 55%;
+  left: 35%;
+
+  transform: translate(-50%, -50%);
+  width: 65px !important;
+  height: 70px !important;
+  z-index: -1 !important;
+}
+.blurImage {
+  filter: blur(10px);
+}

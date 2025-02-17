@@ -1,0 +1,11 @@
+/* styles/ScenePage.css */
+body {
+  background-color: #000000; /* Dark background for bloom */
+}
+
+#footer3 {
+  text-align: center;
+  /* background: linear-gradient(to bottom, #000000, #593a41); */
+  margin-top: 2rem !important;
+  width: 100%;
+}

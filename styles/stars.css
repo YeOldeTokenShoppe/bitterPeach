@@ -1,0 +1,125 @@
+/* Unique CSS for StarComponent */
+@property --unique-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+:root {
+  --unique-blackberry: #1e1f2a;
+  --unique-wisteria: #c79de2;
+  --unique-bubblegum: #fca8ce;
+  --unique-lemon-drop: #fecb40;
+  --unique-grass: #99c868;
+  --unique-serene-sea: #60c5dd;
+  --unique-stars: 8;
+}
+
+.unique-block {
+  --unique-angle: 0;
+  --unique-sz: clamp(320px, 50vw, 50rem);
+  --unique-angle-offset: calc(360 / var(--unique-stars) * 1deg);
+  margin: auto;
+  width: var(--unique-sz);
+  aspect-ratio: 1 / 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.unique-origin {
+  --unique-sz: clamp(5rem, 10vw, 50rem);
+  --unique-r: calc(var(--unique-sz) * 1.65);
+  width: var(--unique-sz);
+  aspect-ratio: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.unique-star {
+  --unique-s-angle: calc(var(--unique-angle-offset) * var(--unique-i));
+  --unique-d: calc(var(--unique-sz) / 3);
+  --unique-x: calc(
+    var(--unique-r) * cos(calc(var(--unique-s-angle) + var(--unique-angle)))
+  );
+  --unique-y: calc(
+    var(--unique-r) * sin(calc(var(--unique-s-angle) + var(--unique-angle)))
+  );
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  background-color: var(--unique-bg-color);
+  width: var(--unique-d);
+  height: var(--unique-d);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  clip-path: polygon(
+    50% 0%,
+    61% 35%,
+    98% 35%,
+    68% 57%,
+    79% 91%,
+    50% 70%,
+    21% 91%,
+    32% 57%,
+    2% 35%,
+    39% 35%
+  );
+  transform: translate(calc(var(--unique-x) - 50%), calc(var(--unique-y) - 50%))
+    rotate(calc(var(--unique-angle) * -1));
+  animation: unique-rotate 6s infinite linear;
+  will-change: transform;
+}
+
+@keyframes unique-rotate {
+  to {
+    --unique-angle: 360deg;
+  }
+}
+
+/* Page styles/setup */
+.unique-star:nth-child(1) {
+  --unique-bg-color: var(--unique-wisteria);
+}
+
+.unique-star:nth-child(2) {
+  --unique-bg-color: var(--unique-lemon-drop);
+}
+
+.unique-star:nth-child(3) {
+  --unique-bg-color: var(--unique-wisteria);
+}
+
+.unique-star:nth-child(4) {
+  --unique-bg-color: var(--unique-lemon-drop);
+}
+
+.unique-star:nth-child(5) {
+  --unique-bg-color: var(--unique-wisteria);
+}
+
+.unique-star:nth-child(6) {
+  --unique-bg-color: var(--unique-lemon-drop);
+}
+
+.unique-star:nth-child(7) {
+  --unique-bg-color: var(--unique-wisteria);
+}
+
+.unique-star:nth-child(8) {
+  --unique-bg-color: var(--unique-lemon-drop);
+}
+
+.content-wrapper {
+  position: absolute; /* Ensure it sits in the correct position */
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%); /* Center the wrapper */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10; /* Ensure it is above the stars */
+}

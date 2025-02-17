@@ -1,0 +1,97 @@
+@import url("https://fonts.googleapis.com/css2?family=Exo+2:ital,wght@0,100..900;1,100..900&display=swap");
+
+.exo-2 {
+  font-family: "Exo 2", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 900;
+  font-style: normal;
+}
+
+:root {
+  /* Base font size */
+  /* font-size: 10px; */
+
+  /* Set neon color */
+  --neon-text-color: #f40;
+  --neon-border-color: #08f;
+}
+
+.neon-sign-container {
+  display: flex;
+  justify-content: center;
+  background-image: url("/wall3.png");
+
+  background-size: cover;
+  align-items: center;
+  background: transparent;
+  min-height: 3rem;
+  transform: scale(0.4); /* Adjust the scale as needed */
+}
+
+.neon-sign {
+  font-family: "Exo 2", sans-serif !important;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #000;
+  /* min-height: 10rem; */
+  transform: scale(0.4);
+}
+
+#neon-text {
+  font-family: "Exo 2", sans-serif !important;
+  font-size: 10rem;
+  font-weight: 200;
+  font-style: italic;
+  color: #fff;
+  padding: 4rem 6rem 4.5rem;
+  border: 0.4rem solid #fff;
+  border-radius: 2rem;
+  text-transform: uppercase;
+  animation: flicker 1.5s infinite alternate;
+  min-width: 40rem;
+  text-align: center;
+  display: inline-block;
+}
+
+#neon-text::-moz-selection {
+  background-color: var(--neon-border-color);
+  color: var(--neon-text-color);
+}
+
+#neon-text::selection {
+  background-color: var(--neon-border-color);
+  color: var(--neon-text-color);
+}
+
+#neon-text:focus {
+  outline: none;
+}
+
+/* Animate neon flicker */
+@keyframes flicker {
+  0%,
+  19%,
+  21%,
+  23%,
+  25%,
+  54%,
+  56%,
+  100% {
+    text-shadow: -0.2rem -0.2rem 1rem #fff, 0.2rem 0.2rem 1rem #fff,
+      0 0 2rem var(--neon-text-color), 0 0 4rem var(--neon-text-color),
+      0 0 6rem var(--neon-text-color), 0 0 8rem var(--neon-text-color),
+      0 0 10rem var(--neon-text-color);
+
+    box-shadow: 0 0 0.5rem #fff, inset 0 0 0.5rem #fff,
+      0 0 2rem var(--neon-border-color), inset 0 0 2rem var(--neon-border-color),
+      0 0 4rem var(--neon-border-color), inset 0 0 4rem var(--neon-border-color);
+  }
+
+  20%,
+  24%,
+  55% {
+    text-shadow: none;
+    box-shadow: none;
+  }
+}

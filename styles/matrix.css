@@ -1,0 +1,21 @@
+.matrix-main {
+  display: flex;
+  justify-content: space-between;
+  height: 250px;
+  width: 100%;
+  overflow: hidden;
+}
+
+.matrix-stream {
+  line-height: 1;
+}
+
+.matrix-char {
+  display: block;
+  width: 2vmax;
+  height: 2vmax;
+  font-size: 2vmax;
+  color: #9bff9b11;
+  text-align: center;
+  font-family: "Helvetica Neue", Helvetica, sans-serif;
+}

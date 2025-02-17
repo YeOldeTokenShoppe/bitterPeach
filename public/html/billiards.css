@@ -1,0 +1,77 @@
+html,
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  width: 100%;
+  height: 100vh;
+  background: linear-gradient(135deg, #1a1a1a, #121212);
+}
+
+section {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  box-sizing: border-box;
+}
+
+.score {
+  background: rgba(0, 0, 0, 0.3);
+  color: white;
+  padding: 0.5rem;
+  border-radius: 8px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: min(1.2rem, 3vh);
+  text-align: center;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  flex: 0 0 auto;
+}
+
+.canvas {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+  padding: 4px;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.canvas canvas {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  cursor: none;
+}
+
+.message {
+  background: rgba(0, 0, 0, 0.3);
+  color: white;
+  padding: 0.5rem;
+  border-radius: 8px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: min(1.1rem, 2.8vh);
+  text-align: center;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+@media (min-aspect-ratio: 16/9) {
+  section {
+    padding: 1rem;
+    gap: 1rem;
+  }
+
+  .score,
+  .message {
+    padding: 0.75rem;
+  }
+}

@@ -1,0 +1,92 @@
+.cyber-radio-btn-group {
+  width: 120px;
+  margin-bottom: 8px;
+}
+
+.cyber-radio-btn-group input[type="radio"] {
+  opacity: 0;
+  position: absolute;
+}
+
+.cyber-radio-btn-group input[type="radio"]:checked + label::before {
+  box-shadow: 0 0 25px 2px #0763f7;
+}
+
+.cyber-radio-btn-group input[type="radio"]:checked + label span {
+  color: #c40a35;
+}
+
+.cyber-radio-btn-group input[type="radio"]:focus + label::before {
+  box-shadow: 0 0 25px 2px #0763f7;
+}
+
+.cyber-label {
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  font-weight: 500;
+  font-style: italic;
+  align-items: center;
+  justify-content: center;
+  font-family: "IBM Plex Mono", monospace;
+  height: 40px;
+  padding: 0 30px;
+  position: relative;
+}
+
+.cyber-label::before {
+  background-color: #24252c;
+  background-image: repeating-linear-gradient(
+    0deg,
+    #181a29,
+    #181a29 1px,
+    #202436 1px,
+    #202436 2px
+  );
+  border-radius: 8px;
+  content: "";
+  height: 100%;
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: hidden;
+  transform: skew(-15deg);
+  transition: box-shadow 700ms;
+  width: 100%;
+  z-index: -1;
+}
+
+.cyber-span {
+  transition: color 350ms;
+  z-index: 1;
+  font-size: 16px;
+  font-family: "IBM Plex Mono", monospace;
+  font-weight: 500;
+  font-style: italic;
+}
+
+.cyber-svg {
+  border-radius: 8px;
+  overflow: hidden;
+  position: absolute;
+  transform: skew(-15deg);
+  width: 100%;
+}
+
+.cyber-blue rect {
+  fill: #05eafa;
+  shape-rendering: crispEdges;
+  mix-blend-mode: color-dodge;
+}
+
+.cyber-pink rect {
+  fill: #ff6bd3;
+  shape-rendering: crispEdges;
+}
+.cyber-radio-btn-group button.cyber-label:hover::before {
+  box-shadow: 0 0 25px 2px #0763f7;
+}
+
+.cyber-radio-btn-group button.cyber-label:hover .cyber-span {
+  color: #c40a35;
+}

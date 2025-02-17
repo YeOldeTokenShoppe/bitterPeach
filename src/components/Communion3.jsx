@@ -1,0 +1,76 @@
+"use client";
+import React, { useEffect } from "react";
+import Image from "next/image";
+import Link from "next/link";
+
+function Communion3() {
+  return (
+    <div>
+      <section id="footer3" className="footer3">
+        <div className="inner">
+          <ul className="icons">
+            {[
+              { src: "/3D_tiktok.png", alt: "Tiktok" },
+              { src: "/3d_discord.png", alt: "Discord" },
+              { src: "/3d_X.png", alt: "X" },
+              { src: "/3d_instagram.png", alt: "Instagram" },
+              { src: "/3d_spotify.png", alt: "Spotify" },
+              {
+                src: "/3d_tg2.png",
+                alt: "Telegram",
+              },
+            ].map((icon, index) => (
+              <li key={index}>
+                <Link href="#" passHref>
+                  <div className="socials">
+                    <Image
+                      src={icon.src}
+                      alt={icon.alt}
+                      width={258}
+                      height={257}
+                      style={{ width: "4rem", height: "4rem", ...icon.style }}
+                    />
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      <style jsx>{`
+        .communion-container {
+          position: relative;
+          bottom: 0;
+          margin-top: 3rem;
+
+          width: 100%;
+          z-index: 0;
+        }
+        .footer {
+          z-index: 0;
+        }
+        .socials {
+          z-index: 0;
+        }
+        .footer-contact {
+          text-align: center;
+
+          font-size: small;
+          color: #ffffff;
+
+          padding-bottom: 3rem;
+        }
+        .rotating-badge {
+          display: flex;
+          position: absolute;
+          right: 10%;
+          bottom: 10px;
+          margin-top: -2rem;
+        }
+      `}</style>
+    </div>
+  );
+}
+
+export default Communion3;

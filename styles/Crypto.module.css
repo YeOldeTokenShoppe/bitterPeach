@@ -1,0 +1,112 @@
+.container {
+  container: flex;
+  flex-direction: column;
+  align-content: center;
+  justify-content: center;
+  background-color: #151515;
+  padding: 0;
+  border-radius: 0.5rem;
+  border: 3px goldenrod solid;
+  width: auto;
+  height: 5rem;
+  /* max-width: 480px; */
+  margin: 0 auto;
+}
+
+.balanceContainer {
+  display: flex;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.balanceItem {
+  background-color: #1f1f1f;
+  padding: 0.75rem;
+  border-radius: 0.375rem;
+  min-width: 150px;
+}
+
+.buttonContainer {
+  display: flex;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.actionButton {
+  background-color: #2a2a2a;
+  color: #ffffff;
+  padding: 0.75rem;
+  border: none;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  flex: 1;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.actionButton:hover {
+  background-color: #3a3a3a;
+}
+
+.statsContainer {
+  background-color: #1f1f1f;
+  padding: 1rem;
+  border-radius: 0.375rem;
+  margin: 1rem 0;
+}
+
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 50%;
+  height: auto;
+  background-color: rgba(0, 0, 0, 0.75);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.modalContent {
+  background-color: #151515;
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  width: 90%;
+  max-width: 400px;
+  position: relative;
+}
+
+.closeButton {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background-color: transparent;
+  border: none;
+  color: #ffffff;
+  cursor: pointer;
+  font-size: 1.25rem;
+  padding: 0.25rem;
+}
+
+.input {
+  width: 100%;
+  padding: 0.75rem;
+  margin: 0.75rem 0;
+  background-color: #1f1f1f;
+  border: 1px solid #333;
+  border-radius: 0.375rem;
+  color: #ffffff;
+  font-size: 1rem;
+}
+
+.input:focus {
+  outline: none;
+  border-color: #444;
+}
+
+.label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #999;
+  font-size: 0.875rem;
+}
