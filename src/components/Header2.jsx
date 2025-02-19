@@ -39,13 +39,22 @@ function Header() {
   const [activeInterval, setActiveInterval] = useState(null);
   const isHovering = useRef(false);
 
-  // Add this constant for the letters (you can modify the characters as needed)
   const letters = [
-    "Ψ",
-    "Ω",
-    "🜛",
-    "🜃",
-    "🜚",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
+    "0",
+    // "Ψ",
+    // "Ω",
+    // "🜛",
+    // "🜃",
+    // // "🜚",
     "🜁",
     "β",
     "Σ",
@@ -59,43 +68,43 @@ function Header() {
     "Ξ",
     "Π",
 
-    "🜂",
-    "∞",
-    "8",
-    "🜄",
-    "𓁙",
-    "𓁐",
+    // "🜂",
+    // "∞",
+    // "8",
+    // "🜄",
+    // "𓁙",
+    // "𓁐",
 
-    "♕",
-    "₿",
-    "Ψ",
-    "Ω",
-    "🜛",
-    "🜃",
-    "🜚",
-    "🜁",
-    "β",
-    "Σ",
-    "λ",
-    "π",
-    "$",
-    "∞",
-    "Ð",
-    "Θ",
-    "Λ",
-    "Ξ",
-    "Π",
+    // "♕",
+    // "₿",
+    // "Ψ",
+    // "Ω",
+    // "🜛",
+    // "🜃",
+    // "🜚",
+    // "🜁",
+    // "β",
+    // "Σ",
+    // "λ",
+    // "π",
+    // "$",
+    // "∞",
+    // "Ð",
+    // "Θ",
+    // "Λ",
+    // "Ξ",
+    // "Π",
 
-    "🜂",
-    "∞",
-    "8",
-    "🜄",
-    "𓁙",
-    "𓁐",
+    // "🜂",
+    // "∞",
+    // "8",
+    // "🜄",
+    // "𓁙",
+    // "𓁐",
 
-    "♕",
-    "₿",
-    "𓁻",
+    // "♕",
+    // "₿",
+    // "𓁻",
   ];
 
   // Add these functions before your return statement
@@ -129,7 +138,7 @@ function Header() {
         if (iterations >= originalText.length) {
           clearInterval(interval);
         } else {
-          iterations += 1 / 1;
+          iterations += 1 / 3;
         }
       }, 40);
 
@@ -360,9 +369,9 @@ function Header() {
                     onClick={() => setMenuOpen(false)}
                     onMouseEnter={handleMouseEnter}
                     onMouseLeave={handleMouseLeave}
-                    data-value="Cloud Computing"
+                    data-value="Moon Room"
                   >
-                    Cloud Computing
+                    Moon Room
                   </Link>
                   {/* </div> */}
                   {/* <div className="p-1"> */}

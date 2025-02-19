@@ -91,16 +91,16 @@ function HolographicStatue() {
   if (object3) {
     const worldPosition = new THREE.Vector3();
     object3.getWorldPosition(worldPosition);
-    console.log("World Position:", worldPosition);
+    // console.log("World Position:", worldPosition);
   }
 
   useEffect(() => {
-    loader.load("/statue3.glb", (gltf) => {
+    loader.load("/statue5.glb", (gltf) => {
       const statue = gltf.scene;
 
       // Create an anchor group with initial position
       const anchorGroup = new THREE.Group();
-      const basePosition = [-6.35, 13.6, 12.8]; // Store base position
+      const basePosition = [0.3, 16, -1.2]; // Store base position
       anchorGroup.position.set(...basePosition);
       initialY.current = basePosition[1]; // Set initialY to match the base y-position
       // Create a rotation group
@@ -115,7 +115,7 @@ function HolographicStatue() {
       groupRef.current = { anchor: anchorGroup, rotation: rotationGroup };
 
       // Apply your existing transformations
-      statue.scale.set(0.3, 0.3, 0.3);
+      statue.scale.set(0.4, 0.4, 0.4);
       statue.rotation.y = Math.PI / 180;
 
       // Center the statue in the rotation group
@@ -140,16 +140,23 @@ function HolographicStatue() {
 
       statue.traverse((child) => {
         if (child.isMesh) {
-          if (
-            child.material &&
-            child.material.name.toLowerCase().includes("Halo")
-          ) {
-            console.log("Applying gold holographic to:", child.material.name);
-            child.material = goldHolographicMaterial; // Apply gold shader to halo
-            child.material.uniforms.uColor.value.set(0xffd700); // Manually force the gold color
-          } else {
-            child.material = holographicMaterial; // Apply blue holographic to everything else
+          if (child.name.toLowerCase().includes("halo")) {
+            console.log("Separating Halo mesh:", child.name);
+
+            // ✅ Assign a new material that keeps its original Blender colors
+            child.material = new THREE.MeshStandardMaterial({
+              color: child.material.color, // Keep Blender’s original color
+              emissive: child.material.color, // Make it glow with its color
+              emissiveIntensity: 2.5, // Increase emissiveness
+              metalness: 0.9, // Make it metallic
+              roughness: 0.1, // Reduce roughness for a shinier look
+            });
+
+            return; // ✅ Skip applying the holographic shader to the halo
           }
+
+          // ✅ Apply holographic effect to everything else
+          child.material = holographicMaterial;
         }
       });
 

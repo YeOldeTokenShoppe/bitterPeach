@@ -15,54 +15,59 @@ import Buy from "./Buy";
 const AnimatedRadioButtons = () => {
   const containerRef = useRef(null);
   const [activeModal, setActiveModal] = React.useState(null);
+  const previousBtnRef = useRef(null);
 
-  const getNodes = useCallback((button) => {
+  const getNodes = (button) => {
     const container = button.closest(`.${styles["cyber-radio-btn-group"]}`);
-    const blueRects = Array.from(
-      container.querySelectorAll(`.${styles["cyber-blue"]} rect`)
-    );
-    const pinkRects = Array.from(
-      container.querySelectorAll(`.${styles["cyber-pink"]} rect`)
-    );
-    return [gsap.utils.shuffle(blueRects), gsap.utils.shuffle(pinkRects)];
-  }, []);
+    return Array.from(container.querySelectorAll("rect"));
+  };
 
-  const handleHover = useCallback(
-    (e, isHovering) => {
-      const button = e.currentTarget;
-      const nodes = getNodes(button);
+  const createGlitchEffect = (nodes, isActive) => {
+    // Stop any existing animations
+    gsap.killTweensOf(nodes);
 
-      gsap.to(nodes[0], {
-        duration: 1.8,
-        ease: "elastic.out(1, 0.3)",
-        xPercent: isHovering ? "-100" : "100",
-        stagger: 0.012,
-        overwrite: true,
-      });
+    // Initial position animation
+    gsap.to(nodes, {
+      duration: 0.4,
+      ease: "steps(10)",
+      x: isActive ? "100%" : "-100%",
+      stagger: 0.01,
+      overwrite: true,
+    });
 
-      gsap.to(nodes[1], {
-        duration: 1.8,
-        ease: "elastic.out(1, 0.3)",
-        xPercent: isHovering ? "100" : "-100",
-        stagger: 0.012,
-        overwrite: true,
-      });
-    },
-    [getNodes]
-  );
+    // Color animation
+    if (isActive) {
+      gsap.fromTo(
+        nodes,
+        { fill: "#5dc975" },
+        {
+          fill: "#76fa93",
+          duration: 0.1,
+          ease: "bounce.out",
+          repeat: -1,
+        }
+      );
+    }
+  };
 
-  const handleClick = useCallback((key) => {
+  const handleHover = (e, isHovering) => {
+    const button = e.currentTarget;
+    const nodes = getNodes(button);
+    createGlitchEffect(nodes, isHovering);
+  };
+
+  const handleClick = (key) => {
     setActiveModal(key);
-  }, []);
+  };
 
-  const handleCloseModal = useCallback(() => {
+  const handleCloseModal = () => {
     setActiveModal(null);
-  }, []);
+  };
 
   const BUTTONS = [
     { text: "Buy", key: "buy" },
     { text: "Stake/Claim", key: "stake" },
-    { text: "Dedic8", key: "dedicate" },
+    { text: "Illumin8", key: "illumin8" },
   ];
 
   const renderModalContent = () => {
@@ -97,29 +102,18 @@ const AnimatedRadioButtons = () => {
                 height="100%"
                 width="100%"
                 xmlns="http://www.w3.org/2000/svg"
+                preserveAspectRatio="none"
               >
-                <g className={styles["cyber-pink"]}>
-                  {[...Array(10)].map((_, i) => (
-                    <rect
-                      key={`pink-${i}`}
-                      x="-101%"
-                      y={i * 4}
-                      width="100%"
-                      height="4"
-                    />
-                  ))}
-                </g>
-                <g className={styles["cyber-blue"]}>
-                  {[...Array(10)].map((_, i) => (
-                    <rect
-                      key={`blue-${i}`}
-                      x="101%"
-                      y={i * 4}
-                      width="100%"
-                      height="4"
-                    />
-                  ))}
-                </g>
+                {[...Array(10)].map((_, i) => (
+                  <rect
+                    key={`rect-${i}`}
+                    x="-101%"
+                    y={i * 5}
+                    width="100%"
+                    height="5"
+                    fill="#5dc975"
+                  />
+                ))}
               </svg>
             </button>
           </div>
@@ -135,6 +129,7 @@ const AnimatedRadioButtons = () => {
       >
         <ModalOverlay />
         <ModalContent>
+          <ModalCloseButton />
           <ModalBody p={0}>{renderModalContent()}</ModalBody>
         </ModalContent>
       </Modal>

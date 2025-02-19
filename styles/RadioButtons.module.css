@@ -1,23 +1,11 @@
+/* GlitchButtons.module.css */
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@1,500&display=swap");
+
 .cyber-radio-btn-group {
+  margin: 10px;
+  position: relative;
   width: 120px;
   margin-bottom: 8px;
-}
-
-.cyber-radio-btn-group input[type="radio"] {
-  opacity: 0;
-  position: absolute;
-}
-
-.cyber-radio-btn-group input[type="radio"]:checked + label::before {
-  box-shadow: 0 0 25px 2px #0763f7;
-}
-
-.cyber-radio-btn-group input[type="radio"]:checked + label span {
-  color: #c40a35;
-}
-
-.cyber-radio-btn-group input[type="radio"]:focus + label::before {
-  box-shadow: 0 0 25px 2px #0763f7;
 }
 
 .cyber-label {
@@ -32,6 +20,9 @@
   height: 40px;
   padding: 0 30px;
   position: relative;
+  border: none;
+  background: none;
+  width: 100%;
 }
 
 .cyber-label::before {
@@ -56,13 +47,15 @@
   z-index: -1;
 }
 
+.cyber-label:hover::before {
+  box-shadow: 0 0 25px 2px #244f2e;
+}
+
 .cyber-span {
   transition: color 350ms;
   z-index: 1;
+  color: #fff;
   font-size: 16px;
-  font-family: "IBM Plex Mono", monospace;
-  font-weight: 500;
-  font-style: italic;
 }
 
 .cyber-svg {
@@ -70,23 +63,5 @@
   overflow: hidden;
   position: absolute;
   transform: skew(-15deg);
-  width: 100%;
-}
-
-.cyber-blue rect {
-  fill: #05eafa;
-  shape-rendering: crispEdges;
-  mix-blend-mode: color-dodge;
-}
-
-.cyber-pink rect {
-  fill: #ff6bd3;
-  shape-rendering: crispEdges;
-}
-.cyber-radio-btn-group button.cyber-label:hover::before {
-  box-shadow: 0 0 25px 2px #0763f7;
-}
-
-.cyber-radio-btn-group button.cyber-label:hover .cyber-span {
-  color: #c40a35;
+  pointer-events: none;
 }

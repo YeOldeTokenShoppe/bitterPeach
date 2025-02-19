@@ -119,7 +119,7 @@ export default function GalleryPage() {
                   left: "50%",
                   transform: "translate(-50%, -50%)",
                   width: "400px", // Smaller width to clip sides
-                  // height: "300px",
+                  height: "370px",
                   zIndex: 9999,
                   backgroundColor: "#000000",
                   borderRadius: "12px",
@@ -129,12 +129,15 @@ export default function GalleryPage() {
               >
                 <button
                   onClick={() => setIsModalOpen(false)}
-                  className="absolute top-2 right-2 text-white hover:text-gray-300 transition-colors z-[9999]"
+                  className="absolute top-2 right-2 text-white hover:text-gray-300 transition-colors"
                   style={{
-                    textShadow: "0 0 4px rgba(0,0,0,0.5)",
-                    background: "rgba(0,0,0,1)",
-                    padding: "8px",
-                    borderRadius: "50%",
+                    position: "absolute",
+                    top: "8px",
+                    right: "8px",
+                    zIndex: 1,
+                    background: "transparent",
+                    border: "none",
+                    padding: "4px",
                   }}
                 >
                   <X size={24} />
@@ -214,7 +217,7 @@ export default function GalleryPage() {
               cursor: "move",
             }}
           >
-            <MusicPlayer isVisible={showSpotify} onClose={handleClose} />
+            {/* <MusicPlayer isVisible={showSpotify} onClose={handleClose} /> */}
             {/* <iframe
               src="https://open.spotify.com/embed/playlist/5wWiiVDG0Q83zVitjPf6fj?utm_source=generator"
               width="100%"

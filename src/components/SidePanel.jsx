@@ -1,60 +1,105 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Box, Flex, Button, Text } from "@chakra-ui/react";
 import AnimatedRadioButtons from "./3DVotiveStand/CyberButtons";
 import Communion3 from "./Communion3";
 
 const SidePanel = () => {
-  const [isTextBoxVisible, setIsTextBoxVisible] = useState(true);
-  const buttonWidth = "3rem"; // Width of the button tab
+  const [isTextBoxVisible, setIsTextBoxVisible] = useState(true); // Open by default
+  const panelRef = useRef(null);
+  const [isMobile, setIsMobile] = useState(false);
 
-  const handlePanelClick = () => {
-    setIsTextBoxVisible(false);
-  };
+  // Detect screen size
+  useEffect(() => {
+    const checkScreenSize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
 
+    checkScreenSize();
+    window.addEventListener("resize", checkScreenSize);
+    return () => window.removeEventListener("resize", checkScreenSize);
+  }, []);
+
+  // Handle hover-based show/hide for desktop only
+  useEffect(() => {
+    if (isMobile) return;
+
+    const handleMouseEnter = () => setIsTextBoxVisible(true);
+    const handleMouseLeave = (event) => {
+      if (!panelRef.current.contains(event.relatedTarget)) {
+        setIsTextBoxVisible(false);
+      }
+    };
+
+    const panelElement = panelRef.current;
+    if (panelElement) {
+      panelElement.addEventListener("mouseenter", handleMouseEnter);
+      panelElement.addEventListener("mouseleave", handleMouseLeave);
+    }
+
+    return () => {
+      if (panelElement) {
+        panelElement.removeEventListener("mouseenter", handleMouseEnter);
+        panelElement.removeEventListener("mouseleave", handleMouseLeave);
+      }
+    };
+  }, [isMobile]);
+
+  // Toggle button click (for mobile & manual desktop toggle)
   const handleButtonClick = (e) => {
-    e.stopPropagation(); // Prevent panel click event from firing
+    e.stopPropagation();
     setIsTextBoxVisible(!isTextBoxVisible);
   };
 
   return (
     <Box
-      position="absolute"
+      ref={panelRef}
+      position="fixed"
       top="0"
-      right={`-${buttonWidth}`} // Offset by button width
+      right="0"
       zIndex="5000"
       textAlign="right"
-      width="25%"
+      width={isMobile ? "80%" : "25%"} // Mobile expands width
       height="100%"
       background="rgba(0, 0, 0, 0.8)"
       color="white"
       p="1rem"
       borderRadius="8px"
       pointerEvents="auto"
-      transform={
-        isTextBoxVisible
-          ? "translateX(0)"
-          : `translateX(calc(100% + ${buttonWidth}))`
-      }
-      transition="transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.4s ease-in-out"
-      onClick={handlePanelClick}
+      transform={isTextBoxVisible ? "translateX(0)" : `translateX(100%)`}
+      transition="transform 0.3s ease-in-out"
       cursor="pointer"
     >
-      <Flex justify="space-between" align="right" position="relative" top="10%">
-        <Button
-          onClick={handleButtonClick}
-          size="lg"
-          background="transparent"
+      {/* Invisible hover hotzone (Desktop Only) */}
+      {!isMobile && (
+        <Box
           position="absolute"
-          color="white"
-          top="-"
-          left={`-${buttonWidth}`}
-          width={buttonWidth}
-          height="4rem"
-          _hover={{ background: "rgba(255, 255, 255, 0.2)" }}
-        >
-          {isTextBoxVisible ? "❯" : "❮"}
-        </Button>
+          top="0"
+          right="100%"
+          width="1.5rem"
+          height="100%"
+        />
+      )}
 
+      {/* Manual Toggle Button (Now Larger & Centered for Mobile) */}
+      <Button
+        onClick={handleButtonClick}
+        size="lg"
+        background="transparent"
+        position="absolute"
+        color="white"
+        left={isMobile ? "-3.5rem" : "-3rem"} // Adjust button position
+        top={isMobile ? "50%" : "50%"} // Center vertically for mobile
+        transform="translateY(-50%)" // Ensure it stays in the center
+        width={isMobile ? "4rem" : "3rem"} // Make it larger on mobile
+        height={isMobile ? "4rem" : "4rem"} // Make it a bigger tap target
+        fontSize={isMobile ? "2rem" : "1.5rem"} // Increase icon size for mobile
+        borderRadius="50%" // Circular button for better aesthetics
+        _hover={{ background: "rgba(255, 255, 255, 0.2)" }}
+      >
+        {isTextBoxVisible ? "❯" : "❮"}
+      </Button>
+
+      <Flex justify="space-between" align="right" position="relative" top="10%">
         <h1
           style={{
             position: "relative",
@@ -63,7 +108,7 @@ const SidePanel = () => {
           }}
           className="thelma1"
         >
-          The Illumin80
+          The Moon Room
         </h1>
       </Flex>
 

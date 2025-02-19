@@ -336,11 +336,7 @@ function BurnGallery({
             ) : null}
           </GridItem>
         </Grid>
-
-        {!isMobileView && currentView === "main" && (
-          // Previous Box component remains the same until the Text component
-          <SidePanel />
-        )}
+        {currentView === "main" && <SidePanel />}
         {/* <Box
             display="flex"
             justifyContent="center"

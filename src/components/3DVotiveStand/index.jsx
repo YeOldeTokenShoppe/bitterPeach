@@ -26,7 +26,7 @@ import { MODEL_SETTINGS } from "./modelConfig";
 // import { getScreenCategory } from "./screenCategories";
 import { Box } from "@chakra-ui/react";
 // import CameraGUI from "./CameraGUI";
-
+import { PerspectiveCamera } from "@react-three/drei";
 import RoomWalls from "./RoomWalls";
 import dynamic from "next/dynamic";
 import styled from "styled-components";
@@ -40,6 +40,7 @@ import MobileModel from "./MobileModel";
 import TickerDisplay from "./TickerDisplay";
 import { db } from "../../utilities/firebaseClient";
 import TourCamera from "./TourCamera";
+import MoonScene from "./MoonLamps";
 
 import CameraGUI from "./CameraGUI";
 import { TooltipContainer } from "../UserTooltip";
@@ -47,7 +48,7 @@ import FloatingCandleViewer from "./CandleInteraction";
 import { collection, query, onSnapshot, orderBy } from "firebase/firestore";
 import HolographicStatue from "./HolographicStatue";
 import FloatingPhoneViewer from "./FloatingPhoneViewer";
-
+import { Computers, Instances } from "./Computers";
 function ThreeDVotiveStand({
   setIsLoading,
   onCameraMove,
@@ -69,7 +70,7 @@ function ThreeDVotiveStand({
 
   const [isHovered, setIsHovered] = useState(false);
   const [isMarkerMovement, setIsMarkerMovement] = useState(false);
-  const [modelScale, setModelScale] = useState(0.2);
+  const [modelScale, setModelScale] = useState(1);
   const [buttonPopupVisible, setButtonPopupVisible] = useState(false);
   // const [clickedButtonName, setClickedButtonName] = useState("");
   const [buttonData, setButtonData] = useState("");
@@ -111,15 +112,17 @@ function ThreeDVotiveStand({
 
   const [isGuiMode, setIsGuiMode] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const screenCategory = getScreenCategory();
-  const cameraSettings = getCameraConfig();
+  const [guiActive, setGuiActive] = useState(false);
+
+  // const screenCategory = getScreenCategory();
+  // const cameraSettings = getCameraConfig();
 
   // Access the camera settings safely
-  const defaultPosition = cameraSettings.position;
-  const defaultTarget = cameraSettings.target;
-  const initialPosition = new THREE.Vector3(...cameraSettings.position);
-  const initialTarget = new THREE.Vector3(...cameraSettings.target);
-  const resetTimeline = gsap.timeline();
+  // const defaultPosition = cameraSettings.position;
+  // const defaultTarget = cameraSettings.target;
+  // const initialPosition = new THREE.Vector3(...cameraSettings.position);
+  // const initialTarget = new THREE.Vector3(...cameraSettings.target);
+  // const resetTimeline = gsap.timeline();
 
   // const pointsOfInterest = [
   //   { position: [-2.8, 6.21, 36.9], lookAt: [-2.4, 9.7, 3] },
@@ -615,7 +618,7 @@ function ThreeDVotiveStand({
 
   return (
     <>
-      {isMobileView ? (
+      {/* {isMobileView ? (
         // Mobile version - much simpler Canvas setup
         <Canvas
           id="three-canvas"
@@ -640,162 +643,180 @@ function ThreeDVotiveStand({
             setTooltipData={setTooltipData}
           />
         </Canvas>
-      ) : (
-        <div
-          className="votiveContainer"
-          style={{
-            position: "relative",
-            top: 0,
-            margin: "auto",
-            height: "100vh",
-            width: "100%",
-            maxWidth: "1400px",
-            pointerEvents: "auto",
-            overflow: "hidden",
+      ) : ( */}
+      <div
+        className="votiveContainer"
+        style={{
+          position: "relative",
+          top: 0,
+          margin: "auto",
+          height: "100vh",
+          width: "100%",
+          maxWidth: "1400px",
+          pointerEvents: "auto",
+          overflow: "hidden",
+        }}
+      >
+        <Canvas
+          id="three-canvas"
+          shadows
+          // camera={{
+          //   fov: cameraSettings.fov,
+          //   near: cameraSettings.near,
+          //   far: cameraSettings.far,
+          //   position: cameraSettings.position,
+          // }}
+          camera={{
+            fov: 40,
+            position: [0, 20, 35],
+            near: 0.1,
+            far: 500,
+          }}
+          onCreated={({ camera, gl }) => {
+            console.log("Canvas created - Setting initial camera position");
+            cameraRef.current = camera;
+            setCamera(camera);
+
+            // Force exact position
+            // camera.position.copy(initialPosition);
+            camera.updateProjectionMatrix();
+
+            console.log(
+              "Camera position after initialization:",
+              camera.position.toArray()
+            );
+
+            // Set up controls with exact target
+            if (controlsRef.current) {
+              // controlsRef.current.target.copy(initialTarget);
+              controlsRef.current.update();
+
+              // Log final state
+              console.log("Camera and controls initialized:", {
+                position: camera.position.toArray(),
+                target: controlsRef.current.target.toArray(),
+                fov: camera.fov,
+              });
+            }
+          }}
+          gl={{
+            alpha: true,
+            antialias: true,
+            logarithmicDepthBuffer: true,
           }}
         >
-          <Canvas
-            id="three-canvas"
-            shadows
-            camera={{
-              fov: cameraSettings.fov,
-              near: cameraSettings.near,
-              far: cameraSettings.far,
-              position: cameraSettings.position,
-            }}
-            onCreated={({ camera, gl }) => {
-              console.log("Canvas created - Setting initial camera position");
-              cameraRef.current = camera;
-              setCamera(camera);
-
-              // Force exact position
-              camera.position.copy(initialPosition);
-              camera.updateProjectionMatrix();
-
-              console.log(
-                "Camera position after initialization:",
-                camera.position.toArray()
-              );
-
-              // Set up controls with exact target
-              if (controlsRef.current) {
-                controlsRef.current.target.copy(initialTarget);
-                controlsRef.current.update();
-
-                // Log final state
-                console.log("Camera and controls initialized:", {
-                  position: camera.position.toArray(),
-                  target: controlsRef.current.target.toArray(),
-                  fov: camera.fov,
-                });
-              }
-            }}
-            gl={{
-              alpha: true,
-              antialias: true,
-              logarithmicDepthBuffer: true,
-            }}
-          >
-            <FlyInEffect cameraRef={cameraRef} duration={4} />
-            {/* <TourCamera points={pointsOfInterest} /> */}
-            {/* <Perf position="top-left" /> */}
-            {/* <RoomWalls db={db} /> */}
-
-            <Suspense fallback={null}>
-              <Model
-                // url="/nyseMiniplus.glb"
-                scale={modelScale}
-                setIsLoading={setIsLoading}
-                controlsRef={controlsRef}
-                modelRef={modelRef}
-                handlePointerMove={handlePointerMove}
-                setCamera={setCamera}
-                setMarkers={setMarkers}
-                markers={markers}
-                userData={userData}
-                moveCamera={moveCamera}
-                setTooltipData={setTooltipData}
-                directionalLightRef={directionalLightRef}
-                ambientLightRef={ambientLightRef}
-                hemisphereLightRef={hemisphereLightRef}
-                showFloatingViewer={showFloatingViewer}
-                setShowFloatingViewer={setShowFloatingViewer}
-                setShowPhoneViewer={setShowPhoneViewer}
-                setSelectedCandle={setSelectedCandle}
-                onCandleSelect={handleCandleSelect}
-                // onButtonClick={handleClick}
-                setShowSpotify={setShowSpotify}
-                isModalOpen={isModalOpen}
-                setIsModalOpen={setIsModalOpen}
-              />
-              {/* use this version only when using gui */}
-
-              <OrbitControls
-                ref={controlsRef}
-                makeDefault
-                target={initialTarget}
-                enableDamping={false}
-                minDistance={cameraSettings.minDistance}
-                maxDistance={cameraSettings.maxDistance}
-                minPolarAngle={cameraSettings.minPolarAngle}
-                maxPolarAngle={cameraSettings.maxPolarAngle}
-                enablePan={cameraSettings.enablePan}
-                enableZoom={cameraSettings.enableZoom}
-                onChange={() => {
-                  // Log any changes to camera position
-                  // if (cameraRef.current && controlsRef.current) {
-                  //   console.log("Camera state changed:", {
-                  //     position: cameraRef.current.position.toArray(),
-                  //     target: controlsRef.current.target.toArray(),
-                  //   });
-                  // }
-                }}
-              />
-
-              <HolographicStatue />
-              <PostProcessingEffects />
-            </Suspense>
-            <TickerDisplay />
-          </Canvas>
-
-          {selectedCandleData && (
-            <FloatingCandleViewer
-              isVisible={showFloatingViewer}
-              onClose={() => {
-                setShowFloatingViewer(false);
-                setSelectedCandleData(null);
-              }}
-              userData={selectedCandleData}
-              key={selectedCandleData?.image}
-            />
-          )}
-          <FloatingPhoneViewer
-            isVisible={showPhoneViewer}
-            onClose={() => setShowPhoneViewer(false)}
-          />
-          {/* <CameraGUI
+          {/* <FlyInEffect
             cameraRef={cameraRef}
             controlsRef={controlsRef}
-            onGuiStart={handleGuiStart}
-            onGuiEnd={handleGuiEnd}
+            duration={4}
           /> */}
-          {activeAnnotation && activeAnnotation.fromScreen ? (
-            <ScreenAnnotation
-              text={activeAnnotation.text}
-              isVisible={isAnnotationVisible}
-              setIsVisible={setIsAnnotationVisible}
-              position={activeAnnotation.position}
-              onReset={() => {
-                const marker3View = markers[2];
-                moveCamera(marker3View, 2);
-                onResetView();
-              }}
-              containerSize={size}
-              camera={camera}
-              screenName={activeAnnotation.screenName}
+          {/* <TourCamera points={pointsOfInterest} /> */}
+          <Perf position="top-left" />
+          {/* <RoomWalls db={db} /> */}
+
+          <Suspense fallback={null}>
+            <Model
+              // url="/nyseMiniplus.glb"
+              scale={modelScale}
+              setIsLoading={setIsLoading}
+              controlsRef={controlsRef}
+              modelRef={modelRef}
+              handlePointerMove={handlePointerMove}
+              setCamera={setCamera}
+              setMarkers={setMarkers}
+              markers={markers}
+              userData={userData}
+              moveCamera={moveCamera}
+              setTooltipData={setTooltipData}
+              directionalLightRef={directionalLightRef}
+              ambientLightRef={ambientLightRef}
+              hemisphereLightRef={hemisphereLightRef}
+              showFloatingViewer={showFloatingViewer}
+              setShowFloatingViewer={setShowFloatingViewer}
+              setShowPhoneViewer={setShowPhoneViewer}
+              setSelectedCandle={setSelectedCandle}
+              onCandleSelect={handleCandleSelect}
+              // onButtonClick={handleClick}
+              setShowSpotify={setShowSpotify}
+              isModalOpen={isModalOpen}
+              setIsModalOpen={setIsModalOpen}
             />
-          ) : (
-            activeAnnotation && (
+            {/* use this version only when using gui */}
+
+            {/* <OrbitControls
+              ref={controlsRef}
+              makeDefault
+              // target={initialTarget}
+              enableDamping={false}
+              // minDistance={cameraSettings.minDistance}
+              // maxDistance={cameraSettings.maxDistance}
+              // minPolarAngle={cameraSettings.minPolarAngle}
+              // maxPolarAngle={cameraSettings.maxPolarAngle}
+              // enablePan={cameraSettings.enablePan}
+              // enableZoom={cameraSettings.enableZoom}
+              onChange={() => {
+                // Log any changes to camera position
+                // if (cameraRef.current && controlsRef.current) {
+                //   console.log("Camera state changed:", {
+                //     position: cameraRef.current.position.toArray(),
+                //     target: controlsRef.current.target.toArray(),
+                //   });
+                // }
+              }}
+            /> */}
+
+            <MoonScene
+              modelRef={modelRef}
+              // onControlsCreated={handleControlsCreated}
+              initialTarget={[0, 14.6, 0]} // Your GUI-determined values
+            />
+            <HolographicStatue />
+            <PostProcessingEffects />
+          </Suspense>
+          {/* <TickerDisplay /> */}
+        </Canvas>
+        {guiActive && (
+          <CameraGUI
+            cameraRef={cameraRef}
+            controlsRef={controlsRef}
+            onGuiStart={() => console.log("GUI started")}
+            onGuiEnd={() => console.log("GUI ended")}
+          />
+        )}
+        {selectedCandleData && (
+          <FloatingCandleViewer
+            isVisible={showFloatingViewer}
+            onClose={() => {
+              setShowFloatingViewer(false);
+              setSelectedCandleData(null);
+            }}
+            userData={selectedCandleData}
+            key={selectedCandleData?.image}
+          />
+        )}
+        <FloatingPhoneViewer
+          isVisible={showPhoneViewer}
+          onClose={() => setShowPhoneViewer(false)}
+        />
+
+        {activeAnnotation && activeAnnotation.fromScreen
+          ? {
+              /* <ScreenAnnotation
+            text={activeAnnotation.text}
+            isVisible={isAnnotationVisible}
+            setIsVisible={setIsAnnotationVisible}
+            position={activeAnnotation.position}
+            onReset={() => {
+              const marker3View = markers[2];
+              moveCamera(marker3View, 2);
+              onResetView();
+            }}
+            containerSize={size}
+            camera={camera}
+            screenName={activeAnnotation.screenName}
+          /> */
+            }
+          : activeAnnotation && (
               <Annotations
                 text={activeAnnotation.text}
                 isResetVisible={isResetVisible}
@@ -811,10 +832,9 @@ function ThreeDVotiveStand({
                 screenCategory={screenCategory}
                 primary
               />
-            )
-          )}
-        </div>
-      )}
+            )}
+      </div>
+      {/* )} */}
     </>
   );
 }

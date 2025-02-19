@@ -16,6 +16,7 @@ import { DirectionalLight, PointLight, DirectionalLightHelper } from "three";
 import gsap from "gsap";
 import DarkClouds from "./Clouds";
 import HolographicStatue from "./HolographicStatue";
+import MoonScene from "./MoonLamps";
 // import { GUI } from "three/addons/libs/lil-gui.module.min.js";
 import { GUI } from "lil-gui";
 import FloatingCandleViewer from "./CandleInteraction";
@@ -56,7 +57,7 @@ function Model({
   isModalOpen,
   setIsModalOpen,
 }) {
-  const gltf = useGLTF("/isometricSceneOnAir3.glb");
+  const gltf = useGLTF("/altar.glb");
   const { actions, mixer } = useAnimations(gltf.animations, modelRef);
   const { camera, size } = useThree();
   const [results, setResults] = useState([]);
@@ -81,14 +82,12 @@ function Model({
 
   const videoRef = useRef(null);
   const cameraPositions = {
-    default: new THREE.Vector3(-4.03, 25.2, 64.78),
-    closeup: new THREE.Vector3(-13.8, 22.8, -16.8),
+    default: new THREE.Vector3(0, 0, 0),
+    closeup: new THREE.Vector3(0, 0, 0),
   };
   const [selectedCandle, setSelectedCandle] = useState(null);
   const textureLoader = new THREE.TextureLoader();
   const [smokePosition, setSmokePosition] = useState([0, 0, 0]);
-
-  // const [currentVideo, setCurrentVideo] = useState("/13.mp4");
 
   // Configuration for screens and videos
   const SCREEN_CONFIG = {
@@ -165,6 +164,8 @@ function Model({
     mouse.y =
       -(event.nativeEvent.offsetY / event.nativeEvent.target.clientHeight) * 2 +
       1;
+
+    // After your model loads, create a compound physics body for it
 
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(mouse, camera);
@@ -282,13 +283,13 @@ function Model({
         hitObject.name.startsWith("Boombox") ||
         (hitObject.parent && hitObject.parent.name.startsWith("Boombox"))
       ) {
-        console.log("Boombox clicked!");
+        // console.log("Boombox clicked!");
         setShowSpotify((prev) => !prev);
         return;
       }
 
       if (hitObject.name.toLowerCase().includes("ball")) {
-        console.log("Ball clicked!");
+        // console.log("Ball clicked!");
         const modal = document.getElementById("magic8Modal");
         if (modal) {
           modal.style.display = "flex";
@@ -303,7 +304,7 @@ function Model({
       }
 
       if (candleParent && candleParent.userData.hasUser) {
-        console.log("Found candle with user data:", candleParent.name);
+        // console.log("Found candle with user data:", candleParent.name);
         const candleData = {
           userName: candleParent.userData.userName,
           message: candleParent.userData.message,
@@ -311,7 +312,7 @@ function Model({
           burnedAmount: candleParent.userData.burnedAmount,
         };
 
-        console.log("Candle data:", candleData);
+        // console.log("Candle data:", candleData);
         onCandleSelect(candleData);
         setShowFloatingViewer(true);
       }
@@ -371,12 +372,12 @@ function Model({
 
       const screen = modelRef.current.getObjectByName(screenName);
       if (!screen) {
-        console.log(`Screen not found: ${screenName}`);
+        // console.log(`Screen not found: ${screenName}`);
         return;
       }
       let texture; // Declare texture here
       let material;
-      console.log(`Initializing ${screenName}`); // Debug initialization
+      // console.log(`Initializing ${screenName}`); // Debug initialization
 
       const currentVideo =
         screenName === "Screen1"
@@ -513,15 +514,15 @@ function Model({
     pointLight2.decay = 2;
     pointLight2.castShadow = true;
     const lightHelper = new THREE.PointLightHelper(pointLight2, 15);
-    scene.add(pointLight1);
-    scene.add(pointLight2);
+    // scene.add(pointLight1);
+    // scene.add(pointLight2);
     // scene.add(lightHelper);
 
-    const ambientLight = new THREE.AmbientLight(0x888888, 1.9);
+    const ambientLight = new THREE.AmbientLight(0x888888, 1.1);
     const hemiLight = new THREE.HemisphereLight(0x7300ff, 0xff0000, 1);
     hemiLight.position.set(32, 33, 89);
 
-    scene.add(ambientLight);
+    // scene.add(ambientLight);
     scene.add(hemiLight);
 
     return () => {
@@ -575,77 +576,78 @@ function Model({
     // const axesHelper = new THREE.AxesHelper(10);
     // scene.add(axesHelper);
 
-    console.log("New model position:", modelRef.current.position);
+    // console.log("New model position:", modelRef.current.position);
   }, [modelRef.current, controlsRef?.current]);
-  useEffect(() => {
-    if (typeof setMarkers === "function") {
-      setMarkers(DEFAULT_MARKERS);
-    }
-  }, [setMarkers]);
 
-  // In Model.jsx
-  useEffect(() => {
-    if (!modelRef.current) return;
+  // useEffect(() => {
+  //   if (typeof setMarkers === "function") {
+  //     setMarkers(DEFAULT_MARKERS);
+  //   }
+  // }, [setMarkers]);
 
-    // setupVideoTextures(modelRef);
+  // // In Model.jsx
+  // useEffect(() => {
+  //   if (!modelRef.current) return;
 
-    const markerRefs = [];
+  //   // setupVideoTextures(modelRef);
 
-    markers.forEach((marker, index) => {
-      try {
-        const markerFace = createMarkerFace(index);
-        markerFace.position.copy(marker.position);
+  //   const markerRefs = [];
 
-        // Ensure these properties are set
-        markerFace.isMarker = true;
-        markerFace.markerIndex = index;
+  //   markers.forEach((marker, index) => {
+  //     try {
+  //       const markerFace = createMarkerFace(index);
+  //       markerFace.position.copy(marker.position);
 
-        if (gltf.scene) {
-          gltf.scene.add(markerFace);
-          markerRefs.push(markerFace);
-        }
-      } catch (error) {
-        console.error("Error adding marker:", error);
-      }
-    });
+  //       // Ensure these properties are set
+  //       markerFace.isMarker = true;
+  //       markerFace.markerIndex = index;
 
-    const updateMarkers = () => {
-      markerRefs.forEach((marker) => {
-        if (marker && camera) {
-          const markerWorldPos = new THREE.Vector3();
-          marker.getWorldPosition(markerWorldPos);
+  //       if (gltf.scene) {
+  //         gltf.scene.add(markerFace);
+  //         markerRefs.push(markerFace);
+  //       }
+  //     } catch (error) {
+  //       console.error("Error adding marker:", error);
+  //     }
+  //   });
 
-          const cameraWorldPos = new THREE.Vector3();
-          camera.getWorldPosition(cameraWorldPos);
+  //   const updateMarkers = () => {
+  //     markerRefs.forEach((marker) => {
+  //       if (marker && camera) {
+  //         const markerWorldPos = new THREE.Vector3();
+  //         marker.getWorldPosition(markerWorldPos);
 
-          const direction = cameraWorldPos.clone().sub(markerWorldPos);
-          const rotationMatrix = new THREE.Matrix4();
-          rotationMatrix.lookAt(
-            direction,
-            new THREE.Vector3(0, 0, 0),
-            new THREE.Vector3(0, 1, 0)
-          );
-          marker.setRotationFromMatrix(rotationMatrix);
-        }
-      });
-    };
+  //         const cameraWorldPos = new THREE.Vector3();
+  //         camera.getWorldPosition(cameraWorldPos);
 
-    let animationId;
-    const animate = () => {
-      updateMarkers();
-      animationId = requestAnimationFrame(animate);
-    };
-    animationId = requestAnimationFrame(animate);
+  //         const direction = cameraWorldPos.clone().sub(markerWorldPos);
+  //         const rotationMatrix = new THREE.Matrix4();
+  //         rotationMatrix.lookAt(
+  //           direction,
+  //           new THREE.Vector3(0, 0, 0),
+  //           new THREE.Vector3(0, 1, 0)
+  //         );
+  //         marker.setRotationFromMatrix(rotationMatrix);
+  //       }
+  //     });
+  //   };
 
-    return () => {
-      cancelAnimationFrame(animationId);
-      markerRefs.forEach((marker) => {
-        if (marker && marker.parent) {
-          marker.parent.remove(marker);
-        }
-      });
-    };
-  }, [markers, camera, gltf.scene]);
+  //   let animationId;
+  //   const animate = () => {
+  //     updateMarkers();
+  //     animationId = requestAnimationFrame(animate);
+  //   };
+  //   animationId = requestAnimationFrame(animate);
+
+  //   return () => {
+  //     cancelAnimationFrame(animationId);
+  //     markerRefs.forEach((marker) => {
+  //       if (marker && marker.parent) {
+  //         marker.parent.remove(marker);
+  //       }
+  //     });
+  //   };
+  // }, [markers, camera, gltf.scene]);
 
   useEffect(() => {
     if (!modelRef.current || !actions) return;
@@ -794,7 +796,7 @@ function Model({
 
   useEffect(() => {
     if (results.length === 0 || !modelRef.current) {
-      console.log("No results or modelRef not ready");
+      // console.log("No results or modelRef not ready");
       return;
     }
 
@@ -965,10 +967,11 @@ function Model({
       />
 
       <DarkClouds />
-
-      <Suspense fallback={null}>
+      <HolographicStatue />
+      {/* <MoonScene modelRef={modelRef} /> */}
+      {/* <Suspense fallback={null}>
         <CoffeeSmoke />
-      </Suspense>
+      </Suspense> */}
     </>
   );
 }

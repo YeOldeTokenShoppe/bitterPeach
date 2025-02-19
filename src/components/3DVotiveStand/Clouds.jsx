@@ -17,19 +17,26 @@ function DarkClouds() {
 
   // Random lightning effect
   useEffect(() => {
-    const interval = setInterval(() => {
+    const lightningFlash = () => {
       setFlash(true);
-      setTimeout(() => setFlash(false), 150 + Math.random() * 300);
-    }, 1200 + Math.random() * 1500);
+      setTimeout(() => setFlash(false), 80 + Math.random() * 200);
+      setTimeout(() => {
+        if (Math.random() > 0.6) {
+          setFlash(true);
+          setTimeout(() => setFlash(false), 50 + Math.random() * 150);
+        }
+      }, 200 + Math.random() * 500);
+    };
 
+    const interval = setInterval(lightningFlash, 1000 + Math.random() * 2000);
     return () => clearInterval(interval);
   }, []);
 
   useFrame((state, delta) => {
     if (flash) {
-      setIntensity(10 + Math.random() * 20);
+      setIntensity(20 + Math.random() * 40); // More dramatic lightning
     } else {
-      setIntensity((prev) => Math.max(0, prev - 1.5));
+      setIntensity((prev) => Math.max(0, prev - 3)); // Faster fade-out
     }
 
     if (lightningRef.current) {
@@ -68,23 +75,22 @@ function DarkClouds() {
       {/* ⚡ Lightning Source */}
       <pointLight
         ref={lightningRef}
-        color={"#ffffff"}
+        color={"#a0c8ff"} // Slight blue tint for realistic lightning
         intensity={0}
-        distance={200}
-        position={[0, 60, 0]}
-        decay={1.5}
+        distance={500} // Extend reach
+        decay={2} // Slower fade-off
+        position={[0, 80, 0]}
       />
-
       <Clouds material={THREE.MeshStandardMaterial}>
         {/* ☁️ Cloud group 1 - center */}
-        <group ref={cloudGroup1} position={[0, 45, 0]}>
+        <group ref={cloudGroup1} position={[0, 36, 0]}>
           <Cloud
             seed={1}
             fade={30}
             speed={0.1}
             growth={4}
             segments={40}
-            volume={6}
+            volume={9}
             opacity={0.7}
             bounds={[10, 2, 10]}
           />
@@ -101,7 +107,7 @@ function DarkClouds() {
         </group>
 
         {/* ☁️ Cloud group 2 - left */}
-        <group ref={cloudGroup2} position={[-20, 40, -10]}>
+        <group ref={cloudGroup2} position={[-20, 35, -10]}>
           <Cloud
             seed={3}
             fade={30}
@@ -115,7 +121,7 @@ function DarkClouds() {
         </group>
 
         {/* ☁️ Cloud group 3 - right */}
-        <group ref={cloudGroup3} position={[20, 42, 10]}>
+        <group ref={cloudGroup3} position={[20, 32, 10]}>
           <Cloud
             seed={4}
             fade={30}
@@ -139,40 +145,6 @@ function DarkClouds() {
             volume={6}
             opacity={0.5}
             bounds={[7, 2, 7]}
-          />
-        </group>
-
-        {/* ☁️ Large cloud base at the bottom */}
-        <group ref={bigCloudGroup} position={[0, -8, 0]}>
-          <Cloud
-            seed={6}
-            fade={40}
-            speed={0.05}
-            growth={2}
-            segments={50}
-            volume={22}
-            opacity={0.6}
-            position={[0, -3, 0]}
-          />
-          <Cloud
-            seed={7}
-            fade={40}
-            speed={0.04}
-            growth={9}
-            volume={24}
-            opacity={0.5}
-            bounds={[28, -3, 28]}
-            position={[0, -3, 0]}
-          />
-          <Cloud
-            seed={8}
-            fade={40}
-            speed={0.03}
-            growth={10}
-            volume={26}
-            opacity={0.4}
-            bounds={[26, -3, 26]}
-            position={[0, -3, 0]}
           />
         </group>
       </Clouds>

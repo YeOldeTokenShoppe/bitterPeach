@@ -1,13 +1,13 @@
 export const CONTROL_SETTINGS = {
   default: {
-    // enableRotate: true,
-    // rotateSpeed: 0.1,
+    enableRotate: true,
+    rotateSpeed: 0.1,
 
     autoRotate: false,
     enableDamping: true,
     dampingFactor: 0.03,
     minDistance: 0, // Single definition
-    maxDistance: 50, // Single definition
+    maxDistance: 100, // Single definition
     minPolarAngle: -Math.PI / 1.6,
     maxPolarAngle: Math.PI / 1.6,
     enablePan: true,

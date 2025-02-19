@@ -3,19 +3,19 @@ import * as THREE from "three";
 // Base camera views
 export const CAMERA_VIEWS = {
   desktop: {
-    position: [35.5, 14.86, 72.4],
-    target: [0, 17, 0],
-    fov: 33,
+    position: [0, 0, 0],
+    target: [0, 0, 0],
+    fov: 35,
   },
   tablet: {
-    position: [35.5, 14.86, 72.4],
-    target: [0, 17, 0],
-    fov: 33,
+    position: [0, 0, 0],
+    target: [0, 0, 0],
+    fov: 35,
   },
   phone: {
-    position: [33.4, 20.41, 55.2], // Closer view for phones
-    target: [0, 17, 0],
-    fov: 45, // Slightly wider FOV for better mobile viewing
+    position: [0, 0, 0],
+    target: [0, 0, 0],
+    fov: 35,
   },
 };
 
@@ -32,43 +32,43 @@ export const CAMERA_SETTINGS = {
   // Phone settings
   "phone-small-landscape": {
     ...CAMERA_VIEWS.phone,
-    maxDistance: 70,
+    maxDistance: 100,
     minDistance: 5,
   },
   "phone-small-portrait": {
     ...CAMERA_VIEWS.phone,
-    maxDistance: 40,
+    maxDistance: 100,
     minDistance: 5,
   },
   // Tablet settings (rest remain the same)
   "tablet-small-landscape": {
     ...CAMERA_VIEWS.tablet,
-    maxDistance: 90,
+    maxDistance: 100,
     minDistance: 5,
   },
   "tablet-small-portrait": {
     ...CAMERA_VIEWS.tablet,
-    maxDistance: 50,
+    maxDistance: 100,
     minDistance: 5,
   },
   "tablet-medium-landscape": {
     ...CAMERA_VIEWS.tablet,
-    maxDistance: 90,
+    maxDistance: 100,
     minDistance: 5,
   },
   "tablet-medium-portrait": {
     ...CAMERA_VIEWS.tablet,
-    maxDistance: 50,
+    maxDistance: 100,
     minDistance: 5,
   },
   "tablet-large-landscape": {
     ...CAMERA_VIEWS.tablet,
-    maxDistance: 90,
+    maxDistance: 100,
     minDistance: 5,
   },
   "tablet-large-portrait": {
     ...CAMERA_VIEWS.tablet,
-    maxDistance: 50,
+    maxDistance: 100,
     minDistance: 5,
   },
   // Desktop settings
