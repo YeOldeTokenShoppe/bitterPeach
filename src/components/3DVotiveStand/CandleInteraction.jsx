@@ -7,12 +7,7 @@ function FloatingCandleViewer({ isVisible, onClose, userData }) {
   if (!isVisible) return null;
 
   const handleClick = (e) => {
-    // Prevent single clicks from propagating
-    e.stopPropagation();
-  };
-
-  const handleDoubleClick = (e) => {
-    // Close viewer on double click
+    // Close viewer when clicking outside the canvas area
     e.stopPropagation();
     onClose();
   };
@@ -32,50 +27,8 @@ function FloatingCandleViewer({ isVisible, onClose, userData }) {
         zIndex: 10,
       }}
       onClick={handleClick}
-      onDoubleClick={handleDoubleClick}
     >
-      {/* Close button */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onClose();
-        }}
-        style={{
-          position: "fixed", // Changed to fixed
-          top: "20%",
-          right: "30%",
-          background: "white",
-          border: "2px solid #333",
-          borderRadius: "50%",
-          width: "44px",
-          height: "44px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          cursor: "pointer",
-          fontSize: "32px", // Increased font size
-          fontWeight: "bold", // Made text bold
-          color: "#000", // Changed to black
-          boxShadow: "0 2px 10px rgba(0,0,0,0.3)",
-          zIndex: 9999, // Ensure it's always on top
-          touchAction: "manipulation",
-          transition: "all 0.2s ease",
-          userSelect: "none", // Prevent text selection
-          lineHeight: "1", // Better vertical centering
-          padding: "0 0 4px 0", // Slight adjustment for the × symbol
-        }}
-        onMouseOver={(e) => {
-          e.currentTarget.style.transform = "scale(1.1)";
-          e.currentTarget.style.background = "white";
-        }}
-        onMouseOut={(e) => {
-          e.currentTarget.style.transform = "scale(1)";
-          e.currentTarget.style.background = "rgba(255, 255, 255, 0.9)";
-        }}
-        aria-label="Close viewer"
-      >
-        ×
-      </button>
+      {/* The top close button has been removed */}
 
       {/* Canvas container */}
       <div
@@ -99,7 +52,7 @@ function FloatingCandleViewer({ isVisible, onClose, userData }) {
           <SceneContent userData={userData} />
         </Canvas>
 
-        {/* Instructions overlay */}
+        {/* Instructions overlay with close button */}
         <div
           style={{
             position: "absolute",
@@ -110,13 +63,44 @@ function FloatingCandleViewer({ isVisible, onClose, userData }) {
             padding: "10px 20px",
             borderRadius: "20px",
             fontSize: "14px",
-            pointerEvents: "none",
+            pointerEvents: "auto",
             zIndex: 12,
             whiteSpace: "nowrap",
+            display: "flex",
+            alignItems: "center",
+            gap: "15px",
           }}
         >
-          Use one finger to rotate • Two fingers to zoom • Double-click or tap ×
-          to close
+          <span>Use one finger to rotate • Two fingers to zoom</span>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
+            style={{
+              background: "rgba(255, 255, 255, 0.7)",
+              border: "1px solid rgba(0, 0, 0, 0.3)",
+              borderRadius: "15px",
+              padding: "5px 12px",
+              cursor: "pointer",
+              fontSize: "14px",
+              fontWeight: "bold",
+              color: "#333",
+              transition: "all 0.2s ease",
+              userSelect: "none",
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.background = "rgba(255, 255, 255, 0.9)";
+              e.currentTarget.style.transform = "scale(1.05)";
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.background = "rgba(255, 255, 255, 0.7)";
+              e.currentTarget.style.transform = "scale(1)";
+            }}
+            aria-label="Close viewer"
+          >
+            Close Viewer
+          </button>
         </div>
       </div>
     </div>
@@ -307,10 +291,6 @@ function SceneContent({ userData }) {
     <>
       <group ref={candleRef} scale={1.5}>
         <primitive object={scene} />
-        {/* <ambientLight intensity={0.3} /> */}
-        {/* <pointLight position={[2, 2, 2]} intensity={0.5} />
-        <pointLight position={[-2, 1, -2]} intensity={0.3} color="#ff7f50" />
-        <pointLight position={[0, 3, 3]} intensity={0.3} color="#ffffff" /> */}
       </group>
       <OrbitControls
         ref={controlsRef}
