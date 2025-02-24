@@ -1,5 +1,11 @@
 "use client";
-import React, { useEffect, useState, useCallback, Suspense } from "react";
+import React, {
+  useEffect,
+  useState,
+  useCallback,
+  Suspense,
+  useRef,
+} from "react";
 import { useRouter } from "next/router";
 import {
   Accordion,
@@ -114,7 +120,33 @@ function BurnGallery({
   const [isTextBoxVisible, setIsTextBoxVisible] = useState(true);
   const [isBuyModalOpen, setIsBuyModalOpen] = useState(false);
   const [isStakeModalOpen, setIsStakeModalOpen] = useState(false);
+  const spawnMonsterFunctionRef = useRef(null);
 
+  const setSpawnFunction = (functionFromMoonScene) => {
+    console.log("BurnGallery: Received spawn function from ThreeDVotiveStand");
+    if (typeof functionFromMoonScene === "function") {
+      spawnMonsterFunctionRef.current = functionFromMoonScene;
+      console.log("BurnGallery: Successfully stored spawn function");
+    } else {
+      console.error(
+        "BurnGallery: Received invalid spawn function type:",
+        typeof functionFromMoonScene
+      );
+    }
+  };
+
+  const handleButtonClick = (key) => {
+    console.log(`BurnGallery: Button clicked with key: ${key}`);
+
+    if (key === "fight") {
+      if (typeof spawnMonsterFunctionRef.current === "function") {
+        console.log("BurnGallery: Starting monster spawn sequence");
+        spawnMonsterFunctionRef.current();
+      } else {
+        console.error("BurnGallery: No valid spawn function available");
+      }
+    }
+  };
   useEffect(() => {
     const checkMobile = () => {
       const mobile = typeof window !== "undefined" && window.innerWidth <= 576;
@@ -222,6 +254,7 @@ function BurnGallery({
           <GridItem width="100%" zIndex={4}>
             {currentView === "main" ? (
               <ThreeDVotiveStand
+                onSpawnReady={setSpawnFunction}
                 isMobileView={isMobileView}
                 onScreenClick={handleScreenClick}
                 setIsLoading={setThreeDSceneLoaded}
@@ -253,7 +286,7 @@ function BurnGallery({
                   maxHeight: "none",
                 }}
               >
-                <Canvas
+                {/* <Canvas
                   camera={{
                     fov: 75,
                     near: 0.1,
@@ -268,7 +301,7 @@ function BurnGallery({
                       scale={7}
                     />
                   </Suspense>
-                </Canvas>
+                </Canvas> */}
                 <Box
                   position="absolute"
                   bottom="10%"
@@ -336,7 +369,12 @@ function BurnGallery({
             ) : null}
           </GridItem>
         </Grid>
-        {currentView === "main" && <SidePanel />}
+
+        {!isMobileView && currentView === "main" && (
+          // Previous Box component remains the same until the Text component
+
+          <SidePanel onButtonClick={handleButtonClick} />
+        )}
         {/* <Box
             display="flex"
             justifyContent="center"

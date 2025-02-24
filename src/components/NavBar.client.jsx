@@ -254,14 +254,14 @@ const NavBar = () => {
     },
     {
       date: "04",
-      title: "Peril and Piety",
-      emoji: "🕯️",
+      title: "Moon Room",
+      emoji: "🌜",
 
       link: "./gallery",
     },
     {
       date: "05",
-      title: "Communion",
+      title: "Gangster's Paradise",
       emoji: "🎠",
       link: "./communion",
     },

@@ -5,7 +5,7 @@ import Communion3 from "../components/Communion3";
 import Loader from "../components/Loader";
 import MusicPlayer from "../components/MusicPlayer2";
 import Draggable from "react-draggable";
-import ScreenModal from "../components/3DVotiveStand/ScreenModal";
+
 import { X } from "lucide-react";
 
 import Header3 from "../components/Header3";

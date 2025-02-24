@@ -307,10 +307,10 @@ function SceneContent({ userData }) {
     <>
       <group ref={candleRef} scale={1.5}>
         <primitive object={scene} />
-        <ambientLight intensity={0.8} />
-        <pointLight position={[2, 2, 2]} intensity={0.5} />
+        {/* <ambientLight intensity={0.3} /> */}
+        {/* <pointLight position={[2, 2, 2]} intensity={0.5} />
         <pointLight position={[-2, 1, -2]} intensity={0.3} color="#ff7f50" />
-        <pointLight position={[0, 3, 3]} intensity={0.3} color="#ffffff" />
+        <pointLight position={[0, 3, 3]} intensity={0.3} color="#ffffff" /> */}
       </group>
       <OrbitControls
         ref={controlsRef}

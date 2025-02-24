@@ -30,6 +30,7 @@ import { Theme } from "@chakra-ui/react";
 import { ClerkProvider } from "@clerk/nextjs";
 import { shadesOfPurple } from "@clerk/themes";
 import { useEffect } from "react";
+import AdBlocker from "../components/AdBlocker";
 
 type MyAppProps = AppProps & {
   Component: AppProps["Component"] & {
@@ -73,6 +74,7 @@ function MyApp({ Component, pageProps }: MyAppProps) {
 
   return (
     <>
+      <AdBlocker />
       <ClerkProvider>
         <ThirdwebProvider>
           <ChakraProvider theme={special}>

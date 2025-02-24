@@ -1,9 +1,6 @@
 // pages/thesis.js
 import React, { useState, useEffect } from "react";
 import { Canvas } from "@react-three/fiber";
-import MoonLampsScene from "../components/3DVotiveStand/MoonLamps";
-
-import ShelfStand from "../components/3DVotiveStand/CandleInstances";
 
 export default function TestPage() {
   return (
@@ -24,7 +21,7 @@ export default function TestPage() {
           zIndex: "100",
         }}
       >
-        <MoonLampsScene />
+        {/* <MoonLampsScene /> */}
         {/* <Canvas
           camera={{ position: [0, 5, 10], fov: 75 }}
           style={{ height: "100vh" }}

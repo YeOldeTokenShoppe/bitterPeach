@@ -1,5 +1,4 @@
-// AnimatedRadioButtons.js
-import React, { useRef, useCallback } from "react";
+import React, { useRef, useState } from "react";
 import gsap from "gsap";
 import styles from "../../../styles/RadioButtons.module.css";
 import {
@@ -12,21 +11,24 @@ import {
 import { Stake } from "./Stake";
 import Buy from "./Buy";
 
-const AnimatedRadioButtons = () => {
+const AnimatedRadioButtons = ({ onButtonClick }) => {
   const containerRef = useRef(null);
-  const [activeModal, setActiveModal] = React.useState(null);
-  const previousBtnRef = useRef(null);
+  const [activeModal, setActiveModal] = useState(null);
+  const [monstersActive, setMonstersActive] = useState(false);
 
   const getNodes = (button) => {
     const container = button.closest(`.${styles["cyber-radio-btn-group"]}`);
     return Array.from(container.querySelectorAll("rect"));
   };
 
-  const createGlitchEffect = (nodes, isActive) => {
-    // Stop any existing animations
+  const createGlitchEffect = (
+    nodes,
+    isActive,
+    color = "#5dc975",
+    activeColor = "#76fa93"
+  ) => {
     gsap.killTweensOf(nodes);
 
-    // Initial position animation
     gsap.to(nodes, {
       duration: 0.4,
       ease: "steps(10)",
@@ -35,13 +37,12 @@ const AnimatedRadioButtons = () => {
       overwrite: true,
     });
 
-    // Color animation
     if (isActive) {
       gsap.fromTo(
         nodes,
-        { fill: "#5dc975" },
+        { fill: color },
         {
-          fill: "#76fa93",
+          fill: activeColor,
           duration: 0.1,
           ease: "bounce.out",
           repeat: -1,
@@ -50,14 +51,27 @@ const AnimatedRadioButtons = () => {
     }
   };
 
-  const handleHover = (e, isHovering) => {
+  const handleHover = (e, isHovering, key) => {
     const button = e.currentTarget;
     const nodes = getNodes(button);
+
+    if (key === "fight" && monstersActive) {
+      return; // Prevents overriding the red effect after activation
+    }
+
     createGlitchEffect(nodes, isHovering);
   };
 
   const handleClick = (key) => {
-    setActiveModal(key);
+    console.log("🔥 Button clicked:", key);
+
+    if (key === "fight") {
+      setMonstersActive(true);
+    }
+
+    if (typeof onButtonClick === "function") {
+      onButtonClick(key);
+    }
   };
 
   const handleCloseModal = () => {
@@ -66,8 +80,9 @@ const AnimatedRadioButtons = () => {
 
   const BUTTONS = [
     { text: "Buy", key: "buy" },
-    { text: "Stake/Claim", key: "stake" },
-    { text: "Illumin8", key: "illumin8" },
+    { text: "Stake", key: "stake" },
+    { text: monstersActive ? "Monster Mode" : "Fight", key: "fight" },
+    { text: "Light", key: "illumin8" },
   ];
 
   const renderModalContent = () => {
@@ -81,6 +96,22 @@ const AnimatedRadioButtons = () => {
     }
   };
 
+  const renderSvgRects = (key) => {
+    const isFightActive = key === "fight" && monstersActive;
+    const fillColor = isFightActive ? "#ff3333" : "#5dc975";
+
+    return [...Array(10)].map((_, i) => (
+      <rect
+        key={`rect-${i}`}
+        x={isFightActive ? "0" : "-101%"} // Keep visible if Fight is active
+        y={i * 5}
+        width="100%"
+        height="5"
+        fill={fillColor}
+      />
+    ));
+  };
+
   return (
     <div className="flex flex-col items-center">
       <div
@@ -90,11 +121,22 @@ const AnimatedRadioButtons = () => {
         {BUTTONS.map(({ text, key }) => (
           <div className={`${styles["cyber-radio-btn-group"]} w-32`} key={key}>
             <button
-              className={styles["cyber-label"]}
-              onMouseEnter={(e) => handleHover(e, true)}
-              onMouseLeave={(e) => handleHover(e, false)}
+              className={`${styles["cyber-label"]} ${
+                key === "fight" && monstersActive ? styles["fight-active"] : ""
+              } ${
+                key === "fight" && monstersActive ? styles["fight-hover"] : ""
+              }`}
+              onMouseEnter={(e) => handleHover(e, true, key)}
+              onMouseLeave={(e) => handleHover(e, false, key)}
               onClick={() => handleClick(key)}
-              style={{ width: "100%" }}
+              // style={{
+              //   width: "100%",
+              //   color: key === "fight" && monstersActive ? "#fff" : "inherit",
+              //   backgroundColor:
+              //     key === "fight" && monstersActive ? "#ff3333" : "transparent",
+              //   transition: "background-color 0.3s ease",
+              //   transform: "skewX(-15deg)", // Keep skew effect on Fight button
+              // }}
             >
               <span className={styles["cyber-span"]}>{text}</span>
               <svg
@@ -104,23 +146,13 @@ const AnimatedRadioButtons = () => {
                 xmlns="http://www.w3.org/2000/svg"
                 preserveAspectRatio="none"
               >
-                {[...Array(10)].map((_, i) => (
-                  <rect
-                    key={`rect-${i}`}
-                    x="-101%"
-                    y={i * 5}
-                    width="100%"
-                    height="5"
-                    fill="#5dc975"
-                  />
-                ))}
+                {renderSvgRects(key)}
               </svg>
             </button>
           </div>
         ))}
       </div>
 
-      {/* Single Modal for all content */}
       <Modal
         isOpen={activeModal !== null}
         onClose={handleCloseModal}

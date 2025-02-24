@@ -30,7 +30,7 @@ function HolographicStatue() {
         vec4 modelPosition = modelMatrix * vec4(position, 1.0);
 
         float glitchTime = uTime - modelPosition.y;
-        float glitchStrength = sin(glitchTime) + sin(glitchTime * 3.45) + sin(glitchTime * 8.76);
+        float glitchStrength = sin(glitchTime) + sin(glitchTime * 3.45) + sin(glitchTime * 8.76) * 1.1;
         glitchStrength /= 3.0;
         glitchStrength = smoothstep(0.9, 1.0, glitchStrength);
         glitchStrength *= 0.1;
@@ -100,7 +100,7 @@ function HolographicStatue() {
 
       // Create an anchor group with initial position
       const anchorGroup = new THREE.Group();
-      const basePosition = [0.3, 16, -1.2]; // Store base position
+      const basePosition = [0.3, 7, -1.2]; // Store base position
       anchorGroup.position.set(...basePosition);
       initialY.current = basePosition[1]; // Set initialY to match the base y-position
       // Create a rotation group
@@ -124,36 +124,36 @@ function HolographicStatue() {
       statue.position.sub(center);
 
       // Your existing material application code
-      const goldHolographicMaterial = new THREE.ShaderMaterial({
-        uniforms: {
-          uTime: { value: 0 },
-          uColor: { value: new THREE.Color(0xffd700) },
-        },
-        vertexShader: holographicMaterial.vertexShader,
-        fragmentShader: holographicMaterial.fragmentShader,
-        transparent: true,
-        blending: THREE.NormalBlending, // 🟢 Try Normal Blending instead of Additive
-        depthWrite: false,
-        depthTest: true,
-        side: THREE.DoubleSide,
-      });
+      // const goldHolographicMaterial = new THREE.ShaderMaterial({
+      //   uniforms: {
+      //     uTime: { value: 0 },
+      //     uColor: { value: new THREE.Color(0xffd700) },
+      //   },
+      //   vertexShader: holographicMaterial.vertexShader,
+      //   fragmentShader: holographicMaterial.fragmentShader,
+      //   transparent: true,
+      //   blending: THREE.NormalBlending, // 🟢 Try Normal Blending instead of Additive
+      //   depthWrite: false,
+      //   depthTest: true,
+      //   side: THREE.DoubleSide,
+      // });
 
       statue.traverse((child) => {
         if (child.isMesh) {
-          if (child.name.toLowerCase().includes("halo")) {
-            console.log("Separating Halo mesh:", child.name);
+          // if (child.name.toLowerCase().includes("halo")) {
+          //   console.log("Separating Halo mesh:", child.name);
 
-            // ✅ Assign a new material that keeps its original Blender colors
-            child.material = new THREE.MeshStandardMaterial({
-              color: child.material.color, // Keep Blender’s original color
-              emissive: child.material.color, // Make it glow with its color
-              emissiveIntensity: 2.5, // Increase emissiveness
-              metalness: 0.9, // Make it metallic
-              roughness: 0.1, // Reduce roughness for a shinier look
-            });
+          //   // ✅ Assign a new material that keeps its original Blender colors
+          //   child.material = new THREE.MeshStandardMaterial({
+          //     color: child.material.color, // Keep Blender’s original color
+          //     emissive: child.material.color, // Make it glow with its color
+          //     emissiveIntensity: 2.5, // Increase emissiveness
+          //     metalness: 0.9, // Make it metallic
+          //     roughness: 0.1, // Reduce roughness for a shinier look
+          //   });
 
-            return; // ✅ Skip applying the holographic shader to the halo
-          }
+          //   return; // ✅ Skip applying the holographic shader to the halo
+          // }
 
           // ✅ Apply holographic effect to everything else
           child.material = holographicMaterial;
