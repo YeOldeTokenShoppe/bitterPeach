@@ -15,12 +15,32 @@ const lightningContext = createContext();
 
 function DarkClouds() {
   const shake = useRef(); // For camera shake effect if you use CameraShake
-  const [flash] = useState(
+
+  // Create multiple independent flash generators for distributed lightning
+  const [flash1] = useState(
     () =>
       new random.FlashGen({
-        count: 10,
+        count: 6,
         minDuration: 40,
         maxDuration: 200,
+      })
+  );
+
+  const [flash2] = useState(
+    () =>
+      new random.FlashGen({
+        count: 4,
+        minDuration: 60,
+        maxDuration: 180,
+      })
+  );
+
+  const [flash3] = useState(
+    () =>
+      new random.FlashGen({
+        count: 5,
+        minDuration: 50,
+        maxDuration: 150,
       })
   );
 
@@ -39,35 +59,85 @@ function DarkClouds() {
   useFrame((state, delta) => {
     const time = state.clock.elapsedTime;
 
-    // Update lightning with flash generator from maath
-    const impulse = flash.update(time, delta);
+    // Update lightning with independent flash generators
+    const impulse1 = flash1.update(time, delta);
+    const impulse2 = flash2.update(time, delta);
+    const impulse3 = flash3.update(time, delta);
 
-    // Apply intensity to all lightning sources with variation
-    if (lightningRef1.current) lightningRef1.current.intensity = impulse * 150;
-    if (lightningRef2.current) lightningRef2.current.intensity = impulse * 80;
-    if (lightningRef3.current) lightningRef3.current.intensity = impulse * 100;
+    // Apply intensity to lightning sources with different flash generators
+    if (lightningRef1.current) lightningRef1.current.intensity = impulse1 * 150;
+    if (lightningRef2.current) lightningRef2.current.intensity = impulse2 * 80;
+    if (lightningRef3.current) lightningRef3.current.intensity = impulse3 * 100;
 
-    // Trigger camera shake if available
-    if (impulse === 1 && shake?.current) {
-      shake.current.setIntensity(0.8);
+    // Trigger camera shake only on major lightning events
+    const maxImpulse = Math.max(impulse1, impulse2, impulse3);
+    if (maxImpulse === 1 && shake?.current) {
+      shake.current.setIntensity(0.6);
     }
 
-    // Apply emissive glow to all cloud groups based on lightning
-    [cloudGroup1, cloudGroup2, cloudGroup3, cloudGroup4, bigCloudGroup].forEach(
-      (group) => {
-        if (group?.current) {
-          group.current.children.forEach((cloud) => {
-            if (cloud.material) {
-              // More dramatic blue-white emissive color
-              cloud.material.emissive = new THREE.Color(
-                `rgb(${impulse * 150}, ${impulse * 180}, ${impulse * 255})`
-              );
-              cloud.material.needsUpdate = true;
-            }
-          });
+    // Apply emissive glow to cloud groups based on different lightning sources
+    if (cloudGroup1?.current) {
+      cloudGroup1.current.children.forEach((cloud) => {
+        if (cloud.material) {
+          cloud.material.emissive = new THREE.Color(
+            `rgb(${impulse1 * 150}, ${impulse1 * 180}, ${impulse1 * 255})`
+          );
+          cloud.material.needsUpdate = true;
         }
-      }
-    );
+      });
+    }
+
+    if (cloudGroup2?.current) {
+      cloudGroup2.current.children.forEach((cloud) => {
+        if (cloud.material) {
+          cloud.material.emissive = new THREE.Color(
+            `rgb(${impulse2 * 150}, ${impulse2 * 180}, ${impulse2 * 255})`
+          );
+          cloud.material.needsUpdate = true;
+        }
+      });
+    }
+
+    if (cloudGroup3?.current) {
+      cloudGroup3.current.children.forEach((cloud) => {
+        if (cloud.material) {
+          cloud.material.emissive = new THREE.Color(
+            `rgb(${impulse3 * 150}, ${impulse3 * 180}, ${impulse3 * 255})`
+          );
+          cloud.material.needsUpdate = true;
+        }
+      });
+    }
+
+    if (cloudGroup4?.current) {
+      cloudGroup4.current.children.forEach((cloud) => {
+        if (cloud.material) {
+          // Mix of impulse1 and impulse3
+          const mixedImpulse = (impulse1 + impulse3) / 2;
+          cloud.material.emissive = new THREE.Color(
+            `rgb(${mixedImpulse * 150}, ${mixedImpulse * 180}, ${
+              mixedImpulse * 255
+            })`
+          );
+          cloud.material.needsUpdate = true;
+        }
+      });
+    }
+
+    if (bigCloudGroup?.current) {
+      bigCloudGroup.current.children.forEach((cloud) => {
+        if (cloud.material) {
+          // Mix of all impulses with emphasis on impulse2
+          const mixedImpulse = impulse1 * 0.3 + impulse2 * 0.5 + impulse3 * 0.2;
+          cloud.material.emissive = new THREE.Color(
+            `rgb(${mixedImpulse * 150}, ${mixedImpulse * 180}, ${
+              mixedImpulse * 255
+            })`
+          );
+          cloud.material.needsUpdate = true;
+        }
+      });
+    }
 
     // Subtle cloud movement
     if (cloudGroup1.current) cloudGroup1.current.position.x += 0.01 * delta;
@@ -81,23 +151,43 @@ function DarkClouds() {
     }
   });
 
-  // Manually trigger lightning bursts randomly
+  // Manually trigger lightning bursts randomly with different probabilities
   useEffect(() => {
     const triggerRandomLightning = () => {
-      if (Math.random() > 0.3) {
-        flash.burst();
+      // Distribute lightning across different flash generators
+      if (Math.random() > 0.7) {
+        flash1.burst();
       }
+
+      // Delay second flash generator slightly
+      const timer1 = setTimeout(() => {
+        if (Math.random() > 0.6) {
+          flash2.burst();
+        }
+      }, Math.random() * 300);
+
+      // Delay third flash generator more
+      const timer2 = setTimeout(() => {
+        if (Math.random() > 0.65) {
+          flash3.burst();
+        }
+      }, Math.random() * 500);
+
+      return () => {
+        clearTimeout(timer1);
+        clearTimeout(timer2);
+      };
     };
 
     const interval = setInterval(
       triggerRandomLightning,
-      800 + Math.random() * 3000
+      1200 + Math.random() * 3500
     );
     return () => clearInterval(interval);
-  }, [flash]);
+  }, [flash1, flash2, flash3]);
 
   return (
-    <lightningContext.Provider value={{ flash, shake }}>
+    <lightningContext.Provider value={{ flash1, flash2, flash3, shake }}>
       <group>
         {/* Multiple lightning sources for more dramatic effect */}
         <pointLight
@@ -218,10 +308,10 @@ function DarkClouds() {
 // Component for cloud with internal lightning - similar to Puffycloud from example
 function PuffyLightning({ position = [0, 0, 0] }) {
   const light = useRef();
-  const { flash } = useContext(lightningContext);
+  const { flash2 } = useContext(lightningContext);
 
   useFrame((state, delta) => {
-    const impulse = flash.update(state.clock.elapsedTime, delta);
+    const impulse = flash2.update(state.clock.elapsedTime, delta);
     if (light.current) {
       light.current.intensity = impulse * 80;
     }

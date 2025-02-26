@@ -1,6 +1,6 @@
 // pages/thesis.js
 import React, { useState } from "react";
-import { compressAndUploadModel } from "../utilities/modelCompression";
+import { compressAndUploadModel } from "../utilities/compressAndUploadModel";
 
 export default function AdminPage() {
   const [isUploading, setIsUploading] = useState(false);

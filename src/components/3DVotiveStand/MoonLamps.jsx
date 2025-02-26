@@ -29,10 +29,10 @@ const MoonScene = ({
   // Constants for physics tuning - match original values
   const MOON_FRICTION = 0.1;
   const MOON_RESTITUTION = 0.7;
-  const GROUND_FRICTION = 1.0;
-  const GROUND_RESTITUTION = 1.0;
+  const GROUND_FRICTION = 0.1; // Reduced from 1.0 to allow objects to slide more
+  const GROUND_RESTITUTION = 1; // Adjusted from 1.0 for more controlled bouncing
   const MODEL_FRICTION = 0.1;
-  const MODEL_RESTITUTION = 0.3;
+  const MODEL_RESTITUTION = 0.7;
   const roomRadius = 28;
   const roomHeight = 80;
   const floorRadius = 30;
@@ -505,7 +505,7 @@ const MoonScene = ({
     moonTransform.setRotation(q);
 
     // Reduce mass for lighter, bouncier feel
-    const mass = 0.3; // Lighter mass (was 0.5)
+    const mass = 0.5; // Lighter mass (was 0.3)
     const localInertia = new AmmoLib.btVector3(0, 0, 0);
     moonShape.calculateLocalInertia(mass, localInertia);
 
@@ -519,27 +519,27 @@ const MoonScene = ({
     const moonBody = new AmmoLib.btRigidBody(rbInfo);
 
     // Increase restitution for more bounce and reduce friction
-    moonBody.setFriction(0.05); // Lower friction (was 0.1)
-    moonBody.setRestitution(0.8); // Higher restitution (was 0.5)
+    moonBody.setFriction(0.1); // Lower friction (was 0.1)
+    moonBody.setRestitution(0.7); // Slightly lower restitution for less aggressive bouncing (was 0.8)
 
     // Add damping to make movement more fluid
-    moonBody.setDamping(0.1, 0.1); // Linear and angular damping
+    moonBody.setDamping(0, 0.05); // Small linear damping (0), light angular damping (0.05) to limit spinning
 
     // Add some random motion as in original
     moonBody.setLinearVelocity(
       new AmmoLib.btVector3(
-        THREE.MathUtils.randFloat(-1, 1),
-        -2, // Gentler initial downward velocity (was -3)
-        THREE.MathUtils.randFloat(-1, 1)
+        THREE.MathUtils.randFloat(-0.5, 0.5),
+        -1, // Gentler initial downward velocity (was -2)
+        THREE.MathUtils.randFloat(-0.5, 0.5)
       )
     );
 
     // Add angular velocity for rotation
     moonBody.setAngularVelocity(
       new AmmoLib.btVector3(
-        THREE.MathUtils.randFloat(-1, 1),
-        THREE.MathUtils.randFloat(-1, 1),
-        THREE.MathUtils.randFloat(-1, 1)
+        THREE.MathUtils.randFloat(-0.5, 0.5),
+        THREE.MathUtils.randFloat(-0.5, 0.5),
+        THREE.MathUtils.randFloat(-0.5, 0.5)
       )
     );
 
@@ -814,7 +814,7 @@ const MoonScene = ({
       new AmmoLib.btVector3(spawnPosition.x, spawnPosition.y, spawnPosition.z)
     );
 
-    const mass = 10; // Original mass
+    const mass = 3; // Original mass
     const localInertia = new AmmoLib.btVector3(0, 0, 0);
     projectileShape.calculateLocalInertia(mass, localInertia);
 
@@ -828,8 +828,8 @@ const MoonScene = ({
     const projectileBody = new AmmoLib.btRigidBody(rbInfo);
 
     // Match original physics properties
-    projectileBody.setFriction(0.5);
-    projectileBody.setRestitution(0.3);
+    projectileBody.setFriction(0.8);
+    projectileBody.setRestitution(0.1);
 
     // Add to physics world normally - we'll handle Object_3 collision differently
     physicsRef.current.world.addRigidBody(
@@ -839,7 +839,7 @@ const MoonScene = ({
     );
 
     // Apply velocity with original force
-    const force = 85;
+    const force = 60;
     const velocity = new AmmoLib.btVector3(
       direction.x * force,
       direction.y * force,

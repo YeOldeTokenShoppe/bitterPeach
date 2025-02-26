@@ -323,7 +323,11 @@ function Model({
       }
 
       if (candleParent?.userData?.hasUser) {
-        onCandleSelect({ ...candleParent.userData });
+        onCandleSelect({
+          ...candleParent.userData,
+          candleId: candleParent.name,
+          candleTimestamp: Date.now(),
+        });
       }
     }
   };

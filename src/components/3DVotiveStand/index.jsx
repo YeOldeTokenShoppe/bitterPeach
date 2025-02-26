@@ -124,6 +124,40 @@ function ThreeDVotiveStand({
     }
   }, [isModelLoaded, setIsLoading]);
 
+  // Log only once when component mounts
+  useEffect(() => {
+    console.log(
+      "ThreeDVotiveStand: Component mounted with onSpawnReady available:",
+      !!onSpawnReady
+    );
+  }, []); // Empty dependency array
+
+  // Handle window resize and maintain consistent pixel ratio
+  useEffect(() => {
+    const handleResize = () => {
+      if (rendererRef.current) {
+        rendererRef.current.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+        // Update size state for responsive adjustments
+        setSize({
+          width: window.innerWidth,
+          height: window.innerHeight,
+        });
+      }
+    };
+
+    // Set initial size
+    handleResize();
+
+    // Add event listener
+    window.addEventListener("resize", handleResize);
+
+    // Cleanup
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
+
   const handleCandleSelect = (candleData) => {
     setSelectedCandleData(candleData);
     setShowFloatingViewer(true);
@@ -153,14 +187,6 @@ function ThreeDVotiveStand({
     }
   };
 
-  // Log only once when component mounts
-  useEffect(() => {
-    console.log(
-      "ThreeDVotiveStand: Component mounted with onSpawnReady available:",
-      !!onSpawnReady
-    );
-  }, []); // Empty dependency array
-
   return (
     <>
       <div
@@ -177,7 +203,7 @@ function ThreeDVotiveStand({
         }}
       >
         <Canvas
-          dpr={[1, 2]} // Limit pixel ratio for better performance
+          dpr={Math.min(window.devicePixelRatio, 2)} // Explicitly limit pixel ratio to 2
           performance={{ min: 0.5 }} // Allow ThreeJS to reduce quality for performance
           camera={{
             fov: 45,
@@ -185,8 +211,17 @@ function ThreeDVotiveStand({
             near: 0.03,
             far: 150,
           }}
-          onCreated={({ camera }) => {
+          onCreated={({ gl, camera }) => {
             cameraRef.current = camera;
+            rendererRef.current = gl;
+
+            // Explicitly set pixel ratio on the renderer
+            gl.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+            // Additional renderer settings for consistency
+            gl.outputColorSpace = THREE.SRGBColorSpace;
+            gl.toneMapping = THREE.ACESFilmicToneMapping;
+            gl.toneMappingExposure = 1;
           }}
         >
           {/* Automatically adjust detail level based on FPS */}
@@ -239,7 +274,9 @@ function ThreeDVotiveStand({
         )} */}
         {showFloatingViewer && selectedCandleData && (
           <FloatingCandleViewer
-            key={selectedCandleData.userName + selectedCandleData.image}
+            key={`candle-viewer-${selectedCandleData.candleId || ""}-${
+              selectedCandleData.candleTimestamp || Date.now()
+            }`}
             isVisible={showFloatingViewer}
             userData={selectedCandleData}
             onClose={() => {

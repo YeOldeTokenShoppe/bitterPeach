@@ -6,6 +6,9 @@ import * as THREE from "three";
 function FloatingCandleViewer({ isVisible, onClose, userData }) {
   if (!isVisible) return null;
 
+  // Add debugging to log the userData
+  console.log("FloatingCandleViewer received userData:", userData);
+
   const handleClick = (e) => {
     // Close viewer when clicking outside the canvas area
     e.stopPropagation();
@@ -188,13 +191,12 @@ function SceneContent({ userData }) {
     const fontFamily = "serif";
     context.font = `bold 48px ${fontFamily}`;
 
-    const formattedText = text.replace(
-      "{userName}",
-      userData.userName || "Friend"
-    );
+    // Use the text directly without replacement
+    const formattedText = text;
 
-    const maxWidth = 800;
-    const lineHeight = 60;
+    // Reduce maxWidth for shorter lines that are more readable on the curved label
+    const maxWidth = 600; // Reduced from 800 to create shorter lines
+    const lineHeight = 70; // Increased from 60 to add more space between lines
     const words = formattedText.split(" ");
     let lines = [];
     let currentLine = "";
@@ -250,14 +252,48 @@ function SceneContent({ userData }) {
     });
 
     if (labelMesh) {
-      // Create a more personalized message
-      const message =
-        userData.message && userData.message.trim() !== ""
-          ? userData.message
-          : "may the light of Our Lady of Perpetual Profit illuminate the path to prosperity.";
+      // Define default images to check against
+      const DEFAULT_IMAGES = [
+        "/Triumph.jpg",
+        "/vsClown.jpg",
+        "/vsZombie.webp",
+        "/vsSkeleton.webp",
+      ];
 
-      const dynamicText = `On behalf of {userName},\n\n${message}`;
+      // Check if this is a default candle
+      const isDefaultCandle =
+        userData.isDefault ||
+        (userData.image &&
+          DEFAULT_IMAGES.some((img) => userData.image.includes(img)));
 
+      // Create appropriate message based on whether it's a default or user candle
+      let message, userName;
+
+      if (isDefaultCandle) {
+        // For default candles
+        userName = "Anonymous";
+        message = "Stake RL80 to dedicate a votive candle.";
+      } else {
+        // For user candles with custom images
+        userName = userData.userName || "Friend";
+        message =
+          userData.message && userData.message.trim() !== ""
+            ? userData.message
+            : "may the light of Our Lady of Perpetual Profit illuminate the path to prosperity.";
+      }
+
+      console.log("Applying text to label:", {
+        userName,
+        message,
+        isDefaultCandle,
+      });
+
+      // Different text format for default vs user candles
+      const dynamicText = isDefaultCandle
+        ? message
+        : `On behalf of ${userName},\n\n${message}`;
+
+      // Create texture with the text (without using {userName} placeholder)
       const texture = createDynamicTextTexture(dynamicText, userData);
 
       const material = new THREE.MeshStandardMaterial({
@@ -357,12 +393,92 @@ function SceneContent({ userData }) {
       }
     }
 
+    // Add debugging to see what objects are in the scene
+    console.log("User data received:", userData);
+
+    // Define all default images to check against
+    const DEFAULT_IMAGES = [
+      "/Triumph.jpg",
+      "/vsClown.jpg",
+      "/vsZombie.webp",
+      "/vsSkeleton.webp",
+    ];
+
+    // More thorough approach to find and control flame visibility
+    // Check if the image is any of the default images
+    const isDefaultImage =
+      userData?.image &&
+      DEFAULT_IMAGES.some((defaultImg) => userData.image.includes(defaultImg));
+
+    const hasCustomUserImage = userData && userData.image && !isDefaultImage;
+
+    console.log("Has user image:", userData?.image);
+    console.log("Is default image:", isDefaultImage);
+    console.log("Has custom user image:", hasCustomUserImage);
+
+    // Disable flame animation if no custom user image
+    if (!hasCustomUserImage && mixerRef.current) {
+      mixerRef.current.stopAllAction();
+    }
+
+    // More aggressive approach to find and hide flame objects
+    const hideFlameObjects = (object) => {
+      // Check if this object is related to flame by name
+      if (
+        object.name.toLowerCase().includes("flame") ||
+        object.name.toLowerCase().includes("fire") ||
+        object.name.toLowerCase().includes("light")
+      ) {
+        console.log(`Found flame-related object: ${object.name}`);
+        object.visible = hasCustomUserImage;
+        console.log(`Set ${object.name} visibility to ${hasCustomUserImage}`);
+      }
+
+      // Recursively check children
+      if (object.children && object.children.length > 0) {
+        object.children.forEach((child) => hideFlameObjects(child));
+      }
+    };
+
+    // Apply the flame hiding to the entire scene
+    hideFlameObjects(scene);
+
+    // Also try to find and disable any emissive materials that might be related to flames
+    scene.traverse((object) => {
+      if (object.material) {
+        if (
+          object.name.toLowerCase().includes("flame") ||
+          object.name.toLowerCase().includes("fire") ||
+          object.name.toLowerCase().includes("light")
+        ) {
+          if (object.material.emissive) {
+            console.log(`Found emissive material on ${object.name}`);
+            if (!hasCustomUserImage) {
+              // Save original emissive color if needed later
+              if (!object.userData.originalEmissive) {
+                object.userData.originalEmissive =
+                  object.material.emissive.clone();
+              }
+              // Set emissive to black (no emission) if no custom user image
+              object.material.emissive.set(0x000000);
+              object.material.emissiveIntensity = 0;
+            } else if (object.userData.originalEmissive) {
+              // Restore original emissive if custom user image exists
+              object.material.emissive.copy(object.userData.originalEmissive);
+              object.material.emissiveIntensity = 1;
+            }
+          }
+        }
+      }
+    });
+
+    // Original flame visibility code (keep this as well)
     scene.traverse((child) => {
-      if (child.name.startsWith("FLAME")) {
-        const isDefaultCandle =
-          userData?.userName === "Triumph" &&
-          userData?.message === "In memory of triumph";
-        child.visible = !isDefaultCandle;
+      if (child.name.startsWith("Flame")) {
+        console.log(
+          `Setting direct visibility for ${child.name} to ${hasCustomUserImage}`
+        );
+        child.visible = hasCustomUserImage;
       }
     });
   }, [scene, userData, animations]);
