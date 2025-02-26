@@ -6,6 +6,7 @@ import Communion3 from "../components/Communion3";
 import Loader from "../components/Loader";
 import MusicPlayer from "../components/MusicPlayer2";
 import Draggable from "react-draggable";
+import Head from "next/head";
 
 import { X } from "lucide-react";
 
@@ -33,6 +34,21 @@ export default function GalleryPage() {
   });
   const [showSpotify, setShowSpotify] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Add useEffect to set body class
+  useEffect(() => {
+    // Add gallery-page class to html and body
+    document.documentElement.classList.add("gallery-page");
+    document.body.classList.add("gallery-page");
+    document.documentElement.style.backgroundColor = "#000000";
+    document.body.style.backgroundColor = "#000000";
+
+    // Cleanup function to remove class when component unmounts
+    return () => {
+      document.documentElement.classList.remove("gallery-page");
+      document.body.classList.remove("gallery-page");
+    };
+  }, []);
 
   // Add loading state management
   useEffect(() => {
@@ -92,14 +108,53 @@ export default function GalleryPage() {
 
   return (
     <>
-      {/* <div style={{ visibility: "hidden", position: "absolute", zIndex: -1 }}>
-        <iframe
-          src="https://www.sitepal.com/geturl/?ss=2771572&sl=0&acc=9157686"
-          style={{ width: 0, height: 0 }}
-        />
-      </div> */}
+      <Head>
+        <meta name="theme-color" content="#000000" />
+        <style>{`
+          html, body, #__next {
+            background-color: #000000 !important;
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow-x: hidden;
+          }
+          
+          /* Target any container with max-width */
+          [style*="max-width"] {
+            background-color: #000000 !important;
+          }
+          
+          /* Ensure the entire viewport has a black background */
+          html.gallery-page,
+          body.gallery-page,
+          .gallery-page,
+          .gallery-page body,
+          .gallery-page html,
+          .gallery-page #__next,
+          body.gallery-page #__next,
+          html.gallery-page #__next {
+            background-color: #000000 !important;
+          }
+        `}</style>
+      </Head>
 
-      <div style={{ backgroundColor: "#000000", minHeight: "100vh" }}>
+      <div
+        style={{
+          backgroundColor: "#000000",
+          minHeight: "100vh",
+          width: "100vw",
+          maxWidth: "100%",
+          margin: 0,
+          padding: 0,
+          position: "fixed",
+          left: 0,
+          top: 0,
+          right: 0,
+          bottom: 0,
+          overflow: "auto",
+        }}
+      >
         {isLoading && <Loader />}
         <div
           style={{

@@ -1,0 +1,50 @@
+/* Critical dark mode styles for _app.css */
+:root {
+  color-scheme: dark !important;
+  background-color: #1b1724 !important;
+}
+
+html {
+  background-color: #1b1724 !important;
+  color-scheme: dark !important;
+}
+
+body {
+  background-color: #1b1724 !important;
+  color-scheme: dark !important;
+  color: white !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+#__next {
+  background-color: #1b1724 !important;
+  min-height: 100vh !important;
+  width: 100% !important;
+}
+
+/* Gallery page specific styling */
+.gallery-page,
+.gallery-page #__next,
+.gallery-page body,
+.gallery-page html {
+  background-color: #000000 !important;
+}
+
+/* Scene page specific styling */
+.scene-page,
+.scene-page #__next,
+.scene-page body,
+.scene-page html {
+  background-color: #0d0d0d !important;
+}
+
+/* Explicitly set images to have transparent backgrounds */
+img {
+  background-color: transparent !important;
+}
+
+/* Ensure no white flash during transitions */
+* {
+  transition: background-color 0s !important;
+}

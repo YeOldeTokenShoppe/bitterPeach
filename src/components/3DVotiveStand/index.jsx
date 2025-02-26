@@ -39,6 +39,65 @@ import FloatingCandleViewer from "./CandleInteraction";
 import CameraGUI from "./CameraGUI";
 const scene = new THREE.Scene();
 
+// Debug overlay component
+const DebugOverlay = ({ isVisible, dpr, modelScale, size, networkType }) => {
+  if (!isVisible) return null;
+
+  // Calculate performance recommendation
+  const getPerformanceRecommendation = () => {
+    if (dpr <= 1) return "Optimized for performance";
+    if (dpr <= 1.5) return "Balanced performance/quality";
+    return "Optimized for quality (may impact performance)";
+  };
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        top: 10,
+        right: 10,
+        background: "rgba(0,0,0,0.7)",
+        color: "white",
+        padding: 10,
+        borderRadius: 5,
+        fontSize: 12,
+        zIndex: 1000,
+      }}
+    >
+      <div
+        style={{
+          borderBottom: "1px solid #444",
+          paddingBottom: 5,
+          marginBottom: 5,
+        }}
+      >
+        <strong>3D Votive Stand Settings</strong>
+      </div>
+      <div>Device Pixel Ratio: {window.devicePixelRatio.toFixed(2)}</div>
+      <div>
+        Applied DPI: {dpr.toFixed(2)}{" "}
+        {dpr === 1
+          ? "✓ (recommended for mobile)"
+          : dpr === 1.5
+          ? "✓ (recommended for desktop)"
+          : ""}
+      </div>
+      <div>Performance: {getPerformanceRecommendation()}</div>
+      <div>Model Scale: {modelScale.toFixed(2)}</div>
+      <div>
+        Viewport: {size.width}x{size.height}
+      </div>
+      <div>Network: {networkType || "unknown"}</div>
+      <div style={{ marginTop: 5, fontSize: 10, color: "#aaa" }}>
+        Press 'P' to toggle DPI: 1 → 1.5 → 2 → 0.75 → 1
+      </div>
+      <div style={{ marginTop: 5, fontSize: 10, color: "#aaa" }}>
+        Press 'D' to toggle this debug overlay
+      </div>
+    </div>
+  );
+};
+
 // Lazy load scene components
 const MoonScene = lazy(() => import("./MoonLamps"));
 const HolographicStatue = lazy(() => import("./HolographicStatue"));
@@ -59,6 +118,9 @@ function ThreeDVotiveStand({
 }) {
   const [showFloatingViewer, setShowFloatingViewer] = useState(false);
   const [selectedCandleData, setSelectedCandleData] = useState(null);
+  const [showDebugOverlay, setShowDebugOverlay] = useState(false); // Debug overlay toggle
+  const [currentDpr, setCurrentDpr] = useState(1); // Start with lower DPI until we determine device/network
+  const [networkType, setNetworkType] = useState("");
 
   const results = useFirestoreResults();
   const [userData, setUserData] = useState([]);
@@ -136,13 +198,22 @@ function ThreeDVotiveStand({
   useEffect(() => {
     const handleResize = () => {
       if (rendererRef.current) {
-        rendererRef.current.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        rendererRef.current.setPixelRatio(1); // Consistent pixel ratio
 
         // Update size state for responsive adjustments
+        const newWidth = window.innerWidth;
+        const newHeight = window.innerHeight;
+
         setSize({
-          width: window.innerWidth,
-          height: window.innerHeight,
+          width: newWidth,
+          height: newHeight,
         });
+
+        // Adjust model scale based on viewport size
+        // This helps maintain consistent visual size across different devices
+        const baseWidth = 1400; // Base width for reference
+        const scaleFactor = Math.max(0.8, Math.min(1.2, newWidth / baseWidth));
+        setModelScale(scaleFactor);
       }
     };
 
@@ -157,6 +228,72 @@ function ThreeDVotiveStand({
       window.removeEventListener("resize", handleResize);
     };
   }, []);
+
+  // Detect device type and network conditions to set appropriate DPI
+  useEffect(() => {
+    // Function to detect if device is mobile
+    const isMobileDevice = () => {
+      return (
+        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+          navigator.userAgent
+        ) || window.innerWidth <= 768
+      );
+    };
+
+    // Function to check network speed
+    const checkNetworkCondition = async () => {
+      // Use the Network Information API if available
+      if ("connection" in navigator) {
+        const connection = navigator.connection;
+        setNetworkType(
+          connection.effectiveType || connection.type || "unknown"
+        );
+
+        // Set DPI based on network type
+        if (connection.effectiveType === "4g" && !isMobileDevice()) {
+          setCurrentDpr(1.5); // Higher DPI for good connections on desktop
+        } else {
+          setCurrentDpr(1); // Lower DPI for slower connections or mobile
+        }
+
+        // Listen for changes to connection
+        const updateConnectionStatus = () => {
+          setNetworkType(
+            connection.effectiveType || connection.type || "unknown"
+          );
+          if (connection.effectiveType === "4g" && !isMobileDevice()) {
+            setCurrentDpr(1.5);
+          } else {
+            setCurrentDpr(1);
+          }
+        };
+
+        connection.addEventListener("change", updateConnectionStatus);
+        return () =>
+          connection.removeEventListener("change", updateConnectionStatus);
+      } else {
+        // Fallback when Network Information API is not available
+        // Just use device type to determine DPI
+        if (isMobileDevice()) {
+          setCurrentDpr(1);
+          setNetworkType("mobile device");
+        } else {
+          setCurrentDpr(1.5);
+          setNetworkType("desktop device");
+        }
+      }
+    };
+
+    checkNetworkCondition();
+  }, []);
+
+  // Update renderer when DPI changes
+  useEffect(() => {
+    if (rendererRef.current) {
+      rendererRef.current.setPixelRatio(currentDpr);
+      console.log(`DPI updated to: ${currentDpr}`);
+    }
+  }, [currentDpr]);
 
   const handleCandleSelect = (candleData) => {
     setSelectedCandleData(candleData);
@@ -187,6 +324,41 @@ function ThreeDVotiveStand({
     }
   };
 
+  // Add a keyboard listener to toggle debug overlay with 'D' key
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "d" || e.key === "D") {
+        setShowDebugOverlay((prev) => !prev);
+      }
+
+      // Add DPI toggle with 'P' key
+      if (e.key === "p" || e.key === "P") {
+        // Cycle through DPI values: 1 -> 1.5 -> 2 -> 0.75 -> 1
+        setCurrentDpr((prevDpr) => {
+          const nextDpr =
+            prevDpr === 1
+              ? 1.5
+              : prevDpr === 1.5
+              ? 2
+              : prevDpr === 2
+              ? 0.75
+              : 1;
+
+          // Apply the new DPI value to the renderer
+          if (rendererRef.current) {
+            rendererRef.current.setPixelRatio(nextDpr);
+            console.log(`DPI changed to: ${nextDpr}`);
+          }
+
+          return nextDpr;
+        });
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   return (
     <>
       <div
@@ -203,7 +375,7 @@ function ThreeDVotiveStand({
         }}
       >
         <Canvas
-          dpr={Math.min(window.devicePixelRatio, 2)} // Explicitly limit pixel ratio to 2
+          dpr={currentDpr} // Using dynamic DPI based on device and network
           performance={{ min: 0.5 }} // Allow ThreeJS to reduce quality for performance
           camera={{
             fov: 45,
@@ -216,7 +388,7 @@ function ThreeDVotiveStand({
             rendererRef.current = gl;
 
             // Explicitly set pixel ratio on the renderer
-            gl.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            gl.setPixelRatio(currentDpr); // Use the current DPI setting from state
 
             // Additional renderer settings for consistency
             gl.outputColorSpace = THREE.SRGBColorSpace;
@@ -224,8 +396,8 @@ function ThreeDVotiveStand({
             gl.toneMappingExposure = 1;
           }}
         >
-          {/* Automatically adjust detail level based on FPS */}
-          <AdaptiveDpr pixelated />
+          {/* Manually controlling DPI now, so AdaptiveDpr is disabled */}
+          {/* <AdaptiveDpr pixelated /> */}
           <AdaptiveEvents />
           <BakeShadows />
           {/* <FlyInEffect
@@ -287,6 +459,13 @@ function ThreeDVotiveStand({
         )}
       </div>
       {/* )} */}
+      <DebugOverlay
+        isVisible={showDebugOverlay}
+        dpr={currentDpr}
+        modelScale={modelScale}
+        size={size}
+        networkType={networkType}
+      />
     </>
   );
 }

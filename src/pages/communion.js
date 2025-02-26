@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { Box, Image, Text, useDisclosure } from "@chakra-ui/react";
 import Carousel from "../components/Carousel";
 import NavBar from "../components/NavBar.client";
@@ -16,7 +16,90 @@ export default function CommunionPage() {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [isLoading, setIsLoading] = useState(true);
   const [carouselLoaded, setCarouselLoaded] = useState(false);
-  // const [communionLoaded, setCommunionLoaded] = useState(false);
+  const [communionLoaded, setCommunionLoaded] = useState(false);
+  const [goldCardsLoaded, setGoldCardsLoaded] = useState(false);
+  const [allImagesLoaded, setAllImagesLoaded] = useState(false);
+
+  // Calculate loading progress based on component loading states
+  const loadingProgress = useMemo(() => {
+    let progress = 0;
+
+    // Each component contributes to the total loading progress
+    if (carouselLoaded) progress += 25; // Carousel is 25% of loading
+    if (communionLoaded) progress += 25; // Communion is 25% of loading
+    if (goldCardsLoaded) progress += 25; // GoldCards is 25% of loading
+    if (allImagesLoaded) progress += 25; // Images are 25% of loading
+
+    return Math.min(99, Math.round(progress)); // Cap at 99% until fully loaded
+  }, [carouselLoaded, communionLoaded, goldCardsLoaded, allImagesLoaded]);
+
+  // List of all critical images that need to be preloaded
+  const criticalImages = [
+    "/carouselSign.png",
+    // Add other critical images here
+    "seaMonster.png",
+    "bull.png",
+    "bear.png",
+    "gator.png",
+    "chupa.png",
+    "snowman.png",
+    "unicorn.png",
+    "jackalope.png",
+    "liger.png",
+    "dire.png",
+    "warthog.png",
+    "mothmanRide.png",
+    "/telegram.svg",
+    "/x_.svg",
+    "/threads_.png",
+    "/instagram_.png",
+    "/discord.svg",
+    "/8ballicon.svg",
+    "/horseshoe.svg",
+    "/roulette.svg",
+  ];
+
+  // Preload all critical images
+  useEffect(() => {
+    let loadedCount = 0;
+    const totalImages = criticalImages.length;
+
+    const preloadImage = (src) => {
+      return new Promise((resolve) => {
+        // Use window.Image instead of Image to avoid conflict
+        const img = typeof window !== "undefined" ? new window.Image() : null;
+
+        if (!img) {
+          console.warn("Window not available, skipping image preload");
+          resolve(false);
+          return;
+        }
+
+        img.onload = () => {
+          loadedCount++;
+          console.log(`Loaded image ${loadedCount}/${totalImages}: ${src}`);
+          resolve(true);
+        };
+        img.onerror = () => {
+          console.error(`Failed to load image: ${src}`);
+          loadedCount++;
+          resolve(false);
+        };
+        img.src = src;
+      });
+    };
+
+    Promise.all(criticalImages.map(preloadImage))
+      .then(() => {
+        console.log("All critical images preloaded");
+        setAllImagesLoaded(true);
+      })
+      .catch((err) => {
+        console.error("Error preloading images:", err);
+        // Still set as loaded after timeout to prevent hanging
+        setTimeout(() => setAllImagesLoaded(true), 3000);
+      });
+  }, [criticalImages]);
 
   useEffect(() => {
     // Force loader to hide after 10 seconds
@@ -25,18 +108,27 @@ export default function CommunionPage() {
         console.warn("⚠️ Loading timed out, forcing page to show");
         setIsLoading(false);
       }
-    }, 5000);
+    }, 10000); // Increased to 10 seconds to give more time for loading
 
     return () => clearTimeout(timeoutId);
   }, [isLoading]);
+
+  // Only hide loader when all components are loaded
+  useEffect(() => {
+    if (
+      carouselLoaded &&
+      allImagesLoaded &&
+      communionLoaded &&
+      goldCardsLoaded
+    ) {
+      console.log("✅ All components and images loaded, showing page");
+      setIsLoading(false);
+    }
+  }, [carouselLoaded, allImagesLoaded, communionLoaded, goldCardsLoaded]);
+
   const [isLargeScreen, setIsLargeScreen] = useState(false);
   const canvasRef = useRef(null);
 
-  useEffect(() => {
-    if (carouselLoaded) {
-      setIsLoading(false);
-    }
-  }, [carouselLoaded]);
   useEffect(() => {
     const handleResize = () => {
       setIsLargeScreen(window.innerWidth >= 1024);
@@ -182,7 +274,7 @@ export default function CommunionPage() {
 
   return (
     <>
-      {isLoading && <Loader />}
+      {isLoading && <Loader progress={loadingProgress} />}
       <canvas
         ref={canvasRef}
         style={{
@@ -295,7 +387,7 @@ export default function CommunionPage() {
 
 
           <MoonRoomModal isOpen={isOpen} onClose={onClose} /> */}
-          <GoldCards />
+          <GoldCards setGoldCardsLoaded={setGoldCardsLoaded} />
         </Box>
       </Box>
 
@@ -331,7 +423,7 @@ export default function CommunionPage() {
         <NavBar />
       </div>
       {/* </div> */}
-      <Communion />
+      <Communion setCommunionLoaded={setCommunionLoaded} />
 
       {/* Loader on top */}
       {isLoading && (
@@ -345,7 +437,7 @@ export default function CommunionPage() {
             zIndex: 50,
           }}
         >
-          <Loader />
+          <Loader progress={loadingProgress} />
         </div>
       )}
     </>

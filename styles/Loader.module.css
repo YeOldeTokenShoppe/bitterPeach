@@ -11,11 +11,20 @@
   justify-content: center;
   width: 100vw;
   height: 100vh;
-  background-color: rgba(0, 0, 0, 0.8);
+  background-color: #1b1724;
   position: fixed;
   top: 0;
   left: 0;
   z-index: 1000;
+}
+
+/* New container to hold both the coin and loading info */
+.loaderContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5em; /* Reduced gap between coin and loading text */
 }
 
 #loadingScreen {
@@ -34,6 +43,60 @@
   height: 9.1em;
 }
 
+/* Loading info styles - completely separate from the coin animation */
+.loadingInfo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.8em;
+  width: 100%;
+  text-align: center;
+  margin-top: 1em;
+  padding: 0.5em;
+  border: none;
+  border-radius: 0;
+  background-color: transparent;
+  box-shadow: none;
+}
+
+.loadingMessage {
+  color: #e1b67e; /* Gold color */
+  font-size: 1.4em;
+  font-weight: 500;
+  letter-spacing: 2px;
+  text-shadow: 0 0 8px rgba(225, 182, 126, 0.6);
+  margin-bottom: 0.2em;
+}
+
+.percentageText {
+  color: #ffffff; /* White for better visibility */
+  font-size: 2em; /* Larger font size */
+  font-weight: bold;
+  text-shadow: 0 0 10px rgba(225, 182, 126, 0.8),
+    0 0 20px rgba(225, 182, 126, 0.5);
+  letter-spacing: 1px;
+  margin: 0.2em 0;
+}
+
+.progressBar {
+  width: 12em; /* Slightly smaller width */
+  height: 0.4em; /* Thinner bar */
+  background-color: rgba(255, 255, 255, 0.15);
+  border-radius: 0.25em;
+  overflow: hidden;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.5) inset, 0 0 2px rgba(255, 255, 255, 0.3);
+}
+
+.progressFill {
+  height: 100%;
+  background-color: #e1b67e;
+  background-image: linear-gradient(to right, #e1b67e, #f7d795, #e1b67e);
+  border-radius: 0.25em;
+  transition: width 0.3s ease-out;
+  box-shadow: 0 0 15px rgba(225, 182, 126, 0.9);
+}
+
+/* Keep the rest of the coin animation styles as is */
 .pl__coin,
 .pl__coinFlare,
 .pl__coinInscription,
@@ -44,7 +107,6 @@
   animation-iteration-count: infinite;
 }
 
-/* Keep other loader styles as is */
 .pl__coin {
   animation-name: bounce;
   position: relative;

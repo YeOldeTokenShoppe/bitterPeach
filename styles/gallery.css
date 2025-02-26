@@ -1,0 +1,43 @@
+/* Gallery page specific styles */
+/* Target the gallery page specifically */
+body.gallery-page,
+html.gallery-page,
+.gallery-page body,
+.gallery-page html {
+  background-color: #000000 !important;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden;
+}
+
+/* Target the Next.js root element */
+body.gallery-page #__next,
+html.gallery-page #__next,
+.gallery-page #__next {
+  background-color: #000000 !important;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  max-width: 100%;
+}
+
+/* Target any container with max-width */
+body.gallery-page [style*="max-width"],
+html.gallery-page [style*="max-width"],
+.gallery-page [style*="max-width"] {
+  background-color: #000000 !important;
+}
+
+/* Target the main content area */
+body.gallery-page main,
+html.gallery-page main,
+.gallery-page main {
+  background-color: #000000 !important;
+}
+
+/* Ensure images have transparent backgrounds */
+.gallery-page img {
+  background-color: transparent !important;
+}

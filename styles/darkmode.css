@@ -1,0 +1,103 @@
+/* Critical dark mode styles - loaded before other styles */
+:root {
+  color-scheme: dark;
+  background-color: #1b1724;
+}
+
+/* Only apply dark background to specific elements */
+html,
+body {
+  background-color: #1b1724 !important;
+  color-scheme: dark;
+}
+
+/* Remove the CSS Reset that was applying background to all elements */
+/* 
+html, body, div, span, applet, object, iframe,
+h1, h2, h3, h4, h5, h6, p, blockquote, pre,
+a, abbr, acronym, address, big, cite, code,
+del, dfn, em, img, ins, kbd, q, s, samp,
+small, strike, strong, sub, sup, tt, var,
+b, u, i, center,
+dl, dt, dd, ol, ul, li,
+fieldset, form, label, legend,
+table, caption, tbody, tfoot, thead, tr, th, td,
+article, aside, canvas, details, embed, 
+figure, figcaption, footer, header, hgroup, 
+menu, nav, output, ruby, section, summary,
+time, mark, audio, video {
+  background-color: #0d0d0d;
+}
+*/
+
+html {
+  background-color: #1b1724 !important;
+  color-scheme: dark !important;
+}
+
+body {
+  background-color: #1b1724 !important;
+  color-scheme: dark !important;
+  color: white !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Ensure Next.js specific elements also have dark background */
+#__next {
+  background-color: #1b1724 !important;
+  min-height: 100vh !important;
+  width: 100% !important;
+}
+
+/* Target any potential wrappers that might be causing the issue */
+div[id^="__next"] {
+  background-color: #1b1724 !important;
+}
+
+/* Gallery page specific styling */
+.gallery-page,
+.gallery-page #__next,
+.gallery-page body,
+.gallery-page html {
+  background-color: #000000 !important;
+}
+
+/* Explicitly set images to have transparent backgrounds */
+img {
+  background-color: transparent !important;
+}
+
+/* Ensure no white flash during transitions */
+* {
+  transition: background-color 0s !important;
+}
+
+/* Gallery page specific styles */
+html.gallery-page,
+body.gallery-page,
+.gallery-page,
+.gallery-page body,
+.gallery-page html,
+.gallery-page #__next,
+body.gallery-page #__next,
+html.gallery-page #__next {
+  background-color: #000000 !important;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden;
+}
+
+/* Scene page specific styles */
+html.scene-page,
+body.scene-page,
+.scene-page,
+.scene-page body,
+.scene-page html,
+.scene-page #__next,
+body.scene-page #__next,
+html.scene-page #__next {
+  background-color: #0d0d0d !important;
+}

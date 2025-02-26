@@ -1,37 +1,90 @@
 "use client";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 
-function Communion({}) {
-  // useEffect(() => {
-  //   // Simulate async data or image loading
-  //   const loadCommunionContent = async () => {
-  //     // Example: simulate loading (replace with real logic)
-  //     await new Promise((resolve) => setTimeout(resolve, 500));
-  //     setCommunionLoaded(true); // Notify parent that loading is complete
-  //   };
+function Communion({ setCommunionLoaded }) {
+  const [loadedIcons, setLoadedIcons] = useState(new Set());
+  const icons = [
+    { src: "/3D_spotify.png", alt: "Spotify" },
+    { src: "/3D_tiktok.png", alt: "Tiktok" },
+    { src: "/3d_discord.png", alt: "Discord" },
+    { src: "/3d_X.png", alt: "X" },
+    { src: "/3d_instagram.png", alt: "Instagram" },
+    {
+      src: "/3d_tg2.png",
+      alt: "Telegram",
+      style: { marginBottom: "0.5rem" },
+    },
+  ];
 
-  //   loadCommunionContent();
-  // }, [setCommunionLoaded]);
+  useEffect(() => {
+    // If setCommunionLoaded is not provided, we don't need to track loading
+    if (!setCommunionLoaded) return;
+
+    // Preload all icons
+    const preloadIcons = async () => {
+      try {
+        const iconLoadPromises = icons.map((icon) => {
+          return new Promise((resolve) => {
+            // Use window.Image instead of Image to avoid conflict with next/image
+            const img =
+              typeof window !== "undefined" ? new window.Image() : null;
+
+            if (!img) {
+              console.warn("Window not available, skipping image preload");
+              resolve(false);
+              return;
+            }
+
+            img.onload = () => {
+              setLoadedIcons((prev) => {
+                const newSet = new Set(prev);
+                newSet.add(icon.src);
+                return newSet;
+              });
+              resolve(true);
+            };
+            img.onerror = () => {
+              console.error(`Failed to load icon: ${icon.src}`);
+              resolve(false);
+            };
+            img.src = icon.src;
+          });
+        });
+
+        await Promise.all(iconLoadPromises);
+        setCommunionLoaded(true);
+      } catch (error) {
+        console.error("Error preloading icons:", error);
+        setCommunionLoaded(true); // Signal loaded anyway to prevent hanging
+      }
+    };
+
+    preloadIcons();
+  }, [setCommunionLoaded, icons]);
+
+  const handleIconLoad = (src) => {
+    console.log(`Icon loaded: ${src}`);
+    setLoadedIcons((prev) => {
+      const newSet = new Set(prev);
+      newSet.add(src);
+
+      // If all icons are loaded, signal completion
+      if (setCommunionLoaded && newSet.size === icons.length) {
+        setCommunionLoaded(true);
+      }
+
+      return newSet;
+    });
+  };
 
   return (
     <div className="communion-container">
       <section id="footer" className="footer">
         <div className="inner">
           <ul className="icons">
-            {[
-              { src: "/3D_spotify.png", alt: "Spotify" },
-              { src: "/3D_tiktok.png", alt: "Tiktok" },
-              { src: "/3d_discord.png", alt: "Discord" },
-              { src: "/3d_X.png", alt: "X" },
-              { src: "/3d_instagram.png", alt: "Instagram" },
-              {
-                src: "/3d_tg2.png",
-                alt: "Telegram",
-                style: { marginBottom: "0.5rem" },
-              },
-            ].map((icon, index) => (
+            {icons.map((icon, index) => (
               <li key={index}>
                 <Link href="#" passHref>
                   <div className="socials">
@@ -41,7 +94,7 @@ function Communion({}) {
                       width={258}
                       height={257}
                       style={{ width: "4rem", height: "4rem", ...icon.style }}
-                      onLoad={() => console.log(`${icon.alt} loaded`)} // Debug image load
+                      onLoad={() => handleIconLoad(icon.src)}
                     />
                   </div>
                 </Link>

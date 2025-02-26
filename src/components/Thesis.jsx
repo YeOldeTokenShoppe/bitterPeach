@@ -7,18 +7,60 @@ import SwipeIcon from "../components/SwipeIcon";
 const scrollUrl = "/html/scroll.html";
 
 function Thesis({ setThesisLoaded }) {
+  const [loadedImages, setLoadedImages] = useState(new Set());
+  const thesisImages = [
+    "/s8ntgr81.png",
+    // Add any other critical images used in the Thesis component
+  ];
+
   useEffect(() => {
-    const loadThesisContent = async () => {
+    const preloadThesisImages = async () => {
       try {
-        await new Promise((resolve) => setTimeout(resolve, 500));
+        const imageLoadPromises = thesisImages.map((src) => {
+          return new Promise((resolve) => {
+            // Use window.Image instead of Image to avoid conflict
+            const img =
+              typeof window !== "undefined" ? new window.Image() : null;
+
+            if (!img) {
+              console.warn("Window not available, skipping image preload");
+              resolve(false);
+              return;
+            }
+
+            img.onload = () => {
+              setLoadedImages((prev) => {
+                const newSet = new Set(prev);
+                newSet.add(src);
+                return newSet;
+              });
+              console.log(`Thesis image loaded: ${src}`);
+              resolve(true);
+            };
+            img.onerror = () => {
+              console.error(`Failed to load thesis image: ${src}`);
+              resolve(false);
+            };
+            img.src = src;
+          });
+        });
+
+        await Promise.all(imageLoadPromises);
+        console.log("✅ All thesis images preloaded");
+        setImageLoaded(true);
         setThesisLoaded(true);
         console.log("✅ Thesis loaded successfully.");
       } catch (error) {
         console.error("❌ Error loading Thesis:", error);
+        // Signal loaded anyway to prevent hanging
+        setImageLoaded(true);
+        setThesisLoaded(true);
       }
     };
-    loadThesisContent();
-  }, [setThesisLoaded]);
+
+    preloadThesisImages();
+  }, [setThesisLoaded, thesisImages]);
+
   const handleSwipeIconDisappear = () => {
     console.log("Swipe icon disappeared");
   };

@@ -446,7 +446,7 @@ function Model({
       <primitive
         ref={modelRef}
         object={gltf.scene}
-        scale={scale}
+        scale={[scale, scale, scale]}
         rotation={rotation}
         onClick={handleCandleClick}
         style={{

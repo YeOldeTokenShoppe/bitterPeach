@@ -106,16 +106,59 @@ const useOutsideClick = (refs, handler) => {
 };
 
 function Hero({ setHeroLoaded }) {
+  const [loadedImages, setLoadedImages] = useState(new Set());
+  const heroImages = [
+    // Add critical hero images here
+    "/logo.png",
+    "/hero-image.jpg",
+    // Add any other critical images used in the Hero component
+  ];
+
   useEffect(() => {
-    // Simulate async data or image loading
-    const loadHeroContent = async () => {
-      // Example: simulate loading (replace with real logic)
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      setHeroLoaded(true); // Notify parent that loading is complete
+    // Preload all hero images
+    const preloadHeroImages = async () => {
+      try {
+        const imageLoadPromises = heroImages.map((src) => {
+          return new Promise((resolve) => {
+            // Use window.Image instead of Image to avoid conflict
+            const img =
+              typeof window !== "undefined" ? new window.Image() : null;
+
+            if (!img) {
+              console.warn("Window not available, skipping image preload");
+              resolve(false);
+              return;
+            }
+
+            img.onload = () => {
+              setLoadedImages((prev) => {
+                const newSet = new Set(prev);
+                newSet.add(src);
+                return newSet;
+              });
+              console.log(`Hero image loaded: ${src}`);
+              resolve(true);
+            };
+            img.onerror = () => {
+              console.error(`Failed to load hero image: ${src}`);
+              resolve(false);
+            };
+            img.src = src;
+          });
+        });
+
+        await Promise.all(imageLoadPromises);
+        console.log("✅ All hero images preloaded");
+        setHeroLoaded(true);
+      } catch (error) {
+        console.error("Error preloading hero images:", error);
+        setHeroLoaded(true); // Signal loaded anyway to prevent hanging
+      }
     };
 
-    loadHeroContent();
-  }, [setHeroLoaded]);
+    preloadHeroImages();
+  }, [setHeroLoaded, heroImages]);
+
   const coinRef = useRef(null);
 
   useEffect(() => {

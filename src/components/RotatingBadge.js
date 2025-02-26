@@ -2,18 +2,16 @@
 "use client";
 import React, { useEffect, useRef } from "react";
 
-const RotatingBadge = () => {
+const RotatingBadge = ({ setBadgeLoaded }) => {
   const badgeRef = useRef(null);
-  // useEffect(() => {
-  //   // Simulate async data or image loading
-  //   const loadRotatingBadgeContent = async () => {
-  //     // Example: simulate loading (replace with real logic)
-  //     await new Promise((resolve) => setTimeout(resolve, 500));
-  //     setRotatingBadgeLoaded(true); // Notify parent that loading is complete
-  //   };
 
-  //   loadRotatingBadgeContent();
-  // }, [setRotatingBadgeLoaded]);
+  useEffect(() => {
+    // Signal that the badge is loaded
+    if (setBadgeLoaded) {
+      console.log("✅ Rotating badge loaded");
+      setBadgeLoaded(true);
+    }
+  }, [setBadgeLoaded]);
 
   useEffect(() => {
     const elements = badgeRef.current.querySelectorAll(".badge__char");
