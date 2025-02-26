@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
@@ -10,7 +10,7 @@ const MoonScene = ({
   modelCenter,
   onControlsCreated,
   initialTarget = [0, 0, 0],
-  onSpawnFunctionReady,
+  onSpawnReady,
 }) => {
   const { scene, camera, gl } = useThree();
   const controlsRef = useRef();
@@ -20,11 +20,7 @@ const MoonScene = ({
   const ammoRef = useRef(null);
   const moonTextureRef = useRef(null);
   const isPhysicsInitialized = useRef(false);
-  const monstersRef = useRef([]);
-  const monsterModelRef = useRef(null);
-  const monsterAnimationsRef = useRef({});
-  const monsterSpawnIntervalRef = useRef(null);
-  const mixersRef = useRef([]);
+
   const maxProjectiles = 20; // Maximum number of projectiles allowed at once
   const projectileLifespan = 5000; // Milliseconds before auto-removing projectiles
   const projectilePoolRef = useRef([]);
@@ -35,84 +31,23 @@ const MoonScene = ({
   const MOON_RESTITUTION = 0.7;
   const GROUND_FRICTION = 1.0;
   const GROUND_RESTITUTION = 1.0;
-  const MODEL_FRICTION = 0.5;
+  const MODEL_FRICTION = 0.1;
   const MODEL_RESTITUTION = 0.3;
   const roomRadius = 28;
   const roomHeight = 80;
   const floorRadius = 30;
+  const mixer = new THREE.AnimationMixer();
+  const mixersRef = useRef([]);
 
-  const questStatusRef = useRef({
-    totalMonsters: 4,
-    monstersDefeated: 0,
-    currentMonster: null,
-    completed: false,
-  });
+  // Optimize physics body creation with shape caching
+  const shapeCache = useRef(new Map());
 
-  // Update the monsterTypes definition to include all 4 monsters
-  const monsterTypes = useRef([
-    {
-      id: "nosferatu",
-      modelPath: "/nosferatu.glb",
-      scale: 1.3,
-      yOffset: 8.3,
-      animations: {
-        idle: "idle",
-        walk: "Walk",
-        attack: "attack",
-        hurt: "hurt",
-      },
-      completed: false,
-    },
-    {
-      id: "murderClown",
-      modelPath: "/murderClown.glb",
-      scale: 1,
-      yOffset: 1,
-      animations: {
-        idle: "Noesis Frames_Object_4",
-        startFrame: 260,
-        endFrame: 750,
-        fallbackAnimation: "Noesis Frames",
-      },
-      completed: false,
-    },
-    {
-      id: "zombie",
-      modelPath: "/zombie.glb",
-      scale: 1.2,
-      yOffset: 1.5,
-      animations: {
-        idle: "idle",
-        walk: "walk",
-        attack: "attack",
-        hurt: "hurt",
-      },
-      completed: false,
-    },
-    {
-      id: "skeleton",
-      modelPath: "/skeleton.glb",
-      scale: 1.1,
-      yOffset: 1.2,
-      animations: {
-        idle: "idle",
-        walk: "walk",
-        attack: "attack",
-        hurt: "hurt",
-      },
-      completed: false,
-    },
-  ]);
+  // Add these constants at the top of your component
+  const COLLISION_GROUP_DEFAULT = 1;
+  const COLLISION_GROUP_WALL = 2;
+  const COLLISION_GROUP_MOON = 4;
+  const COLLISION_GROUP_PROJECTILE = 8;
 
-  // Initialize refs for tracking
-  const monsterStatus = useRef({
-    nosferatu: { loaded: false, available: false, completed: false },
-    murderClown: { loaded: false, available: false, completed: false },
-    zombie: { loaded: false, available: false, completed: false },
-    skeleton: { loaded: false, available: false, completed: false },
-  });
-
-  const loadedMonsterModels = useRef({});
   const setupScene = () => {
     if (controlsRef.current) return;
 
@@ -182,649 +117,6 @@ const MoonScene = ({
     });
   }, []);
 
-  const prepareMonsterAnimations = (monster, animations) => {
-    // Create a mixer for this specific monster
-
-    const mixer = new THREE.AnimationMixer(monster);
-
-    // Helper function to remove the first keyframe from each track
-    const removeFirstKeyframe = (clip) => {
-      // Clone the clip to avoid modifying the original
-      const newClip = clip.clone();
-      newClip.tracks.forEach((track) => {
-        if (track.times.length > 1) {
-          // Make sure there's more than one keyframe
-          track.times = track.times.slice(1);
-          track.values = track.values.slice(track.getValueSize());
-        }
-      });
-      newClip.resetDuration();
-      return newClip;
-    };
-
-    // Process each animation
-    const processedAnims = {};
-
-    // Find the animations by name
-    const idleClip = animations.find(
-      (anim) => anim.name.toLowerCase() === "idle"
-    );
-    const walkClip = animations.find(
-      (anim) => anim.name.toLowerCase() === "walk"
-    );
-    const attackClip = animations.find(
-      (anim) => anim.name.toLowerCase() === "attack"
-    );
-    const hurtClip = animations.find(
-      (anim) => anim.name.toLowerCase() === "hurt"
-    );
-
-    // Process each clip if found
-    if (idleClip) {
-      processedAnims.idle = removeFirstKeyframe(idleClip);
-    }
-    if (walkClip) {
-      processedAnims.walk = removeFirstKeyframe(walkClip);
-    }
-    if (attackClip) {
-      processedAnims.attack = removeFirstKeyframe(attackClip);
-    }
-    if (hurtClip) {
-      processedAnims.hurt = removeFirstKeyframe(hurtClip);
-    }
-
-    return { mixer, animations: processedAnims };
-  };
-
-  const loadMonsterModel = (monsterId = null) => {
-    // If no specific monster requested, choose random
-    if (!monsterId) {
-      const monsterOptions = monsterTypes.current;
-      const randomIndex = Math.floor(Math.random() * monsterOptions.length);
-      monsterId = monsterOptions[randomIndex].id;
-    }
-
-    console.log(`Starting to load monster model: ${monsterId}`);
-
-    // Find the monster definition
-    const monsterDef = monsterTypes.current.find((m) => m.id === monsterId);
-    if (!monsterDef) {
-      console.error(`Monster definition not found for: ${monsterId}`);
-      return;
-    }
-
-    const loader = new GLTFLoader();
-    loader.load(
-      monsterDef.modelPath,
-      (gltf) => {
-        console.log(`Monster model loaded successfully: ${monsterId}`, gltf);
-        const monster = gltf.scene;
-        const monsterAnimations = gltf.animations;
-
-        // Store for later use
-        loadedMonsterModels.current[monsterId] = {
-          model: monster.clone(),
-          animations: monsterAnimations,
-          definition: monsterDef,
-        };
-
-        // Position a test monster
-        monster.scale.set(monsterDef.scale, monsterDef.scale, monsterDef.scale);
-        monster.position.set(2, monsterDef.yOffset, 3);
-        monster.rotation.set(0, Math.PI, 0);
-
-        // Create mixer
-        const monsterMixer = new THREE.AnimationMixer(monster);
-        mixersRef.current.push(monsterMixer);
-
-        // Handle different animation setup based on monster type
-        if (monsterId === "nosferatu") {
-          setupNosferatuAnimations(monster, monsterMixer, monsterAnimations);
-        } else if (monsterId === "murderClown") {
-          setupMurderClownAnimations(
-            monster,
-            monsterMixer,
-            monsterAnimations,
-            monsterDef
-          );
-        }
-
-        // Add monster to scene for testing
-        scene.add(monster);
-
-        // Store monster in our state
-        monstersRef.current.push({
-          id: monsterId,
-          type: monsterId, // Use monsterId here instead of specificType
-          model: monster,
-          mixer: monsterMixer,
-          hp: 100,
-          lastHit: 0,
-        });
-      },
-      null,
-      (error) => {
-        console.error(`Error loading monster model ${monsterId}:`, error);
-      }
-    );
-  };
-  const setupNosferatuAnimations = (monster, mixer, animations) => {
-    console.log("Setting up animations for Nosferatu");
-
-    if (!animations || animations.length === 0) {
-      console.error("No animations found for Nosferatu!");
-      return false;
-    }
-
-    // Helper function to remove first keyframe
-    const removeFirstKeyframe = (clip) => {
-      if (!clip || !clip.tracks) return;
-      clip.tracks.forEach((track) => {
-        if (track.times.length > 1) {
-          track.times = track.times.slice(1);
-          track.values = track.values.slice(track.getValueSize());
-        }
-      });
-      clip.resetDuration();
-    };
-
-    // Find all relevant animations first
-    const idleClip = animations.find(
-      (anim) => anim.name.toLowerCase() === "idle"
-    );
-    const walkClip = animations.find(
-      (anim) => anim.name.toLowerCase() === "walk"
-    );
-    const attackClip = animations.find(
-      (anim) => anim.name.toLowerCase() === "attack"
-    );
-
-    if (!idleClip) {
-      console.error("Error: Nosferatu idle animation not found!");
-      console.log(
-        "Available animations:",
-        animations.map((a) => a.name)
-      );
-      return false;
-    }
-
-    // Remove first keyframe from all clips BEFORE creating any actions
-    removeFirstKeyframe(idleClip);
-    if (walkClip) removeFirstKeyframe(walkClip);
-    if (attackClip) removeFirstKeyframe(attackClip);
-
-    // Now create and play the idle action
-    const idleAction = mixer.clipAction(idleClip);
-    idleAction.setLoop(THREE.LoopRepeat);
-    idleAction.play();
-
-    // Store processed animations for later use
-    if (walkClip) mixer.clipAction(walkClip);
-    if (attackClip) mixer.clipAction(attackClip);
-
-    console.log("Nosferatu animation setup complete");
-    return true;
-  };
-
-  const setupMurderClownAnimations = (
-    monster,
-    mixer,
-    animations,
-    monsterDef
-  ) => {
-    console.log("Setting up Murder Clown animations");
-
-    const animClip = animations.find((anim) => anim.name === "Noesis Frames");
-    if (!animClip) {
-      console.error("Murder Clown animation not found!");
-      return false;
-    }
-
-    try {
-      const startFrame = monsterDef.animations.startFrame;
-      const endFrame = monsterDef.animations.endFrame;
-      const totalFrames = animClip.tracks[1].times.length;
-
-      const startTime = animClip.tracks[1].times[startFrame];
-      const endTime =
-        animClip.tracks[1].times[Math.min(endFrame, totalFrames - 1)];
-
-      const timeClip = THREE.AnimationUtils.subclip(
-        animClip,
-        "clown_idle",
-        startTime,
-        endTime
-      );
-
-      const action = mixer.clipAction(timeClip);
-      action.setLoop(THREE.LoopRepeat);
-      action.play();
-
-      console.log("Murder Clown animation setup complete");
-      return true;
-    } catch (e) {
-      console.error("Error in Murder Clown animation setup:", e);
-      return false;
-    }
-  };
-  // Modify spawnMonster to use the loaded monster models
-
-  const setupMonsterAnimations = (monster, mixer, animations, monsterType) => {
-    console.log(`🎥 Setting up animations for ${monsterType}`);
-
-    if (!animations || animations.length === 0) {
-      console.error(`❌ No animations found for ${monsterType}`);
-      return false;
-    }
-
-    let animationSuccess = false;
-
-    // Route to the correct animation setup function
-    if (monsterType === "nosferatu") {
-      animationSuccess = setupNosferatuAnimations(monster, mixer, animations);
-    } else if (monsterType === "murderClown") {
-      animationSuccess = setupMurderClownAnimations(
-        monster,
-        mixer,
-        animations,
-        monsterTypes.current.find((m) => m.id === monsterType)
-      );
-    } else {
-      animationSuccess = setupGenericMonsterAnimations(
-        monster,
-        mixer,
-        animations
-      );
-    }
-
-    if (!animationSuccess) {
-      console.warn(`⚠️ Animations not properly set up for ${monsterType}`);
-    } else {
-      console.log(`✅ Animations successfully set up for ${monsterType}`);
-    }
-
-    return animationSuccess;
-  };
-
-  const spawnMonster = (specificType = null) => {
-    console.log(`Attempting to spawn monster: ${specificType || "random"}`);
-
-    let monsterType = specificType;
-    if (!monsterType || !monsterStatus.current[monsterType]?.available) {
-      const availableTypes = Object.keys(monsterStatus.current).filter(
-        (type) => monsterStatus.current[type].available
-      );
-
-      if (availableTypes.length === 0) {
-        console.error("No monster types available to spawn!");
-        return;
-      }
-
-      monsterType =
-        availableTypes[Math.floor(Math.random() * availableTypes.length)];
-    }
-
-    console.log(`Spawning monster of type: ${monsterType}`);
-
-    // Get the stored monster data
-    let monsterData = loadedMonsterModels.current[monsterType];
-    if (!monsterData) {
-      console.error(`Monster data not found for ${monsterType}`);
-      return;
-    }
-
-    // Clone the model
-    let monster = monsterData.model.clone();
-
-    // Ensure proper cloning of materials and skeletons
-    monster.traverse((child) => {
-      if (child.isMesh) {
-        child.material = child.material.clone();
-        if (child.skeleton) {
-          child.skeleton = child.skeleton.clone();
-        }
-      }
-    });
-
-    console.log(`Monster cloned successfully: ${monsterType}`);
-
-    // Clone animations
-    const animations = monsterData.animations.map((anim) => {
-      const clonedAnim = anim.clone();
-      // Ensure all properties are properly cloned
-      clonedAnim.tracks = anim.tracks.map((track) => track.clone());
-      return clonedAnim;
-    });
-
-    // Create new mixer
-    const monsterMixer = new THREE.AnimationMixer(monster);
-    mixersRef.current.push(monsterMixer);
-
-    let animationSuccess = false;
-
-    // Type-specific setup
-    if (monsterType === "nosferatu") {
-      // Special Nosferatu setup
-      monster.scale.set(1.3, 1.3, 1.3);
-      monster.position.set(2, 8.3, 3);
-      monster.rotation.set(0, Math.PI, 0);
-
-      // Store for animation reference
-      monsterModelRef.current = monster;
-      monsterAnimationsRef.current = animations;
-
-      // Set up animations with proper T-pose removal
-      animationSuccess = setupNosferatuAnimations(
-        monster,
-        monsterMixer,
-        animations
-      );
-    } else if (monsterType === "murderClown") {
-      // Murder Clown setup
-      monster.scale.set(
-        monsterData.definition.scale,
-        monsterData.definition.scale,
-        monsterData.definition.scale
-      );
-      monster.position.set(2, monsterData.definition.yOffset, 3);
-      monster.rotation.set(0, Math.PI, 0);
-
-      animationSuccess = setupMurderClownAnimations(
-        monster,
-        monsterMixer,
-        animations,
-        monsterData.definition
-      );
-    } else {
-      // Generic monster setup
-      monster.scale.set(
-        monsterData.definition.scale,
-        monsterData.definition.scale,
-        monsterData.definition.scale
-      );
-      monster.position.set(2, monsterData.definition.yOffset, 3);
-      monster.rotation.set(0, Math.PI, 0);
-
-      animationSuccess = setupGenericMonsterAnimations(
-        monster,
-        monsterMixer,
-        animations
-      );
-    }
-
-    if (!animationSuccess) {
-      console.error(`Failed to set up animations for ${monsterType}`);
-      return false;
-    }
-
-    // Add to scene after a short delay to prevent race conditions
-    setTimeout(() => {
-      console.log(`Adding ${monsterType} to scene...`);
-      scene.add(monster);
-    }, 100);
-
-    // Store in tracking array
-    monstersRef.current.push({
-      id: `monster_${monsterType}_${Date.now()}`,
-      type: monsterType,
-      model: monster,
-      mixer: monsterMixer,
-      hp: 100,
-      lastHit: 0,
-    });
-
-    console.log(`Monster spawned: ${monsterType}`);
-    return true;
-  };
-  // Update startMonsterSpawning to load all models and start the quest
-  const startMonsterSpawning = () => {
-    console.log("Starting monster spawning sequence");
-
-    // Reset quest status
-    questStatusRef.current = {
-      totalMonsters: monsterTypes.current.length,
-      monstersDefeated: 0,
-      currentMonster: null,
-      completed: false,
-    };
-
-    console.log("Reset quest status:", questStatusRef.current);
-
-    // Reset monster statuses
-    monsterTypes.current.forEach((monster) => {
-      monsterStatus.current[monster.id] = {
-        loaded: false,
-        available: false,
-        completed: false,
-      };
-    });
-
-    console.log("Initial monster statuses:");
-    checkMonsterAvailability();
-
-    // Load all monsters in sequence
-    const loadSequentially = async () => {
-      try {
-        for (const monster of monsterTypes.current) {
-          console.log(`Starting to load ${monster.id}...`);
-          await loadSingleMonster(monster);
-          console.log(`Finished loading ${monster.id}`);
-        }
-
-        console.log("All monsters loaded. Final status:");
-        checkMonsterAvailability();
-        spawnNextQuestMonster();
-      } catch (error) {
-        console.error("Error in monster loading sequence:", error);
-      }
-    };
-
-    loadSequentially();
-  };
-
-  const checkMonsterAvailability = () => {
-    console.log("=== Monster Availability Check ===");
-    Object.entries(monsterStatus.current).forEach(([id, status]) => {
-      // Convert the object to a string representation
-      console.log(
-        `${id}:`,
-        JSON.stringify({
-          loaded: status.loaded,
-          available: status.available,
-          completed: status.completed,
-          modelLoaded: !!loadedMonsterModels.current[id],
-        })
-      );
-    });
-    console.log("================================");
-  };
-  // Modified initialization useEffect
-  const loadSingleMonster = (monster) => {
-    return new Promise((resolve, reject) => {
-      const loader = new GLTFLoader();
-      console.log(`Loading ${monster.id} model...`);
-
-      loader.load(
-        monster.modelPath,
-        (gltf) => {
-          console.log(`${monster.id} model load successful`);
-
-          loadedMonsterModels.current[monster.id] = {
-            model: gltf.scene.clone(),
-            animations: gltf.animations,
-            definition: monster,
-          };
-
-          monsterStatus.current[monster.id] = {
-            loaded: true,
-            available: true,
-            completed: false,
-          };
-
-          console.log(
-            `${monster.id} status updated:`,
-            JSON.stringify(monsterStatus.current[monster.id])
-          );
-          resolve();
-        },
-        (progress) => {
-          console.log(`${monster.id} loading progress:`, progress);
-        },
-        (error) => {
-          console.error(`Error loading ${monster.id}:`, error);
-          reject(error);
-        }
-      );
-    });
-  };
-  const spawnNextQuestMonster = () => {
-    console.log("\nAttempting to spawn next quest monster");
-    console.log("Current monster statuses:");
-    checkMonsterAvailability();
-
-    // Find available monsters
-    const availableMonsters = monsterTypes.current.filter((monster) => {
-      const status = monsterStatus.current[monster.id];
-      console.log(
-        `Checking ${monster.id} availability:`,
-        JSON.stringify({
-          loaded: status?.loaded,
-          available: status?.available,
-          completed: status?.completed,
-          hasModel: !!loadedMonsterModels.current[monster.id],
-        })
-      );
-      return status?.loaded && status?.available && !status?.completed;
-    });
-
-    console.log(
-      "Available monsters for spawn:",
-      availableMonsters.map((m) => m.id).join(", ") || "none"
-    );
-
-    if (availableMonsters.length === 0) {
-      console.log("No more monsters available - Quest completed!");
-      console.log("Final monster statuses:");
-      checkMonsterAvailability();
-      questStatusRef.current.completed = true;
-      return;
-    }
-
-    const nextMonster = availableMonsters[0];
-    console.log(`Spawning next monster: ${nextMonster.id}`);
-
-    // Clear existing monsters
-    clearExistingMonsters();
-
-    // Spawn the new monster
-    spawnMonster(nextMonster.id);
-  };
-
-  const clearExistingMonsters = () => {
-    // Remove all current monsters
-    monstersRef.current.forEach((monster) => {
-      if (monster.mixer) {
-        monster.mixer.stopAllAction();
-        mixersRef.current = mixersRef.current.filter(
-          (m) => m !== monster.mixer
-        );
-      }
-
-      if (monster.model && monster.model.parent) {
-        scene.remove(monster.model);
-      }
-    });
-
-    monstersRef.current = [];
-  };
-
-  // Add a function to handle setup for generic monsters (zombie and skeleton)
-  const setupGenericMonsterAnimations = (monster, mixer, animations) => {
-    console.log("Setting up generic monster animations");
-
-    const idleClip = animations.find(
-      (anim) =>
-        anim.name.toLowerCase().includes("idle") ||
-        anim.name.toLowerCase().includes("stand")
-    );
-
-    if (!idleClip) {
-      console.warn(
-        "No idle animation found for generic monster, using fallback."
-      );
-      if (animations.length > 0) {
-        console.log("Using first available animation");
-        const action = mixer.clipAction(animations[0]);
-        action.play();
-        return true;
-      }
-      return false;
-    }
-
-    const processedClip = idleClip.clone();
-    processedClip.tracks.forEach((track) => {
-      if (track.times.length > 1) {
-        track.times = track.times.slice(1);
-        track.values = track.values.slice(track.getValueSize());
-      }
-    });
-
-    processedClip.resetDuration();
-    const action = mixer.clipAction(processedClip);
-    action.play();
-
-    console.log("Generic monster animation setup complete");
-    return true;
-  };
-  const killMonster = (monster) => {
-    if (!monster || !monster.model) return;
-
-    console.log(`Killing monster type: ${monster.type}`);
-    console.log(
-      `Previous status:`,
-      JSON.stringify(monsterStatus.current[monster.type])
-    );
-
-    // Update status
-    monsterStatus.current[monster.type] = {
-      ...monsterStatus.current[monster.type],
-      completed: true,
-      loaded: true, // Keep it loaded
-      available: true, // Keep it available
-    };
-
-    console.log(
-      `Updated status:`,
-      JSON.stringify(monsterStatus.current[monster.type])
-    );
-
-    questStatusRef.current.monstersDefeated++;
-    console.log(
-      `Monsters defeated: ${questStatusRef.current.monstersDefeated}/${questStatusRef.current.totalMonsters}`
-    );
-
-    // Normal cleanup...
-    if (monster.mixer) {
-      monster.mixer.stopAllAction();
-      mixersRef.current = mixersRef.current.filter((m) => m !== monster.mixer);
-    }
-
-    createHitEffect(monster.model.position);
-    scene.remove(monster.model);
-    monstersRef.current = monstersRef.current.filter(
-      (m) => m.id !== monster.id
-    );
-
-    // Log complete status before spawning next
-    console.log("Monster status after defeat:");
-    checkMonsterAvailability();
-
-    // Schedule next spawn
-    setTimeout(() => {
-      console.log("Spawning next monster in sequence...");
-      spawnNextQuestMonster();
-    }, 3000);
-  };
   const initPhysics = async () => {
     if (ammoRef.current) return ammoRef.current; // Prevent multiple Ammo instances
 
@@ -894,16 +186,23 @@ const MoonScene = ({
 
     const wallMaterial = new THREE.MeshPhongMaterial({
       side: THREE.DoubleSide,
-      //   color: 0x555555,
+      color: 0x555555,
       transparent: true,
-      opacity: 0.0,
-      depthWrite: false, // Prevent writing to depth buffer
-      colorWrite: false, // Prevent writing to color buffer
+      opacity: 0.1, // Slightly visible for debugging
+      depthWrite: false,
+      colorWrite: true, // Allow color writing for debugging
     });
     const wall = new THREE.Mesh(wallGeometry, wallMaterial);
-    // wall.receiveShadow = true;
     wall.name = "wall";
     scene.add(wall);
+
+    // Add a wireframe helper to visualize the wall
+    // const wallWireframe = new THREE.WireframeGeometry(wallGeometry);
+    // const wallLines = new THREE.LineSegments(
+    //   wallWireframe,
+    //   new THREE.LineBasicMaterial({ color: 0xff0000 })
+    // );
+    // wall.add(wallLines);
 
     // Add wall and floor to physics when physics is initialized
     const addRoomToPhysics = () => {
@@ -929,7 +228,15 @@ const MoonScene = ({
         );
         wallBody.setFriction(0.5);
         wallBody.setRestitution(0.3);
-        physicsRef.current.world.addRigidBody(wallBody);
+
+        // Set collision filtering for wall
+        // Wall belongs to WALL group and collides only with MOON group
+        physicsRef.current.world.addRigidBody(
+          wallBody,
+          COLLISION_GROUP_WALL, // collision group
+          COLLISION_GROUP_MOON // collision mask (what it collides with)
+        );
+
         wall.userData.physicsBody = wallBody;
         console.log("Wall added to physics");
       }
@@ -964,6 +271,12 @@ const MoonScene = ({
     const AmmoLib = ammoRef.current;
     if (!AmmoLib) return null;
 
+    // Check cache first
+    const geometryId = geometry.id;
+    if (shapeCache.current.has(geometryId)) {
+      return shapeCache.current.get(geometryId);
+    }
+
     const shape = new AmmoLib.btConvexHullShape();
     const vertices = geometry.attributes.position.array;
     const tempBtVec = new AmmoLib.btVector3(0, 0, 0);
@@ -981,6 +294,10 @@ const MoonScene = ({
     }
 
     shape.setMargin(0.01); // Small non-zero margin for stability
+
+    // Store in cache
+    shapeCache.current.set(geometryId, shape);
+
     return shape;
   };
 
@@ -1087,8 +404,8 @@ const MoonScene = ({
     const rigidBody = new AmmoLib.btRigidBody(rbInfo);
 
     // Lower restitution for less bounce
-    rigidBody.setFriction(0.8);
-    rigidBody.setRestitution(0.1);
+    rigidBody.setFriction(GROUND_FRICTION);
+    rigidBody.setRestitution(GROUND_RESTITUTION);
     rigidBody.setDamping(0, 0);
 
     // Create a debug visualization at exact same position
@@ -1187,7 +504,8 @@ const MoonScene = ({
     q.setEulerZYX(randRotZ, randRotY, randRotX);
     moonTransform.setRotation(q);
 
-    const mass = 0.5; // Lighter mass for better physics
+    // Reduce mass for lighter, bouncier feel
+    const mass = 0.3; // Lighter mass (was 0.5)
     const localInertia = new AmmoLib.btVector3(0, 0, 0);
     moonShape.calculateLocalInertia(mass, localInertia);
 
@@ -1200,15 +518,18 @@ const MoonScene = ({
     );
     const moonBody = new AmmoLib.btRigidBody(rbInfo);
 
-    // Match original physics properties
-    moonBody.setFriction(MOON_FRICTION);
-    moonBody.setRestitution(MOON_RESTITUTION);
+    // Increase restitution for more bounce and reduce friction
+    moonBody.setFriction(0.05); // Lower friction (was 0.1)
+    moonBody.setRestitution(0.8); // Higher restitution (was 0.5)
+
+    // Add damping to make movement more fluid
+    moonBody.setDamping(0.1, 0.1); // Linear and angular damping
 
     // Add some random motion as in original
     moonBody.setLinearVelocity(
       new AmmoLib.btVector3(
         THREE.MathUtils.randFloat(-1, 1),
-        -3,
+        -2, // Gentler initial downward velocity (was -3)
         THREE.MathUtils.randFloat(-1, 1)
       )
     );
@@ -1222,7 +543,13 @@ const MoonScene = ({
       )
     );
 
-    physicsRef.current.world.addRigidBody(moonBody);
+    physicsRef.current.world.addRigidBody(
+      moonBody,
+      COLLISION_GROUP_MOON, // collision group
+      COLLISION_GROUP_DEFAULT |
+        COLLISION_GROUP_WALL |
+        COLLISION_GROUP_PROJECTILE // collision mask
+    );
     bodiesRef.current.push({ mesh: moon, body: moonBody });
   };
 
@@ -1234,18 +561,51 @@ const MoonScene = ({
     const showDebugShape = false;
     const AmmoLib = ammoRef.current;
 
+    // First, find Object_3 and Statue and mark them for exclusion
+    modelRef.current.traverse((child) => {
+      if (
+        child.isMesh &&
+        (child.name === "Object_3" || child.name === "Object_2.001")
+      ) {
+        console.log(`Marking ${child.name} to be excluded from physics`);
+        // Set a user data flag to identify it later
+        child.userData.excludeFromPhysics = true;
+
+        // Keep it visible but don't let it interact with physics
+        // Don't disable raycast completely - we still want it to be visible
+
+        // Set a special collision group for this object
+        child.userData.collisionGroup = 2; // COLLISION_GROUP_OBJECT3
+      }
+    });
+
+    // Then process all other objects for physics
     modelRef.current.traverse((child) => {
       if (!child.isMesh) return;
+
+      // Skip Object_3 and Statue from physics/collision detection
+      if (
+        child.userData.excludeFromPhysics ||
+        child.name === "Object_3" ||
+        child.name === "Statue"
+      ) {
+        console.log(`Excluding ${child.name} from physics simulation`);
+        return;
+      }
 
       let shape;
       const isWall = child.name === "wall";
       // Define isFloor2 inside the traverse where child is defined
       const isFloor2 = child.name === "Floor2.002";
+      const isFloor3 =
+        child.name === "Floor3" ||
+        child.name === "Floor3.001" ||
+        child.name === "Floor3.002";
       const isMainFloor =
-        child.name.toLowerCase().includes("floor") && !isFloor2;
+        child.name.toLowerCase().includes("floor") && !isFloor2 && !isFloor3;
 
       // Rest of your code using isFloor2...
-      if (isFloor2) {
+      if (isFloor2 || isFloor3) {
         // Try to create a convex hull first
         shape = createConvexHullShape(child.geometry);
 
@@ -1265,7 +625,7 @@ const MoonScene = ({
 
         // Final fallback if all else fails
         if (!shape) {
-          console.error("All shape creation methods failed for Floor2.002");
+          console.error(`All shape creation methods failed for ${child.name}`);
           return; // Skip this object
         }
 
@@ -1289,8 +649,9 @@ const MoonScene = ({
         line.position.set(0, 0.01, 0);
         // Skip the box helper for this object
         child.userData.skipBoxHelper = true;
-        // Mark this as Floor2 for physics properties later
-        child.userData.isFloor2 = true;
+        // Mark this as Floor2/Floor3 for physics properties later
+        child.userData.isFloor2 = isFloor2;
+        child.userData.isFloor3 = isFloor3;
       }
 
       // Handle wall
@@ -1342,15 +703,13 @@ const MoonScene = ({
       const body = new AmmoLib.btRigidBody(rbInfo);
 
       // Set physics properties based on object type
-      if (child.userData.isFloor2) {
-        // Apply specific properties for Floor2
-        body.setFriction(0.8);
-        body.setRestitution(0.2); // Lower restitution to reduce bounce
+      if (child.userData.isFloor2 || child.userData.isFloor3) {
+        // Apply specific properties for Floor2/Floor3
+        body.setFriction(GROUND_FRICTION);
+        body.setRestitution(GROUND_RESTITUTION); // Higher restitution for more bounce
+        body.setDamping(0, 0); // No damping
 
-        // Set a different collision flag for Floor2
-        body.setCollisionFlags(1); // 1 = static
-
-        console.log("Floor2 physics applied with convex hull");
+        console.log(`${child.name} physics applied with convex hull`);
       } else {
         // Regular physics for other objects
         body.setFriction(MODEL_FRICTION);
@@ -1363,7 +722,13 @@ const MoonScene = ({
 
       body.name = child.name;
 
-      physicsRef.current.world.addRigidBody(body);
+      physicsRef.current.world.addRigidBody(
+        body,
+        COLLISION_GROUP_DEFAULT, // collision group
+        COLLISION_GROUP_DEFAULT |
+          COLLISION_GROUP_MOON |
+          COLLISION_GROUP_PROJECTILE // collision mask
+      );
       child.userData.physicsBody = body;
 
       //   console.log(`Added physics for mesh: ${child.name}`);
@@ -1410,7 +775,7 @@ const MoonScene = ({
     }
 
     let projectile;
-    const projectileSize = 0.8;
+    const projectileSize = 0.8; // Keep original size
 
     if (projectilePoolRef.current.length > 0) {
       projectile = projectilePoolRef.current.pop();
@@ -1429,19 +794,27 @@ const MoonScene = ({
       projectile.name = "shootingBall";
     }
 
-    projectile.position.copy(origin);
+    // IMPORTANT: Spawn closer to the camera position
+    // This matches the original demo's behavior
+    const spawnDistance = 2; // Much closer to camera (was 5)
+    const spawnPosition = camera.position
+      .clone()
+      .add(direction.clone().multiplyScalar(spawnDistance));
+
+    projectile.position.copy(spawnPosition);
     scene.add(projectile);
 
-    const projectileShape = new AmmoLib.btSphereShape(projectileSize / 2);
-    projectileShape.setMargin(0.01);
+    // Create physics shape
+    const projectileShape = new AmmoLib.btSphereShape(projectileSize * 0.5);
+    projectileShape.setMargin(0.01); // Match original margin
 
     const projectileTransform = new AmmoLib.btTransform();
     projectileTransform.setIdentity();
     projectileTransform.setOrigin(
-      new AmmoLib.btVector3(origin.x, origin.y, origin.z)
+      new AmmoLib.btVector3(spawnPosition.x, spawnPosition.y, spawnPosition.z)
     );
 
-    const mass = 1;
+    const mass = 10; // Original mass
     const localInertia = new AmmoLib.btVector3(0, 0, 0);
     projectileShape.calculateLocalInertia(mass, localInertia);
 
@@ -1454,26 +827,40 @@ const MoonScene = ({
     );
     const projectileBody = new AmmoLib.btRigidBody(rbInfo);
 
-    projectileBody.setFriction(0.8);
-    projectileBody.setRestitution(0.05);
-    projectileBody.setDamping(0.4, 0.4);
-    projectileBody.setRollingFriction(0.3);
+    // Match original physics properties
+    projectileBody.setFriction(0.5);
+    projectileBody.setRestitution(0.3);
 
-    const force = 80;
+    // Add to physics world normally - we'll handle Object_3 collision differently
+    physicsRef.current.world.addRigidBody(
+      projectileBody,
+      COLLISION_GROUP_PROJECTILE, // collision group
+      COLLISION_GROUP_DEFAULT | COLLISION_GROUP_MOON // collision mask (collides with everything except walls)
+    );
+
+    // Apply velocity with original force
+    const force = 85;
     const velocity = new AmmoLib.btVector3(
       direction.x * force,
       direction.y * force,
       direction.z * force
     );
     projectileBody.setLinearVelocity(velocity);
-    projectileBody.setActivationState(4);
+    projectileBody.activate();
 
-    physicsRef.current.world.addRigidBody(projectileBody);
     bodiesRef.current.push({
       mesh: projectile,
       body: projectileBody,
       createdAt: Date.now(),
+      isProjectile: true,
     });
+  };
+
+  // Modify the checkObject3Collisions function to be more selective
+  const checkObject3Collisions = () => {
+    // We're intentionally NOT checking for Object_3 collisions anymore
+    // This function is now essentially a no-op
+    return;
   };
 
   // Random color helper
@@ -1517,16 +904,6 @@ const MoonScene = ({
       bodiesRef.current.splice(index, 1);
     }
   };
-  // Helper function to generate random color like the original
-  // const getRandomColor = () => {
-  //   const color = new THREE.Color();
-  //   color.setHSL(
-  //     Math.abs(THREE.MathUtils.randInt(-1000, 1000) / 1000),
-  //     1,
-  //     THREE.MathUtils.randInt(500, 700) / 1000
-  //   );
-  //   return color;
-  // };
 
   const handleClick = (event) => {
     const currentTime = performance.now();
@@ -1554,22 +931,13 @@ const MoonScene = ({
       // Create adjusted origin slightly forward and upward, and inward horizontally
       const adjustedOrigin = camera.position
         .clone()
-        .add(direction.clone().multiplyScalar(10)) // 3x the original
-        .add(new THREE.Vector3(0, -1, 5));
+        .add(direction.clone().multiplyScalar(15))
+        .add(new THREE.Vector3(0, -1, -5));
 
       shootProjectile(adjustedOrigin, direction);
     }
   };
 
-  // Setup click listener
-  // useEffect(() => {
-  //   const canvas = gl.domElement;
-  //   canvas.addEventListener("pointerdown", handleClick);
-
-  //   return () => {
-  //     canvas.removeEventListener("pointerdown", handleClick);
-  //   };
-  // }, []);
   const lastClickTime = useRef(0);
   const doubleClickDelay = 300; // milliseconds, adjust as needed (~300ms is typical)
 
@@ -1589,11 +957,12 @@ const MoonScene = ({
         raycaster.setFromCamera(mouse, camera);
 
         const direction = raycaster.ray.direction.clone().normalize();
-        const adjustedOrigin = camera.position
-          .clone()
-          .add(direction.clone().multiplyScalar(8));
 
-        shootProjectile(adjustedOrigin, direction);
+        // Spawn closer to camera to match original effect
+        shootProjectile(
+          camera.position.clone().add(direction.clone().multiplyScalar(2)),
+          direction
+        );
       }
 
       // Update the last click timestamp
@@ -1602,301 +971,8 @@ const MoonScene = ({
 
     window.addEventListener("pointerdown", handlePointerDown);
     return () => window.removeEventListener("pointerdown", handlePointerDown);
-  }, [camera, shootProjectile]);
-  const checkProjectileMonsterCollisions = () => {
-    // Skip if no monsters or projectiles
-    if (monstersRef.current.length === 0 || bodiesRef.current.length === 0)
-      return;
+  }, [camera]);
 
-    // Only check a subset of projectiles each frame for better performance
-    // This creates a rolling window of collision checks
-    const maxChecksPerFrame = 5;
-    let checksRemaining = maxChecksPerFrame;
-
-    // Find projectiles
-    const projectiles = bodiesRef.current.filter(
-      (obj) => obj.mesh && obj.mesh.name === "shootingBall"
-    );
-
-    if (projectiles.length === 0) return;
-
-    // Static counter to track which projectiles we've checked
-    if (
-      typeof checkProjectileMonsterCollisions.lastCheckedIndex === "undefined"
-    ) {
-      checkProjectileMonsterCollisions.lastCheckedIndex = 0;
-    }
-
-    // Reset index if it's out of bounds
-    if (
-      checkProjectileMonsterCollisions.lastCheckedIndex >= projectiles.length
-    ) {
-      checkProjectileMonsterCollisions.lastCheckedIndex = 0;
-    }
-
-    let index = checkProjectileMonsterCollisions.lastCheckedIndex;
-    const startIndex = index; // Remember where we started
-
-    // Check projectiles in a round-robin fashion
-    do {
-      const projectileObj = projectiles[index];
-      if (projectileObj && projectileObj.mesh) {
-        const projectilePos = projectileObj.mesh.position;
-
-        // Check each monster for this projectile
-        monstersRef.current.forEach((monster) => {
-          if (!monster.model) return;
-
-          // Get monster bounding box
-          const monsterBox = new THREE.Box3().setFromObject(monster.model);
-          const monsterCenter = new THREE.Vector3();
-          monsterBox.getCenter(monsterCenter);
-
-          const monsterSize = new THREE.Vector3();
-          monsterBox.getSize(monsterSize);
-          const maxDimension = Math.max(
-            monsterSize.x,
-            monsterSize.y,
-            monsterSize.z
-          );
-
-          // Use half the monster's size plus projectile size as hit radius
-          const hitRadius = maxDimension / 2 + 0.5;
-          const distance = projectilePos.distanceTo(monsterCenter);
-
-          if (distance < hitRadius) {
-            console.log(`HIT DETECTED! Monster ${monster.id}`);
-            handleMonsterHit(monster, projectilePos);
-
-            // Recycle projectile
-            const objIndex = bodiesRef.current.indexOf(projectileObj);
-            if (objIndex !== -1) {
-              recycleProjectile(projectileObj, objIndex);
-            }
-          }
-        });
-      }
-
-      // Move to next projectile
-      index = (index + 1) % projectiles.length;
-      checksRemaining--;
-    } while (checksRemaining > 0 && index !== startIndex);
-
-    // Save the next index to check
-    checkProjectileMonsterCollisions.lastCheckedIndex = index;
-  };
-
-  const handleMonsterHit = (monster, hitPosition) => {
-    const now = Date.now();
-    if (now - monster.lastHit < 800) return; // Prevent rapid hits
-    monster.lastHit = now;
-
-    // Reduce HP
-    monster.hp -= 50;
-    console.log(`Monster ${monster.id} hit! HP: ${monster.hp}`);
-
-    // Play hurt animation
-    if (monster.hp > 0) {
-      console.log(`Playing hurt animation for ${monster.id}`);
-      playMonsterAnimation(monster, "hurt", () => {
-        console.log(`Returning to idle animation for ${monster.id}`);
-        playMonsterAnimation(monster, "idle");
-      });
-
-      // Move monster slightly away from the hit point
-      const hitDir = new THREE.Vector3()
-        .subVectors(monster.model.position, hitPosition)
-        .normalize()
-        .multiplyScalar(3);
-
-      const targetPos = monster.model.position.clone().add(hitDir);
-      const distanceFromCenter = Math.sqrt(
-        targetPos.x * targetPos.x + targetPos.z * targetPos.z
-      );
-
-      if (distanceFromCenter > roomRadius * 0.8) {
-        hitDir.multiplyScalar(0.3);
-        targetPos.copy(monster.model.position).add(hitDir);
-      }
-
-      // Animate movement
-      const startPos = monster.model.position.clone();
-      const startTime = Date.now();
-      const moveDuration = 500;
-
-      const moveAnimation = () => {
-        const elapsed = Date.now() - startTime;
-        if (elapsed >= moveDuration) return;
-
-        const progress = elapsed / moveDuration;
-        monster.model.position.lerpVectors(
-          startPos,
-          targetPos,
-          Math.sin((progress * Math.PI) / 2)
-        );
-
-        requestAnimationFrame(moveAnimation);
-      };
-
-      requestAnimationFrame(moveAnimation);
-    } else {
-      console.log(`Monster ${monster.id} defeated! Calling killMonster.`);
-      killMonster(monster);
-    }
-  };
-  const playMonsterAnimation = (monster, animName, onComplete) => {
-    if (!monster || !monster.mixer) {
-      console.warn("Invalid monster or mixer in playMonsterAnimation");
-      return false;
-    }
-
-    try {
-      // Get monster type
-      const monsterType = monster.type || "nosferatu";
-      console.log(`Playing ${animName} animation for ${monsterType}`);
-
-      // Special case for murder clown - always use the same animation setup
-      if (monsterType === "murderClown") {
-        if (loadedMonsterModels.current[monsterType]) {
-          const monsterData = loadedMonsterModels.current[monsterType];
-          const monsterDef = monsterData.definition;
-
-          // Just reuse the setup function
-          setupMurderClownAnimations(
-            monster.model,
-            monster.mixer,
-            monsterData.animations,
-            monsterDef
-          );
-          return true;
-        } else {
-          console.error("Murder clown model data not found");
-          return false;
-        }
-      }
-
-      // For other monster types, find animations
-      let animationClip = null;
-
-      // Check nosferatu animations
-      if (
-        monsterType === "nosferatu" &&
-        Array.isArray(monsterAnimationsRef.current)
-      ) {
-        animationClip = monsterAnimationsRef.current.find(
-          (anim) => anim.name.toLowerCase() === animName.toLowerCase()
-        );
-      }
-      // For other types, check loadedMonsterModels
-      else if (loadedMonsterModels.current[monsterType]) {
-        const monsterData = loadedMonsterModels.current[monsterType];
-        if (Array.isArray(monsterData.animations)) {
-          animationClip = monsterData.animations.find(
-            (anim) => anim.name.toLowerCase() === animName.toLowerCase()
-          );
-        }
-      }
-
-      // If no clip found, use fallback
-      if (!animationClip) {
-        console.warn(
-          `Animation ${animName} not found for ${monsterType}, using fallback`
-        );
-
-        // Try to find any animation
-        if (
-          monsterType === "nosferatu" &&
-          Array.isArray(monsterAnimationsRef.current) &&
-          monsterAnimationsRef.current.length > 0
-        ) {
-          animationClip = monsterAnimationsRef.current[0];
-        } else if (
-          loadedMonsterModels.current[monsterType] &&
-          Array.isArray(loadedMonsterModels.current[monsterType].animations) &&
-          loadedMonsterModels.current[monsterType].animations.length > 0
-        ) {
-          animationClip =
-            loadedMonsterModels.current[monsterType].animations[0];
-        }
-
-        if (!animationClip) {
-          console.error("No fallback animation found");
-          return false;
-        }
-      }
-
-      // Clone and process clip
-      const processedClip = animationClip.clone();
-      if (
-        processedClip.tracks.length > 0 &&
-        processedClip.tracks[0].times.length > 1
-      ) {
-        processedClip.tracks.forEach((track) => {
-          track.times = track.times.slice(1);
-          track.values = track.values.slice(track.getValueSize());
-        });
-        processedClip.resetDuration();
-      }
-
-      // Stop all current animations
-      monster.mixer.stopAllAction();
-
-      // Create and play the new action
-      const action = monster.mixer.clipAction(processedClip);
-
-      if (animName === "hurt") {
-        action.setLoop(THREE.LoopOnce);
-        action.clampWhenFinished = true;
-
-        if (onComplete) {
-          const finishedCallback = (e) => {
-            if (e.action === action) {
-              monster.mixer.removeEventListener("finished", finishedCallback);
-              onComplete();
-            }
-          };
-          monster.mixer.addEventListener("finished", finishedCallback);
-        }
-      }
-
-      action.play();
-      return true;
-    } catch (error) {
-      console.error("Error in playMonsterAnimation:", error);
-      return false;
-    }
-  };
-
-  const createHitEffect = (position) => {
-    // Simple particle effect
-    const particles = new THREE.Points(
-      new THREE.BufferGeometry().setFromPoints(
-        Array(15)
-          .fill()
-          .map(
-            () =>
-              new THREE.Vector3(
-                position.x + (Math.random() - 0.5),
-                position.y + (Math.random() - 0.5),
-                position.z + (Math.random() - 0.5)
-              )
-          )
-      ),
-      new THREE.PointsMaterial({
-        color: 0xff3300,
-        size: 0.2,
-        blending: THREE.AdditiveBlending,
-      })
-    );
-
-    scene.add(particles);
-
-    // Remove after animation
-    setTimeout(() => {
-      scene.remove(particles);
-    }, 500);
-  };
-  const INITIAL_CAMERA_TARGET = [0, 14.6, 0];
   // Initialize scene
   useEffect(() => {
     const startSimulation = async () => {
@@ -1911,14 +987,6 @@ const MoonScene = ({
       }, 100);
     };
 
-    // Pass startMonsterSpawning instead of loadMonsterModel
-    if (onSpawnFunctionReady) {
-      console.log(
-        "MoonScene: Providing startMonsterSpawning function to parent"
-      );
-      onSpawnFunctionReady(startMonsterSpawning);
-    }
-
     startSimulation();
 
     return () => {
@@ -1926,14 +994,8 @@ const MoonScene = ({
       if (physicsRef.current.world && ammoRef.current) {
         // Proper Ammo.js cleanup would go here
       }
-      if (monsterSpawnIntervalRef.current) {
-        clearInterval(monsterSpawnIntervalRef.current);
-      }
 
       // Clean up animation mixers
-      mixersRef.current.forEach((mixer) => {
-        mixer.stopAllAction();
-      });
     };
   }, []);
 
@@ -1953,33 +1015,42 @@ const MoonScene = ({
     }
   }, [modelRef?.current, isPhysicsInitialized.current]);
 
-  // Animation loop
+  // 1. Fixed timestep physics implementation
+  const fixedTimeStep = 1 / 60;
+  let accumulator = 0;
 
-  let lastCheck = 0;
-  const checkInterval = 1000 / 30;
+  // Replace your existing useFrame physics update with this
   useFrame((state, delta) => {
-    const now = performance.now();
+    // Fixed timestep physics
     if (physicsRef.current?.world) {
-      physicsRef.current.world.stepSimulation(1 / 60, 1, 1 / 60);
+      // Accumulate time and step physics with fixed timestep
+      accumulator += delta;
+
+      // Step physics with fixed timestep for stability
+      while (accumulator >= fixedTimeStep) {
+        physicsRef.current.world.stepSimulation(
+          fixedTimeStep,
+          1,
+          fixedTimeStep
+        );
+        accumulator -= fixedTimeStep;
+      }
     }
 
-    if (now - lastCheck > checkInterval) {
-      checkProjectileMonsterCollisions();
-      lastCheck = now;
-    }
+    // Update controls
     if (controlsRef.current) {
       controlsRef.current.update();
     }
+
+    // Update animation mixers
     if (mixersRef.current.length > 0) {
       mixersRef.current.forEach((mixer) => {
         mixer.update(delta);
       });
     }
-    if (physicsRef.current?.world) {
-      checkProjectileMonsterCollisions();
-    }
+
+    // Update meshes from physics bodies
     if (physicsRef.current?.world && ammoRef.current) {
-      // Update meshes from physics bodies
       bodiesRef.current.forEach(({ mesh, body }) => {
         if (!mesh || !body) return;
 
@@ -1990,7 +1061,6 @@ const MoonScene = ({
           const origin = transform.getOrigin();
           const rotation = transform.getRotation();
 
-          // Update mesh position and rotation - FIXED: Uncommented position update
           mesh.position.set(origin.x(), origin.y(), origin.z());
           mesh.quaternion.set(
             rotation.x(),
@@ -2018,9 +1088,10 @@ const MoonScene = ({
         }
       }
     }
-  });
 
-  return null;
+    // Check for Object_3 collisions
+    checkObject3Collisions();
+  });
 };
 
 export default MoonScene;

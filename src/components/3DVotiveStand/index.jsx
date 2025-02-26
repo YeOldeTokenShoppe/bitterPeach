@@ -53,10 +53,13 @@ function ThreeDVotiveStand({
   setIsModalOpen,
   onSpawnReady,
 }) {
+  const [showFloatingViewer, setShowFloatingViewer] = useState(false);
+  const [selectedCandleData, setSelectedCandleData] = useState(null);
+
+  const results = useFirestoreResults();
   const [userData, setUserData] = useState([]);
   // Add in index.jsx
   const [tooltipData, setTooltipData] = useState([]);
-  const [selectedCandleData, setSelectedCandleData] = useState(null);
 
   const [shuffledCandleIndices, setShuffledCandleIndices] = useState([]);
 
@@ -93,10 +96,7 @@ function ThreeDVotiveStand({
   const pointLightRef = useRef();
   const rendererRef = useRef(null);
   // const [showPhoneViewer, setShowPhoneViewer] = useState(false);
-  const [showFloatingViewer, setShowFloatingViewer] = useState(false);
-  const [isPanelVisible, setIsPanelVisible] = useState(true);
-  const [selectedCandle, setSelectedCandle] = useState(null);
-  const results = useFirestoreResults();
+
   const panelRef = useRef();
   const [modelCenter, setModelCenter] = useState(new THREE.Vector3(0, 0, 0)); // Default center
 
@@ -119,42 +119,6 @@ function ThreeDVotiveStand({
     };
     loadThreeJSScene();
   }, [setIsLoading]);
-
-  // useEffect(() => {
-  //   const q = query(collection(db, "results"), orderBy("createdAt", "desc"));
-  //   const unsubscribe = onSnapshot(q, (querySnapshot) => {
-  //     const fetchedResults = querySnapshot.docs.map((doc) => ({
-  //       id: doc.id,
-  //       userName: doc.data().userName || "Anonymous",
-  //       image: doc.data().image,
-  //       message: doc.data().message,
-  //       burnedAmount: doc.data().burnedAmount || 1,
-  //     }));
-  //     setResults(fetchedResults);
-  //     const indices = Array.from({ length: 40 }, (_, i) => i + 1);
-  //     const shuffled = indices
-  //       .slice(0, fetchedResults.length)
-  //       .sort(() => Math.random() - 0.5);
-  //     setShuffledCandleIndices(shuffled);
-  //   });
-  //   return () => unsubscribe();
-  // }, []);
-
-  // const handleGuiStart = (panel) => {
-  //   if (controlsRef.current) {
-  //     const guiSettings = CONTROL_SETTINGS.guiMode;
-  //     Object.assign(controlsRef.current, guiSettings);
-  //   }
-  //   setIsGuiMode(panel); // Track which panel activated GUI mode
-  // };
-
-  // const handleGuiEnd = () => {
-  //   if (controlsRef.current) {
-  //     const defaultSettings = CONTROL_SETTINGS.default;
-  //     Object.assign(controlsRef.current, defaultSettings);
-  //   }
-  //   setIsGuiMode(false);
-  // };
 
   let previousTooltipData = []; // Track previous tooltip data to prevent unnecessary updates
   const findCandleComponent = (parent, type) => {
@@ -179,6 +143,14 @@ function ThreeDVotiveStand({
         return null;
     }
   };
+
+  // Log only once when component mounts
+  useEffect(() => {
+    console.log(
+      "ThreeDVotiveStand: Component mounted with onSpawnReady available:",
+      !!onSpawnReady
+    );
+  }, []); // Empty dependency array
 
   return (
     <>
@@ -227,30 +199,11 @@ function ThreeDVotiveStand({
                 setShowFloatingViewer(true);
               }}
               setModelCenter={setModelCenter}
-            />
-            <Model
-              // url="/nyseMiniplus.glb"
-              setModelCenter={setModelCenter}
-              scale={modelScale}
-              setIsLoading={setIsLoading}
-              controlsRef={controlsRef}
-              modelRef={modelRef}
-              setCamera={setCamera}
-              // setMarkers={setMarkers}
-              // markers={markers}
-              userData={userData}
-              // hemisphereLightRef={hemisphereLightRef}
-              setSelectedCandle={setSelectedCandle}
-              onCandleSelect={handleCandleSelect}
-              showFloatingViewer={showFloatingViewer}
-              setShowFloatingViewer={setShowFloatingViewer}
-              // onButtonClick={handleClick}
-              setShowSpotify={setShowSpotify}
               isModalOpen={isModalOpen}
               setIsModalOpen={setIsModalOpen}
             />
 
-            <MoonScene modelRef={modelRef} />
+            <MoonScene modelRef={modelRef} onSpawnReady={onSpawnReady} />
             <HolographicStatue />
             <PostProcessingEffects />
           </Suspense>
@@ -262,13 +215,13 @@ function ThreeDVotiveStand({
         )} */}
         {showFloatingViewer && selectedCandleData && (
           <FloatingCandleViewer
+            key={selectedCandleData.userName + selectedCandleData.image}
             isVisible={showFloatingViewer}
+            userData={selectedCandleData}
             onClose={() => {
               setShowFloatingViewer(false);
               setSelectedCandleData(null);
             }}
-            userData={selectedCandleData}
-            key={selectedCandleData.image}
           />
         )}
       </div>

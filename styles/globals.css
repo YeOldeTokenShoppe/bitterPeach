@@ -3793,7 +3793,8 @@ div.css-161tt0w {
 
 .thelma1 {
   color: #8e662b;
-  text-shadow: 4px 4px 6px #000, -1px -1px 9px pink;
+  text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 15px #8e662b, 0 0 20px turquoise,
+    0 0 25px turquoise, 2px 2px 3px rgba(0, 0, 0, 0.5);
   font-size: 4rem; /* default to 4rem for small screens */
   font-weight: 900;
   line-height: 0.8;
@@ -3995,7 +3996,7 @@ div.css-161tt0w {
 .close-button:hover {
   color: #ff4a4a; /* Change color on hover */
 }
-.css-163xb14  {
+.css-163xb14 {
   position: absolute;
   top: 60% !important;
   left: 50%;

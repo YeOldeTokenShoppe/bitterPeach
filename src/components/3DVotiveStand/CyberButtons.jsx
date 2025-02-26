@@ -81,8 +81,8 @@ const AnimatedRadioButtons = ({ onButtonClick }) => {
   const BUTTONS = [
     { text: "Buy", key: "buy" },
     { text: "Stake", key: "stake" },
-    { text: monstersActive ? "Monster Mode" : "Fight", key: "fight" },
-    { text: "Light", key: "illumin8" },
+    // { text: monstersActive ? "Monster Mode" : "Fight", key: "fight" },
+    { text: "Get Lit!", key: "Get Lit" },
   ];
 
   const renderModalContent = () => {
@@ -115,11 +115,15 @@ const AnimatedRadioButtons = ({ onButtonClick }) => {
   return (
     <div className="flex flex-col items-center">
       <div
-        className="flex flex-col items-center space-y-4 w-fit mb-8"
+        className="flex flex-col items-center space-y-8 w-fit mb-8"
         ref={containerRef}
       >
         {BUTTONS.map(({ text, key }) => (
-          <div className={`${styles["cyber-radio-btn-group"]} w-32`} key={key}>
+          <div
+            className={`${styles["cyber-radio-btn-group"]} w-32`}
+            key={key}
+            style={{ marginBottom: "24px" }}
+          >
             <button
               className={`${styles["cyber-label"]} ${
                 key === "fight" && monstersActive ? styles["fight-active"] : ""

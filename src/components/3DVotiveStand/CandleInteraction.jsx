@@ -28,8 +28,6 @@ function FloatingCandleViewer({ isVisible, onClose, userData }) {
       }}
       onClick={handleClick}
     >
-      {/* The top close button has been removed */}
-
       {/* Canvas container */}
       <div
         style={{
@@ -106,12 +104,14 @@ function FloatingCandleViewer({ isVisible, onClose, userData }) {
     </div>
   );
 }
-// Rest of the SceneContent component remains the same...
 
 function SceneContent({ userData }) {
-  const { scene } = useGLTF("/singleCandle.glb");
+  const { scene, animations } = useGLTF("/singleCandleAnimatedFlame.glb");
   const candleRef = useRef();
   const controlsRef = useRef();
+  const spotlightRef = useRef();
+  const flamePointLightRef = useRef();
+  const mixerRef = useRef(null);
 
   const applyUserImageToLabel = (scene, imageUrl) => {
     if (!scene || !imageUrl) return;
@@ -168,33 +168,38 @@ function SceneContent({ userData }) {
     const context = canvas.getContext("2d");
 
     // Clear canvas and set background
-    context.fillStyle = "#F5F5DC";
+    context.fillStyle = "#F5F5DC"; // Parchment color
     context.fillRect(0, 0, canvas.width, canvas.height);
 
+    // Save the context state
     context.save();
 
+    // Rotate the text 180 degrees to make it readable on the candle
     context.translate(canvas.width / 2, canvas.height / 2);
     context.rotate(Math.PI);
     context.translate(-canvas.width / 2, -canvas.height / 2);
 
+    // Set text properties
     context.fillStyle = "#000000";
     context.textAlign = "center";
     context.textBaseline = "middle";
-    context.font = "bold 32px UnifrakturCook";
+
+    // Use a more reliable font stack
+    const fontFamily = "serif";
+    context.font = `bold 48px ${fontFamily}`;
 
     const formattedText = text.replace(
       "{userName}",
       userData.userName || "Friend"
     );
 
-    const maxWidth = 400;
-    const lineHeight = 40;
+    const maxWidth = 800;
+    const lineHeight = 60;
     const words = formattedText.split(" ");
     let lines = [];
     let currentLine = "";
 
-    context.font = "32px UnifrakturCook";
-
+    // Word wrapping
     words.forEach((word) => {
       const testLine = currentLine + word + " ";
       const metrics = context.measureText(testLine);
@@ -208,13 +213,24 @@ function SceneContent({ userData }) {
     });
     lines.push(currentLine);
 
+    // Draw text with shadow for better visibility
     const startY = (canvas.height - lines.length * lineHeight) / 2;
     lines.forEach((line, index) => {
-      context.strokeStyle = "#000000";
-      context.lineWidth = 2;
-      context.strokeText(line, canvas.width / 2, startY + index * lineHeight);
+      // Add shadow
+      context.shadowColor = "rgba(0, 0, 0, 0.5)";
+      context.shadowBlur = 4;
+      context.shadowOffsetX = 2;
+      context.shadowOffsetY = 2;
+
+      // Draw text
       context.fillText(line, canvas.width / 2, startY + index * lineHeight);
+
+      // Reset shadow
+      context.shadowColor = "transparent";
     });
+
+    // Restore the context state
+    context.restore();
 
     const texture = new THREE.CanvasTexture(canvas);
     texture.needsUpdate = true;
@@ -234,7 +250,13 @@ function SceneContent({ userData }) {
     });
 
     if (labelMesh) {
-      const dynamicText = `On behalf of {userName},\n\nmay the light of Our Lady of Perepetual Profit illuminate the path to prosperity.`;
+      // Create a more personalized message
+      const message =
+        userData.message && userData.message.trim() !== ""
+          ? userData.message
+          : "may the light of Our Lady of Perpetual Profit illuminate the path to prosperity.";
+
+      const dynamicText = `On behalf of {userName},\n\n${message}`;
 
       const texture = createDynamicTextTexture(dynamicText, userData);
 
@@ -243,7 +265,8 @@ function SceneContent({ userData }) {
         transparent: true,
         side: THREE.DoubleSide,
         emissive: new THREE.Color(0xffffff),
-        emissiveIntensity: 0.3,
+        emissiveIntensity: 0.5,
+        emissiveMap: texture,
         metalness: 0.2,
         roughness: 0.8,
       });
@@ -260,11 +283,53 @@ function SceneContent({ userData }) {
     }
   };
 
+  // Add this function to update on each frame
+  const onFrame = () => {
+    if (candleRef.current && flamePointLightRef.current) {
+      // Get the world position of the candle
+      const box = new THREE.Box3().setFromObject(candleRef.current);
+      const center = box.getCenter(new THREE.Vector3());
+
+      // Position the light at the top of the candle
+      flamePointLightRef.current.position.set(
+        center.x,
+        center.y + 1.8, // Adjust this value to position at flame height
+        center.z
+      );
+
+      // Update animation mixer if it exists
+      if (mixerRef.current) {
+        mixerRef.current.update(0.016); // Update with approximately 60fps timing
+      }
+    }
+  };
+
+  useThree(({ gl }) => {
+    gl.setAnimationLoop(() => {
+      onFrame();
+    });
+
+    return () => {
+      gl.setAnimationLoop(null);
+    };
+  });
+
   useEffect(() => {
     if (!candleRef.current) return;
 
     const box = new THREE.Box3().setFromObject(candleRef.current);
     const center = box.getCenter(new THREE.Vector3());
+
+    // Position the spotlight to focus on the flame area
+    if (spotlightRef.current) {
+      spotlightRef.current.position.set(center.x, center.y + 3, center.z + 2);
+      spotlightRef.current.target.position.set(
+        center.x,
+        center.y + 1.5,
+        center.z
+      );
+      spotlightRef.current.target.updateMatrixWorld();
+    }
 
     if (controlsRef.current) {
       controlsRef.current.target.set(center.x, center.y, center.z);
@@ -277,6 +342,21 @@ function SceneContent({ userData }) {
 
     applyDynamicTextToLabel(scene, userData);
 
+    // Setup flame animation
+    if (animations && animations.length > 0) {
+      // Create animation mixer
+      mixerRef.current = new THREE.AnimationMixer(scene);
+
+      // Find and play the flame animation
+      const flameAnimation = animations.find(
+        (anim) => anim.name === "Animation"
+      );
+      if (flameAnimation) {
+        const action = mixerRef.current.clipAction(flameAnimation);
+        action.play();
+      }
+    }
+
     scene.traverse((child) => {
       if (child.name.startsWith("FLAME")) {
         const isDefaultCandle =
@@ -285,13 +365,37 @@ function SceneContent({ userData }) {
         child.visible = !isDefaultCandle;
       }
     });
-  }, [scene, userData]);
+  }, [scene, userData, animations]);
 
   return (
     <>
       <group ref={candleRef} scale={1.5}>
         <primitive object={scene} />
       </group>
+
+      {/* Ambient light for overall scene illumination */}
+      <ambientLight intensity={0.5} />
+
+      {/* Spotlight for general candle illumination */}
+      <spotLight
+        ref={spotlightRef}
+        intensity={1.5}
+        angle={0.4}
+        penumbra={0.5}
+        distance={10}
+        castShadow={false}
+        color="#ffedd0"
+      />
+
+      {/* Point light that will always follow the flame area */}
+      <pointLight
+        ref={flamePointLightRef}
+        intensity={2.0}
+        distance={3}
+        color="#ff9c5e"
+        decay={2}
+      />
+
       <OrbitControls
         ref={controlsRef}
         enableZoom={true}
@@ -304,6 +408,6 @@ function SceneContent({ userData }) {
   );
 }
 
-useGLTF.preload("/singleCandle.glb");
+useGLTF.preload("/singleCandleAnimatedFlame.glb");
 
 export default FloatingCandleViewer;

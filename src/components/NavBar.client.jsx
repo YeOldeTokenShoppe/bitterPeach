@@ -255,13 +255,13 @@ const NavBar = () => {
     {
       date: "04",
       title: "Moon Room",
-      emoji: "🌜",
+      emoji: "🌕",
 
       link: "./gallery",
     },
     {
       date: "05",
-      title: "Gangster's Paradise",
+      title: "RL80 Faire",
       emoji: "🎠",
       link: "./communion",
     },

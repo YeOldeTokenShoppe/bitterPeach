@@ -397,9 +397,9 @@ function Header() {
                     onClick={() => setMenuOpen(false)}
                     onMouseEnter={handleMouseEnter}
                     onMouseLeave={handleMouseLeave}
-                    data-value="Gangster's Paradise"
+                    data-value="RL80 Faire"
                   >
-                    Gangster's Paradise
+                    RL80 Faire
                   </Link>
                   {/* </div> */}
                 </Menu>

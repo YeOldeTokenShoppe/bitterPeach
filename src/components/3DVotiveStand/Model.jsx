@@ -15,7 +15,7 @@ function Model({
   onCandleSelect,
   setModelCenter,
 }) {
-  const gltf = useGLTF("/altar80s.glb");
+  const gltf = useGLTF("/bluegreen-altar80s.glb");
   const { camera, scene } = useThree();
   const results = useFirestoreResults();
   const hemiLightRef = useRef();
@@ -27,6 +27,12 @@ function Model({
 
   /** 🛑 Prevent unnecessary re-renders by storing previous results */
   const prevResultsRef = useRef([]);
+  const DEFAULT_IMAGES = [
+    "/Triumph.jpg",
+    "/vsClown.jpg",
+    "/vsZombie.webp",
+    "/vsSkeleton.webp",
+  ];
 
   const findCandleComponent = (parent, type) => {
     const candleNumber = parent.name.slice(-3);
@@ -85,57 +91,27 @@ function Model({
   }, [scene]);
 
   useEffect(() => {
-    if (results.length === 0 || !modelRef.current) {
-      console.log("No results or modelRef not ready");
-      return;
-    }
-
-    const DEFAULT_IMAGE = "Triumph.jpg";
+    if (results.length === 0 || !modelRef.current) return;
 
     const availableIndices = Array.from({ length: 16 }, (_, i) =>
       String(i + 1).padStart(3, "0")
     );
 
-    const selectedIndices = availableIndices
-      .sort(() => Math.random() - 0.5)
-      .slice(0, results.length);
+    const shuffledIndices = availableIndices.sort(() => Math.random() - 0.5);
+    const userCandleIndices = shuffledIndices.slice(0, results.length);
+    const defaultCandleIndices = shuffledIndices.slice(results.length);
 
-    // First reset ALL candles
+    // Reset ALL candles clearly using your function
     modelRef.current.traverse((child) => {
       if (child.name.startsWith("VCANDLE")) {
-        const flame = findCandleComponent(child, "FLAME");
-        const label = child.children.find((c) => c.name.includes("Label2"));
-
-        if (label && label.material) {
-          if (label.material.map) label.material.map.dispose();
-          label.material.dispose();
-
-          label.material = new THREE.MeshStandardMaterial({
-            color: 0xffffff,
-            transparent: true,
-            side: THREE.DoubleSide,
-          });
-        }
-
-        child.userData = {
-          hasUser: false,
-          userName: null,
-          image: null,
-          message: null,
-          burnedAmount: 0,
-          meltingProgress: 0,
-        };
-
-        if (flame) flame.visible = false;
+        resetCandle(child);
       }
     });
 
-    // Then activate selected candles with user data
+    // Assign USER candles explicitly
     results.forEach((result, index) => {
-      const paddedIndex = selectedIndices[index];
-      if (!paddedIndex) return;
-
-      const candleName = `VCANDLE${paddedIndex}`;
+      const candleIndex = userCandleIndices[index];
+      const candleName = `VCANDLE${candleIndex}`;
       const candle = modelRef.current.getObjectByName(candleName);
 
       if (candle) {
@@ -148,74 +124,90 @@ function Model({
           meltingProgress: 0,
         };
 
-        if (result.image) {
-          applyUserImageToLabel(candle, result.image);
-        }
+        if (result.image) applyUserImageToLabels(candle, result.image);
 
         const flame = findCandleComponent(candle, "FLAME");
         if (flame) flame.visible = true;
       }
     });
 
-    // Apply default image to unused candles
-    availableIndices.forEach((index) => {
-      if (!selectedIndices.includes(index)) {
-        const candleName = `VCANDLE${index}`;
-        const candle = modelRef.current.getObjectByName(candleName);
-        if (candle) {
-          candle.userData = {
-            hasUser: true,
-            userName: "Triumph",
-            image: DEFAULT_IMAGE,
-            message: "In memory of triumph",
-            burnedAmount: 1,
-            meltingProgress: 0,
-          };
+    // Assign DEFAULT images explicitly only to unassigned candles
+    defaultCandleIndices.forEach((index) => {
+      const candleName = `VCANDLE${index}`;
+      const candle = modelRef.current.getObjectByName(candleName);
+      if (candle) {
+        const randomDefaultImage =
+          DEFAULT_IMAGES[Math.floor(Math.random() * DEFAULT_IMAGES.length)];
 
-          applyUserImageToLabel(candle, DEFAULT_IMAGE);
-          const flame = findCandleComponent(candle, "FLAME");
-          if (flame) flame.visible = false;
-        }
+        candle.userData = {
+          hasUser: true,
+          userName: "In memory",
+          image: randomDefaultImage,
+          message: "In memory",
+          burnedAmount: 1,
+          meltingProgress: 0,
+          isDefault: true,
+        };
+
+        applyUserImageToLabels(candle, randomDefaultImage);
+        const flame = findCandleComponent(candle, "FLAME");
+        if (flame) flame.visible = false;
       }
     });
 
-    // Cleanup function
     return () => {
       modelRef.current?.traverse((child) => {
         if (child.name.startsWith("VCANDLE")) {
-          const label = child.children.find((c) => c.name.includes("Label2"));
-          if (label?.material) {
-            if (label.material.map) label.material.map.dispose();
-            label.material.dispose();
-          }
+          child.children.forEach((c) => {
+            if (c.name.includes("Label1") || c.name.includes("Label2")) {
+              if (c.material) {
+                c.material.map?.dispose();
+                c.material.dispose();
+              }
+            }
+          });
         }
       });
     };
   }, [results, modelRef.current]);
 
-  const applyUserImageToLabel = (candle, imageUrl) => {
+  const applyUserImageToLabels = (candle, imageUrl) => {
     if (!imageUrl) return;
 
-    const label = candle.children.find((child) =>
-      child.name.includes("Label2")
+    // Find both labels
+    const labels = candle.children.filter(
+      (child) => child.name.includes("Label1") || child.name.includes("Label2")
     );
 
-    if (!label || !label.material) {
-      console.warn("⚠️ Label2 not found for candle:", candle.name);
-      return;
-    }
+    if (labels.length === 0) return;
 
     const textureLoader = new THREE.TextureLoader();
 
     textureLoader.load(
       imageUrl,
       (texture) => {
-        console.log("✅ Loaded Texture for:", candle.name); // DEBUG
         texture.encoding = THREE.sRGBEncoding;
         texture.flipY = false;
         texture.needsUpdate = true;
-        label.material.map = texture;
-        label.material.needsUpdate = true;
+
+        // Apply to all found labels
+        labels.forEach((label) => {
+          if (label.material) {
+            // Dispose of any existing materials/textures
+            if (label.material.map) {
+              label.material.map.dispose();
+            }
+            label.material.dispose();
+
+            // Create new material with the texture
+            label.material = new THREE.MeshStandardMaterial({
+              map: texture,
+              transparent: true,
+              side: THREE.DoubleSide,
+            });
+            label.material.needsUpdate = true;
+          }
+        });
       },
       undefined,
       (error) => console.warn("🚨 Texture load error:", error)
@@ -228,16 +220,20 @@ function Model({
     const flame = candle.children.find((c) => c.name.startsWith("FLAME"));
     if (flame) flame.visible = false;
 
-    const label = candle.children.find((c) => c.name.includes("Label2"));
-    if (label?.material) {
-      label.material.map?.dispose();
-      label.material.dispose();
-      label.material = new THREE.MeshStandardMaterial({
-        color: 0xffffff,
-        transparent: true,
-        side: THREE.DoubleSide,
-      });
-    }
+    // Reset both labels
+    candle.children.forEach((child) => {
+      if (child.name.includes("Label1") || child.name.includes("Label2")) {
+        if (child.material) {
+          child.material.map?.dispose();
+          child.material.dispose();
+          child.material = new THREE.MeshStandardMaterial({
+            color: 0xffffff,
+            transparent: true,
+            side: THREE.DoubleSide,
+          });
+        }
+      }
+    });
   };
 
   const handleCandleClick = (event) => {
@@ -279,10 +275,7 @@ function Model({
       }
 
       if (candleParent?.userData?.hasUser) {
-        console.log("🕯 Candle Clicked:", candleParent.userData);
-        onCandleSelect(candleParent.userData); // ✅ correct call
-      } else {
-        console.warn("Clicked candle has no user data.");
+        onCandleSelect({ ...candleParent.userData });
       }
     }
   };

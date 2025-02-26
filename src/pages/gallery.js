@@ -76,12 +76,12 @@ export default function GalleryPage() {
 
   return (
     <>
-      <div style={{ visibility: "hidden", position: "absolute", zIndex: -1 }}>
+      {/* <div style={{ visibility: "hidden", position: "absolute", zIndex: -1 }}>
         <iframe
           src="https://www.sitepal.com/geturl/?ss=2771572&sl=0&acc=9157686"
           style={{ width: 0, height: 0 }}
         />
-      </div>
+      </div> */}
 
       <div style={{ backgroundColor: "#000000", minHeight: "100vh" }}>
         {isLoading && <Loader />}
@@ -142,16 +142,13 @@ export default function GalleryPage() {
                 >
                   <X size={24} />
                 </button>
-                <iframe
-                  src="https://www.sitepal.com/geturl/?ss=2771572&sl=0&acc=9157686"
-                  style={{
-                    width: "600px", // Original width
-                    height: "100%",
-                    border: "none",
-                    marginLeft: "-100px", // Center the wider iframe
-                  }}
-                  title="Character"
-                />
+                <script
+                  type="text/javascript"
+                  src="//vhss-d.oddcast.com/vhost_embed_functions_v4.php?acc=9157686&js=0"
+                ></script>
+                <script type="text/javascript">
+                  AC_VHost_Embed(9157686,600,800,"",1,1,2771572,0,1,0,"q8ZaEpXFSepCuYqUKCKgCBXBz1Q5nqqi",0,1);
+                </script>
               </div>
             </>
           )}
