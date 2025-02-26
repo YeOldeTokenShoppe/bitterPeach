@@ -1,10 +1,12 @@
 import React, { useEffect, useState, useRef, Suspense } from "react";
 import { useThree } from "@react-three/fiber";
-import { useGLTF } from "@react-three/drei";
+import { useGLTF, useProgress } from "@react-three/drei";
 import * as THREE from "three";
 import { useFirestoreResults } from "../../utilities/useFirestoreResults";
 import DarkClouds from "./Clouds";
 import FloatingCandleViewer from "./CandleInteraction";
+import { ref, getDownloadURL } from "firebase/storage";
+import { storage } from "../../utilities/firebaseClient"; // Import storage directly
 
 function Model({
   scale,
@@ -14,14 +16,21 @@ function Model({
   setShowFloatingViewer,
   onCandleSelect,
   setModelCenter,
+  isModalOpen,
+  setIsModalOpen,
+  setIsModelLoaded, // Add this prop to communicate loading state
 }) {
-  const gltf = useGLTF("/bluegreen-altar80s.glb");
+  const [modelUrl, setModelUrl] = useState("/bluegreen-altar80s.glb"); // Default fallback
+  const { progress } = useProgress(); // Track loading progress
+  const gltf = useGLTF(modelUrl, true); // Enable caching
   const { camera, scene } = useThree();
   const results = useFirestoreResults();
   const hemiLightRef = useRef();
   const ambientLightRef = useRef();
   const boundingBoxRef = useRef(new THREE.Box3());
   const textureLoader = useRef(new THREE.TextureLoader());
+  const [processedData, setProcessedData] = useState(null);
+  const workerRef = useRef(null);
 
   const [selectedCandleData, setSelectedCandleData] = useState(null);
 
@@ -64,6 +73,45 @@ function Model({
       gltf.scene.updateMatrixWorld(true);
     }
   }, [gltf]);
+
+  // Fetch model URL from Firebase Storage
+  useEffect(() => {
+    const fetchModelUrl = async () => {
+      try {
+        console.log("Fetching model from Firebase Storage...");
+        const modelRef = ref(storage, "models/bluegreen-altar80s.glb");
+        const downloadUrl = await getDownloadURL(modelRef);
+        console.log("Firebase URL:", downloadUrl);
+        setModelUrl(downloadUrl);
+      } catch (error) {
+        console.error("Error fetching model from Firebase Storage:", error);
+        console.log("Using local fallback model instead");
+        // Keep using the fallback URL from public folder
+      }
+    };
+
+    fetchModelUrl();
+  }, []);
+
+  // Update loading state based on model loading progress
+  useEffect(() => {
+    console.log("Model loading progress:", progress);
+    if (progress === 100 && setIsModelLoaded) {
+      // Add a small delay to ensure everything is rendered
+      const timer = setTimeout(() => {
+        console.log("Model fully loaded, notifying parent component");
+        setIsModelLoaded(true);
+      }, 500);
+
+      return () => clearTimeout(timer);
+    }
+  }, [progress, setIsModelLoaded]);
+
+  // Add this to debug when modelUrl changes
+  useEffect(() => {
+    console.log("Current model URL:", modelUrl);
+  }, [modelUrl]);
+
   /** ✅ Compute bounding box and reposition model */
   useEffect(() => {
     if (!modelRef.current) return;
@@ -279,6 +327,116 @@ function Model({
       }
     }
   };
+
+  useEffect(() => {
+    return () => {
+      // Cleanup function to prevent memory leaks
+      if (gltf) {
+        gltf.scene.traverse((object) => {
+          if (object.geometry) object.geometry.dispose();
+
+          if (object.material) {
+            if (Array.isArray(object.material)) {
+              object.material.forEach((material) => material.dispose());
+            } else {
+              object.material.dispose();
+            }
+          }
+
+          if (object.texture) object.texture.dispose();
+        });
+      }
+    };
+  }, [gltf]);
+
+  // Initialize web worker
+  useEffect(() => {
+    // Only create worker in browser environment
+    if (typeof window !== "undefined") {
+      workerRef.current = new Worker(
+        new URL("../../utilities/modelProcessor.js", import.meta.url)
+      );
+
+      // Set up message handler
+      workerRef.current.onmessage = (event) => {
+        const { operation, result } = event.data;
+
+        switch (operation) {
+          case "calculateLighting":
+            // Apply pre-calculated lighting data
+            applyLightingData(result);
+            break;
+          case "simplifyGeometry":
+            // Apply simplified geometry for LOD
+            applySimplifiedGeometry(result);
+            break;
+          default:
+            console.log("Received result from worker:", operation);
+        }
+      };
+
+      return () => {
+        // Clean up worker when component unmounts
+        workerRef.current?.terminate();
+      };
+    }
+  }, []);
+
+  // Extract model data and send to worker for processing
+  useEffect(() => {
+    if (gltf && gltf.scene && workerRef.current) {
+      // Process model data in worker when model is loaded
+      gltf.scene.traverse((object) => {
+        if (object.isMesh && object.geometry) {
+          // Extract vertex and normal data
+          const vertices = object.geometry.attributes.position.array;
+          const normals = object.geometry.attributes.normal?.array;
+
+          if (vertices && normals) {
+            // Send data to worker for lighting calculation
+            workerRef.current.postMessage({
+              operation: "calculateLighting",
+              data: {
+                vertices: vertices,
+                normals: normals,
+                lights: [
+                  {
+                    position: [10, 10, 10],
+                    color: [1, 1, 1],
+                    intensity: 0.8,
+                  },
+                  {
+                    position: [-5, 8, -10],
+                    color: [0.2, 0.3, 0.9],
+                    intensity: 0.5,
+                  },
+                ],
+              },
+            });
+          }
+        }
+      });
+    }
+  }, [gltf]);
+
+  // Apply lighting data calculated by worker
+  const applyLightingData = (lightingData) => {
+    if (!gltf || !gltf.scene) return;
+
+    // Apply the pre-calculated lighting data to materials
+    // This is a simplified example - you would typically use this data
+    // in a custom shader or material
+    setProcessedData(lightingData);
+
+    console.log("Applied lighting data from worker");
+  };
+
+  // Apply simplified geometry for LOD
+  const applySimplifiedGeometry = (geometryData) => {
+    // Implementation depends on your specific needs
+    console.log("Applied simplified geometry from worker");
+  };
+
   return (
     <>
       <primitive
@@ -307,5 +465,8 @@ function Model({
     </>
   );
 }
+
+// Add this line at the bottom to preload the model
+useGLTF.preload("/bluegreen-altar80s.glb");
 
 export default Model;

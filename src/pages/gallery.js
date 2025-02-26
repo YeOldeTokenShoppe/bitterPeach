@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
+import dynamic from "next/dynamic";
 import BurnGallery from "../components/BurnGallery";
 import NavBar from "../components/NavBar.client";
 import Communion3 from "../components/Communion3";
@@ -9,6 +10,21 @@ import Draggable from "react-draggable";
 import { X } from "lucide-react";
 
 import Header3 from "../components/Header3";
+
+// Dynamically import heavy components
+const BurnGalleryDynamic = dynamic(() => import("../components/BurnGallery"), {
+  ssr: false,
+  loading: () => <Loader />,
+});
+
+const MusicPlayerDynamic = dynamic(() => import("../components/MusicPlayer2"), {
+  ssr: false,
+});
+
+const NavBarDynamic = dynamic(() => import("../components/NavBar.client"), {
+  ssr: false,
+});
+
 export default function GalleryPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [componentsLoaded, setComponentsLoaded] = useState({
@@ -93,7 +109,7 @@ export default function GalleryPage() {
             zIndex: 1,
           }}
         >
-          <BurnGallery
+          <BurnGalleryDynamic
             setComponentLoaded={(status) =>
               handleComponentLoad("burnGallery", status)
             }

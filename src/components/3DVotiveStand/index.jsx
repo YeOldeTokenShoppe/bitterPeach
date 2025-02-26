@@ -6,12 +6,14 @@ import React, {
   useCallback,
   useMemo,
   Suspense,
+  lazy,
 } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
+import { AdaptiveDpr, AdaptiveEvents, BakeShadows } from "@react-three/drei";
 
 import { Perf } from "r3f-perf";
 import { useFirestoreResults } from "../../utilities/useFirestoreResults";
-import PostProcessingEffects from "./PostProcessingEffects";
+// import PostProcessingEffects from "./PostProcessingEffects";
 import * as THREE from "three";
 import gsap from "gsap";
 import Model from "./Model";
@@ -32,13 +34,15 @@ import styled from "styled-components";
 import { debounce } from "lodash";
 import MobileModel from "./MobileModel";
 
-import MoonScene from "./MoonLamps";
-
 import FloatingCandleViewer from "./CandleInteraction";
 
-import HolographicStatue from "./HolographicStatue";
 import CameraGUI from "./CameraGUI";
 const scene = new THREE.Scene();
+
+// Lazy load scene components
+const MoonScene = lazy(() => import("./MoonLamps"));
+const HolographicStatue = lazy(() => import("./HolographicStatue"));
+const PostProcessingEffects = lazy(() => import("./PostProcessingEffects"));
 
 function ThreeDVotiveStand({
   setIsLoading,
@@ -108,17 +112,22 @@ function ThreeDVotiveStand({
   const [isMobile, setIsMobile] = useState(false);
   const [guiActive, setGuiActive] = useState(false);
 
+  const [isModelLoaded, setIsModelLoaded] = useState(false);
+  const hasNotifiedParentRef = useRef(false); // Add this ref to track notification state
+
+  // Update the parent component when model is loaded (only once)
+  useEffect(() => {
+    if (isModelLoaded && !hasNotifiedParentRef.current) {
+      console.log("ThreeDVotiveStand: Model loaded, notifying BurnGallery");
+      setIsLoading(true); // Notify BurnGallery that everything is loaded
+      hasNotifiedParentRef.current = true; // Set flag to prevent further notifications
+    }
+  }, [isModelLoaded, setIsLoading]);
+
   const handleCandleSelect = (candleData) => {
     setSelectedCandleData(candleData);
     setShowFloatingViewer(true);
   };
-  useEffect(() => {
-    const loadThreeJSScene = async () => {
-      await new Promise((resolve) => setTimeout(resolve, 1500)); // Simulate 3D scene load
-      setIsLoading(true); // Notify parent that 3D scene is loaded
-    };
-    loadThreeJSScene();
-  }, [setIsLoading]);
 
   let previousTooltipData = []; // Track previous tooltip data to prevent unnecessary updates
   const findCandleComponent = (parent, type) => {
@@ -168,6 +177,8 @@ function ThreeDVotiveStand({
         }}
       >
         <Canvas
+          dpr={[1, 2]} // Limit pixel ratio for better performance
+          performance={{ min: 0.5 }} // Allow ThreeJS to reduce quality for performance
           camera={{
             fov: 45,
             position: [0, 10, 45], // ✅ Use the copied values from CameraGUI
@@ -178,6 +189,10 @@ function ThreeDVotiveStand({
             cameraRef.current = camera;
           }}
         >
+          {/* Automatically adjust detail level based on FPS */}
+          <AdaptiveDpr pixelated />
+          <AdaptiveEvents />
+          <BakeShadows />
           {/* <FlyInEffect
             cameraRef={cameraRef}
             controlsRef={controlsRef}
@@ -190,7 +205,7 @@ function ThreeDVotiveStand({
           <Suspense fallback={null}>
             <Model
               scale={modelScale}
-              rotation={[0, 0, 0]} // or your existing rotation
+              rotation={[0, 0, 0]}
               modelRef={modelRef}
               showFloatingViewer={showFloatingViewer}
               setShowFloatingViewer={setShowFloatingViewer}
@@ -201,11 +216,20 @@ function ThreeDVotiveStand({
               setModelCenter={setModelCenter}
               isModalOpen={isModalOpen}
               setIsModalOpen={setIsModalOpen}
+              setIsModelLoaded={setIsModelLoaded}
             />
 
-            <MoonScene modelRef={modelRef} onSpawnReady={onSpawnReady} />
-            <HolographicStatue />
-            <PostProcessingEffects />
+            <Suspense fallback={null}>
+              <MoonScene modelRef={modelRef} onSpawnReady={onSpawnReady} />
+            </Suspense>
+
+            <Suspense fallback={null}>
+              <HolographicStatue />
+            </Suspense>
+
+            <Suspense fallback={null}>
+              <PostProcessingEffects />
+            </Suspense>
           </Suspense>
           {/* <TickerDisplay /> */}
         </Canvas>

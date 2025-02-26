@@ -5,6 +5,7 @@ import React, {
   useCallback,
   Suspense,
   useRef,
+  memo,
 } from "react";
 import { useRouter } from "next/router";
 import {
@@ -78,6 +79,10 @@ const contract = getContract({
   chain: defineChain(11155111),
   address: "0xde7Cc5B93e0c1A2131c0138d78d0D0a33cc36e42",
 });
+
+// Memoize child components
+const MemoizedThreeDVotiveStand = memo(ThreeDVotiveStand);
+
 function BurnGallery({
   setComponentLoaded,
   setThreeDSceneLoaded,
@@ -243,6 +248,14 @@ function BurnGallery({
     setTooltipData(newTooltipData);
   };
 
+  // Use useCallback for event handlers
+  const handleComponentLoad = useCallback((component, status) => {
+    setThreeDSceneLoaded((prev) => ({
+      ...prev,
+      [component]: status,
+    }));
+  }, []);
+
   return (
     <>
       <Box py="0" position="relative" height="100vh" width="100%">
@@ -253,11 +266,11 @@ function BurnGallery({
 
           <GridItem width="100%" zIndex={4}>
             {currentView === "main" ? (
-              <ThreeDVotiveStand
+              <MemoizedThreeDVotiveStand
                 onSpawnReady={setSpawnFunction}
                 isMobileView={isMobileView}
                 onScreenClick={handleScreenClick}
-                setIsLoading={setThreeDSceneLoaded}
+                setIsLoading={handleComponentLoad}
                 setShowSpotify={setShowSpotify}
                 isModalOpen={isModalOpen}
                 setIsModalOpen={setIsModalOpen}

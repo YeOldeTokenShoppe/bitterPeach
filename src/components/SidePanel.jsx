@@ -1,26 +1,71 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Box, Flex, Button, Text } from "@chakra-ui/react";
 import AnimatedRadioButtons from "./3DVotiveStand/CyberButtons";
 import Communion3 from "./Communion3";
 
 const SidePanel = ({ onButtonClick }) => {
-  const [isTextBoxVisible, setIsTextBoxVisible] = useState(true);
-  const buttonWidth = "3rem"; // Width of the button tab
+  const [isTextBoxVisible, setIsTextBoxVisible] = useState(true); // Start open
+  const buttonWidth = "3rem";
+  const hotzoneSize = "20px";
+  const panelRef = useRef(null);
 
-  const handlePanelClick = () => {
-    setIsTextBoxVisible(false);
+  const handlePanelClick = (e) => {
+    e.stopPropagation();
   };
 
   const handleButtonClick = (e) => {
-    e.stopPropagation(); // Prevent panel click event from firing
+    e.stopPropagation();
     setIsTextBoxVisible(!isTextBoxVisible);
   };
 
+  // Handle mouse movement for panel visibility
+  useEffect(() => {
+    // Function to handle mouse movement near the edge
+    const handleMouseMove = (event) => {
+      // If mouse is near the right edge, show the panel
+      if (event.clientX > window.innerWidth - 20) {
+        setIsTextBoxVisible(true);
+      }
+    };
+
+    // Function to handle mouse leaving the document
+    const handleMouseLeave = () => {
+      setIsTextBoxVisible(false);
+    };
+
+    // Add event listeners
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseleave", handleMouseLeave);
+
+    // Clean up
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseleave", handleMouseLeave);
+    };
+  }, []);
+
+  // Handle document clicks to close the panel
+  useEffect(() => {
+    const handleDocumentClick = (e) => {
+      // If click is outside the panel, close it
+      if (panelRef.current && !panelRef.current.contains(e.target)) {
+        setIsTextBoxVisible(false);
+      }
+    };
+
+    document.addEventListener("click", handleDocumentClick);
+
+    return () => {
+      document.removeEventListener("click", handleDocumentClick);
+    };
+  }, []);
+
   return (
     <Box
+      ref={panelRef}
       position="absolute"
       top="0"
-      right={`-${buttonWidth}`} // Offset by button width
+      right={`-${buttonWidth}`}
       zIndex="5000"
       textAlign="right"
       width="25%"
@@ -98,12 +143,10 @@ const SidePanel = ({ onButtonClick }) => {
         display="flex"
         justifyContent="center"
         alignItems="center"
-        // p="0.2rem"
         color="white"
       >
         <Box
           display="flex"
-          // justifyContent="space-around"
           alignItems="center"
           width="100%"
           maxWidth="99%"
