@@ -10,8 +10,6 @@ import Head from "next/head";
 
 import { X } from "lucide-react";
 
-import Header3 from "../components/Header3";
-
 // Dynamically import heavy components
 const BurnGalleryDynamic = dynamic(() => import("../components/BurnGallery"), {
   ssr: false,
@@ -34,6 +32,13 @@ export default function GalleryPage() {
   });
   const [showSpotify, setShowSpotify] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [is80sMode, setIs80sMode] = useState(false);
+
+  // Toggle function for 80s mode
+  const toggle80sMode = () => {
+    setIs80sMode(!is80sMode);
+    console.log("Gallery: 80's mode toggled to", !is80sMode);
+  };
 
   // Add useEffect to set body class
   useEffect(() => {
@@ -136,6 +141,20 @@ export default function GalleryPage() {
           html.gallery-page #__next {
             background-color: #000000 !important;
           }
+          
+          /* Center the header */
+          #header {
+            display: flex;
+            justify-content: center;
+            width: 100%;
+          }
+          
+          .menu-wrapper {
+            display: flex;
+            justify-content: center;
+            width: 100%;
+            position: relative;
+          }
         `}</style>
       </Head>
 
@@ -174,6 +193,8 @@ export default function GalleryPage() {
             setShowSpotify={setShowSpotify}
             isModalOpen={isModalOpen}
             setIsModalOpen={setIsModalOpen}
+            is80sMode={is80sMode}
+            toggle80sMode={toggle80sMode}
           />
 
           {isModalOpen && (
@@ -267,36 +288,29 @@ export default function GalleryPage() {
               />
             </div>
           </div>
+          {/* Single MusicPlayer that works for both 80s mode and regular mode */}
           <div
             style={{
               position: "fixed",
               bottom: "6rem",
-              right: "4rem",
-              // width: "8rem",
-              // height: "8rem",
+              left: "4rem",
               zIndex: 1000,
               borderRadius: "12px",
-              // overflow: "hidden",
               boxShadow: "0 4px 30px rgba(0, 0, 0, 0.3)",
-              opacity: showSpotify ? 1 : 0,
-              transform: `scale(0.6) translateY(${showSpotify ? 0 : "20px"})`,
+              opacity: showSpotify || is80sMode ? 1 : 0,
+              transform: `scale(0.6) translateY(${
+                showSpotify || is80sMode ? 0 : "20px"
+              })`,
               transition: "opacity 0.3s ease, transform 0.3s ease",
-              pointerEvents: showSpotify ? "auto" : "none",
+              pointerEvents: showSpotify || is80sMode ? "auto" : "none",
               cursor: "move",
             }}
           >
-            {/* <MusicPlayer isVisible={showSpotify} onClose={handleClose} /> */}
-            {/* <iframe
-              src="https://open.spotify.com/embed/playlist/5wWiiVDG0Q83zVitjPf6fj?utm_source=generator"
-              width="100%"
-              height="352"
-              frameBorder="0"
-              allowFullScreen=""
-              allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-              loading="lazy"
-            /> */}
+            <MusicPlayer
+              isVisible={showSpotify || is80sMode}
+              onClose={is80sMode ? () => toggle80sMode() : handleClose}
+            />
           </div>
-          {/* </Draggable> */}
         </div>
       </div>
     </>

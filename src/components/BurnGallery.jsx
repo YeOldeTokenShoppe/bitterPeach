@@ -54,8 +54,6 @@ import Scene from "./3dChandelier";
 import ThreeDVotiveStand from "./3DVotiveStand/index";
 import MobileStand from "./3DVotiveStand/MobileStand";
 import Communion3 from "./Communion3";
-import Header3 from "./Header3";
-
 import NeonSign from "./NeonSign";
 
 const BurnModal = dynamic(() => import("./BurnModal"), {
@@ -89,6 +87,8 @@ function BurnGallery({
   setShowSpotify,
   isModalOpen,
   setIsModalOpen,
+  is80sMode,
+  toggle80sMode,
 }) {
   useEffect(() => {
     const loadContent = async () => {
@@ -104,16 +104,15 @@ function BurnGallery({
   const [isBurnModalOpen, setIsBurnModalOpen] = useState(false);
   const [isImageSelectionModalOpen, setIsImageSelectionModalOpen] =
     useState(false);
-  const [isResultSaved, setIsResultSaved] = useState(false); // Define isResultSaved here
+  const [isResultSaved, setIsResultSaved] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
   const [selectedImage, setSelectedImage] = useState(null);
-  // const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const currentUrl = router.asPath;
-  const [burnedAmount, setBurnedAmount] = useState(0); // Already defined in BurnGallery
+  const [burnedAmount, setBurnedAmount] = useState(0);
   const [images, setImages] = useState([]);
   const [isFlameVisible, setIsFlameVisible] = useState(true);
   const [isVisible, setIsVisible] = useState(true);
-  const [isMounted, setIsMounted] = useState(true);
+  const [isMounted, setIsMounted] = useState(false);
   const [isChandelierVisible, setIsChandelierVisible] = useState(true);
   const [isInMarkerView, setIsInMarkerView] = useState(false);
   const [currentPath, setCurrentPath] = useState("/");
@@ -121,7 +120,7 @@ function BurnGallery({
   const [isLoading, setIsLoading] = useState(true);
   const [isMobileView, setIsMobileView] = useState(false);
   const [currentView, setCurrentView] = useState("main");
-  const [tooltipData, setTooltipData] = useState([]);
+  const [tooltipData, setTooltipData] = useState(null);
   const [isTextBoxVisible, setIsTextBoxVisible] = useState(true);
   const [isBuyModalOpen, setIsBuyModalOpen] = useState(false);
   const [isStakeModalOpen, setIsStakeModalOpen] = useState(false);
@@ -203,13 +202,13 @@ function BurnGallery({
     }
   }, [isChandelierVisible]);
 
-  const avatarUrl = user ? user.imageUrl : "/defaultAvatar.png"; // Define avatarUrl here
+  const avatarUrl = user ? user.imageUrl : "/defaultAvatar.png";
 
   const handleOpenBurnModal = () => {
     if (!user) {
       openSignIn({ forceRedirectUrl: currentPath });
     } else {
-      setIsBurnModalOpen(true); // Open the BurnModal if signed in
+      setIsBurnModalOpen(true);
       router.push("/gallery?burnModal=open", undefined, { shallow: true });
     }
   };
@@ -288,6 +287,7 @@ function BurnGallery({
                     setIsChandelierVisible(false);
                   }
                 }}
+                is80sMode={is80sMode}
               />
             ) : currentView === "stand1" ? (
               <div
@@ -353,15 +353,14 @@ function BurnGallery({
 
                 {/* Tooltips */}
                 <div className="tooltip-wrapper absolute inset-0 pointer-events-none">
-                  {tooltipData.map((tooltip, index) => (
+                  {tooltipData && (
                     <div
-                      key={index}
                       className="tooltip-container"
                       style={{
                         position: "absolute",
                         padding: "8px 12px",
-                        left: `${tooltip.position.x}px`,
-                        top: `${tooltip.position.y}px`,
+                        left: `${tooltipData.position.x}px`,
+                        top: `${tooltipData.position.y}px`,
                         transform: "translate(-50%, -100%)",
                         backgroundColor: "rgba(0, 0, 0, 0.9)",
                         color: "white",
@@ -369,14 +368,14 @@ function BurnGallery({
                         zIndex: 1000,
                         fontSize: "16px",
                         fontWeight: "600",
-                        opacity: tooltip.userName ? 1 : 0,
-                        visibility: tooltip.userName ? "visible" : "hidden",
+                        opacity: tooltipData.userName ? 1 : 0,
+                        visibility: tooltipData.userName ? "visible" : "hidden",
                         whiteSpace: "nowrap",
                       }}
                     >
-                      {tooltip.userName}
+                      {tooltipData.userName}
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             ) : null}
@@ -384,9 +383,11 @@ function BurnGallery({
         </Grid>
 
         {!isMobileView && currentView === "main" && (
-          // Previous Box component remains the same until the Text component
-
-          <SidePanel onButtonClick={handleButtonClick} />
+          <SidePanel
+            onButtonClick={handleButtonClick}
+            is80sMode={is80sMode}
+            toggle80sMode={toggle80sMode}
+          />
         )}
         {/* <Box
             display="flex"

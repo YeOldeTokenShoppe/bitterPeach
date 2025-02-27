@@ -1,3 +1,6 @@
+/* Remove Google Fonts import since the font is locally installed */
+/* @import url("https://fonts.googleapis.com/css2?family=UnifrakturCook:wght@700&display=swap"); */
+
 .loaderRoot {
   --hue: 163;
   --hue2: 43;
@@ -61,11 +64,12 @@
 
 .loadingMessage {
   color: #e1b67e; /* Gold color */
-  font-size: 1.4em;
+  font-size: 1.6em; /* Slightly larger for the new font */
   font-weight: 500;
   letter-spacing: 2px;
   text-shadow: 0 0 8px rgba(225, 182, 126, 0.6);
   margin-bottom: 0.2em;
+  font-family: "UnifrakturCook", "UnifrakturCook-Bold", serif; /* Use local font with fallbacks */
 }
 
 .percentageText {

@@ -1,62 +1,78 @@
-import { useThree, useFrame } from "@react-three/fiber";
-import { useEffect, useRef } from "react";
-import * as THREE from "three";
-import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass";
-import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer";
-import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass";
+import React, { useEffect, useRef } from "react";
+import { useFrame, useThree } from "@react-three/fiber";
+import {
+  EffectComposer,
+  Bloom,
+  Noise,
+  Vignette,
+  ChromaticAberration,
+  Scanline,
+  GodRays,
+  Glitch,
+} from "@react-three/postprocessing";
+import { BlendFunction, GlitchMode } from "postprocessing";
 
-function PostProcessingEffects() {
-  const { gl, scene, camera, size } = useThree();
-  const composer = useRef();
+const PostProcessingEffects = ({ is80sMode }) => {
+  const { scene } = useThree();
+  const composerRef = useRef();
+  const timeRef = useRef(0);
 
-  // Bloom setup
-  useEffect(() => {
-    // Debug
-    scene.traverse((obj) => {
-      if (obj.name === "Halo") {
-      }
-    });
+  // Increase time for animated effects
+  useFrame((state, delta) => {
+    timeRef.current += delta;
+  });
 
-    // Create composer
-    composer.current = new EffectComposer(gl);
+  // Regular effects for normal mode
+  const normalEffects = (
+    <>
+      <Bloom
+        intensity={0.8}
+        luminanceThreshold={0.4}
+        luminanceSmoothing={0.9}
+        height={300}
+      />
+      <Noise opacity={0.02} />
+      <Vignette eskil={false} offset={0.1} darkness={0.5} />
+    </>
+  );
 
-    // Add base render pass
-    const renderPass = new RenderPass(scene, camera);
-    composer.current.addPass(renderPass);
+  // Enhanced effects for 80s mode
+  const eightiesEffects = (
+    <>
+      <Bloom
+        intensity={1.5}
+        luminanceThreshold={0.1}
+        luminanceSmoothing={0.5}
+        height={300}
+      />
+      <ChromaticAberration
+        offset={[0.005, 0.005]}
+        radialModulation={true}
+        modulationOffset={0.3}
+      />
+      <Scanline
+        density={1.5}
+        opacity={0.2}
+        blendFunction={BlendFunction.OVERLAY}
+      />
+      <Noise opacity={0.08} />
+      <Vignette eskil={false} offset={0.1} darkness={0.7} />
+      <Glitch
+        delay={[1.5, 3.5]} // min and max delay between glitches
+        duration={[0.1, 0.3]} // min and max duration of a glitch
+        strength={[0.3, 0.6]} // min and max strength
+        mode={GlitchMode.CONSTANT} // glitch mode
+        active={true} // turn on/off the effect (switches between "mode" prop and GlitchMode.DISABLED)
+        ratio={0.85} // Threshold for strong glitches, 0 - no weak glitches, 1 - no strong glitches.
+      />
+    </>
+  );
 
-    // Add aggressive bloom for testing
-    const bloomPass = new UnrealBloomPass(
-      new THREE.Vector2(size.width, size.height),
-      0.6, // strength
-      0.1, // radius
-      0.9 // threshold - lower number means more things will glow
-    );
-    composer.current.addPass(bloomPass);
-
-    const handleResize = () => {
-      composer.current.setSize(size.width, size.height);
-    };
-
-    handleResize(); // Initial size setup
-
-    // Cleanup
-    return () => {
-      composer.current?.dispose();
-      composer.current = null;
-    };
-  }, [gl, scene, camera, size]);
-
-  useFrame(() => {
-    if (composer.current && scene && camera) {
-      try {
-        composer.current.render();
-      } catch (error) {
-        console.error("Composer render error:", error);
-      }
-    }
-  }, 1);
-
-  return null;
-}
+  return (
+    <EffectComposer ref={composerRef}>
+      {is80sMode ? eightiesEffects : normalEffects}
+    </EffectComposer>
+  );
+};
 
 export default PostProcessingEffects;

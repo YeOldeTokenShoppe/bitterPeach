@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import Thesis from "../components/Thesis";
 import NavBar from "../components/NavBar.client";
-import Communion from "../components/Communion";
+import Footer from "../components/Footer";
 import Loader from "../components/Loader";
 
 export default function ThesisPage() {
@@ -100,7 +100,7 @@ export default function ThesisPage() {
         <div style={{ paddingTop: "1rem" }}>
           <NavBar />
         </div>
-        <Communion setCommunionLoaded={setCommunionLoaded} />
+        <Footer setCommunionLoaded={setCommunionLoaded} />
       </div>
 
       {/* Loader on top */}

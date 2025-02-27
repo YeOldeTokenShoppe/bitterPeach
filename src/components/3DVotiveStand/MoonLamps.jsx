@@ -21,8 +21,8 @@ const MoonScene = ({
   const moonTextureRef = useRef(null);
   const isPhysicsInitialized = useRef(false);
 
-  const maxProjectiles = 20; // Maximum number of projectiles allowed at once
-  const projectileLifespan = 5000; // Milliseconds before auto-removing projectiles
+  const maxProjectiles = 50; // Increased from 20 to 50 for more projectiles
+  const projectileLifespan = 60000; // Increased to 60 seconds (1 minute) for much longer visibility
   const projectilePoolRef = useRef([]);
   const clockRef = useRef(new THREE.Clock());
 
@@ -47,6 +47,7 @@ const MoonScene = ({
   const COLLISION_GROUP_WALL = 2;
   const COLLISION_GROUP_MOON = 4;
   const COLLISION_GROUP_PROJECTILE = 8;
+  const COLLISION_GROUP_OUTER_WALL = 16; // New collision group for outer wall
 
   const setupScene = () => {
     if (controlsRef.current) return;
@@ -196,15 +197,7 @@ const MoonScene = ({
     wall.name = "wall";
     scene.add(wall);
 
-    // Add a wireframe helper to visualize the wall
-    // const wallWireframe = new THREE.WireframeGeometry(wallGeometry);
-    // const wallLines = new THREE.LineSegments(
-    //   wallWireframe,
-    //   new THREE.LineBasicMaterial({ color: 0xff0000 })
-    // );
-    // wall.add(wallLines);
-
-    // Add wall and floor to physics when physics is initialized
+    // Add wall to physics when physics is initialized
     const addRoomToPhysics = () => {
       if (!physicsRef.current.world || !ammoRef.current) return;
 
@@ -230,11 +223,11 @@ const MoonScene = ({
         wallBody.setRestitution(0.3);
 
         // Set collision filtering for wall
-        // Wall belongs to WALL group and collides only with MOON group
+        // Wall belongs to WALL group and collides with MOON group only initially
         physicsRef.current.world.addRigidBody(
           wallBody,
           COLLISION_GROUP_WALL, // collision group
-          COLLISION_GROUP_MOON // collision mask (what it collides with)
+          COLLISION_GROUP_MOON // collision mask (what it collides with) - only moons for now
         );
 
         wall.userData.physicsBody = wallBody;
@@ -256,13 +249,12 @@ const MoonScene = ({
 
       if (scene) {
         scene.remove(wall);
-        // scene.remove(floor);
+        // Remove outer wall cleanup
       }
 
       wallGeometry.dispose();
       wallMaterial.dispose();
-      //   floorGeometry.dispose();
-      //   floorMaterial.dispose();
+      // Remove outer wall disposal
     };
   }, [scene]);
 
@@ -448,7 +440,7 @@ const MoonScene = ({
       color: new THREE.Color("#faf0e6"),
       map: texture,
       lightMap: texture,
-      lightMapIntensity: 3,
+      lightMapIntensity: 6,
     });
 
     // Create moon mesh
@@ -461,7 +453,7 @@ const MoonScene = ({
     // Create point light for the moon
     const pointLight = new THREE.PointLight(
       new THREE.Color("#faf0e6"),
-      40, // intensity
+      50, // intensity
       10 // distance
     );
     // pointLight.castShadow = true;
@@ -494,7 +486,9 @@ const MoonScene = ({
     moonsRef.current.push(moon);
 
     // Physics setup
+    // const moonShape = createConvexHullShape(moonGeometry);
     const moonShape = new AmmoLib.btSphereShape(moonSize);
+    moonShape.setMargin(0.05); // Prevents moons from overlapping
     const moonTransform = new AmmoLib.btTransform();
     moonTransform.setIdentity();
     moonTransform.setOrigin(new AmmoLib.btVector3(spawnX, spawnY, spawnZ));
@@ -520,7 +514,7 @@ const MoonScene = ({
 
     // Increase restitution for more bounce and reduce friction
     moonBody.setFriction(0.1); // Lower friction (was 0.1)
-    moonBody.setRestitution(0.7); // Slightly lower restitution for less aggressive bouncing (was 0.8)
+    moonBody.setRestitution(0.6); // Slightly lower restitution for less aggressive bouncing (was 0.8)
 
     // Add damping to make movement more fluid
     moonBody.setDamping(0, 0.05); // Small linear damping (0), light angular damping (0.05) to limit spinning
@@ -545,10 +539,11 @@ const MoonScene = ({
 
     physicsRef.current.world.addRigidBody(
       moonBody,
-      COLLISION_GROUP_MOON, // collision group
+      COLLISION_GROUP_MOON, // Moons belong to this group
       COLLISION_GROUP_DEFAULT |
         COLLISION_GROUP_WALL |
-        COLLISION_GROUP_PROJECTILE // collision mask
+        COLLISION_GROUP_PROJECTILE |
+        COLLISION_GROUP_MOON // Ensure they collide with other moons
     );
     bodiesRef.current.push({ mesh: moon, body: moonBody });
   };
@@ -762,6 +757,15 @@ const MoonScene = ({
     );
   };
 
+  // Add a function to check if a point is inside the room
+  const isInsideRoom = (position) => {
+    // Calculate distance from center (x-z plane)
+    const horizontalDistSq = position.x * position.x + position.z * position.z;
+    // If distance is less than room radius, point is inside
+    return horizontalDistSq < roomRadius * roomRadius;
+  };
+
+  // Modify the shootProjectile function to simplify tracking
   const shootProjectile = (origin, direction) => {
     if (!ammoRef.current || !physicsRef.current.world) return;
     const AmmoLib = ammoRef.current;
@@ -831,15 +835,15 @@ const MoonScene = ({
     projectileBody.setFriction(0.8);
     projectileBody.setRestitution(0.1);
 
-    // Add to physics world normally - we'll handle Object_3 collision differently
+    // Add to physics world - don't collide with walls at all
     physicsRef.current.world.addRigidBody(
       projectileBody,
       COLLISION_GROUP_PROJECTILE, // collision group
-      COLLISION_GROUP_DEFAULT | COLLISION_GROUP_MOON // collision mask (collides with everything except walls)
+      COLLISION_GROUP_DEFAULT | COLLISION_GROUP_MOON // collision mask (doesn't include wall)
     );
 
     // Apply velocity with original force
-    const force = 60;
+    const force = 80;
     const velocity = new AmmoLib.btVector3(
       direction.x * force,
       direction.y * force,
@@ -1051,18 +1055,18 @@ const MoonScene = ({
 
     // Update meshes from physics bodies
     if (physicsRef.current?.world && ammoRef.current) {
-      bodiesRef.current.forEach(({ mesh, body }) => {
-        if (!mesh || !body) return;
+      bodiesRef.current.forEach((obj, index) => {
+        if (!obj.mesh || !obj.body) return;
 
-        const motionState = body.getMotionState();
+        const motionState = obj.body.getMotionState();
         if (motionState) {
           const transform = new ammoRef.current.btTransform();
           motionState.getWorldTransform(transform);
           const origin = transform.getOrigin();
           const rotation = transform.getRotation();
 
-          mesh.position.set(origin.x(), origin.y(), origin.z());
-          mesh.quaternion.set(
+          obj.mesh.position.set(origin.x(), origin.y(), origin.z());
+          obj.mesh.quaternion.set(
             rotation.x(),
             rotation.y(),
             rotation.z(),
@@ -1071,10 +1075,17 @@ const MoonScene = ({
         }
       });
 
-      // Remove bodies that have fallen too far
+      // Check for projectiles that have exceeded their lifespan
+      const now = Date.now();
       const toRemove = [];
+
       bodiesRef.current.forEach((obj, index) => {
-        if (obj.mesh.position.y < -50) {
+        // Only remove projectiles if they've fallen extremely far (much lower threshold)
+        // or if they've exceeded their extended lifespan
+        if (
+          obj.mesh.position.y < -200 || // Much lower threshold to keep them visible longer
+          (obj.isProjectile && now - obj.createdAt > projectileLifespan)
+        ) {
           toRemove.push(index);
           scene.remove(obj.mesh);
           physicsRef.current.world.removeRigidBody(obj.body);

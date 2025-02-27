@@ -1,7 +1,7 @@
 // pages/numerology.js
 import React, { useState, useEffect } from "react";
 import NavBar from "../components/NavBar.client";
-import Communion from "../components/Communion";
+import Footer from "../components/Footer";
 import Loader from "../components/Loader";
 
 import dynamic from "next/dynamic";
@@ -12,13 +12,15 @@ const Numerology = dynamic(() => import("../components/Numerology"), {
 
 export default function NumerologyPage() {
   const [isLoading, setIsLoading] = useState(true);
-  const [numerologyLoaded, setNumerologyLoaded] = useState(false); // Track when Thesis is loaded
+  const [numerologyLoaded, setNumerologyLoaded] = useState(false); // Track when Numerology is loaded
+  const [communionLoaded, setCommunionLoaded] = useState(false); // Track when Communion is loaded
 
   useEffect(() => {
-    if (numerologyLoaded) {
+    if (numerologyLoaded && communionLoaded) {
       setIsLoading(false);
     }
-  }, [numerologyLoaded]);
+  }, [numerologyLoaded, communionLoaded]);
+
   return (
     <>
       {isLoading && <Loader />}
@@ -29,7 +31,7 @@ export default function NumerologyPage() {
         <NavBar />
       </div>
       <div style={{ marginTop: "3rem" }}>
-        <Communion />
+        <Footer setCommunionLoaded={setCommunionLoaded} />
       </div>
     </>
   );

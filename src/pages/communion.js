@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import { Box, Image, Text, useDisclosure } from "@chakra-ui/react";
 import Carousel from "../components/Carousel";
 import NavBar from "../components/NavBar.client";
-import Communion from "../components/Communion";
+import Footer from "../components/Footer";
 import MusicPlayer from "../components/MusicPlayer2";
 import { Heading } from "@chakra-ui/react";
 import gsap from "gsap";
@@ -423,7 +423,7 @@ export default function CommunionPage() {
         <NavBar />
       </div>
       {/* </div> */}
-      <Communion setCommunionLoaded={setCommunionLoaded} />
+      <Footer setCommunionLoaded={setCommunionLoaded} />
 
       {/* Loader on top */}
       {isLoading && (

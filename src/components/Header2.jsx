@@ -299,10 +299,10 @@ function Header() {
           className="header"
           maxW="1200px"
           mb="125px"
-          style={{ position: "relative" }}
+          style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 90 }}
         >
           {windowWidth > 550 && <MatrixRain />}
-          <header id="header">
+          <header id="header" style={{ position: "relative", width: "100%" }}>
             <div className="menu-icon" onClick={toggleMenu}></div>
             <div className="menu-wrapper">
               <a href="/home" className="menu-item">

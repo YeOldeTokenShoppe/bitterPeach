@@ -115,6 +115,7 @@ function ThreeDVotiveStand({
   isModalOpen,
   setIsModalOpen,
   onSpawnReady,
+  is80sMode,
 }) {
   const [showFloatingViewer, setShowFloatingViewer] = useState(false);
   const [selectedCandleData, setSelectedCandleData] = useState(null);
@@ -176,6 +177,128 @@ function ThreeDVotiveStand({
 
   const [isModelLoaded, setIsModelLoaded] = useState(false);
   const hasNotifiedParentRef = useRef(false); // Add this ref to track notification state
+
+  // Light helper state
+  const [showLightHelper, setShowLightHelper] = useState(false);
+  const [lightPosition, setLightPosition] = useState({ x: 32, y: 33, z: 89 });
+  const [lightIntensity, setLightIntensity] = useState(1.2);
+  const [skyColor, setSkyColor] = useState("#7300ff"); // Sky color in hex format for inputs
+  const [groundColor, setGroundColor] = useState("#ff0000"); // Ground color in hex format for inputs
+
+  // Define lighting presets
+  const lightingPresets = {
+    default: {
+      skyColor: "#7300ff",
+      groundColor: "#ff0000",
+      lightIntensity: 1.2,
+      lightPosition: { x: 32, y: 33, z: 89 },
+    },
+    eighties: {
+      skyColor: "#ff00ff", // Hot pink
+      groundColor: "#00ffff", // Cyan
+      lightIntensity: 1.5,
+      lightPosition: { x: 40, y: 40, z: 70 },
+    },
+  };
+
+  // Apply a preset configuration
+  const applyPreset = (presetName) => {
+    const preset = lightingPresets[presetName];
+    if (!preset) return;
+
+    console.log(`Applying ${presetName} lighting preset:`, preset);
+
+    // Update all lighting properties at once
+    setSkyColor(preset.skyColor);
+    setGroundColor(preset.groundColor);
+    setLightIntensity(preset.lightIntensity);
+    setLightPosition(preset.lightPosition);
+
+    // Update the model's light properties if modelRef is available
+    if (modelRef.current) {
+      if (modelRef.current.updateSkyColor) {
+        modelRef.current.updateSkyColor(preset.skyColor);
+      }
+      if (modelRef.current.updateGroundColor) {
+        modelRef.current.updateGroundColor(preset.groundColor);
+      }
+      if (modelRef.current.updateLightIntensity) {
+        modelRef.current.updateLightIntensity(preset.lightIntensity);
+      }
+      if (modelRef.current.updateLightPosition) {
+        modelRef.current.updateLightPosition("x", preset.lightPosition.x);
+        modelRef.current.updateLightPosition("y", preset.lightPosition.y);
+        modelRef.current.updateLightPosition("z", preset.lightPosition.z);
+      }
+    }
+  };
+
+  // Apply preset when is80sMode prop changes
+  useEffect(() => {
+    console.log("ThreeDVotiveStand: is80sMode changed to", is80sMode);
+    applyPreset(is80sMode ? "eighties" : "default");
+  }, [is80sMode]);
+
+  // Handle light position changes from Model component
+  const handleLightPositionChange = (newPosition) => {
+    setLightPosition(newPosition);
+  };
+
+  // Toggle light helper visibility
+  const toggleLightHelper = () => {
+    setShowLightHelper(!showLightHelper);
+    // Also update the model's light helper if modelRef is available
+    if (modelRef.current && modelRef.current.toggleLightHelper) {
+      modelRef.current.toggleLightHelper();
+    }
+  };
+
+  // Update light position
+  const updateLightPosition = (axis, value) => {
+    const newValue = Number(value);
+    setLightPosition((prev) => ({
+      ...prev,
+      [axis]: newValue,
+    }));
+
+    // Update the model's light position if modelRef is available
+    if (modelRef.current && modelRef.current.updateLightPosition) {
+      modelRef.current.updateLightPosition(axis, newValue);
+    }
+  };
+
+  // Update light intensity
+  const updateLightIntensity = (value) => {
+    const intensity = Number(value);
+    setLightIntensity(intensity);
+
+    // Update the model's light intensity if modelRef is available
+    if (modelRef.current && modelRef.current.updateLightIntensity) {
+      modelRef.current.updateLightIntensity(intensity);
+    }
+  };
+
+  // Update sky color (top color)
+  const updateSkyColor = (hexColor) => {
+    console.log("Parent: Updating sky color to:", hexColor);
+    setSkyColor(hexColor);
+
+    // Update the model's sky color if modelRef is available
+    if (modelRef.current && modelRef.current.updateSkyColor) {
+      modelRef.current.updateSkyColor(hexColor);
+    }
+  };
+
+  // Update ground color (bottom color)
+  const updateGroundColor = (hexColor) => {
+    console.log("Parent: Updating ground color to:", hexColor);
+    setGroundColor(hexColor);
+
+    // Update the model's ground color if modelRef is available
+    if (modelRef.current && modelRef.current.updateGroundColor) {
+      modelRef.current.updateGroundColor(hexColor);
+    }
+  };
 
   // Update the parent component when model is loaded (only once)
   useEffect(() => {
@@ -424,6 +547,12 @@ function ThreeDVotiveStand({
               isModalOpen={isModalOpen}
               setIsModalOpen={setIsModalOpen}
               setIsModelLoaded={setIsModelLoaded}
+              onLightPositionChange={handleLightPositionChange}
+              lightIntensity={lightIntensity}
+              skyColor={skyColor}
+              groundColor={groundColor}
+              showLightHelper={showLightHelper}
+              is80sMode={is80sMode}
             />
 
             <Suspense fallback={null}>
@@ -435,15 +564,201 @@ function ThreeDVotiveStand({
             </Suspense>
 
             <Suspense fallback={null}>
-              <PostProcessingEffects />
+              <PostProcessingEffects is80sMode={is80sMode} />
             </Suspense>
           </Suspense>
           {/* <TickerDisplay /> */}
         </Canvas>
 
-        {/* {cameraRef.current && controlsRef.current && (
-          <CameraGUI cameraRef={cameraRef} controlsRef={controlsRef} />
-        )} */}
+        {/* Light Helper Controls - Outside Canvas */}
+        {/* 
+        <div
+          style={{
+            position: "absolute",
+            bottom: "10px",
+            right: "10px",
+            zIndex: 100,
+            background: "rgba(0,0,0,0.5)",
+            padding: "10px",
+            borderRadius: "5px",
+            color: "white",
+            width: "280px",
+          }}
+        >
+          <div
+            style={{
+              fontSize: "14px",
+              fontWeight: "bold",
+              marginBottom: "10px",
+              textAlign: "center",
+            }}
+          >
+            Light Helper Controls
+          </div>
+
+          <button
+            onClick={toggleLightHelper}
+            style={{
+              background: showLightHelper ? "#4CAF50" : "#f44336",
+              color: "white",
+              border: "none",
+              padding: "5px 10px",
+              borderRadius: "3px",
+              cursor: "pointer",
+              width: "100%",
+              marginBottom: "15px",
+            }}
+          >
+            {showLightHelper ? "Hide Light Helper" : "Show Light Helper"}
+          </button>
+
+          <div style={{ marginBottom: "15px" }}>
+            <div style={{ fontWeight: "bold", marginBottom: "5px" }}>
+              Position
+            </div>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "5px",
+              }}
+            >
+              <label style={{ width: "20px" }}>X:</label>
+              <input
+                type="range"
+                min="-100"
+                max="100"
+                value={lightPosition.x}
+                onChange={(e) => updateLightPosition("x", e.target.value)}
+                style={{ flex: 1, margin: "0 10px" }}
+              />
+              <span style={{ width: "30px", textAlign: "right" }}>
+                {lightPosition.x}
+              </span>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "5px",
+              }}
+            >
+              <label style={{ width: "20px" }}>Y:</label>
+              <input
+                type="range"
+                min="-100"
+                max="100"
+                value={lightPosition.y}
+                onChange={(e) => updateLightPosition("y", e.target.value)}
+                style={{ flex: 1, margin: "0 10px" }}
+              />
+              <span style={{ width: "30px", textAlign: "right" }}>
+                {lightPosition.y}
+              </span>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <label style={{ width: "20px" }}>Z:</label>
+              <input
+                type="range"
+                min="-100"
+                max="100"
+                value={lightPosition.z}
+                onChange={(e) => updateLightPosition("z", e.target.value)}
+                style={{ flex: 1, margin: "0 10px" }}
+              />
+              <span style={{ width: "30px", textAlign: "right" }}>
+                {lightPosition.z}
+              </span>
+            </div>
+          </div>
+
+          <div style={{ marginBottom: "15px" }}>
+            <div style={{ fontWeight: "bold", marginBottom: "5px" }}>
+              Intensity
+            </div>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <input
+                type="range"
+                min="0"
+                max="3"
+                step="0.1"
+                value={lightIntensity}
+                onChange={(e) => updateLightIntensity(e.target.value)}
+                style={{ flex: 1, marginRight: "10px" }}
+              />
+              <span style={{ width: "30px", textAlign: "right" }}>
+                {lightIntensity.toFixed(1)}
+              </span>
+            </div>
+          </div>
+
+          <div style={{ marginBottom: "15px" }}>
+            <div style={{ fontWeight: "bold", marginBottom: "5px" }}>
+              Colors
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                marginBottom: "8px",
+              }}
+            >
+              <label style={{ width: "80px" }}>Sky (Top):</label>
+              <input
+                type="color"
+                value={skyColor}
+                onChange={(e) => updateSkyColor(e.target.value)}
+                style={{ marginLeft: "10px", width: "40px", height: "25px" }}
+              />
+              <span style={{ marginLeft: "10px", fontSize: "12px" }}>
+                {skyColor}
+              </span>
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center" }}>
+              <label style={{ width: "80px" }}>Ground:</label>
+              <input
+                type="color"
+                value={groundColor}
+                onChange={(e) => updateGroundColor(e.target.value)}
+                style={{ marginLeft: "10px", width: "40px", height: "25px" }}
+              />
+              <span style={{ marginLeft: "10px", fontSize: "12px" }}>
+                {groundColor}
+              </span>
+            </div>
+          </div>
+
+          <div
+            style={{
+              fontSize: "12px",
+              textAlign: "center",
+              borderTop: "1px solid rgba(255,255,255,0.2)",
+              paddingTop: "8px",
+            }}
+          >
+            Position: [{lightPosition.x}, {lightPosition.y}, {lightPosition.z}]
+          </div>
+        </div>
+        */}
+
         {showFloatingViewer && selectedCandleData && (
           <FloatingCandleViewer
             key={`candle-viewer-${selectedCandleData.candleId || ""}-${
@@ -458,7 +773,6 @@ function ThreeDVotiveStand({
           />
         )}
       </div>
-      {/* )} */}
       <DebugOverlay
         isVisible={showDebugOverlay}
         dpr={currentDpr}

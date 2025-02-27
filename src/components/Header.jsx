@@ -414,7 +414,7 @@ function Header() {
                   fontSize: "2.5rem",
                   objectFit: "cover",
                   layout: "fill",
-                  right: "5%",
+                  right: "15%",
                   border: "3px solid goldenrod",
                   background: "#444",
                   position: "absolute",

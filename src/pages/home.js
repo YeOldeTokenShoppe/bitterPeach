@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import Hero from "../components/Hero";
 import Header from "../components/Header";
 import NavBar from "../components/NavBar.client";
-import Communion from "../components/Communion";
+import Footer from "../components/Footer";
 import Carousel from "../components/Carousel";
 import dynamic from "next/dynamic";
 import Loader from "../components/Loader";
@@ -123,7 +123,7 @@ export default function Home() {
         <Hero setHeroLoaded={setHeroLoaded} />
         <NavBar />
       </div>
-      <Communion setCommunionLoaded={setCommunionLoaded} />
+      <Footer setCommunionLoaded={setCommunionLoaded} />
     </>
   );
 }
