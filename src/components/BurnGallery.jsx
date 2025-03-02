@@ -55,6 +55,8 @@ import ThreeDVotiveStand from "./3DVotiveStand/index";
 import MobileStand from "./3DVotiveStand/MobileStand";
 import Communion3 from "./Communion3";
 import NeonSign from "./NeonSign";
+import Model from "./3DVotiveStand/Model";
+import * as THREE from "three";
 
 const BurnModal = dynamic(() => import("./BurnModal"), {
   ssr: false,
@@ -85,6 +87,7 @@ function BurnGallery({
   setComponentLoaded,
   setThreeDSceneLoaded,
   setShowSpotify,
+  showSpotify,
   isModalOpen,
   setIsModalOpen,
   is80sMode,
@@ -125,6 +128,10 @@ function BurnGallery({
   const [isBuyModalOpen, setIsBuyModalOpen] = useState(false);
   const [isStakeModalOpen, setIsStakeModalOpen] = useState(false);
   const spawnMonsterFunctionRef = useRef(null);
+  const [showFloatingViewer, setShowFloatingViewer] = useState(false);
+  const [modelRef, setModelRef] = useState(null);
+  const [modelCenter, setModelCenter] = useState(new THREE.Vector3());
+  const [isModelLoaded, setIsModelLoaded] = useState(false);
 
   const setSpawnFunction = (functionFromMoonScene) => {
     console.log("BurnGallery: Received spawn function from ThreeDVotiveStand");
@@ -255,6 +262,22 @@ function BurnGallery({
     }));
   }, []);
 
+  const handleCandleSelect = (data) => {
+    console.log("Candle selected:", data);
+  };
+
+  // Update the handleBoomboxClick function
+  const handleBoomboxClick = () => {
+    console.log("Boombox clicked in BurnGallery, toggling showSpotify");
+    // Pass the updated state to the parent component
+    if (setShowSpotify) {
+      // Only toggle showSpotify when in 80s mode
+      if (is80sMode) {
+        setShowSpotify(!showSpotify);
+      }
+    }
+  };
+
   return (
     <>
       <Box py="0" position="relative" height="100vh" width="100%">
@@ -288,6 +311,9 @@ function BurnGallery({
                   }
                 }}
                 is80sMode={is80sMode}
+                toggle80sMode={toggle80sMode}
+                showSpotify={showSpotify}
+                onBoomboxClick={handleBoomboxClick}
               />
             ) : currentView === "stand1" ? (
               <div

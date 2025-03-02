@@ -20,7 +20,7 @@ import { db, auth } from "../utilities/firebaseClient"; // Import Firestore and 
 import RotatingBadge2 from "./RotatingBadge2";
 import MatrixRain from "./MatrixRain";
 
-function Header() {
+function Header2() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [emoji, setEmoji] = useState("😇");
   const node = useRef();
@@ -294,14 +294,35 @@ function Header() {
 
   return (
     <>
-      <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
+      <div
+        style={{
+          maxWidth: "1200px",
+          margin: "0 auto",
+          backgroundColor: "transparent",
+          position: "relative",
+        }}
+      >
         <Container
           className="header"
           maxW="1200px"
           mb="125px"
-          style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 90 }}
+          position="relative"
         >
-          {windowWidth > 550 && <MatrixRain />}
+          {/* Matrix Rain effect container */}
+          <div
+            className="matrix-container"
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              height: "150px", // Increased height for better visibility
+              zIndex: -1,
+              overflow: "hidden",
+            }}
+          >
+            {windowWidth > 550 && <MatrixRain />}
+          </div>
           <header id="header" style={{ position: "relative", width: "100%" }}>
             <div className="menu-icon" onClick={toggleMenu}></div>
             <div className="menu-wrapper">
@@ -314,7 +335,7 @@ function Header() {
                       width="10rem"
                       height="10rem"
                       alt="Logo"
-                      style={{ zIndex: "1" }}
+                      style={{ zIndex: 1 }}
                     />
                     <RotatingBadge2 />
                   </div>
@@ -337,8 +358,6 @@ function Header() {
                   >
                     Home
                   </Link>
-                  {/* </div> */}
-                  {/* <div className="p-1"> */}
                   <Link
                     href="/thesis"
                     className="menu-item"
@@ -349,8 +368,6 @@ function Header() {
                   >
                     Unorthodoxy
                   </Link>
-                  {/* </div> */}
-                  {/* <div className="p-1"> */}
                   <Link
                     href="/numerology"
                     className="menu-item"
@@ -361,8 +378,6 @@ function Header() {
                   >
                     Numerology
                   </Link>
-                  {/* </div> */}
-                  {/* <div className="p-1"> */}
                   <Link
                     href="/gallery"
                     className="menu-item"
@@ -373,8 +388,6 @@ function Header() {
                   >
                     Moon Room
                   </Link>
-                  {/* </div> */}
-                  {/* <div className="p-1"> */}
                   <Link
                     href="/communion"
                     className="menu-item"
@@ -397,7 +410,7 @@ function Header() {
                   fontSize: "2.5rem",
                   objectFit: "cover",
                   layout: "fill",
-                  right: "5%",
+                  right: "15%",
                   border: "3px solid goldenrod",
                   background: "#444",
                   position: "absolute",
@@ -405,7 +418,7 @@ function Header() {
                   height: "3rem",
                   minWidth: "3rem",
                   top: "3rem",
-                  zIndex: "1",
+                  zIndex: 1,
                   overflow: "hidden",
                 }}
               >
@@ -416,7 +429,7 @@ function Header() {
                 </SignedIn>
 
                 <SignedOut>
-                  <SignInButton mode="modal" redirectUrl={currentPath}>
+                  <SignInButton mode="modal" forceRedirectUrl={currentPath}>
                     <Button style={{ fontSize: "2rem" }}>{emoji}</Button>
                   </SignInButton>
                 </SignedOut>
@@ -429,4 +442,4 @@ function Header() {
   );
 }
 
-export default Header;
+export default Header2;

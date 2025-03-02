@@ -517,7 +517,11 @@ function Hero({ setHeroLoaded }) {
               >
                 {/* <SuperText /> */}
                 <Link href="#">
-                  <Button width="5rem" className="shimmer-button">
+                  <Button
+                    width="5rem"
+                    className="shimmer-button"
+                    data-shimmer-index="4"
+                  >
                     Buy RL80<span className="shimmer"></span>
                   </Button>
                   {/* <RadioButton2 text="Buy RL80" link="https://example.com/" /> */}
@@ -579,7 +583,11 @@ function Hero({ setHeroLoaded }) {
                   link="https://example.com/"
                 /> */}
 
-                <Button width="5rem" className="shimmer-button">
+                <Button
+                  width="5rem"
+                  className="shimmer-button"
+                  data-shimmer-index="5"
+                >
                   LFG!<span className="shimmer"></span>
                 </Button>
               </Link>

@@ -1,130 +1,117 @@
-import { useEffect, useRef } from "react";
+import React, { useEffect, useState } from "react";
 
 function MatrixRain() {
-  const matrixRef = useRef(null);
+  const [streams, setStreams] = useState([]);
 
   useEffect(() => {
-    function r(from, to) {
-      return ~~(Math.random() * (to - from + 1) + from);
-    }
+    // Generate random matrix streams
+    const generateStreams = () => {
+      const newStreams = [];
+      const numberOfStreams = 50; // Adjust based on desired density
 
-    function pick() {
-      return arguments[r(0, arguments.length - 1)];
-    }
-
-    function getChar() {
-      return String.fromCharCode(
-        pick(r(0x3041, 0x30ff), r(0x2000, 0x206f), r(0x0020, 0x003f))
-      );
-    }
-
-    function loop(fn, delay) {
-      let stamp = Date.now();
-      function _loop() {
-        if (Date.now() - stamp >= delay) {
-          fn();
-          stamp = Date.now();
-        }
-        requestAnimationFrame(_loop);
-      }
-      requestAnimationFrame(_loop);
-    }
-
-    class Char {
-      constructor() {
-        this.element = document.createElement("span");
-        this.element.className = "matrix-char"; // Custom selector
-        this.mutate();
-      }
-
-      mutate() {
-        this.element.textContent = getChar();
-      }
-    }
-
-    class Trail {
-      constructor(list = [], options) {
-        this.list = list;
-        this.options = Object.assign({ size: 10, offset: 0 }, options);
-        this.matrixBody = [];
-        this.move();
-      }
-
-      traverse(fn) {
-        this.matrixBody.forEach((n, i) => {
-          let last = i === this.matrixBody.length - 1;
-          if (n) fn(n, i, last);
+      for (let i = 0; i < numberOfStreams; i++) {
+        newStreams.push({
+          id: i,
+          left: `${Math.random() * 100}%`,
+          animationDuration: `${Math.random() * 5 + 5}s`, // 5-10 seconds
+          delay: `${Math.random() * 2}s`,
+          characters: generateRandomCharacters(),
         });
       }
 
-      move() {
-        this.matrixBody = [];
-        let { offset, size } = this.options;
-        for (let i = 0; i < size; ++i) {
-          let item = this.list[offset + i - size + 1];
-          this.matrixBody.push(item);
-        }
-        this.options.offset = (offset + 1) % (this.list.length + size - 1);
-      }
-    }
+      setStreams(newStreams);
+    };
 
-    class Rain {
-      constructor({ target, row }) {
-        this.element = document.createElement("p");
-        this.element.className = "matrix-stream"; // Custom selector
-        this.build(row);
-        if (target) {
-          target.appendChild(this.element);
-        }
-        this.drop();
-      }
-
-      build(row = 20) {
-        let root = document.createDocumentFragment();
-        let chars = [];
-        for (let i = 0; i < row; ++i) {
-          let c = new Char();
-          root.appendChild(c.element);
-          chars.push(c);
-          if (Math.random() < 0.5) {
-            loop(() => c.mutate(), r(1000, 5000));
-          }
-        }
-        this.trail = new Trail(chars, { size: r(10, 30), offset: r(0, 100) });
-        this.element.appendChild(root);
-      }
-
-      drop() {
-        let trail = this.trail;
-        let len = trail.matrixBody.length;
-        let delay = r(10, 100);
-        loop(() => {
-          trail.move();
-          trail.traverse((c, i, last) => {
-            c.element.style = `color: #01ffed; opacity: ${(i + 1) / len}`;
-            if (last) {
-              c.mutate();
-              c.element.style = `
-    color: #01ffed;
-    text-shadow:
-      0 0 .5em #01ffed,
-      0 0 .5em currentColor;
-  `;
-            }
-          });
-        }, delay);
-      }
-    }
-
-    const main = matrixRef.current;
-    if (main) {
-      for (let i = 0; i < 50; ++i) {
-        new Rain({ target: main, row: 50 });
-      }
-    }
+    generateStreams();
   }, []);
 
-  return <main ref={matrixRef} className="matrix-main"></main>;
+  // Generate random matrix-like characters
+  const generateRandomCharacters = () => {
+    const length = Math.floor(Math.random() * 10) + 10; // 10-20 characters
+    const chars = [];
+
+    for (let i = 0; i < length; i++) {
+      // Mix of numbers, katakana characters, and symbols
+      const charType = Math.random();
+      let char;
+
+      if (charType < 0.5) {
+        // Numbers
+        char = Math.floor(Math.random() * 10).toString();
+      } else if (charType < 0.8) {
+        // Katakana-like characters (simplified for this example)
+        const katakana = "ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛ";
+        char = katakana[Math.floor(Math.random() * katakana.length)];
+      } else {
+        // Symbols
+        const symbols = "!@#$%^&*()_+-=[]{}|;:,./<>?";
+        char = symbols[Math.floor(Math.random() * symbols.length)];
+      }
+
+      chars.push({
+        value: char,
+        opacity: Math.random() * 0.5 + 0.5, // 0.5-1.0 opacity
+      });
+    }
+
+    return chars;
+  };
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        width: "100%",
+        height: "100%",
+        background: "rgba(0, 0, 0, 0.8)",
+        overflow: "hidden",
+        zIndex: -1,
+      }}
+    >
+      {streams.map((stream) => (
+        <div
+          key={stream.id}
+          style={{
+            position: "absolute",
+            top: "-100px", // Start above the visible area
+            left: stream.left,
+            color: "#00FF41",
+            fontSize: "16px",
+            fontFamily: "monospace",
+            animation: `matrixFall ${stream.animationDuration} ${stream.delay} infinite linear`,
+            textShadow: "0 0 5px #00FF41",
+            zIndex: -1,
+          }}
+        >
+          {stream.characters.map((char, index) => (
+            <div
+              key={index}
+              style={{
+                opacity: char.opacity,
+                textAlign: "center",
+                marginBottom: "2px",
+              }}
+            >
+              {char.value}
+            </div>
+          ))}
+        </div>
+      ))}
+
+      <style jsx>{`
+        @keyframes matrixFall {
+          0% {
+            transform: translateY(-100%);
+          }
+          100% {
+            transform: translateY(100vh);
+          }
+        }
+      `}</style>
+    </div>
+  );
 }
 
 export default MatrixRain;

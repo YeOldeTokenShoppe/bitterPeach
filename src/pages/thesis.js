@@ -87,7 +87,7 @@ export default function ThesisPage() {
   }, [thesisLoaded, communionLoaded, allImagesLoaded]);
 
   return (
-    <div style={{ marginTop: "4rem", position: "relative" }}>
+    <div style={{ marginTop: "2rem", position: "relative" }}>
       {/* Always render the content, but control visibility with CSS */}
       <div
         style={{
@@ -97,7 +97,7 @@ export default function ThesisPage() {
         }}
       >
         <Thesis setThesisLoaded={setThesisLoaded} />
-        <div style={{ paddingTop: "1rem" }}>
+        <div style={{ paddingTop: "1rem", marginTop: "4rem" }}>
           <NavBar />
         </div>
         <Footer setCommunionLoaded={setCommunionLoaded} />

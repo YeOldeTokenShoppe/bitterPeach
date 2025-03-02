@@ -9,7 +9,8 @@ const MusicPlayer = ({ isVisible, onClose, autoPlay = true }) => {
   const [isShuffled, setIsShuffled] = useState(false);
   const [shuffledQueue, setShuffledQueue] = useState([]);
   const audioRef = useRef(null);
-  const [volume, setVolume] = useState(0.2);
+  // Set initial volume to 0.15 (15%) for an even lower starting volume
+  const [volume, setVolume] = useState(0.15);
 
   const albums = [
     "Like A Prayer - Madonna",
@@ -121,6 +122,7 @@ const MusicPlayer = ({ isVisible, onClose, autoPlay = true }) => {
     }
   };
 
+  // Enhanced effect to auto-play when component becomes visible
   useEffect(() => {
     if (isVisible && audioRef.current && autoPlay) {
       console.log(
@@ -231,7 +233,7 @@ const MusicPlayer = ({ isVisible, onClose, autoPlay = true }) => {
     }
 
     const audio = new Audio(trackUrls[currentTrackIndex]);
-    // Set initial volume to match state (20%)
+    // Set initial volume to match state (15%)
     audio.volume = volume;
     console.log("Initializing new audio element with volume:", audio.volume);
     audioRef.current = audio;
@@ -406,7 +408,7 @@ const MusicPlayer = ({ isVisible, onClose, autoPlay = true }) => {
                     }}
                     onClick={() =>
                       handleVolumeChange({
-                        target: { value: volume === 0 ? 0.2 : 0 },
+                        target: { value: volume === 0 ? 0.15 : 0 },
                       })
                     }
                   />

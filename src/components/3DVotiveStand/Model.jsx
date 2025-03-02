@@ -1,4 +1,10 @@
-import React, { useEffect, useState, useRef, Suspense } from "react";
+import React, {
+  useEffect,
+  useState,
+  useRef,
+  Suspense,
+  useCallback,
+} from "react";
 import { useThree, useFrame } from "@react-three/fiber";
 import {
   useGLTF,
@@ -15,86 +21,128 @@ import { ref, getDownloadURL } from "firebase/storage";
 import { storage } from "../../utilities/firebaseClient"; // Import storage directly
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 
-// Rename to avoid conflicts with BurnGallery's EightiesMusicPlayer
-const ModelEightiesMusicPlayer = ({ is80sMode }) => {
-  const audioRef = useRef(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [audioLoaded, setAudioLoaded] = useState(false);
+// Sun component to load and position the sun model
+function Sun({ position = [0, 0, 0], scale = 0.5, is80sMode = false }) {
+  const { scene: sunScene } = useGLTF("/SynthwaveSun.glb");
+  const { camera } = useThree();
 
+  // Create a group to hold the sun model
+  const groupRef = useRef();
+
+  // Store the initial relative position from the camera
+  const relativePosition = useRef(new THREE.Vector3(...position));
+
+  // Toggle visibility based on 80s mode
   useEffect(() => {
-    // Create audio element if it doesn't exist
-    if (!audioRef.current) {
-      // Get the full URL for madonna.mp4
-      const audioPath = window.location.origin + "/madonna.mp4";
-      console.log("Model: Creating audio element with path:", audioPath);
-
-      audioRef.current = new Audio(audioPath);
-      audioRef.current.loop = true;
-      audioRef.current.volume = 0.7; // Set to 70% volume
-
-      // Add event listeners for debugging
-      audioRef.current.onloadeddata = () => {
-        console.log("Model: Madonna audio loaded successfully");
-        setAudioLoaded(true);
-      };
-
-      audioRef.current.onerror = (e) => {
-        console.error("Model: Error loading Madonna audio:", e);
-      };
-
-      // Log the audio source to verify
-      console.log("Model: Audio source set to:", audioRef.current.src);
+    if (groupRef.current) {
+      groupRef.current.visible = is80sMode;
+      console.log(
+        `Sun visibility set to ${
+          is80sMode ? "visible" : "hidden"
+        } based on 80s mode`
+      );
     }
+  }, [is80sMode]);
 
-    // Play or pause based on 80s mode
-    if (is80sMode && !isPlaying) {
-      console.log("Model: Starting Madonna music");
-      audioRef.current
-        .play()
-        .then(() => {
-          setIsPlaying(true);
-          console.log("Model: Madonna music playing:", audioRef.current.src);
-        })
-        .catch((error) => {
-          console.error("Model: Error playing Madonna music:", error);
-          // Try to load the audio again with a different path
-          audioRef.current.src = "/madonna.mp4";
-          console.log("Model: Trying fallback path:", audioRef.current.src);
-          audioRef.current
-            .play()
-            .then(() => {
-              setIsPlaying(true);
-              console.log("Model: Madonna music playing with fallback path");
-            })
-            .catch((err) => {
-              console.error("Model: Fallback path also failed:", err);
-            });
-        });
-    } else if (!is80sMode && isPlaying) {
-      console.log("Model: Stopping Madonna music");
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-      setIsPlaying(false);
+  // Use useFrame to update the sun's position relative to the camera
+  useFrame(() => {
+    if (groupRef.current && is80sMode) {
+      // Calculate position relative to camera
+      const cameraDirection = new THREE.Vector3(0, 0, -1);
+      cameraDirection.applyQuaternion(camera.quaternion);
+
+      // Position the sun at a fixed distance in front of the camera
+      // but offset to the bottom-left
+      const distance = 100; // Distance from camera
+      const sunPosition = new THREE.Vector3();
+
+      // Start with the camera position
+      sunPosition.copy(camera.position);
+
+      // Move in the direction the camera is facing
+      cameraDirection.multiplyScalar(distance);
+      sunPosition.add(cameraDirection);
+
+      // Apply the offset (down and to the left from camera view)
+      const offset = new THREE.Vector3(0, 0, -10);
+      offset.applyQuaternion(camera.quaternion);
+      sunPosition.add(offset);
+
+      // Update the sun's position
+      groupRef.current.position.copy(sunPosition);
+
+      // Make the sun always face the camera (billboard effect)
+      groupRef.current.quaternion.copy(camera.quaternion);
     }
+  });
 
-    // Cleanup function
-    return () => {
-      if (audioRef.current) {
-        console.log("Model: Cleaning up Madonna audio player");
-        audioRef.current.pause();
-        audioRef.current.currentTime = 0;
-        setIsPlaying(false);
-      }
-    };
-  }, [is80sMode, isPlaying]);
+  // Add detailed logging of the sun model
+  useEffect(() => {
+    if (sunScene) {
+      console.log("SUN MODEL DETAILS:");
+      console.log("- Scene:", sunScene);
 
-  // Add a visual indicator for debugging
-  if (is80sMode) {
-    console.log("Model: Rendering 80s music player indicator");
-  }
+      // Log all objects in the scene
+      console.log("- Children:", sunScene.children);
 
-  return null; // This component doesn't render anything
-};
+      // Log all meshes
+      const meshes = [];
+      sunScene.traverse((child) => {
+        if (child.isMesh) {
+          meshes.push({
+            name: child.name,
+            visible: child.visible,
+            material: child.material,
+            geometry: {
+              type: child.geometry.type,
+              parameters: child.geometry.parameters,
+            },
+          });
+        }
+      });
+      console.log("- Meshes:", meshes);
+
+      // Check if there are any materials with transparency
+      const hasTransparentMaterials = meshes.some(
+        (mesh) => mesh.material && mesh.material.transparent
+      );
+      console.log("- Has transparent materials:", hasTransparentMaterials);
+
+      // Check if the model has any zero-scale components
+      let hasZeroScale = false;
+      sunScene.traverse((child) => {
+        if (
+          child.scale &&
+          (child.scale.x === 0 || child.scale.y === 0 || child.scale.z === 0)
+        ) {
+          hasZeroScale = true;
+          console.log("  - Object with zero scale:", child.name);
+        }
+      });
+      console.log("- Has zero scale components:", hasZeroScale);
+    } else {
+      console.error("SUN MODEL FAILED TO LOAD");
+    }
+  }, [sunScene]);
+
+  return (
+    <group ref={groupRef}>
+      {/* Original sun model */}
+      {sunScene ? (
+        <primitive object={sunScene} scale={[scale, scale, scale]} />
+      ) : (
+        /* Fallback sun if model fails to load */
+        <mesh>
+          <sphereGeometry args={[scale * 1, 32, 32]} />
+          <meshBasicMaterial color="#ffaa00" />
+        </mesh>
+      )}
+    </group>
+  );
+}
+
+// Preload the sun model
+useGLTF.preload("/SynthwaveSun.glb");
 
 function Model({
   scale,
@@ -106,13 +154,15 @@ function Model({
   setModelCenter,
   isModalOpen,
   setIsModalOpen,
-  setIsModelLoaded, // Add this prop to communicate loading state
-  onLightPositionChange, // Add callback for light position changes
+  setIsModelLoaded,
+  onLightPositionChange,
   lightIntensity: parentLightIntensity,
   skyColor: parentSkyColor,
   groundColor: parentGroundColor,
   showLightHelper: parentShowLightHelper,
-  is80sMode, // Add this prop to receive '80s mode state
+  is80sMode,
+  showSpotify,
+  onBoomboxClick,
 }) {
   const [modelUrl, setModelUrl] = useState("/altarBoombox.glb"); // Default fallback
   const { progress } = useProgress(); // Track loading progress
@@ -127,6 +177,7 @@ function Model({
   const workerRef = useRef(null);
   const lightHelperRef = useRef();
   const lightMarkerRef = useRef();
+  const boomboxRef = useRef();
 
   const [selectedCandleData, setSelectedCandleData] = useState(null);
   const [showLightHelper, setShowLightHelper] = useState(false); // Control visibility of helper - set to false
@@ -172,22 +223,75 @@ function Model({
       gltf.scene.scale.set(1, 1, 1);
       gltf.scene.position.set(0, 0, 0);
       gltf.scene.updateMatrixWorld(true);
+
+      // Detailed logging of all meshes and their materials
+      gltf.scene.traverse((child) => {
+        if (child.isMesh) {
+          console.log("\n--- Mesh Details ---");
+          console.log("Mesh name:", child.name);
+          console.log(
+            "Material type:",
+            child.material ? child.material.type : "No material"
+          );
+
+          if (child.material) {
+            if (Array.isArray(child.material)) {
+              child.material.forEach((mat, index) => {
+                console.log(`Material ${index} properties:`, {
+                  emissive: mat.emissive ? mat.emissive.getHexString() : "none",
+                  emissiveIntensity: mat.emissiveIntensity,
+                  color: mat.color ? mat.color.getHexString() : "none",
+                });
+              });
+            } else {
+              console.log("Material properties:", {
+                emissive: child.material.emissive
+                  ? child.material.emissive.getHexString()
+                  : "none",
+                emissiveIntensity: child.material.emissiveIntensity,
+                color: child.material.color
+                  ? child.material.color.getHexString()
+                  : "none",
+              });
+            }
+          }
+
+          // Log full object path to help identify hierarchy
+          let path = child.name;
+          let parent = child.parent;
+          while (parent) {
+            path = parent.name + " > " + path;
+            parent = parent.parent;
+          }
+          console.log("Object path:", path);
+        }
+      });
     }
   }, [gltf]);
 
   // Log all mesh names in the model to help identify floor objects
-  useEffect(() => {
-    if (gltf?.scene) {
-      console.log("Logging all mesh names in the model:");
-      const meshNames = [];
-      gltf.scene.traverse((child) => {
-        if (child.isMesh) {
-          meshNames.push(child.name);
-        }
-      });
-      console.log("Mesh names:", meshNames);
-    }
-  }, [gltf]);
+  // useEffect(() => {
+  //   if (gltf?.scene) {
+  //     const ticker = scene.getObjectByName("Ticker");
+  //     console.log("Ticker mesh:", ticker);
+
+  //     if (ticker) {
+  //       console.log("Ticker material before:", ticker.material);
+  //     }
+  // ticker.material = new THREE.MeshBasicMaterial({ color: "black" });
+
+  // ticker.material.side = THREE.FrontsSide; // Render the inner side
+  // ticker.material.wireframe = true;
+  // console.log("Logging all mesh names in the model:");
+  // const meshNames = [];
+  // gltf.scene.traverse((child) => {
+  //   if (child.isMesh) {
+  //     meshNames.push(child.name);
+  //   }
+  // });
+  // console.log("Mesh names:", meshNames);
+  //   }
+  // }, [gltf]);
 
   // Fetch model URL from Firebase Storage
   useEffect(() => {
@@ -612,7 +716,8 @@ function Model({
     });
   };
 
-  const handleCandleClick = (event) => {
+  // Handle click events
+  const handleClick = (event) => {
     event.stopPropagation();
 
     if (showFloatingViewer) return;
@@ -627,6 +732,27 @@ function Model({
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(mouse, camera);
 
+    // Check for Boombox intersection first
+    if (boomboxRef.current && is80sMode) {
+      const boomboxIntersects = raycaster.intersectObject(
+        boomboxRef.current,
+        true
+      );
+      if (boomboxIntersects.length > 0) {
+        console.log("🎵 Boombox clicked - current state:", {
+          showSpotify,
+          is80sMode,
+          intensity: boomboxRef.current.material?.emissiveIntensity,
+        });
+        if (onBoomboxClick) {
+          // Call the onBoomboxClick handler from props
+          onBoomboxClick();
+          return;
+        }
+      }
+    }
+
+    // Original candle click logic
     const intersectableObjects = [];
     modelRef.current.traverse((object) => {
       if (object.name.startsWith("VCANDLE")) {
@@ -909,24 +1035,12 @@ function Model({
       gltf.scene.traverse((child) => {
         // Look for objects that might be the boombox using various naming patterns
         const boomboxPatterns = [
-          "BOOMBOX",
+          "BoomBox",
           "Boombox",
           "boombox",
           "BoomBox",
           "BOOM_BOX",
           "BOOM",
-          "stereo",
-          "Stereo",
-          "STEREO",
-          "radio",
-          "Radio",
-          "RADIO",
-          "cassette",
-          "Cassette",
-          "CASSETTE",
-          "player",
-          "Player",
-          "PLAYER",
         ];
 
         const isBoombox = boomboxPatterns.some(
@@ -947,7 +1061,7 @@ function Model({
           child.visible = is80sMode;
 
           // Add orange emissive glow to specific Boombox objects
-          if (child.name === "Boombox.181" || child.name === "Boombox.173") {
+          if (child.name === "Boombox.844" || child.name === "Boombox.836") {
             console.log(
               `Setting initial orange emissive glow for ${child.name}`
             );
@@ -1323,6 +1437,58 @@ function Model({
     }
   }, [modelRef, is80sMode]);
 
+  // Set up Boombox visibility and glow effect
+  useEffect(() => {
+    if (!gltf?.scene) return;
+    const boomboxLED = gltf.scene.getObjectByName("BoomboxLED_2");
+    if (boomboxLED) {
+      console.log("🎵 Initial Boombox LED setup:", {
+        name: boomboxLED.name,
+        is80sMode,
+        showSpotify,
+      });
+
+      boomboxRef.current = boomboxLED;
+      boomboxLED.visible = is80sMode;
+
+      if (boomboxLED.material) {
+        boomboxLED.material.emissive = new THREE.Color("#736DFF");
+        // Always start with LED off when Spotify is showing
+        boomboxLED.material.emissiveIntensity = showSpotify ? 0.0 : 2.0;
+        boomboxLED.material.toneMapped = false;
+      }
+    }
+  }, [gltf, is80sMode, showSpotify]); // Add showSpotify dependency
+
+  // Add effect to track showSpotify changes
+  useEffect(() => {
+    if (boomboxRef.current?.material) {
+      console.log("🎵 showSpotify changed:", { showSpotify });
+      // Immediately update LED state when showSpotify changes
+      boomboxRef.current.material.emissiveIntensity = showSpotify ? 0.0 : 2.0;
+    }
+  }, [showSpotify]);
+
+  // Use useFrame for continuous animation
+  useFrame((state) => {
+    if (!boomboxRef.current?.material || !is80sMode) return;
+
+    const material = boomboxRef.current.material;
+
+    // If Spotify is showing, ensure LED is off
+    if (showSpotify) {
+      if (material.emissiveIntensity !== 0.0) {
+        console.log("🎵 Forcing LED off");
+        material.emissiveIntensity = 0.0;
+      }
+      return; // Skip animation when Spotify is showing
+    }
+
+    // Only pulse if Spotify is not showing
+    const intensity = 2.0 + Math.sin(state.clock.elapsedTime * 3) * 1.0;
+    material.emissiveIntensity = intensity;
+  });
+
   return (
     <>
       <primitive
@@ -1330,27 +1496,12 @@ function Model({
         object={gltf.scene}
         scale={[scale, scale, scale]}
         rotation={rotation}
-        onClick={handleCandleClick}
+        onClick={handleClick}
         style={{
           pointerEvents: showFloatingViewer ? "none" : "auto",
         }}
       />
       <DarkClouds />
-
-      {/* Add the music player component */}
-      <ModelEightiesMusicPlayer is80sMode={is80sMode} />
-
-      {/* {selectedCandleData && (
-        <FloatingCandleViewer
-          isVisible={showFloatingViewer}
-          onClose={() => {
-            setShowFloatingViewer(false);
-            setSelectedCandleData(null);
-          }}
-          userData={selectedCandleData}
-          key={selectedCandleData?.image}
-        />
-      )} */}
     </>
   );
 }
@@ -1358,4 +1509,5 @@ function Model({
 // Add this line at the bottom to preload the model
 useGLTF.preload("/altarBoombox.glb");
 
+export { Sun }; // Export the Sun component
 export default Model;

@@ -38,7 +38,7 @@
   transition: scale 0.15s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Rest of the CSS remains exactly the same */
+/* Modified shimmer animation to be periodic instead of continuous */
 .shimmer-button .shimmer {
   position: absolute;
   inset: -40px;
@@ -57,11 +57,40 @@
   );
   mask-size: cover;
   mix-blend-mode: plus-lighter;
-  animation: shimmer 3s linear infinite both;
+  /* Changed from infinite to a specific duration with pauses */
+  animation: none; /* Remove default animation */
+  opacity: 0; /* Start with no shimmer */
 }
 
-/* Rest of the CSS remains the same as before... */
+/* Add different animation delays for each button to make them shimmer independently */
+.shimmer-button[data-shimmer-index="1"] .shimmer {
+  animation: shimmer-periodic 8s linear 0s infinite;
+}
 
+.shimmer-button[data-shimmer-index="2"] .shimmer {
+  animation: shimmer-periodic 8s linear 2.7s infinite;
+}
+
+.shimmer-button[data-shimmer-index="3"] .shimmer {
+  animation: shimmer-periodic 8s linear 5.3s infinite;
+}
+
+/* Add animations for Hero component buttons */
+.shimmer-button[data-shimmer-index="4"] .shimmer {
+  animation: shimmer-periodic 8s linear 1.5s infinite;
+}
+
+.shimmer-button[data-shimmer-index="5"] .shimmer {
+  animation: shimmer-periodic 8s linear 4s infinite;
+}
+
+/* Hover will always trigger the shimmer */
+.shimmer-button:hover .shimmer {
+  animation: shimmer 2s linear forwards !important;
+  opacity: 1;
+}
+
+/* Rest of the CSS remains exactly the same */
 .shimmer-button .shimmer::before,
 .shimmer-button .shimmer::after {
   transition: all 0.5s ease;
@@ -199,4 +228,25 @@
 .css-vmo6d2 {
   color: #1b1724 !important;
   background-color: #1b1724 !important;
+}
+
+/* Add new keyframes for periodic shimmer */
+@keyframes shimmer-periodic {
+  0%,
+  70% {
+    opacity: 0;
+    --shimmer: 0deg;
+  }
+  75% {
+    opacity: 1;
+    --shimmer: 0deg;
+  }
+  95% {
+    opacity: 1;
+    --shimmer: 360deg;
+  }
+  100% {
+    opacity: 0;
+    --shimmer: 360deg;
+  }
 }

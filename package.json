@@ -54,6 +54,7 @@
     "react-swipeable": "^7.0.2",
     "react-transition-group": "^4.4.5",
     "recharts": "^2.14.1",
+    "simplex-noise": "^4.0.3",
     "styled-components": "^6.1.13",
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",

@@ -96,6 +96,8 @@ const ChandelierModel = React.forwardRef(({ url, visible }, ref) => {
   return <primitive ref={ref} object={scene} />;
 });
 
+ChandelierModel.displayName = "ChandelierModel";
+
 function PhysicsChandelier({ url, visible = true }) {
   const bodyA = useRef(null);
   const bodyB = useRef(null);

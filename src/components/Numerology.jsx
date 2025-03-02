@@ -385,7 +385,9 @@ const Numerology = ({ setNumerologyLoaded }) => {
             flex={["1 0 100%", "1 0 100%", "1 0 50%"]}
             minH={{ base: "300px", md: "auto" }}
           >
-            <h1 style={{ fontSize: "3em" }}>Numerology</h1>
+            <h1 className="thelma" style={{ fontSize: "3em" }}>
+              Numerology
+            </h1>
             <br />
             <div className="numerology">
               <div className="first">

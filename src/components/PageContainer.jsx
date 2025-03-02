@@ -23,23 +23,21 @@ const PageContainer = ({
   withHeaderSpace = true,
   ...rest
 }) => {
-  const containerStyle = {
-    width: "100%",
+  const containerStyles = {
+    width: fullWidth ? "100%" : "auto",
+    maxWidth: maxWidth || "1400px",
     margin: "0 auto",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
     paddingTop: withHeaderSpace ? "125px" : "0",
     ...style,
-    ...(fullWidth
-      ? {}
-      : { maxWidth: maxWidth || "min(1400px, calc(100% - 4rem))" }),
   };
 
   return (
     <Component
       className={`page-container ${className}`.trim()}
-      style={containerStyle}
+      style={containerStyles}
       {...rest}
     >
       {children}

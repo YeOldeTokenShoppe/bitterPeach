@@ -34,10 +34,10 @@ export default function Document() {
         <link rel="stylesheet" href="/dark-mode.css" />
 
         {/* Load dark-mode-preload.js as early as possible */}
-        <script src="/dark-mode-preload.js" />
+        <script async src="/dark-mode-preload.js" />
 
         {/* Load noflash.js script */}
-        <script src="/noflash.js" />
+        <script async src="/noflash.js" />
 
         {/* Preload script to prevent white flash - this runs before anything else */}
         <script

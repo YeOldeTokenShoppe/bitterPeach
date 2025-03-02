@@ -382,9 +382,9 @@ h6 {
   height: 3rem !important;
   border: 3px solid goldenrod !important;
   background: #444 !important;
-  z-index: 911 !important;
+  /* z-index: 911 !important; */
   font-size: 2.5rem;
-  object-fit: cover;
+  /* object-fit: cover; */
   max-width: 3rem;
 
   border-radius: 10px;
@@ -408,7 +408,7 @@ h6 {
   > button.tw-connected-wallet.wallet-button.css-10luob4
   > div.css-1d4s0we {
   font-size: 2.5rem;
-  object-fit: cover;
+  /* object-fit: cover; */
   right: 5%;
 }
 
@@ -417,12 +417,12 @@ h6 {
   > button.tw-connected-wallet.wallet-button.css-10luob4
   > div:nth-child(1) {
   font-size: 2.5rem;
-  object-fit: cover;
+  /* object-fit: cover; */
   right: 5%;
 }
 #header > div.menu-wrapper > button.tw-connected-wallet.css-10luob4 {
   font-size: 2.5rem;
-  object-fit: cover;
+  /* object-fit: cover; */
   width: 3rem !important;
   height: 5% !important;
 }
@@ -1006,7 +1006,7 @@ s.box .shimmer {
 .header-wrapper {
   display: flex; /* justify-content: space-between; */
   align-items: center;
-  position: relative;
+  position: relative; /* Changed from absolute to relative */
   top: 0;
   width: 100%;
   background-color: transparent !important;
@@ -1019,7 +1019,7 @@ s.box .shimmer {
   background-color: transparent !important;
   /* padding: 3vw; */
   width: 100%;
-  position: relative;
+  position: relative; /* Changed from absolute to relative */
 }
 /* Icons */
 
@@ -1090,7 +1090,7 @@ ul.icons li .icon:hover:active {
   display: block;
   height: 2rem;
   left: 0;
-  position: absolute;
+  /* position: absolute; */
 
   width: 100%;
 }
@@ -1246,7 +1246,7 @@ span.bm-cross {
   overflow: hidden;
 }
 .bm-menu-wrap {
-  position: absolute;
+  /* position: absolute; */
   height: 100%;
   top: 3rem;
   left: 3rem;
@@ -2307,7 +2307,11 @@ s.box .shimmer {
   /* background-color: #1b1724; */
   /* padding: 3vw; */
   width: 100%;
-  position: relative;
+}
+
+.chakra-container header css-j221ct {
+  position: absolute !important;
+  top: 0 !important;
 }
 /* Icons */
 
@@ -3817,6 +3821,17 @@ div.css-161tt0w {
   transform: rotate(-8deg) skew(-15deg);
   z-index: 1000;
 }
+.thelma2 {
+  color: #8e662b;
+  text-shadow: 3px 3px 5px #000, -1px -1px 5px pink,
+    0 0 10px rgba(186, 85, 211, 0.8), 0 0 20px rgba(186, 85, 211, 0.6),
+    0 0 30px rgba(255, 105, 180, 0.7), 0 0 40px rgba(255, 105, 180, 0.5);
+  font-size: 3rem; /* default to 4rem for small screens */
+  font-weight: 900;
+  line-height: 0.8;
+  transform: rotate(-8deg) skew(-15deg);
+  z-index: 1000;
+}
 .notThelma {
   color: #8e662b;
   text-shadow: 3px 3px 5px #000, -1px -1px 5px pink;
@@ -4430,7 +4445,7 @@ body {
 @media (max-width: 760px) {
   .menu-wrapper {
     width: 100%;
-    position: fixed;
+    /* position: fixed; */
     top: 0;
     left: 0;
     display: flex;
@@ -4442,7 +4457,7 @@ body {
 @media (min-width: 761px) {
   .menu-wrapper {
     width: 100%;
-    position: fixed;
+    /* position: fixed; */
     top: 0;
     left: 0;
     display: flex;
@@ -4454,7 +4469,7 @@ body {
 
 /* Update the burger menu button position */
 .bm-burger-button {
-  position: fixed;
+  /* position: fixed; */
   width: 3rem;
   height: 3rem;
   left: 3rem;
@@ -6008,4 +6023,22 @@ body {
 }
 
 /* ===== Music Player Styles (moved from musicPlayer.css) ===== */
+/* Add this at the end of the file */
+/* Override any fixed positioning for headers - added to fix scrolling issue */
+.header,
+.header-wrapper,
+#header,
+header,
+.Container {
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+}
 
+/* Add this near the top of the file, after the imports */
+body {
+  overflow-y: auto !important;
+  position: relative !important;
+}

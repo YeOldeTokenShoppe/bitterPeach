@@ -519,7 +519,7 @@ const SidePanel = ({ onButtonClick, is80sMode, toggle80sMode }) => {
                 color={is80sMode ? "#ff71ce" : "#8e662b"}
                 mr="0.5rem"
               >
-                80's Mode
+                80&apos;s Mode
               </FormLabel>
               <Switch
                 id="eighties-mode"
@@ -610,8 +610,9 @@ const SidePanel = ({ onButtonClick, is80sMode, toggle80sMode }) => {
           style={{
             position: "relative",
             top: "0",
+            fontSize: "4rem",
           }}
-          className="thelma1"
+          className="thelma2"
         >
           The Moon Room
         </h1>
@@ -623,8 +624,7 @@ const SidePanel = ({ onButtonClick, is80sMode, toggle80sMode }) => {
         >
           Lorem ipsum dolor sit amet, ea est mutat viris nostrud. Vix eros
           quodsi insolens ad, oblique recteque ex sit. Vim no clita suavitate
-          necessitatibus, impetus vocibus invenire his id. Mei no dolor maiorum
-          similique.
+          necessitatibus, impetus vocibus invenire his id.
         </Text>
 
         <Flex
@@ -634,9 +634,54 @@ const SidePanel = ({ onButtonClick, is80sMode, toggle80sMode }) => {
           justifyContent="center"
           alignItems="center"
           direction="column"
-          marginBottom="8rem"
+          marginBottom="5rem"
         >
-          <AnimatedRadioButtons onButtonClick={onButtonClick} />
+          <Link href="#">
+            <button
+              style={{
+                color: "#1b1724",
+                transform: "skew(-10deg)",
+                width: "7rem",
+                marginBottom: "0.5rem",
+              }}
+              className="shimmer-button"
+              data-shimmer-index="1"
+            >
+              Buy RL80<span className="shimmer"></span>
+            </button>
+            {/* <RadioButton2 text="Buy RL80" link="https://example.com/" /> */}
+          </Link>
+          <Link href="#">
+            <button
+              style={{
+                color: "#1b1724",
+                transform: "skew(-10deg)",
+                width: "7rem",
+                marginBottom: "0.5rem",
+              }}
+              className="shimmer-button"
+              data-shimmer-index="2"
+            >
+              Stake RL80<span className="shimmer"></span>
+            </button>
+            {/* <RadioButton2 text="Buy RL80" link="https://example.com/" /> */}
+          </Link>
+          <Link href="#">
+            <button
+              style={{
+                color: "#1b1724",
+                transform: "skew(-10deg)",
+                width: "7rem",
+                marginBottom: "0.5rem",
+              }}
+              className="shimmer-button"
+              data-shimmer-index="3"
+            >
+              Burn Pi80<span className="shimmer"></span>
+            </button>
+            {/* <RadioButton2 text="Buy RL80" link="https://example.com/" /> */}
+          </Link>
+          {/* <AnimatedRadioButtons onButtonClick={onButtonClick} /> */}
 
           {/* Door icon for main landing page */}
           <Box
@@ -651,18 +696,18 @@ const SidePanel = ({ onButtonClick, is80sMode, toggle80sMode }) => {
             display="flex"
             alignItems="center"
             justifyContent="center"
-            boxShadow="0 0 10px 2px rgba(0, 217, 197, 0.7), 0 0 25px 5px rgba(0, 217, 197, 0.4), 0 0 60px 15px rgba(0, 217, 197, 0.1)"
+            boxShadow="0 0 10px 2px rgba(186, 85, 211, 0.8), 0 0 25px 5px rgba(255, 105, 180, 0.6), 0 0 60px 15px rgba(186, 85, 211, 0.4)"
             onClick={() => router.push("/home")}
             transition="all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55)"
             _hover={{
               background: "rgba(0, 0, 0, 0.9)",
               transform: "scale(1.1)",
               boxShadow:
-                "0 0 10px 2px rgba(0, 217, 197, 0.9), 0 0 25px 5px rgba(0, 217, 197, 0.5), 0 0 60px 15px rgba(0, 217, 197, 0.2)",
+                "0 0 15px 5px rgba(186, 85, 211, 0.9), 0 0 30px 8px rgba(255, 105, 180, 0.8), 0 0 70px 20px rgba(186, 85, 211, 0.6)",
             }}
             _active={{
               transform: "scale(0.95)",
-              boxShadow: "0 0 15px 3px rgba(0, 217, 197, 1)",
+              boxShadow: "0 0 20px 6px rgba(255, 105, 180, 1)",
             }}
             cursor="pointer"
             sx={{
@@ -688,7 +733,9 @@ const SidePanel = ({ onButtonClick, is80sMode, toggle80sMode }) => {
                 zIndex: -1,
               },
               "&:hover::before": {
-                backgroundColor: "#00d9c5",
+                backgroundColor: "#9400D3",
+                backgroundImage:
+                  "repeating-linear-gradient(45deg, #9400D3, #FF69B4 10px, #9400D3 20px)",
               },
             }}
           >

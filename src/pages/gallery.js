@@ -16,7 +16,8 @@ const BurnGalleryDynamic = dynamic(() => import("../components/BurnGallery"), {
   loading: () => <Loader />,
 });
 
-const MusicPlayerDynamic = dynamic(() => import("../components/MusicPlayer2"), {
+// Use dynamic import for MusicPlayer to ensure it's loaded properly
+const MusicPlayerDynamic = dynamic(() => import("../components/MusicPlayer3"), {
   ssr: false,
 });
 
@@ -37,6 +38,7 @@ export default function GalleryPage() {
   // Toggle function for 80s mode
   const toggle80sMode = () => {
     setIs80sMode(!is80sMode);
+    // Don't automatically show Spotify when toggling 80s mode
     console.log("Gallery: 80's mode toggled to", !is80sMode);
   };
 
@@ -71,14 +73,20 @@ export default function GalleryPage() {
     }));
   };
   const handleClose = () => {
+    // Always hide Spotify when closing the music player
     setShowSpotify(false);
   };
 
   // In GalleryPage.js
   useEffect(() => {
     if (isModalOpen) {
-      const container = document.getElementById("oddcast-container");
-      if (!container) return;
+      // Create the container if it doesn't exist
+      let container = document.getElementById("oddcast-container");
+      if (!container) {
+        container = document.createElement("div");
+        container.id = "oddcast-container";
+        document.body.appendChild(container);
+      }
 
       // Load Oddcast functions
       const functionScript = document.createElement("script");
@@ -86,27 +94,31 @@ export default function GalleryPage() {
         "//vhss-d.oddcast.com/vhost_embed_functions_v4.php?acc=9157686&js=0";
 
       functionScript.onload = () => {
-        window.AC_VHost_Embed(
-          9157686,
-          600,
-          800,
-          "",
-          1,
-          1,
-          2771572,
-          0,
-          1,
-          0,
-          "PeyjLQTbroKvn5GemUFaLhU5dYbIHZH6",
-          0,
-          1
-        );
+        if (typeof window.AC_VHost_Embed === "function") {
+          window.AC_VHost_Embed(
+            9157686,
+            600,
+            800,
+            "",
+            1,
+            1,
+            2771572,
+            0,
+            1,
+            0,
+            "PeyjLQTbroKvn5GemUFaLhU5dYbIHZH6",
+            0,
+            1
+          );
+        }
       };
 
       container.appendChild(functionScript);
 
       return () => {
-        container.innerHTML = "";
+        if (container) {
+          container.innerHTML = "";
+        }
       };
     }
   }, [isModalOpen]);
@@ -174,6 +186,8 @@ export default function GalleryPage() {
           overflow: "auto",
         }}
       >
+        <div id="oddcast-container" style={{ display: "none" }}></div>
+
         {isLoading && <Loader />}
         <div
           style={{
@@ -191,6 +205,7 @@ export default function GalleryPage() {
               handleComponentLoad("threeDScene", status)
             }
             setShowSpotify={setShowSpotify}
+            showSpotify={showSpotify}
             isModalOpen={isModalOpen}
             setIsModalOpen={setIsModalOpen}
             is80sMode={is80sMode}
@@ -235,11 +250,12 @@ export default function GalleryPage() {
                   <X size={24} />
                 </button>
                 <script
+                  async
                   type="text/javascript"
                   src="//vhss-d.oddcast.com/vhost_embed_functions_v4.php?acc=9157686&js=0"
                 ></script>
                 <script type="text/javascript">
-                  AC_VHost_Embed(9157686,600,800,"",1,1,2771572,0,1,0,"q8ZaEpXFSepCuYqUKCKgCBXBz1Q5nqqi",0,1);
+                  AC_VHost_Embed(9157686,600,800,&quot;&quot;,1,1,2771572,0,1,0,&quot;q8ZaEpXFSepCuYqUKCKgCBXBz1Q5nqqi&quot;,0,1);
                 </script>
               </div>
             </>
@@ -289,28 +305,32 @@ export default function GalleryPage() {
             </div>
           </div>
           {/* Single MusicPlayer that works for both 80s mode and regular mode */}
-          <div
-            style={{
-              position: "fixed",
-              bottom: "6rem",
-              left: "4rem",
-              zIndex: 1000,
-              borderRadius: "12px",
-              boxShadow: "0 4px 30px rgba(0, 0, 0, 0.3)",
-              opacity: showSpotify || is80sMode ? 1 : 0,
-              transform: `scale(0.6) translateY(${
-                showSpotify || is80sMode ? 0 : "20px"
-              })`,
-              transition: "opacity 0.3s ease, transform 0.3s ease",
-              pointerEvents: showSpotify || is80sMode ? "auto" : "none",
-              cursor: "move",
-            }}
-          >
-            <MusicPlayer
-              isVisible={showSpotify || is80sMode}
-              onClose={is80sMode ? () => toggle80sMode() : handleClose}
-            />
-          </div>
+          {/* Only show when showSpotify is true, not based on is80sMode */}
+          {showSpotify && (
+            <div
+              style={{
+                position: "fixed",
+                bottom: "6rem",
+                left: "4rem",
+                zIndex: 1000,
+                borderRadius: "12px",
+                boxShadow: "0 4px 30px rgba(0, 0, 0, 0.3)",
+                opacity: 1,
+                transform: "scale(0.6)",
+                transition: "opacity 0.3s ease, transform 0.3s ease",
+                pointerEvents: "auto",
+                cursor: "move",
+              }}
+            >
+              <Suspense fallback={<div>Loading music player...</div>}>
+                <MusicPlayerDynamic
+                  isVisible={true}
+                  onClose={handleClose}
+                  autoPlay={true}
+                />
+              </Suspense>
+            </div>
+          )}
         </div>
       </div>
     </>

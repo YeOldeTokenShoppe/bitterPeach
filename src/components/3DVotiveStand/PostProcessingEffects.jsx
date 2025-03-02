@@ -31,8 +31,8 @@ const PostProcessingEffects = ({ is80sMode }) => {
         luminanceSmoothing={0.9}
         height={300}
       />
-      <Noise opacity={0.02} />
-      <Vignette eskil={false} offset={0.1} darkness={0.5} />
+      {/* <Noise opacity={0.02} /> */}
+      {/* <Vignette eskil={false} offset={0.1} darkness={0.5} /> */}
     </>
   );
 

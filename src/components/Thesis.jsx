@@ -122,13 +122,16 @@ function Thesis({ setThesisLoaded }) {
             flexDirection="column"
             alignItems="center"
             pl={[0, 0, 5, 12]}
-            mt={"3rem"}
-            mb={"5rem"}
+            mt={"1rem"}
+            mb={"3rem"}
           >
-            <h1 className="thelma1" style={{ fontSize: "4em", zIndex: "0" }}>
+            <h1
+              className="thelma"
+              style={{ fontSize: "4rem", zIndex: "0", marginBottom: "3rem" }}
+            >
               Thesis
             </h1>
-            <Text fontSize="lg" mb={5} ml={8}>
+            <Text fontSize="lg" mb={"2rem"} ml={8}>
               A treatise in which we discuss ethics, economics, metaphysics and
               the future of the{" "}
               <span style={{ fontFamily: "Oleo Script" }}>{" RL80 "}</span>{" "}

@@ -1427,7 +1427,7 @@ const Carousel = ({ images, setCarouselLoaded }) => {
         <Text>
           {" "}
           Charter a ride on the charts with your frens and fellow bag holders!
-          Must be at least 36" tall and hold RL80 or PY80 reward tokens. 10
+          Must be at least 36&quot; tall and hold RL80 or PY80 reward tokens. 10
           minutes per ride. Your username and avatar will be displayed live!
           Click on any available beast to ride.
         </Text>

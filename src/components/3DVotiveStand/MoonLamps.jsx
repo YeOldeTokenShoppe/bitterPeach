@@ -33,7 +33,7 @@ const MoonScene = ({
   const GROUND_RESTITUTION = 1; // Adjusted from 1.0 for more controlled bouncing
   const MODEL_FRICTION = 0.1;
   const MODEL_RESTITUTION = 0.7;
-  const roomRadius = 28;
+  const roomRadius = 30;
   const roomHeight = 80;
   const floorRadius = 30;
   const mixer = new THREE.AnimationMixer();
@@ -59,14 +59,14 @@ const MoonScene = ({
     controls.enablePan = false;
     controls.enableZoom = true;
     controls.minDistance = 3;
-    controls.maxDistance = 80;
+    controls.maxDistance = 300;
     controls.minPolarAngle = 0;
     controls.maxPolarAngle = (Math.PI / 2) * 0.9;
 
     // ✅ Hardcoded camera position and target
     const hardcodedTarget = new THREE.Vector3(0, 0, 0);
     controls.target.copy(hardcodedTarget);
-    camera.position.set(0, 10, 45);
+    camera.position.set(0, 10, 60);
     camera.lookAt(hardcodedTarget);
 
     camera.fov = 45;
@@ -88,11 +88,29 @@ const MoonScene = ({
         "https://threejs.org/examples/textures/cube/pisa/nz.png",
       ],
       (cubeTexture) => {
-        scene.environment = cubeTexture;
+        // Create a PMREMGenerator to process the cube texture
+        const pmremGenerator = new THREE.PMREMGenerator(gl);
+        pmremGenerator.compileEquirectangularShader();
+
+        // Process the cube texture
+        const envMap = pmremGenerator.fromCubemap(cubeTexture);
+
+        // Set the environment map with reduced intensity
+        scene.environment = envMap.texture;
+
+        // Set environment intensity (works with r3f/drei)
+        // For older Three.js versions, we can adjust material properties instead
+        if (scene.environmentIntensity !== undefined) {
+          scene.environmentIntensity = 0.5; // Adjust this value between 0.0-1.0
+        }
+
+        // Clean up
+        pmremGenerator.dispose();
+
         scene.background = new THREE.Color(0x111111); // neutral background
       }
     );
-  }, [scene]);
+  }, [scene, gl]);
   useEffect(() => {
     setupScene(); // ✅ Initialize controls only once
     return () => controlsRef.current?.dispose(); // Cleanup on unmount
@@ -440,7 +458,9 @@ const MoonScene = ({
       color: new THREE.Color("#faf0e6"),
       map: texture,
       lightMap: texture,
-      lightMapIntensity: 6,
+      lightMapIntensity: 3, // Reduced from 6 to 3
+      envMapIntensity: 0.3, // Add low environment map intensity
+      reflectivity: 0.3, // Reduce reflectivity
     });
 
     // Create moon mesh
@@ -453,7 +473,7 @@ const MoonScene = ({
     // Create point light for the moon
     const pointLight = new THREE.PointLight(
       new THREE.Color("#faf0e6"),
-      50, // intensity
+      25, // intensity reduced from 50 to 25
       10 // distance
     );
     // pointLight.castShadow = true;
@@ -818,7 +838,7 @@ const MoonScene = ({
       new AmmoLib.btVector3(spawnPosition.x, spawnPosition.y, spawnPosition.z)
     );
 
-    const mass = 3; // Original mass
+    const mass = 10; // Original mass
     const localInertia = new AmmoLib.btVector3(0, 0, 0);
     projectileShape.calculateLocalInertia(mass, localInertia);
 
@@ -833,7 +853,7 @@ const MoonScene = ({
 
     // Match original physics properties
     projectileBody.setFriction(0.8);
-    projectileBody.setRestitution(0.1);
+    projectileBody.setRestitution(0.2);
 
     // Add to physics world - don't collide with walls at all
     physicsRef.current.world.addRigidBody(
@@ -935,7 +955,7 @@ const MoonScene = ({
       // Create adjusted origin slightly forward and upward, and inward horizontally
       const adjustedOrigin = camera.position
         .clone()
-        .add(direction.clone().multiplyScalar(15))
+        .add(direction.clone().multiplyScalar(35))
         .add(new THREE.Vector3(0, -1, -5));
 
       shootProjectile(adjustedOrigin, direction);

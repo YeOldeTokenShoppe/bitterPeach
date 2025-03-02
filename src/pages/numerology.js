@@ -24,7 +24,7 @@ export default function NumerologyPage() {
   return (
     <>
       {isLoading && <Loader />}
-      <div style={{ margin: "4rem 2rem 0rem 2rem" }}>
+      <div style={{ margin: "6rem 2rem 0rem 2rem" }}>
         <Numerology setNumerologyLoaded={setNumerologyLoaded} />
       </div>
       <div style={{ marginTop: "5rem" }}>

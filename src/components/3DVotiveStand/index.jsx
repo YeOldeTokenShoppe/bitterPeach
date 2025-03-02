@@ -10,13 +10,14 @@ import React, {
 } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { AdaptiveDpr, AdaptiveEvents, BakeShadows } from "@react-three/drei";
-
+import TickerDisplay from "./TickerDisplay";
 import { Perf } from "r3f-perf";
 import { useFirestoreResults } from "../../utilities/useFirestoreResults";
 // import PostProcessingEffects from "./PostProcessingEffects";
 import * as THREE from "three";
 import gsap from "gsap";
 import Model from "./Model";
+import { Sun } from "./Model"; // Import the Sun component from Model.jsx
 import { DEFAULT_MARKERS } from "./markers";
 // import { DEFAULT_CAMERA, getCameraSettings } from "./defaultCamera";
 // In your Canvas component
@@ -27,7 +28,7 @@ import { CONTROL_SETTINGS } from "./controlSettings";
 import { Box } from "@chakra-ui/react";
 // import CameraGUI from "./CameraGUI";
 import { PerspectiveCamera } from "@react-three/drei";
-
+import { Stars } from "@react-three/drei";
 import dynamic from "next/dynamic";
 import styled from "styled-components";
 
@@ -37,6 +38,7 @@ import MobileModel from "./MobileModel";
 import FloatingCandleViewer from "./CandleInteraction";
 
 import CameraGUI from "./CameraGUI";
+import WireframeTerrain from "./WireframeTerrain";
 const scene = new THREE.Scene();
 
 // Debug overlay component
@@ -89,10 +91,10 @@ const DebugOverlay = ({ isVisible, dpr, modelScale, size, networkType }) => {
       </div>
       <div>Network: {networkType || "unknown"}</div>
       <div style={{ marginTop: 5, fontSize: 10, color: "#aaa" }}>
-        Press 'P' to toggle DPI: 1 → 1.5 → 2 → 0.75 → 1
+        Press &apos;P&apos; to toggle DPI: 1 → 1.5 → 2 → 0.75 → 1
       </div>
       <div style={{ marginTop: 5, fontSize: 10, color: "#aaa" }}>
-        Press 'D' to toggle this debug overlay
+        Press &apos;D&apos; to toggle this debug overlay
       </div>
     </div>
   );
@@ -116,6 +118,8 @@ function ThreeDVotiveStand({
   setIsModalOpen,
   onSpawnReady,
   is80sMode,
+  showSpotify,
+  onBoomboxClick,
 }) {
   const [showFloatingViewer, setShowFloatingViewer] = useState(false);
   const [selectedCandleData, setSelectedCandleData] = useState(null);
@@ -154,7 +158,7 @@ function ThreeDVotiveStand({
   // for camera control panel
   const cameraRef = useRef(null); // Reference to the camera
   const controlsRef = useRef(null); // Reference to OrbitControls
-  const spotlightRef = useRef();
+  // const spotlightRef = useRef();
   const directionalLightRef = useRef();
   const directionalLight1Ref = useRef();
   const directionalLight2Ref = useRef();
@@ -482,6 +486,18 @@ function ThreeDVotiveStand({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  // Add refs for spotlight and target
+  const spotlightRef = useRef();
+  const spotlightTargetRef = useRef();
+
+  // Set up spotlight target
+  useEffect(() => {
+    if (spotlightRef.current && spotlightTargetRef.current) {
+      spotlightRef.current.target = spotlightTargetRef.current;
+      console.log("Spotlight target set up");
+    }
+  }, []);
+
   return (
     <>
       <div
@@ -502,9 +518,9 @@ function ThreeDVotiveStand({
           performance={{ min: 0.5 }} // Allow ThreeJS to reduce quality for performance
           camera={{
             fov: 45,
-            position: [0, 10, 45], // ✅ Use the copied values from CameraGUI
+            position: [0, 10, 60], // ✅ Use the copied values from CameraGUI
             near: 0.03,
-            far: 150,
+            far: 350,
           }}
           onCreated={({ gl, camera }) => {
             cameraRef.current = camera;
@@ -553,7 +569,12 @@ function ThreeDVotiveStand({
               groundColor={groundColor}
               showLightHelper={showLightHelper}
               is80sMode={is80sMode}
+              showSpotify={showSpotify}
+              onBoomboxClick={onBoomboxClick}
             />
+
+            {/* Add Sun to the scene at a visible position */}
+            {/* <Sun scale={1.3} is80sMode={is80sMode} /> */}
 
             <Suspense fallback={null}>
               <MoonScene modelRef={modelRef} onSpawnReady={onSpawnReady} />
@@ -562,202 +583,28 @@ function ThreeDVotiveStand({
             <Suspense fallback={null}>
               <HolographicStatue />
             </Suspense>
-
+            <Suspense fallback={null}>
+              <TickerDisplay
+                modelRef={modelRef}
+                // position={[0, 2, 0]}
+                // rotation={[0, 0, 0]}
+                // scale={[18, 0.8, 0.01]}
+              />
+              {/* <TickerDisplay
+      
+            /> */}
+            </Suspense>
             <Suspense fallback={null}>
               <PostProcessingEffects is80sMode={is80sMode} />
             </Suspense>
+
+            {/* Add Wireframe Terrain */}
+            {/* <Suspense fallback={null}>
+              <WireframeTerrain is80sMode={is80sMode} />
+            </Suspense> */}
           </Suspense>
           {/* <TickerDisplay /> */}
         </Canvas>
-
-        {/* Light Helper Controls - Outside Canvas */}
-        {/* 
-        <div
-          style={{
-            position: "absolute",
-            bottom: "10px",
-            right: "10px",
-            zIndex: 100,
-            background: "rgba(0,0,0,0.5)",
-            padding: "10px",
-            borderRadius: "5px",
-            color: "white",
-            width: "280px",
-          }}
-        >
-          <div
-            style={{
-              fontSize: "14px",
-              fontWeight: "bold",
-              marginBottom: "10px",
-              textAlign: "center",
-            }}
-          >
-            Light Helper Controls
-          </div>
-
-          <button
-            onClick={toggleLightHelper}
-            style={{
-              background: showLightHelper ? "#4CAF50" : "#f44336",
-              color: "white",
-              border: "none",
-              padding: "5px 10px",
-              borderRadius: "3px",
-              cursor: "pointer",
-              width: "100%",
-              marginBottom: "15px",
-            }}
-          >
-            {showLightHelper ? "Hide Light Helper" : "Show Light Helper"}
-          </button>
-
-          <div style={{ marginBottom: "15px" }}>
-            <div style={{ fontWeight: "bold", marginBottom: "5px" }}>
-              Position
-            </div>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: "5px",
-              }}
-            >
-              <label style={{ width: "20px" }}>X:</label>
-              <input
-                type="range"
-                min="-100"
-                max="100"
-                value={lightPosition.x}
-                onChange={(e) => updateLightPosition("x", e.target.value)}
-                style={{ flex: 1, margin: "0 10px" }}
-              />
-              <span style={{ width: "30px", textAlign: "right" }}>
-                {lightPosition.x}
-              </span>
-            </div>
-
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: "5px",
-              }}
-            >
-              <label style={{ width: "20px" }}>Y:</label>
-              <input
-                type="range"
-                min="-100"
-                max="100"
-                value={lightPosition.y}
-                onChange={(e) => updateLightPosition("y", e.target.value)}
-                style={{ flex: 1, margin: "0 10px" }}
-              />
-              <span style={{ width: "30px", textAlign: "right" }}>
-                {lightPosition.y}
-              </span>
-            </div>
-
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <label style={{ width: "20px" }}>Z:</label>
-              <input
-                type="range"
-                min="-100"
-                max="100"
-                value={lightPosition.z}
-                onChange={(e) => updateLightPosition("z", e.target.value)}
-                style={{ flex: 1, margin: "0 10px" }}
-              />
-              <span style={{ width: "30px", textAlign: "right" }}>
-                {lightPosition.z}
-              </span>
-            </div>
-          </div>
-
-          <div style={{ marginBottom: "15px" }}>
-            <div style={{ fontWeight: "bold", marginBottom: "5px" }}>
-              Intensity
-            </div>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <input
-                type="range"
-                min="0"
-                max="3"
-                step="0.1"
-                value={lightIntensity}
-                onChange={(e) => updateLightIntensity(e.target.value)}
-                style={{ flex: 1, marginRight: "10px" }}
-              />
-              <span style={{ width: "30px", textAlign: "right" }}>
-                {lightIntensity.toFixed(1)}
-              </span>
-            </div>
-          </div>
-
-          <div style={{ marginBottom: "15px" }}>
-            <div style={{ fontWeight: "bold", marginBottom: "5px" }}>
-              Colors
-            </div>
-
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                marginBottom: "8px",
-              }}
-            >
-              <label style={{ width: "80px" }}>Sky (Top):</label>
-              <input
-                type="color"
-                value={skyColor}
-                onChange={(e) => updateSkyColor(e.target.value)}
-                style={{ marginLeft: "10px", width: "40px", height: "25px" }}
-              />
-              <span style={{ marginLeft: "10px", fontSize: "12px" }}>
-                {skyColor}
-              </span>
-            </div>
-
-            <div style={{ display: "flex", alignItems: "center" }}>
-              <label style={{ width: "80px" }}>Ground:</label>
-              <input
-                type="color"
-                value={groundColor}
-                onChange={(e) => updateGroundColor(e.target.value)}
-                style={{ marginLeft: "10px", width: "40px", height: "25px" }}
-              />
-              <span style={{ marginLeft: "10px", fontSize: "12px" }}>
-                {groundColor}
-              </span>
-            </div>
-          </div>
-
-          <div
-            style={{
-              fontSize: "12px",
-              textAlign: "center",
-              borderTop: "1px solid rgba(255,255,255,0.2)",
-              paddingTop: "8px",
-            }}
-          >
-            Position: [{lightPosition.x}, {lightPosition.y}, {lightPosition.z}]
-          </div>
-        </div>
-        */}
 
         {showFloatingViewer && selectedCandleData && (
           <FloatingCandleViewer

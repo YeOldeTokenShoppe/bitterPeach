@@ -92,11 +92,16 @@ function MyApp({ Component, pageProps }: MyAppProps) {
                   : "transparent",
                 width: isGalleryPage || isScenePage ? "100%" : "auto",
                 margin: isGalleryPage || isScenePage ? "0" : "auto",
-                paddingTop: HeaderComponent ? "125px" : "0", // Add padding when header is present
+                paddingTop: "0", // Removed padding since header now scrolls with the page
               }}
             >
               {/* Render the Header dynamically */}
-              {HeaderComponent && <HeaderComponent />}
+              <div
+                className="header-container"
+                style={{ position: "relative" }}
+              >
+                {HeaderComponent && <HeaderComponent />}
+              </div>
               <ThemeProvider
                 defaultTheme="dark"
                 enableSystem={false}

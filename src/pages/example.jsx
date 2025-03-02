@@ -46,7 +46,7 @@ const ExamplePage = () => {
           </Heading>
           <Text mb={4}>
             This container uses a custom max-width of 1200px, which is more
-            focused and better for text-heavy content. It's similar to your
+            focused and better for text-heavy content. It&apos;s similar to your
             original width constraint.
           </Text>
           <Button colorScheme="blue" variant="outline">
