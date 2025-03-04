@@ -34,7 +34,7 @@ const MoonScene = ({
   const MODEL_FRICTION = 0.1;
   const MODEL_RESTITUTION = 0.7;
   const roomRadius = 30;
-  const roomHeight = 80;
+  const roomHeight = 100;
   const floorRadius = 30;
   const mixer = new THREE.AnimationMixer();
   const mixersRef = useRef([]);
@@ -66,7 +66,7 @@ const MoonScene = ({
     // ✅ Hardcoded camera position and target
     const hardcodedTarget = new THREE.Vector3(0, 0, 0);
     controls.target.copy(hardcodedTarget);
-    camera.position.set(0, 10, 60);
+    camera.position.set(0, 10, 70);
     camera.lookAt(hardcodedTarget);
 
     camera.fov = 45;

@@ -20,6 +20,8 @@ import FloatingCandleViewer from "./CandleInteraction";
 import { ref, getDownloadURL } from "firebase/storage";
 import { storage } from "../../utilities/firebaseClient"; // Import storage directly
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 
 // Sun component to load and position the sun model
 function Sun({ position = [0, 0, 0], scale = 0.5, is80sMode = false }) {
@@ -164,9 +166,14 @@ function Model({
   showSpotify,
   onBoomboxClick,
 }) {
-  const [modelUrl, setModelUrl] = useState("/altarBoomboxCandles.glb"); // Update default fallback
+  const [modelUrl, setModelUrl] = useState("/altarBoomboxCandles.glb"); // Default fallback
   const { progress } = useProgress(); // Track loading progress
   const gltf = useGLTF(modelUrl, true); // Enable caching
+
+  // Load the wax candle model
+  const [waxCandleModel, setWaxCandleModel] = useState(null);
+  const [waxCandleLoadError, setWaxCandleLoadError] = useState(null);
+
   const { camera, scene } = useThree();
   const results = useFirestoreResults();
   const hemiLightRef = useRef();
@@ -179,12 +186,20 @@ function Model({
   const lightMarkerRef = useRef();
   const boomboxRef = useRef();
 
+  // Add internal model ref to manage the model reference
+  const internalModelRef = useRef();
+
   const [selectedCandleData, setSelectedCandleData] = useState(null);
   const [showLightHelper, setShowLightHelper] = useState(false); // Control visibility of helper - set to false
   const [lightPosition, setLightPosition] = useState({ x: 32, y: 33, z: 89 }); // Store light position
   const [lightIntensity, setLightIntensity] = useState(1.2); // Store light intensity
   const [skyColor, setSkyColor] = useState(0x7300ff); // Store sky color (top)
   const [groundColor, setGroundColor] = useState(0xff0000); // Store ground color (bottom)
+
+  // Add state for wax candle model
+  const [isWaxCandleVisible, setIsWaxCandleVisible] = useState(false);
+  const waxCandleRef = useRef();
+  const testCandleIndex = "001"; // The index of the candle we'll test with
 
   /** 🛑 Prevent unnecessary re-renders by storing previous results */
   const prevResultsRef = useRef([]);
@@ -298,7 +313,7 @@ function Model({
     const fetchModelUrl = async () => {
       try {
         console.log("Fetching model from Firebase Storage...");
-        const modelRef = ref(storage, "models/altarBoomboxCandles.glb"); // Update Firebase path
+        const modelRef = ref(storage, "models/altarBoomboxCandles.glb");
         const downloadUrl = await getDownloadURL(modelRef);
         console.log("Firebase URL:", downloadUrl);
         setModelUrl(downloadUrl);
@@ -333,12 +348,12 @@ function Model({
 
   /** ✅ Compute bounding box and reposition model */
   useEffect(() => {
-    if (!modelRef.current) return;
+    if (!internalModelRef.current) return;
 
-    boundingBoxRef.current.setFromObject(modelRef.current);
+    boundingBoxRef.current.setFromObject(internalModelRef.current);
     const center = new THREE.Vector3();
     boundingBoxRef.current.getCenter(center);
-    modelRef.current.position.sub(center);
+    internalModelRef.current.position.sub(center);
     setModelCenter(center);
   }, [gltf.scene]);
 
@@ -500,34 +515,34 @@ function Model({
     // Create a hemisphere light helper
     if (showLightHelper) {
       /* Comment out light helper for production
-        const helper = new THREE.HemisphereLightHelper(hemiLight, 10, 0xffff00);
-        scene.add(helper);
-        lightHelperRef.current = helper;
-  
-        // Add a simple GUI to control light position
-        const lightPositionMarker = new THREE.Mesh(
-          new THREE.SphereGeometry(2, 16, 16),
-          new THREE.MeshBasicMaterial({ color: 0xffff00 })
-        );
-        lightPositionMarker.position.copy(hemiLight.position);
-        scene.add(lightPositionMarker);
-        lightMarkerRef.current = lightPositionMarker;
-  
-        console.log("Light helper added at position:", hemiLight.position);
-        */
+      const helper = new THREE.HemisphereLightHelper(hemiLight, 10, 0xffff00);
+      scene.add(helper);
+      lightHelperRef.current = helper;
+
+      // Add a simple GUI to control light position
+      const lightPositionMarker = new THREE.Mesh(
+        new THREE.SphereGeometry(2, 16, 16),
+        new THREE.MeshBasicMaterial({ color: 0xffff00 })
+      );
+      lightPositionMarker.position.copy(hemiLight.position);
+      scene.add(lightPositionMarker);
+      lightMarkerRef.current = lightPositionMarker;
+
+      console.log("Light helper added at position:", hemiLight.position);
+      */
     }
 
     // Update helper and marker when light position changes
     const updateHelperAndMarker = () => {
       /* Comment out light helper updates
-        if (lightHelperRef.current) {
-          lightHelperRef.current.update();
-        }
-  
-        if (lightMarkerRef.current) {
-          lightMarkerRef.current.position.copy(hemiLight.position);
-        }
-        */
+      if (lightHelperRef.current) {
+        lightHelperRef.current.update();
+      }
+
+      if (lightMarkerRef.current) {
+        lightMarkerRef.current.position.copy(hemiLight.position);
+      }
+      */
     };
 
     // Set up an animation frame callback to update the helper
@@ -543,13 +558,13 @@ function Model({
       cancelAnimationFrame(frameId);
       scene.remove(hemiLight);
       /* Comment out light helper cleanup
-        if (lightHelperRef.current) {
-          scene.remove(lightHelperRef.current);
-        }
-        if (lightMarkerRef.current) {
-          scene.remove(lightMarkerRef.current);
-        }
-        */
+      if (lightHelperRef.current) {
+        scene.remove(lightHelperRef.current);
+      }
+      if (lightMarkerRef.current) {
+        scene.remove(lightMarkerRef.current);
+      }
+      */
       // scene.remove(ambientLight);
     };
   }, [
@@ -566,7 +581,7 @@ function Model({
   ]);
 
   useEffect(() => {
-    if (results.length === 0 || !modelRef.current) return;
+    if (results.length === 0 || !internalModelRef.current) return;
 
     const availableIndices = Array.from({ length: 45 }, (_, i) =>
       String(i + 1).padStart(3, "0")
@@ -577,7 +592,7 @@ function Model({
     const defaultCandleIndices = shuffledIndices.slice(results.length);
 
     // Reset ALL candles clearly using your function
-    modelRef.current.traverse((child) => {
+    internalModelRef.current.traverse((child) => {
       if (child.name.startsWith("VCANDLE")) {
         resetCandle(child);
       }
@@ -587,7 +602,7 @@ function Model({
     results.forEach((result, index) => {
       const candleIndex = userCandleIndices[index];
       const candleName = `VCANDLE${candleIndex}`;
-      const candle = modelRef.current.getObjectByName(candleName);
+      const candle = internalModelRef.current.getObjectByName(candleName);
 
       if (candle) {
         candle.userData = {
@@ -609,7 +624,7 @@ function Model({
     // Assign DEFAULT images explicitly only to unassigned candles
     defaultCandleIndices.forEach((index) => {
       const candleName = `VCANDLE${index}`;
-      const candle = modelRef.current.getObjectByName(candleName);
+      const candle = internalModelRef.current.getObjectByName(candleName);
       if (candle) {
         const randomDefaultImage =
           DEFAULT_IMAGES[Math.floor(Math.random() * DEFAULT_IMAGES.length)];
@@ -626,12 +641,12 @@ function Model({
 
         applyUserImageToLabels(candle, randomDefaultImage);
         const flame = findCandleComponent(candle, "FLAME");
-        if (flame) flame.visible = false;
+        if (flame) flame.visible = true;
       }
     });
 
     return () => {
-      modelRef.current?.traverse((child) => {
+      internalModelRef.current?.traverse((child) => {
         if (child.name.startsWith("VCANDLE")) {
           child.children.forEach((c) => {
             if (c.name.includes("Label1") || c.name.includes("Label2")) {
@@ -644,7 +659,7 @@ function Model({
         }
       });
     };
-  }, [results, modelRef.current]);
+  }, [results, internalModelRef.current]);
 
   const applyUserImageToLabels = (candle, imageUrl) => {
     if (!imageUrl) return;
@@ -716,7 +731,373 @@ function Model({
     });
   };
 
-  // Handle click events
+  // Load the wax candle model
+  useEffect(() => {
+    // Load the wax candle model
+    const loadWaxCandleModel = async () => {
+      // Define the models to try in order
+      const modelPaths = ["/ZWaxCandle.glb", "/XCandle.glb"];
+
+      // Try each model path until one succeeds
+      for (const modelPath of modelPaths) {
+        try {
+          console.log(`Attempting to load wax candle model from: ${modelPath}`);
+
+          // Create a new loader for each attempt
+          const loader = new GLTFLoader();
+
+          // Set up Draco decoder
+          const dracoLoader = new DRACOLoader();
+          dracoLoader.setDecoderPath(
+            "https://www.gstatic.com/draco/versioned/decoders/1.5.6/"
+          );
+          dracoLoader.setDecoderConfig({ type: "js" });
+          loader.setDRACOLoader(dracoLoader);
+
+          // Load the model
+          const gltf = await new Promise((resolve, reject) => {
+            loader.load(
+              modelPath,
+              (gltf) => {
+                console.log(
+                  `Wax candle model loaded successfully from ${modelPath}:`,
+                  gltf
+                );
+                resolve(gltf);
+              },
+              (progress) => {
+                if (progress.total > 0) {
+                  console.log(
+                    `Loading progress (${modelPath}): ${(
+                      (progress.loaded / progress.total) *
+                      100
+                    ).toFixed(2)}%`
+                  );
+                }
+              },
+              (error) => {
+                console.error(`Error loading model from ${modelPath}:`, error);
+                reject(error);
+              }
+            );
+          });
+
+          // If we get here, the model loaded successfully
+          setWaxCandleModel(gltf);
+          setWaxCandleLoadError(null);
+          console.log(`Successfully loaded wax candle model from ${modelPath}`);
+          return; // Exit the function after successful load
+        } catch (error) {
+          console.error(`Failed to load model from ${modelPath}:`, error);
+          // Continue to the next model path
+        }
+      }
+
+      // If we get here, all model paths failed
+      setWaxCandleLoadError(
+        "Failed to load wax candle model from any of the available paths"
+      );
+      console.error("All model loading attempts failed");
+    };
+
+    loadWaxCandleModel();
+  }, []);
+
+  // Function to toggle between glass and wax candle
+  const toggleCandleType = useCallback(() => {
+    console.log("Toggle candle type called", {
+      modelAvailable: !!internalModelRef.current,
+      waxModelAvailable: !!waxCandleModel,
+    });
+
+    if (!internalModelRef.current || !waxCandleModel) {
+      console.log("Model or wax candle model not available");
+      return;
+    }
+
+    // Debug the wax candle model structure
+    console.log("Wax candle model structure:", {
+      hasScene: !!waxCandleModel.scene,
+      type: waxCandleModel.constructor.name,
+      properties: Object.keys(waxCandleModel),
+      isGroup: waxCandleModel instanceof THREE.Group,
+      isMesh: waxCandleModel instanceof THREE.Mesh,
+      isObject3D: waxCandleModel instanceof THREE.Object3D,
+    });
+
+    // Find a candle in the scene
+    let glassCandle = null;
+
+    // First, try to find any object that might be a candle
+    internalModelRef.current.traverse((object) => {
+      if (!glassCandle && object.isMesh) {
+        // Check for common candle-related names
+        const name = object.name.toLowerCase();
+        if (
+          name.includes("candle") ||
+          name.includes("votive") ||
+          name.includes("flame") ||
+          name.includes("light") ||
+          name.includes("lamp")
+        ) {
+          glassCandle = object;
+          console.log(`Found candle by name: ${object.name}`);
+        }
+      }
+    });
+
+    // If still not found, try to find by position or size
+    if (!glassCandle) {
+      console.log("No candle found by name, trying to find by size/position");
+      internalModelRef.current.traverse((object) => {
+        if (!glassCandle && object.isMesh) {
+          // Get the bounding box to check size
+          const box = new THREE.Box3().setFromObject(object);
+          const size = box.getSize(new THREE.Vector3());
+
+          // Check if it's small and positioned on a surface (likely a candle)
+          if (
+            size.y < 10 && // Not too tall
+            size.x < 5 && // Not too wide
+            size.z < 5 && // Not too deep
+            object.position.y > 0 // Positioned above ground
+          ) {
+            glassCandle = object;
+            console.log(
+              `Found potential candle by size/position: ${object.name}`
+            );
+          }
+        }
+      });
+    }
+
+    if (!glassCandle) {
+      console.log("Could not find any suitable candle object");
+      // Log all mesh objects to help identify potential candidates
+      console.log("All mesh objects in scene:");
+      internalModelRef.current.traverse((object) => {
+        if (object.isMesh) {
+          console.log(
+            `- ${object.name} (position: ${object.position
+              .toArray()
+              .join(", ")})`
+          );
+        }
+      });
+      return;
+    }
+
+    console.log(`Found glass candle: ${glassCandle.name}`);
+
+    // Check if we already have a wax candle in the scene
+    let existingWaxCandle = scene.getObjectByName("WaxCandle");
+
+    if (isWaxCandleVisible) {
+      // Switch back to glass candle
+      console.log("Switching back to glass candle");
+      glassCandle.visible = true;
+
+      if (existingWaxCandle) {
+        existingWaxCandle.visible = false;
+      }
+
+      setIsWaxCandleVisible(false);
+    } else {
+      // Switch to wax candle
+      console.log("Switching to wax candle");
+      glassCandle.visible = false;
+
+      if (!existingWaxCandle) {
+        try {
+          // Determine what to clone based on the structure of waxCandleModel
+          let waxCandleToClone;
+
+          if (waxCandleModel.scene) {
+            // Standard GLTF structure with a scene property
+            waxCandleToClone = waxCandleModel.scene;
+            console.log("Using waxCandleModel.scene for cloning");
+          } else if (
+            waxCandleModel instanceof THREE.Group ||
+            waxCandleModel instanceof THREE.Object3D
+          ) {
+            // The model itself is a Group or Object3D
+            waxCandleToClone = waxCandleModel;
+            console.log("Using waxCandleModel directly for cloning");
+          } else {
+            // Try to find a usable object in the model
+            console.log(
+              "Searching for a usable object in the wax candle model..."
+            );
+
+            // Check if there's a scene property that's not directly accessible
+            for (const key of Object.keys(waxCandleModel)) {
+              if (
+                waxCandleModel[key] instanceof THREE.Scene ||
+                waxCandleModel[key] instanceof THREE.Group ||
+                waxCandleModel[key] instanceof THREE.Object3D
+              ) {
+                waxCandleToClone = waxCandleModel[key];
+                console.log(`Found usable object in waxCandleModel.${key}`);
+                break;
+              }
+            }
+
+            if (!waxCandleToClone) {
+              console.error(
+                "Could not find a usable object in the wax candle model"
+              );
+              return;
+            }
+          }
+
+          // Clone the wax candle model
+          console.log("Cloning wax candle model...");
+          existingWaxCandle = waxCandleToClone.clone();
+          console.log("Successfully cloned wax candle model");
+
+          existingWaxCandle.name = "WaxCandle";
+
+          // Get the glass candle's bounding box to determine its size and center
+          const glassBoundingBox = new THREE.Box3().setFromObject(glassCandle);
+          const glassCenter = new THREE.Vector3();
+          glassBoundingBox.getCenter(glassCenter);
+          const glassSize = new THREE.Vector3();
+          glassBoundingBox.getSize(glassSize);
+
+          console.log("Glass candle dimensions:", {
+            center: glassCenter.toArray(),
+            size: glassSize.toArray(),
+            boundingBox: {
+              min: glassBoundingBox.min.toArray(),
+              max: glassBoundingBox.max.toArray(),
+            },
+          });
+
+          // Add to scene first
+          scene.add(existingWaxCandle);
+          console.log("Added wax candle to scene");
+
+          // Get the wax candle's bounding box
+          const waxBoundingBox = new THREE.Box3().setFromObject(
+            existingWaxCandle
+          );
+          const waxCenter = new THREE.Vector3();
+          waxBoundingBox.getCenter(waxCenter);
+          const waxSize = new THREE.Vector3();
+          waxBoundingBox.getSize(waxSize);
+
+          console.log("Wax candle dimensions (before positioning):", {
+            center: waxCenter.toArray(),
+            size: waxSize.toArray(),
+            boundingBox: {
+              min: waxBoundingBox.min.toArray(),
+              max: waxBoundingBox.max.toArray(),
+            },
+          });
+
+          // Get world position of glass candle
+          const worldPos = new THREE.Vector3();
+          glassCandle.getWorldPosition(worldPos);
+
+          // Calculate scale factor based on the ratio of glass to wax candle sizes
+          // Use a default scale if the calculation fails
+          let scaleFactor = 0.5; // Default scale
+
+          if (waxSize.x > 0 && waxSize.y > 0 && waxSize.z > 0) {
+            scaleFactor =
+              Math.min(
+                glassSize.x / waxSize.x,
+                glassSize.y / waxSize.y,
+                glassSize.z / waxSize.z
+              ) * 0.8; // Slightly smaller than the glass candle
+          }
+
+          // Apply position and scale
+          existingWaxCandle.position.copy(worldPos);
+          existingWaxCandle.scale.multiplyScalar(scaleFactor);
+
+          // Adjust position to account for different pivot points
+          // Calculate the offset between centers after scaling
+          const scaledWaxCenter = waxCenter.clone().multiplyScalar(scaleFactor);
+          const centerOffset = glassCenter.clone().sub(scaledWaxCenter);
+          existingWaxCandle.position.add(centerOffset);
+
+          console.log("Positioned wax candle:", {
+            position: existingWaxCandle.position.toArray(),
+            scale: existingWaxCandle.scale.toArray(),
+            centerOffset: centerOffset.toArray(),
+          });
+        } catch (error) {
+          console.error("Error creating wax candle:", error);
+          return;
+        }
+      } else {
+        existingWaxCandle.visible = true;
+        console.log("Made existing wax candle visible");
+      }
+
+      setIsWaxCandleVisible(true);
+    }
+  }, [internalModelRef, waxCandleModel, isWaxCandleVisible, scene]);
+
+  // Add debugging to identify candles in the scene
+  useEffect(() => {
+    if (internalModelRef.current) {
+      console.log("Debugging scene objects to find candles:");
+
+      // Log all objects in the scene
+      const allObjects = [];
+      const candleObjects = [];
+
+      internalModelRef.current.traverse((child) => {
+        if (child.isMesh || child.isGroup) {
+          allObjects.push({
+            name: child.name,
+            type: child.type,
+            visible: child.visible,
+            position: child.position.clone(),
+            parent: child.parent ? child.parent.name : "none",
+          });
+
+          // Look for anything that might be a candle
+          if (
+            child.name.toLowerCase().includes("candle") ||
+            child.name.toLowerCase().includes("votive") ||
+            child.name.toLowerCase().includes("flame") ||
+            child.name.toLowerCase().includes("light") ||
+            child.name.toLowerCase().includes("lamp")
+          ) {
+            candleObjects.push({
+              name: child.name,
+              type: child.type,
+              visible: child.visible,
+              position: child.position.clone(),
+              parent: child.parent ? child.parent.name : "none",
+            });
+
+            console.log(`Found potential candle: ${child.name}`, {
+              type: child.type,
+              visible: child.visible,
+              position: child.position.clone(),
+              parent: child.parent ? child.parent.name : "none",
+            });
+          }
+        }
+      });
+
+      console.log(
+        `Found ${candleObjects.length} potential candles out of ${allObjects.length} objects`
+      );
+      console.log("All potential candles:", candleObjects);
+
+      // If no candles found, log all objects to help identify them
+      if (candleObjects.length === 0) {
+        console.log("No candles found. All scene objects:", allObjects);
+      }
+    }
+  }, [internalModelRef]);
+
+  // Modify the handleClick function to also handle clicking on the test candle
   const handleClick = (event) => {
     event.stopPropagation();
 
@@ -745,42 +1126,17 @@ function Model({
           intensity: boomboxRef.current.material?.emissiveIntensity,
         });
         if (onBoomboxClick) {
+          // Call the onBoomboxClick handler from props
           onBoomboxClick();
           return;
         }
       }
     }
 
-    // Add debug logging for candle melting
-    const testCandleMelting = (object) => {
-      if (object.name.startsWith("XCandle")) {
-        console.log("🕯️ Testing candle melting for:", object.name);
-        // Initialize melting if not already melting
-        if (!object.userData.isMelting) {
-          object.userData.isMelting = true;
-          object.userData.meltingProgress = 0;
-          object.userData.originalScale = object.scale.clone();
-          console.log("Started melting for candle:", object.name);
-        } else {
-          console.log("Candle melting status:", {
-            name: object.name,
-            meltingProgress: object.userData.meltingProgress,
-            currentScale: object.scale.toArray(),
-            originalScale: object.userData.originalScale?.toArray(),
-            position: object.position.toArray(),
-            originalValues: object.userData.originalValues,
-          });
-        }
-      }
-    };
-
-    // Collect all interactable candle objects
+    // Original candle click logic
     const intersectableObjects = [];
-    modelRef.current.traverse((object) => {
-      if (
-        object.name.startsWith("VCANDLE") ||
-        object.name.startsWith("XCandle")
-      ) {
+    internalModelRef.current.traverse((object) => {
+      if (object.name.startsWith("VCANDLE")) {
         intersectableObjects.push(object);
         object.children.forEach((child) => {
           if (
@@ -794,36 +1150,26 @@ function Model({
       }
     });
 
-    // Handle both VCANDLE and XCandle interactions
     const intersects = raycaster.intersectObjects(intersectableObjects, true);
     if (intersects.length > 0) {
       let candleParent = intersects[0].object;
-
-      // Find the parent candle object
-      while (
-        candleParent &&
-        !candleParent.name.startsWith("VCANDLE") &&
-        !candleParent.name.startsWith("XCandle")
-      ) {
+      while (candleParent && !candleParent.name.startsWith("VCANDLE")) {
         candleParent = candleParent.parent;
       }
 
-      if (candleParent) {
-        // Handle XCandle melting
-        if (candleParent.name.startsWith("XCandle")) {
-          testCandleMelting(candleParent);
-        }
-        // Handle VCANDLE selection
-        else if (
-          candleParent.name.startsWith("VCANDLE") &&
-          candleParent.userData?.hasUser
-        ) {
-          onCandleSelect({
-            ...candleParent.userData,
-            candleId: candleParent.name,
-            candleTimestamp: Date.now(),
-          });
-        }
+      // Check if this is our test candle
+      if (candleParent && candleParent.name === `VCANDLE${testCandleIndex}`) {
+        console.log("Test candle clicked - toggling candle type");
+        toggleCandleType();
+        return;
+      }
+
+      if (candleParent?.userData?.hasUser) {
+        onCandleSelect({
+          ...candleParent.userData,
+          candleId: candleParent.name,
+          candleTimestamp: Date.now(),
+        });
       }
     }
   };
@@ -1254,7 +1600,7 @@ function Model({
 
     // Run the function to set initial visibility
     setBoomboxInitialVisibility();
-  }, [gltf, is80sMode]); // Depend on gltf and is80sMode
+  }, [gltf, is80sMode]);
 
   // Add effect to toggle Boombox visibility based on 80s mode
   useEffect(() => {
@@ -1270,9 +1616,9 @@ function Model({
         "BOOMBOX",
         "Boombox",
         "boombox",
-        "BoomBox",
-        "BOOM_BOX",
-        "BOOM",
+        "stereo",
+        "radio",
+        "cassette",
       ];
 
       const isBoombox = boomboxPatterns.some(
@@ -1439,6 +1785,32 @@ function Model({
         }
       });
     }
+
+    // Try root object approach if still not found
+    if (
+      !boomboxFound &&
+      modelRef.current.name.toLowerCase().includes("boombox")
+    ) {
+      console.log(
+        `Toggling root model as Boombox: ${modelRef.current.name}, visible: ${is80sMode}`
+      );
+
+      modelRef.current.traverse((child) => {
+        if (
+          child.isMesh &&
+          (child.name.includes("speaker") ||
+            child.name.includes("button") ||
+            child.name.includes("display") ||
+            child.name.includes("cassette") ||
+            child.name.includes("tape"))
+        ) {
+          console.log(
+            `Toggling Boombox component: ${child.name}, visible: ${is80sMode}`
+          );
+          child.visible = is80sMode;
+        }
+      });
+    }
   }, [modelRef, is80sMode]);
 
   // Set up Boombox visibility and glow effect
@@ -1474,93 +1846,300 @@ function Model({
   }, [showSpotify]);
 
   // Use useFrame for continuous animation
-  useFrame((state, delta) => {
-    if (!modelRef.current) return;
+  useFrame((state) => {
+    if (!boomboxRef.current?.material || !is80sMode) return;
 
-    modelRef.current.traverse((child) => {
-      // Handle melting for XCandle objects
-      if (child.name.startsWith("XCandle") && child.userData?.isMelting) {
-        child.userData.meltingProgress += delta;
+    const material = boomboxRef.current.material;
 
-        const meltingSpeed = 0.1; // Slower melting
-        const MIN_SCALE = 0.2;
+    // If Spotify is showing, ensure LED is off
+    if (showSpotify) {
+      if (material.emissiveIntensity !== 0.0) {
+        console.log("🎵 Forcing LED off");
+        material.emissiveIntensity = 0.0;
+      }
+      return; // Skip animation when Spotify is showing
+    }
 
-        // Calculate the percentage remaining
-        const percentageRemaining = Math.max(
-          1 - meltingSpeed * child.userData.meltingProgress,
-          MIN_SCALE
-        );
+    // Only pulse if Spotify is not showing
+    const intensity = 2.0 + Math.sin(state.clock.elapsedTime * 3) * 1.0;
+    material.emissiveIntensity = intensity;
+  });
 
-        if (child.userData.originalScale?.y) {
-          // Initialize original values if not already stored
-          if (!child.userData.originalValues) {
-            // Get the bounding box to find the actual top of the geometry
-            const bbox = new THREE.Box3().setFromObject(child);
-            const height = bbox.max.y - bbox.min.y;
-            const top = bbox.max.y;
+  // Sync the internal ref with the parent ref
+  useEffect(() => {
+    if (modelRef) {
+      modelRef.current = internalModelRef.current;
+    }
+  }, [modelRef, internalModelRef.current]);
 
-            child.userData.originalValues = {
-              position: child.position.clone(),
-              scale: child.scale.clone(),
-              height: height,
-              top: top,
-            };
-          }
+  // Add a key handler to toggle candle type with the 'c' key
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === "c" || event.key === "C") {
+        console.log("C key pressed - toggling candle type");
+        toggleCandleType();
+      }
+    };
 
-          const originalScale = child.userData.originalScale.y;
-          const newScale = originalScale * percentageRemaining;
+    window.addEventListener("keydown", handleKeyDown);
 
-          // Keep original X and Z scale, only modify Y
-          child.scale.set(
-            child.userData.originalScale.x,
-            newScale,
-            child.userData.originalScale.z
-          );
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [toggleCandleType]);
 
-          // Calculate the new position to keep top fixed
-          const originalTop = child.userData.originalValues.top;
-          const originalHeight = child.userData.originalValues.height;
-          const newHeight = originalHeight * percentageRemaining;
+  // Add a visual indicator to the found candle
+  useEffect(() => {
+    if (!internalModelRef.current) return;
 
-          // Move the position to keep the top fixed while bottom melts up
-          child.position.y =
-            child.userData.originalValues.position.y -
-            (originalHeight - newHeight) / 2;
+    // Find a candle using the same logic as toggleCandleType
+    let candle = null;
+
+    // First, try to find any object that might be a candle
+    internalModelRef.current.traverse((object) => {
+      if (!candle && object.isMesh) {
+        // Check for common candle-related names
+        const name = object.name.toLowerCase();
+        if (
+          name.includes("candle") ||
+          name.includes("votive") ||
+          name.includes("flame") ||
+          name.includes("light") ||
+          name.includes("lamp")
+        ) {
+          candle = object;
         }
-
-        // Add flame flicker
-        child.traverse((descendant) => {
-          if (descendant.name.startsWith("XFlame") && descendant.visible) {
-            const flicker = 1 + Math.sin(state.clock.elapsedTime * 10) * 0.1;
-            descendant.scale.set(flicker, flicker, flicker);
-          }
-        });
       }
     });
 
-    // Handle Boombox LED animation
-    if (boomboxRef.current?.material && is80sMode) {
-      const material = boomboxRef.current.material;
+    // If still not found, try to find by position or size
+    if (!candle) {
+      internalModelRef.current.traverse((object) => {
+        if (!candle && object.isMesh) {
+          // Get the bounding box to check size
+          const box = new THREE.Box3().setFromObject(object);
+          const size = box.getSize(new THREE.Vector3());
 
-      // If Spotify is showing, ensure LED is off
-      if (showSpotify) {
-        if (material.emissiveIntensity !== 0.0) {
-          console.log("🎵 Forcing LED off");
-          material.emissiveIntensity = 0.0;
+          // Check if it's small and positioned on a surface (likely a candle)
+          if (
+            size.y < 10 && // Not too tall
+            size.x < 5 && // Not too wide
+            size.z < 5 && // Not too deep
+            object.position.y > 0 // Positioned above ground
+          ) {
+            candle = object;
+          }
         }
-        return; // Skip animation when Spotify is showing
+      });
+    }
+
+    if (candle) {
+      console.log(`Adding visual indicator to candle: ${candle.name}`);
+
+      // Create a small sphere to indicate this is the test candle
+      const indicatorSize = 0.5;
+      const indicator = new THREE.Mesh(
+        new THREE.SphereGeometry(indicatorSize, 16, 16),
+        new THREE.MeshBasicMaterial({
+          color: 0xff0000,
+          transparent: true,
+          opacity: 0.7,
+        })
+      );
+
+      // Position the indicator above the candle
+      const candleWorldPos = new THREE.Vector3();
+      candle.getWorldPosition(candleWorldPos);
+      indicator.position.copy(candleWorldPos);
+      indicator.position.y += 5; // Adjust height as needed
+
+      // Make the indicator interactive
+      indicator.userData = {
+        isIndicator: true,
+        candleRef: candle,
+      };
+
+      // Add the indicator to the scene
+      scene.add(indicator);
+
+      // Animate the indicator to make it more visible
+      const animate = () => {
+        if (indicator) {
+          indicator.scale.x = 1 + Math.sin(Date.now() * 0.005) * 0.2;
+          indicator.scale.y = 1 + Math.sin(Date.now() * 0.005) * 0.2;
+          indicator.scale.z = 1 + Math.sin(Date.now() * 0.005) * 0.2;
+          indicator.rotation.y += 0.01;
+        }
+      };
+
+      // Add the animation to the render loop
+      const animationId = setInterval(animate, 16);
+
+      return () => {
+        clearInterval(animationId);
+        scene.remove(indicator);
+      };
+    }
+  }, [internalModelRef, scene]);
+
+  // Add click handler for the indicator
+  useEffect(() => {
+    if (!internalModelRef.current) return;
+
+    // Create a raycaster for detecting clicks
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+
+    // Handle click events
+    const handleClick = (event) => {
+      // Calculate mouse position in normalized device coordinates
+      const canvas = event.target;
+      const rect = canvas.getBoundingClientRect();
+
+      mouse.x = ((event.clientX - rect.left) / canvas.clientWidth) * 2 - 1;
+      mouse.y = -((event.clientY - rect.top) / canvas.clientHeight) * 2 + 1;
+
+      // Update the raycaster
+      raycaster.setFromCamera(mouse, camera);
+
+      // Find intersected objects
+      const intersects = raycaster.intersectObjects(scene.children, true);
+
+      // Check if we clicked on the indicator
+      for (let i = 0; i < intersects.length; i++) {
+        const object = intersects[i].object;
+
+        if (object.userData && object.userData.isIndicator) {
+          console.log("Indicator clicked - toggling candle type");
+          toggleCandleType();
+          break;
+        }
+      }
+    };
+
+    // Add event listener to the canvas
+    const canvas = document.querySelector("canvas");
+    if (canvas) {
+      canvas.addEventListener("click", handleClick);
+
+      return () => {
+        canvas.removeEventListener("click", handleClick);
+      };
+    }
+  }, [internalModelRef, scene, camera, toggleCandleType]);
+
+  // Debug: Log all loaded models and their hierarchies
+  useEffect(() => {
+    if (!internalModelRef.current) return;
+
+    console.log("=== DEBUG: SCENE HIERARCHY ===");
+
+    // Helper function to print the scene hierarchy
+    const printSceneHierarchy = (object, indent = 0) => {
+      const indentStr = " ".repeat(indent * 2);
+      const type = object.type;
+      const name = object.name || "(unnamed)";
+      const visible = object.visible;
+
+      console.log(
+        `${indentStr}- ${name} [${type}] ${visible ? "visible" : "hidden"}`
+      );
+
+      if (object.isMesh) {
+        const material = object.material
+          ? Array.isArray(object.material)
+            ? object.material.map((m) => m.type).join(",")
+            : object.material.type
+          : "none";
+        const position = object.position
+          .toArray()
+          .map((v) => v.toFixed(2))
+          .join(", ");
+        console.log(
+          `${indentStr}  position: (${position}), material: ${material}`
+        );
       }
 
-      // Only pulse if Spotify is not showing
-      const intensity = 2.0 + Math.sin(state.clock.elapsedTime * 3) * 1.0;
-      material.emissiveIntensity = intensity;
+      if (object.children && object.children.length > 0) {
+        object.children.forEach((child) => {
+          printSceneHierarchy(child, indent + 1);
+        });
+      }
+    };
+
+    // Print the main model hierarchy
+    console.log("MAIN MODEL HIERARCHY:");
+    printSceneHierarchy(internalModelRef.current);
+
+    // Print the wax candle model hierarchy if available
+    if (waxCandleModel && waxCandleModel.scene) {
+      console.log("\nWAX CANDLE MODEL HIERARCHY:");
+      printSceneHierarchy(waxCandleModel.scene);
     }
-  });
+
+    // Print the entire scene hierarchy
+    console.log("\nENTIRE SCENE HIERARCHY:");
+    printSceneHierarchy(scene);
+
+    console.log("=== END DEBUG ===");
+  }, [internalModelRef, waxCandleModel, scene]);
+
+  // Add a UI element to show the loading status of the wax candle model
+  useEffect(() => {
+    // Create a status element
+    const createStatusElement = () => {
+      const existingElement = document.getElementById("wax-candle-status");
+      if (existingElement) {
+        document.body.removeChild(existingElement);
+      }
+
+      const statusElement = document.createElement("div");
+      statusElement.id = "wax-candle-status";
+      statusElement.style.position = "absolute";
+      statusElement.style.bottom = "10px";
+      statusElement.style.left = "10px";
+      statusElement.style.padding = "5px 10px";
+      statusElement.style.borderRadius = "5px";
+      statusElement.style.fontSize = "12px";
+      statusElement.style.zIndex = "1000";
+
+      return statusElement;
+    };
+
+    // Update the status based on the current state
+    if (waxCandleLoadError) {
+      const statusElement = createStatusElement();
+      statusElement.style.background = "rgba(255, 0, 0, 0.7)";
+      statusElement.style.color = "white";
+      statusElement.textContent = `Error loading wax candle: ${waxCandleLoadError}`;
+      document.body.appendChild(statusElement);
+    } else if (!waxCandleModel) {
+      const statusElement = createStatusElement();
+      statusElement.style.background = "rgba(0, 0, 0, 0.7)";
+      statusElement.style.color = "white";
+      statusElement.textContent = "Loading wax candle model...";
+      document.body.appendChild(statusElement);
+    } else {
+      // Remove the status element if it exists
+      const existingElement = document.getElementById("wax-candle-status");
+      if (existingElement) {
+        document.body.removeChild(existingElement);
+      }
+    }
+
+    // Cleanup function
+    return () => {
+      const existingElement = document.getElementById("wax-candle-status");
+      if (existingElement) {
+        document.body.removeChild(existingElement);
+      }
+    };
+  }, [waxCandleModel, waxCandleLoadError]);
 
   return (
     <>
       <primitive
-        ref={modelRef}
+        ref={internalModelRef}
         object={gltf.scene}
         scale={[scale, scale, scale]}
         rotation={rotation}
@@ -1574,9 +2153,9 @@ function Model({
   );
 }
 
-// Preload both models
+// Add this line at the bottom to preload the model
 useGLTF.preload("/altarBoomboxCandles.glb");
-useGLTF.preload("/XCandle.glb");
+useGLTF.preload("/XCandle.glb"); // Preload the wax candle model
 
 export { Sun }; // Export the Sun component
 export default Model;

@@ -518,7 +518,7 @@ function ThreeDVotiveStand({
           performance={{ min: 0.5 }} // Allow ThreeJS to reduce quality for performance
           camera={{
             fov: 45,
-            position: [0, 10, 60], // ✅ Use the copied values from CameraGUI
+            position: [0, 10, 70], // ✅ Use the copied values from CameraGUI
             near: 0.03,
             far: 350,
           }}

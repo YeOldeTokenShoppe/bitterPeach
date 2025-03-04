@@ -18,11 +18,11 @@ const MusicPlayer = ({ isVisible, onClose, autoPlay = true }) => {
   ];
   const trackNames = [
     "Like A Prayer - Madonna",
-    // "Every 1's A Winner - Hot Chocolate",
+    "Intergalactic - Beastie Boys",
     // "Take Me To Church - Hozier",
   ];
 
-  const trackUrls = ["likeAPrayer.m4a"];
+  const trackUrls = ["likeAPrayer.m4a", "Intergalactic.mp3"];
   useEffect(() => {
     console.log(
       "Shuffle state effect triggered. isShuffled:",

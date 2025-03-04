@@ -18,24 +18,17 @@ const TickerDisplay = ({ modelRef, ...props }) => {
 
   // Debug: Log the scene structure
   useEffect(() => {
-    console.log("TickerDisplay - Scene loaded:", scene);
-    console.log("TickerDisplay - Scene children:", scene.children);
-    console.log("TickerDisplay - Main scene:", mainScene);
-
     // Log all mesh names in the scene
-    console.log("TickerDisplay - All meshes in scene:");
+
     scene.traverse((child) => {
       if (child.isMesh) {
-        console.log(`Mesh found: ${child.name}`, child);
       }
     });
 
     // If modelRef is provided, also check that scene
     if (modelRef && modelRef.current && modelRef.current.scene) {
-      console.log("TickerDisplay - Model ref scene:", modelRef.current.scene);
-
       // Log all mesh names in the modelRef scene
-      console.log("TickerDisplay - All meshes in modelRef scene:");
+
       modelRef.current.scene.traverse((child) => {
         if (child.isMesh) {
           console.log(`ModelRef mesh found: ${child.name}`, child);
@@ -301,12 +294,11 @@ const TickerDisplay = ({ modelRef, ...props }) => {
         textureRef.current.needsUpdate = true;
 
         // Slow down the scroll speed
-        textureRef.current.offset.x += 0.00002; // Reduced from 0.002 to 0.0005
+        textureRef.current.offset.x += 0.000002; // Reduced from 0.002 to 0.0005
 
         // Log the current texture offset occasionally to confirm it's changing
         if (Math.random() < 0.01) {
           // Log roughly once every 100 frames
-          console.log("Current texture offset:", textureRef.current.offset.x);
         }
       }
 
