@@ -15,15 +15,24 @@ const MusicPlayer = ({ isVisible, onClose, autoPlay = true }) => {
   const albums = [
     "Like A Prayer - Madonna",
     "Intergalactic - Beastie Boys",
-    // "Take Me To Church - Hozier",
-  ];
-  const trackNames = [
-    "Like A Prayer - Madonna",
-    // "Every 1's A Winner - Hot Chocolate",
-    // "Take Me To Church - Hozier",
+    "Rocket Man - Steven Drozd",
+    "For Those About To Rock - AC/DC",
   ];
 
-  const trackUrls = ["likeAPrayer.m4a", "Intergalactic.mp3"];
+  const trackNames = [
+    "Like A Prayer - Madonna",
+    "Intergalactic - Beastie Boys",
+    "Rocket Man - Steven Drozd",
+    "For Those About To Rock - AC/DC",
+  ];
+
+  const trackUrls = [
+    "likeAPrayer.m4a",
+    "Intergalactic.mp3",
+    "rocketMan.m4a",
+    "ForThoseAboutToRock.m4a",
+  ];
+
   useEffect(() => {
     console.log(
       "Shuffle state effect triggered. isShuffled:",

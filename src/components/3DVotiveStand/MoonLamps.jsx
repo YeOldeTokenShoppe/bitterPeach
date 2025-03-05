@@ -34,7 +34,7 @@ const MoonScene = ({
   const MODEL_FRICTION = 0.1;
   const MODEL_RESTITUTION = 0.7;
   const roomRadius = 30;
-  const roomHeight = 100;
+  const roomHeight = 200;
   const floorRadius = 30;
   const mixer = new THREE.AnimationMixer();
   const mixersRef = useRef([]);
@@ -219,8 +219,6 @@ const MoonScene = ({
     const addRoomToPhysics = () => {
       if (!physicsRef.current.world || !ammoRef.current) return;
 
-      console.log("Adding room elements to physics...");
-
       // Add wall to physics
       const wallShape = createTriangleMeshShape(wallGeometry);
       if (wallShape) {
@@ -249,7 +247,6 @@ const MoonScene = ({
         );
 
         wall.userData.physicsBody = wallBody;
-        console.log("Wall added to physics");
       }
     };
 
@@ -342,7 +339,6 @@ const MoonScene = ({
   };
   // In your useEffect that finds Floor2
   useEffect(() => {
-    console.log("Checking for Floor2...");
     if (!modelRef?.current || !physicsRef.current.world) return;
 
     modelRef.current.traverse((child) => {
@@ -582,7 +578,6 @@ const MoonScene = ({
         child.isMesh &&
         (child.name === "Object_3" || child.name === "Object_2.001")
       ) {
-        console.log(`Marking ${child.name} to be excluded from physics`);
         // Set a user data flag to identify it later
         child.userData.excludeFromPhysics = true;
 
@@ -604,7 +599,6 @@ const MoonScene = ({
         child.name === "Object_3" ||
         child.name === "Statue"
       ) {
-        console.log(`Excluding ${child.name} from physics simulation`);
         return;
       }
 
@@ -1033,7 +1027,6 @@ const MoonScene = ({
     ) {
       // Use setTimeout to ensure the model is fully loaded and positioned
       setTimeout(() => {
-        console.log("Adding model to physics");
         addModelToPhysics();
       }, 200);
     }

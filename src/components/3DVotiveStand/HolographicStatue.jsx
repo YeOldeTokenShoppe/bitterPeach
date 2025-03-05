@@ -142,8 +142,6 @@ function HolographicStatue() {
       statue.traverse((child) => {
         if (child.isMesh) {
           if (child.name.toLowerCase().includes("halo")) {
-            console.log("Separating Halo mesh:", child.name);
-
             // ✅ Assign a new material that keeps its original Blender colors
             child.material = new THREE.MeshStandardMaterial({
               color: child.material.color, // Keep Blender’s original color

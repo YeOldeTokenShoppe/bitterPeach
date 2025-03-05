@@ -31,7 +31,6 @@ const TickerDisplay = ({ modelRef, ...props }) => {
 
       modelRef.current.scene.traverse((child) => {
         if (child.isMesh) {
-          console.log(`ModelRef mesh found: ${child.name}`, child);
         }
       });
     }
@@ -94,7 +93,6 @@ const TickerDisplay = ({ modelRef, ...props }) => {
 
         setTrendingData(formattedData);
       } catch (error) {
-        console.error("Failed to fetch trending coins data:", error);
         setTrendingData([
           {
             symbol: "ERROR",
@@ -155,7 +153,6 @@ const TickerDisplay = ({ modelRef, ...props }) => {
       textureRef.current = texture;
 
       // Create a dedicated test mesh for the ticker display
-      console.log("Creating dedicated ticker mesh for display");
 
       // Create a curved cylinder for the ticker display with larger radius
       // Increase radius to 30 and keep height small for a wide, flat cylinder
@@ -188,8 +185,6 @@ const TickerDisplay = ({ modelRef, ...props }) => {
 
       // Store reference
       meshRef.current = mesh;
-
-      console.log("Ticker mesh created and added to main scene", mesh);
 
       // We don't need the additional test meshes anymore since we found the correct orientation
 

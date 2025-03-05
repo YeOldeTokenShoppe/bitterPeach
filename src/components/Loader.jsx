@@ -5,15 +5,9 @@ function Loader({ progress }) {
   // Use provided progress or create internal state for simulated progress
   const [loadingPercentage, setLoadingPercentage] = useState(progress || 0);
 
-  // Debug log when component mounts
-  useEffect(() => {
-    console.log("Loader component mounted with initial progress:", progress);
-  }, []);
-
   // If no progress prop is provided, simulate loading progress
   useEffect(() => {
     if (progress === undefined) {
-      console.log("No progress provided, using simulated progress");
       // Only run the simulation if no progress prop is provided
       const interval = setInterval(() => {
         setLoadingPercentage((prevPercentage) => {
@@ -32,15 +26,12 @@ function Loader({ progress }) {
   // Update internal state when progress prop changes
   useEffect(() => {
     if (progress !== undefined) {
-      console.log("Progress updated:", progress);
       setLoadingPercentage(progress);
     }
   }, [progress]);
 
   // Log current percentage for debugging
-  useEffect(() => {
-    console.log("Current loading percentage:", loadingPercentage);
-  }, [loadingPercentage]);
+  useEffect(() => {}, [loadingPercentage]);
 
   return (
     <div className={styles.loaderRoot}>

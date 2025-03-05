@@ -21,128 +21,14 @@ import { ref, getDownloadURL } from "firebase/storage";
 import { storage } from "../../utilities/firebaseClient"; // Import storage directly
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 
-// Sun component to load and position the sun model
-function Sun({ position = [0, 0, 0], scale = 0.5, is80sMode = false }) {
-  const { scene: sunScene } = useGLTF("/SynthwaveSun.glb");
-  const { camera } = useThree();
+// Toggle visibility based on 80s mode
+// useEffect(() => {
+//   if (groupRef.current) {
+//     groupRef.current.visible = is80sMode;
+//   }
+// }, [is80sMode]);
 
-  // Create a group to hold the sun model
-  const groupRef = useRef();
-
-  // Store the initial relative position from the camera
-  const relativePosition = useRef(new THREE.Vector3(...position));
-
-  // Toggle visibility based on 80s mode
-  useEffect(() => {
-    if (groupRef.current) {
-      groupRef.current.visible = is80sMode;
-      console.log(
-        `Sun visibility set to ${
-          is80sMode ? "visible" : "hidden"
-        } based on 80s mode`
-      );
-    }
-  }, [is80sMode]);
-
-  // Use useFrame to update the sun's position relative to the camera
-  useFrame(() => {
-    if (groupRef.current && is80sMode) {
-      // Calculate position relative to camera
-      const cameraDirection = new THREE.Vector3(0, 0, -1);
-      cameraDirection.applyQuaternion(camera.quaternion);
-
-      // Position the sun at a fixed distance in front of the camera
-      // but offset to the bottom-left
-      const distance = 100; // Distance from camera
-      const sunPosition = new THREE.Vector3();
-
-      // Start with the camera position
-      sunPosition.copy(camera.position);
-
-      // Move in the direction the camera is facing
-      cameraDirection.multiplyScalar(distance);
-      sunPosition.add(cameraDirection);
-
-      // Apply the offset (down and to the left from camera view)
-      const offset = new THREE.Vector3(0, 0, -10);
-      offset.applyQuaternion(camera.quaternion);
-      sunPosition.add(offset);
-
-      // Update the sun's position
-      groupRef.current.position.copy(sunPosition);
-
-      // Make the sun always face the camera (billboard effect)
-      groupRef.current.quaternion.copy(camera.quaternion);
-    }
-  });
-
-  // Add detailed logging of the sun model
-  useEffect(() => {
-    if (sunScene) {
-      console.log("SUN MODEL DETAILS:");
-      console.log("- Scene:", sunScene);
-
-      // Log all objects in the scene
-      console.log("- Children:", sunScene.children);
-
-      // Log all meshes
-      const meshes = [];
-      sunScene.traverse((child) => {
-        if (child.isMesh) {
-          meshes.push({
-            name: child.name,
-            visible: child.visible,
-            material: child.material,
-            geometry: {
-              type: child.geometry.type,
-              parameters: child.geometry.parameters,
-            },
-          });
-        }
-      });
-      console.log("- Meshes:", meshes);
-
-      // Check if there are any materials with transparency
-      const hasTransparentMaterials = meshes.some(
-        (mesh) => mesh.material && mesh.material.transparent
-      );
-      console.log("- Has transparent materials:", hasTransparentMaterials);
-
-      // Check if the model has any zero-scale components
-      let hasZeroScale = false;
-      sunScene.traverse((child) => {
-        if (
-          child.scale &&
-          (child.scale.x === 0 || child.scale.y === 0 || child.scale.z === 0)
-        ) {
-          hasZeroScale = true;
-          console.log("  - Object with zero scale:", child.name);
-        }
-      });
-      console.log("- Has zero scale components:", hasZeroScale);
-    } else {
-      console.error("SUN MODEL FAILED TO LOAD");
-    }
-  }, [sunScene]);
-
-  return (
-    <group ref={groupRef}>
-      {/* Original sun model */}
-      {sunScene ? (
-        <primitive object={sunScene} scale={[scale, scale, scale]} />
-      ) : (
-        /* Fallback sun if model fails to load */
-        <mesh>
-          <sphereGeometry args={[scale * 1, 32, 32]} />
-          <meshBasicMaterial color="#ffaa00" />
-        </mesh>
-      )}
-    </group>
-  );
-}
-
-// Preload the sun model
-useGLTF.preload("/SynthwaveSun.glb");
+// Use useFrame to update the sun's position relative to the camera
 
 function Model({
   scale,
@@ -191,83 +77,45 @@ function Model({
   const DEFAULT_IMAGES = [
     "/Triumph.jpg",
     "/vsClown.jpg",
-    "/vsZombie.WEBP",
-    "/vsSkeleton.WEBP",
+    "/vsZombie.jpg",
+    "/vsSkeleton.jpg",
   ];
 
   const findCandleComponent = (parent, type) => {
     const candleNumber = parent.name.slice(-3);
 
-    switch (type) {
-      case "FLAME":
-        // Look for any FLAME in children (since it has different numbering)
-        return parent.children.find((child) => child.name.startsWith("FLAME"));
+    // Debug the search
+    console.log(`Finding component ${type} for candle ${parent.name}`);
+    console.log(
+      "Available children:",
+      parent.children.map((c) => c.name)
+    );
 
-      case "TooltipPlane":
-        // Look for TooltipPlane with matching candle number
-        return parent.children.find(
-          (child) => child.name === `TooltipPlane${candleNumber}`
-        );
+    // More flexible matching function that accounts for the .XXX suffix
+    const matchesComponent = (childName, componentType) => {
+      switch (componentType) {
+        case "FLAME":
+          return childName.startsWith("FLAME");
+        case "Label1":
+          return childName.startsWith("Label1");
+        case "Label2":
+          return childName.startsWith("Label2");
+        case "wax":
+          return childName.startsWith("wax");
+        case "glass":
+          return childName.startsWith("glass");
 
-      case "wax":
-        // Find shared wax mesh
-        return parent.children.find((child) => child.name.includes("wax"));
+        default:
+          return false;
+      }
+    };
 
-      default:
-        return null;
-    }
+    const component = parent.children.find((child) =>
+      matchesComponent(child.name, type)
+    );
+    console.log(`Found component for ${type}:`, component?.name || "none");
+    return component;
   };
-
-  useEffect(() => {
-    if (gltf?.scene) {
-      gltf.scene.scale.set(1, 1, 1);
-      gltf.scene.position.set(0, 0, 0);
-      gltf.scene.updateMatrixWorld(true);
-
-      // Detailed logging of all meshes and their materials
-      gltf.scene.traverse((child) => {
-        if (child.isMesh) {
-          console.log("\n--- Mesh Details ---");
-          console.log("Mesh name:", child.name);
-          console.log(
-            "Material type:",
-            child.material ? child.material.type : "No material"
-          );
-
-          if (child.material) {
-            if (Array.isArray(child.material)) {
-              child.material.forEach((mat, index) => {
-                console.log(`Material ${index} properties:`, {
-                  emissive: mat.emissive ? mat.emissive.getHexString() : "none",
-                  emissiveIntensity: mat.emissiveIntensity,
-                  color: mat.color ? mat.color.getHexString() : "none",
-                });
-              });
-            } else {
-              console.log("Material properties:", {
-                emissive: child.material.emissive
-                  ? child.material.emissive.getHexString()
-                  : "none",
-                emissiveIntensity: child.material.emissiveIntensity,
-                color: child.material.color
-                  ? child.material.color.getHexString()
-                  : "none",
-              });
-            }
-          }
-
-          // Log full object path to help identify hierarchy
-          let path = child.name;
-          let parent = child.parent;
-          while (parent) {
-            path = parent.name + " > " + path;
-            parent = parent.parent;
-          }
-          console.log("Object path:", path);
-        }
-      });
-    }
-  }, [gltf]);
 
   // Log all mesh names in the model to help identify floor objects
   // useEffect(() => {
@@ -297,10 +145,9 @@ function Model({
   useEffect(() => {
     const fetchModelUrl = async () => {
       try {
-        console.log("Fetching model from Firebase Storage...");
         const modelRef = ref(storage, "models/altarBoomboxCandles.glb"); // Update Firebase path
         const downloadUrl = await getDownloadURL(modelRef);
-        console.log("Firebase URL:", downloadUrl);
+
         setModelUrl(downloadUrl);
       } catch (error) {
         console.error("Error fetching model from Firebase Storage:", error);
@@ -314,22 +161,15 @@ function Model({
 
   // Update loading state based on model loading progress
   useEffect(() => {
-    console.log("Model loading progress:", progress);
     if (progress === 100 && setIsModelLoaded) {
       // Add a small delay to ensure everything is rendered
       const timer = setTimeout(() => {
-        console.log("Model fully loaded, notifying parent component");
         setIsModelLoaded(true);
       }, 500);
 
       return () => clearTimeout(timer);
     }
   }, [progress, setIsModelLoaded]);
-
-  // Add this to debug when modelUrl changes
-  useEffect(() => {
-    console.log("Current model URL:", modelUrl);
-  }, [modelUrl]);
 
   /** ✅ Compute bounding box and reposition model */
   useEffect(() => {
@@ -359,39 +199,30 @@ function Model({
   // Update light intensity
   const updateLightIntensity = (value) => {
     const intensity = Number(value);
-    console.log("Updating light intensity to:", intensity);
+
     setLightIntensity(intensity);
     if (hemiLightRef.current) {
       hemiLightRef.current.intensity = intensity;
-      console.log(
-        "Applied intensity to light:",
-        hemiLightRef.current.intensity
-      );
     }
   };
 
   // Update sky color (top color)
   const updateSkyColor = (hexColor) => {
     const color = parseInt(hexColor.replace("#", "0x"), 16);
-    console.log("Updating sky color:", hexColor, "parsed to:", color);
+
     setSkyColor(color);
     if (hemiLightRef.current) {
       hemiLightRef.current.color.set(color);
-      console.log("Applied sky color to light:", hemiLightRef.current.color);
     }
   };
 
   // Update ground color (bottom color)
   const updateGroundColor = (hexColor) => {
     const color = parseInt(hexColor.replace("#", "0x"), 16);
-    console.log("Updating ground color:", hexColor, "parsed to:", color);
+
     setGroundColor(color);
     if (hemiLightRef.current) {
       hemiLightRef.current.groundColor.set(color);
-      console.log(
-        "Applied ground color to light:",
-        hemiLightRef.current.groundColor
-      );
     }
   };
 
@@ -429,11 +260,7 @@ function Model({
     if (hemiLightRef.current) {
       if (parentSkyColor) {
         const skyColorValue = parseInt(parentSkyColor.replace("#", "0x"), 16);
-        console.log(
-          "Updating light sky color from parent:",
-          parentSkyColor,
-          skyColorValue
-        );
+
         hemiLightRef.current.color.set(skyColorValue);
       }
 
@@ -442,19 +269,11 @@ function Model({
           parentGroundColor.replace("#", "0x"),
           16
         );
-        console.log(
-          "Updating light ground color from parent:",
-          parentGroundColor,
-          groundColorValue
-        );
+
         hemiLightRef.current.groundColor.set(groundColorValue);
       }
 
       if (parentLightIntensity !== undefined) {
-        console.log(
-          "Updating light intensity from parent:",
-          parentLightIntensity
-        );
         hemiLightRef.current.intensity = parentLightIntensity;
       }
 
@@ -479,15 +298,6 @@ function Model({
       groundColorValue = parseInt(parentGroundColor.replace("#", "0x"), 16);
     }
 
-    console.log("Creating light with colors:", {
-      sky: skyColorValue,
-      ground: groundColorValue,
-      intensity:
-        parentLightIntensity !== undefined
-          ? parentLightIntensity
-          : lightIntensity,
-    });
-
     const hemiLight = new THREE.HemisphereLight(
       skyColorValue,
       groundColorValue,
@@ -500,34 +310,34 @@ function Model({
     // Create a hemisphere light helper
     if (showLightHelper) {
       /* Comment out light helper for production
-        const helper = new THREE.HemisphereLightHelper(hemiLight, 10, 0xffff00);
-        scene.add(helper);
-        lightHelperRef.current = helper;
-  
-        // Add a simple GUI to control light position
-        const lightPositionMarker = new THREE.Mesh(
-          new THREE.SphereGeometry(2, 16, 16),
-          new THREE.MeshBasicMaterial({ color: 0xffff00 })
-        );
-        lightPositionMarker.position.copy(hemiLight.position);
-        scene.add(lightPositionMarker);
-        lightMarkerRef.current = lightPositionMarker;
-  
-        console.log("Light helper added at position:", hemiLight.position);
-        */
+      const helper = new THREE.HemisphereLightHelper(hemiLight, 10, 0xffff00);
+      scene.add(helper);
+      lightHelperRef.current = helper;
+
+      // Add a simple GUI to control light position
+      const lightPositionMarker = new THREE.Mesh(
+        new THREE.SphereGeometry(2, 16, 16),
+        new THREE.MeshBasicMaterial({ color: 0xffff00 })
+      );
+      lightPositionMarker.position.copy(hemiLight.position);
+      scene.add(lightPositionMarker);
+      lightMarkerRef.current = lightPositionMarker;
+
+      console.log("Light helper added at position:", hemiLight.position);
+      */
     }
 
     // Update helper and marker when light position changes
     const updateHelperAndMarker = () => {
       /* Comment out light helper updates
-        if (lightHelperRef.current) {
-          lightHelperRef.current.update();
-        }
-  
-        if (lightMarkerRef.current) {
-          lightMarkerRef.current.position.copy(hemiLight.position);
-        }
-        */
+      if (lightHelperRef.current) {
+        lightHelperRef.current.update();
+      }
+
+      if (lightMarkerRef.current) {
+        lightMarkerRef.current.position.copy(hemiLight.position);
+      }
+      */
     };
 
     // Set up an animation frame callback to update the helper
@@ -543,13 +353,13 @@ function Model({
       cancelAnimationFrame(frameId);
       scene.remove(hemiLight);
       /* Comment out light helper cleanup
-        if (lightHelperRef.current) {
-          scene.remove(lightHelperRef.current);
-        }
-        if (lightMarkerRef.current) {
-          scene.remove(lightMarkerRef.current);
-        }
-        */
+      if (lightHelperRef.current) {
+        scene.remove(lightHelperRef.current);
+      }
+      if (lightMarkerRef.current) {
+        scene.remove(lightMarkerRef.current);
+      }
+      */
       // scene.remove(ambientLight);
     };
   }, [
@@ -565,31 +375,85 @@ function Model({
     parentShowLightHelper,
   ]);
 
+  const [xCandleModel, setXCandleModel] = useState(null);
+  const xCandleInstances = useRef(new Map()); // To track created instances
+  const [tooltips, setTooltips] = useState([]);
+
+  useEffect(() => {
+    const loadXCandleModel = async () => {
+      try {
+        // Load XCandle.glb
+        const { scene: xCandleScene } = await useGLTF("/XCandle.glb", true);
+        setXCandleModel(xCandleScene.clone());
+      } catch (error) {
+        console.error("Error loading XCandle model:", error);
+      }
+    };
+
+    loadXCandleModel();
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      // Clean up all created XCandle instances
+      xCandleInstances.current.forEach((instance) => {
+        if (instance.parent) {
+          instance.parent.remove(instance);
+        }
+
+        // Dispose geometries and materials
+        instance.traverse((object) => {
+          if (object.geometry) object.geometry.dispose();
+          if (object.material) {
+            if (Array.isArray(object.material)) {
+              object.material.forEach((material) => material.dispose());
+            } else {
+              object.material.dispose();
+            }
+          }
+        });
+      });
+
+      xCandleInstances.current.clear();
+    };
+  }, []);
   useEffect(() => {
     if (results.length === 0 || !modelRef.current) return;
 
-    const availableIndices = Array.from({ length: 45 }, (_, i) =>
-      String(i + 1).padStart(3, "0")
-    );
+    // Cleanup any existing XCandle instances first
+    xCandleInstances.current.forEach((instance) => {
+      if (instance.parent) {
+        instance.parent.remove(instance);
+      }
+    });
+    xCandleInstances.current.clear();
 
-    const shuffledIndices = availableIndices.sort(() => Math.random() - 0.5);
-    const userCandleIndices = shuffledIndices.slice(0, results.length);
-    const defaultCandleIndices = shuffledIndices.slice(results.length);
+    setTooltips([]);
 
-    // Reset ALL candles clearly using your function
+    const newTooltips = [];
+
+    // Reset ALL candles to be invisible first
     modelRef.current.traverse((child) => {
       if (child.name.startsWith("VCANDLE")) {
         resetCandle(child);
       }
     });
 
-    // Assign USER candles explicitly
+    const availableIndices = Array.from({ length: 80 }, (_, i) =>
+      String(i + 1).padStart(3, "0")
+    );
+
+    const shuffledIndices = availableIndices.sort(() => Math.random() - 0.5);
+    const userCandleIndices = shuffledIndices.slice(0, results.length);
+
+    // Process all user candles
     results.forEach((result, index) => {
       const candleIndex = userCandleIndices[index];
       const candleName = `VCANDLE${candleIndex}`;
       const candle = modelRef.current.getObjectByName(candleName);
 
       if (candle) {
+        // Store the result data in userData for both types of candles
         candle.userData = {
           hasUser: true,
           userName: result.userName || "Anonymous",
@@ -597,54 +461,171 @@ function Model({
           message: result.message,
           burnedAmount: result.burnedAmount || 1,
           meltingProgress: 0,
+          staked: result.staked !== false, // Default to true if undefined
         };
 
-        if (result.image) applyUserImageToLabels(candle, result.image);
+        if (result.staked !== false) {
+          // STAKED CANDLE: Make the VCANDLE visible
+          if (result.image) applyUserImageToLabels(candle, result.image);
 
-        const flame = findCandleComponent(candle, "FLAME");
-        if (flame) flame.visible = true;
+          // Make all children visible for staked user candles
+          candle.children.forEach((child) => {
+            console.log(`Setting visibility for ${child.name} to true`);
+            child.visible = true;
+          });
+        } else {
+          // UNSTAKED CANDLE: Keep VCANDLE invisible, create XCandle
+          if (xCandleModel) {
+            // Create a new XCandle instance
+            const xCandleInstance = xCandleModel.clone();
+
+            // Position it at the same location as the VCANDLE
+            xCandleInstance.position.copy(candle.position);
+
+            // Add user data to the XCandle for interactivity
+            xCandleInstance.userData = {
+              ...candle.userData,
+              originalVCandleName: candle.name,
+            };
+
+            // Add flame effects, etc. to the XCandle instance
+            xCandleInstance.traverse((child) => {
+              if (child.name.startsWith("XFlame")) {
+                child.visible = true;
+              }
+            });
+            // Add the XCandle to the scene AFTER traversing
+            modelRef.current.add(xCandleInstance);
+
+            // Keep track of the instance for cleanup
+            xCandleInstances.current.set(candleIndex, xCandleInstance);
+            newTooltips.push({
+              id: candleIndex,
+              username: result.userName || "Anonymous",
+              position: [
+                xCandleInstance.position.x,
+                xCandleInstance.position.y + 3,
+                xCandleInstance.position.z,
+              ],
+            });
+          } else {
+            console.warn(
+              "XCandle model not loaded yet for unstaked candle:",
+              result
+            );
+          }
+        }
       }
     });
 
-    // Assign DEFAULT images explicitly only to unassigned candles
-    defaultCandleIndices.forEach((index) => {
-      const candleName = `VCANDLE${index}`;
-      const candle = modelRef.current.getObjectByName(candleName);
-      if (candle) {
-        const randomDefaultImage =
-          DEFAULT_IMAGES[Math.floor(Math.random() * DEFAULT_IMAGES.length)];
-
-        candle.userData = {
-          hasUser: true,
-          userName: "In memory",
-          image: randomDefaultImage,
-          message: "In memory",
-          burnedAmount: 1,
-          meltingProgress: 0,
-          isDefault: true,
-        };
-
-        applyUserImageToLabels(candle, randomDefaultImage);
-        const flame = findCandleComponent(candle, "FLAME");
-        if (flame) flame.visible = false;
-      }
-    });
+    setTooltips(newTooltips);
 
     return () => {
-      modelRef.current?.traverse((child) => {
-        if (child.name.startsWith("VCANDLE")) {
-          child.children.forEach((c) => {
-            if (c.name.includes("Label1") || c.name.includes("Label2")) {
-              if (c.material) {
-                c.material.map?.dispose();
-                c.material.dispose();
-              }
-            }
-          });
-        }
-      });
+      // Cleanup function
+      if (modelRef.current) {
+        // No need to explicitly remove XCandle instances here as it's handled in the main cleanup effect
+      }
     };
-  }, [results, modelRef.current]);
+  }, [results, modelRef.current, xCandleModel]); // Add xCandleModel to dependencies
+
+  const XCandleTooltip = ({ position, username }) => {
+    const tooltipRef = useRef();
+
+    // Make the tooltip face the camera
+    useFrame(({ camera }) => {
+      if (tooltipRef.current) {
+        tooltipRef.current.lookAt(camera.position);
+      }
+    });
+
+    return (
+      <group position={position} ref={tooltipRef}>
+        <Text
+          fontSize={0.5}
+          color="#ffffff"
+          anchorX="center"
+          anchorY="bottom"
+          outlineWidth={0.05}
+          outlineColor="#000000"
+        >
+          {username}
+        </Text>
+      </group>
+    );
+  };
+
+  // useEffect(() => {
+  //   if (results.length === 0 || !modelRef.current) return;
+
+  //   // Add debugging to inspect VCANDLE structure
+  //   console.log("Inspecting VCANDLE structure:");
+  //   modelRef.current.traverse((child) => {
+  //     if (child.name.startsWith("VCANDLE")) {
+  //       console.log(`\nVCANDLE object: ${child.name}`);
+  //       console.log("Direct children:");
+  //       child.children.forEach((c) => {
+  //         console.log(`- ${c.name} (visible: ${c.visible})`);
+  //       });
+  //     }
+  //   });
+
+  //   const availableIndices = Array.from({ length: 80 }, (_, i) =>
+  //     String(i + 1).padStart(3, "0")
+  //   );
+
+  //   const shuffledIndices = availableIndices.sort(() => Math.random() - 0.5);
+  //   const userCandleIndices = shuffledIndices.slice(0, results.length);
+  //   const defaultCandleIndices = shuffledIndices.slice(results.length);
+
+  //   // Reset ALL candles clearly using your function
+  //   // Reset ALL candles to be completely invisible first
+  //   modelRef.current.traverse((child) => {
+  //     if (child.name.startsWith("VCANDLE")) {
+  //       resetCandle(child);
+  //     }
+  //   });
+
+  //   // Only process user-assigned candles, no default candles
+  //   results.forEach((result, index) => {
+  //     const candleIndex = userCandleIndices[index];
+  //     const candleName = `VCANDLE${candleIndex}`;
+  //     const candle = modelRef.current.getObjectByName(candleName);
+
+  //     if (candle) {
+  //       candle.userData = {
+  //         hasUser: true,
+  //         userName: result.userName || "Anonymous",
+  //         image: result.image,
+  //         message: result.message,
+  //         burnedAmount: result.burnedAmount || 1,
+  //         meltingProgress: 0,
+  //         staked: result.staked || false,
+  //       };
+
+  //       if (result.image) applyUserImageToLabels(candle, result.image);
+
+  //       // Make all children visible for user candles
+  //       candle.children.forEach((child) => {
+  //         console.log(`Setting visibility for ${child.name} to true`);
+  //         child.visible = true;
+  //       });
+  //     }
+  //   });
+
+  //   return () => {
+  //     modelRef.current?.traverse((child) => {
+  //       if (child.name.startsWith("VCANDLE")) {
+  //         ["Label1", "Label2"].forEach((labelType) => {
+  //           const label = findCandleComponent(child, labelType);
+  //           if (label?.material) {
+  //             label.material.map?.dispose();
+  //             label.material.dispose();
+  //           }
+  //         });
+  //       }
+  //     });
+  //   };
+  // }, [results, modelRef.current]);
 
   const applyUserImageToLabels = (candle, imageUrl) => {
     if (!imageUrl) return;
@@ -697,12 +678,14 @@ function Model({
   /** 🔥 Reset candle state (for unassigned candles) */
   const resetCandle = (candle) => {
     candle.userData = { hasUser: false };
-    const flame = candle.children.find((c) => c.name.startsWith("FLAME"));
-    if (flame) flame.visible = false;
 
-    // Reset both labels
+    // Make all children invisible and clean up materials
     candle.children.forEach((child) => {
-      if (child.name.includes("Label1") || child.name.includes("Label2")) {
+      console.log(`Resetting visibility for ${child.name} to false`);
+      child.visible = false;
+
+      // Handle material cleanup for labels
+      if (child.name.startsWith("Label")) {
         if (child.material) {
           child.material.map?.dispose();
           child.material.dispose();
@@ -715,7 +698,6 @@ function Model({
       }
     });
   };
-
   // Handle click events
   const handleClick = (event) => {
     event.stopPropagation();
@@ -739,48 +721,18 @@ function Model({
         true
       );
       if (boomboxIntersects.length > 0) {
-        console.log("🎵 Boombox clicked - current state:", {
-          showSpotify,
-          is80sMode,
-          intensity: boomboxRef.current.material?.emissiveIntensity,
-        });
         if (onBoomboxClick) {
+          // Call the onBoomboxClick handler from props
           onBoomboxClick();
           return;
         }
       }
     }
 
-    // Add debug logging for candle melting
-    const testCandleMelting = (object) => {
-      if (object.name.startsWith("XCandle")) {
-        console.log("🕯️ Testing candle melting for:", object.name);
-        // Initialize melting if not already melting
-        if (!object.userData.isMelting) {
-          object.userData.isMelting = true;
-          object.userData.meltingProgress = 0;
-          object.userData.originalScale = object.scale.clone();
-          console.log("Started melting for candle:", object.name);
-        } else {
-          console.log("Candle melting status:", {
-            name: object.name,
-            meltingProgress: object.userData.meltingProgress,
-            currentScale: object.scale.toArray(),
-            originalScale: object.userData.originalScale?.toArray(),
-            position: object.position.toArray(),
-            originalValues: object.userData.originalValues,
-          });
-        }
-      }
-    };
-
-    // Collect all interactable candle objects
+    // Original candle click logic
     const intersectableObjects = [];
     modelRef.current.traverse((object) => {
-      if (
-        object.name.startsWith("VCANDLE") ||
-        object.name.startsWith("XCandle")
-      ) {
+      if (object.name.startsWith("VCANDLE")) {
         intersectableObjects.push(object);
         object.children.forEach((child) => {
           if (
@@ -794,36 +746,19 @@ function Model({
       }
     });
 
-    // Handle both VCANDLE and XCandle interactions
     const intersects = raycaster.intersectObjects(intersectableObjects, true);
     if (intersects.length > 0) {
       let candleParent = intersects[0].object;
-
-      // Find the parent candle object
-      while (
-        candleParent &&
-        !candleParent.name.startsWith("VCANDLE") &&
-        !candleParent.name.startsWith("XCandle")
-      ) {
+      while (candleParent && !candleParent.name.startsWith("VCANDLE")) {
         candleParent = candleParent.parent;
       }
 
-      if (candleParent) {
-        // Handle XCandle melting
-        if (candleParent.name.startsWith("XCandle")) {
-          testCandleMelting(candleParent);
-        }
-        // Handle VCANDLE selection
-        else if (
-          candleParent.name.startsWith("VCANDLE") &&
-          candleParent.userData?.hasUser
-        ) {
-          onCandleSelect({
-            ...candleParent.userData,
-            candleId: candleParent.name,
-            candleTimestamp: Date.now(),
-          });
-        }
+      if (candleParent?.userData?.hasUser) {
+        onCandleSelect({
+          ...candleParent.userData,
+          candleId: candleParent.name,
+          candleTimestamp: Date.now(),
+        });
       }
     }
   };
@@ -871,7 +806,6 @@ function Model({
             applySimplifiedGeometry(result);
             break;
           default:
-            console.log("Received result from worker:", operation);
         }
       };
 
@@ -927,20 +861,16 @@ function Model({
     // This is a simplified example - you would typically use this data
     // in a custom shader or material
     setProcessedData(lightingData);
-
-    console.log("Applied lighting data from worker");
   };
 
   // Apply simplified geometry for LOD
   const applySimplifiedGeometry = (geometryData) => {
     // Implementation depends on your specific needs
-    console.log("Applied simplified geometry from worker");
   };
 
   // Log when '80s mode changes
   useEffect(() => {
     if (is80sMode !== undefined) {
-      console.log("Model: '80s mode is now", is80sMode ? "ON" : "OFF");
     }
   }, [is80sMode]);
 
@@ -980,8 +910,6 @@ function Model({
     gltf.scene.traverse((child) => {
       // Check for any mesh with "Floor" in its name (case insensitive)
       if (child.isMesh && child.name === "Floor") {
-        console.log(`Found floor object: ${child.name}`);
-
         // Store the original texture if we haven't already
         if (
           !child.userData.originalTexture &&
@@ -990,12 +918,10 @@ function Model({
         ) {
           child.userData.originalTexture = child.material.map;
           child.userData.originalMaterial = child.material.clone();
-          console.log(`Stored original texture for ${child.name}`);
         }
 
         // Toggle between original and 80s texture
         if (is80sMode) {
-          console.log(`Applying 80s texture to ${child.name}`);
           textureLoader.load(textureConfig.path, (texture) => {
             // Apply all texture settings
             applyTextureWithSettings(texture, textureConfig);
@@ -1027,14 +953,11 @@ function Model({
                 // Single material
                 applyMaterial(child.material);
               }
-              console.log(
-                `Applied 80s texture with emissive effect to ${child.name}`
-              );
             }
           });
         } else if (child.userData.originalMaterial) {
           // Restore original material
-          console.log(`Restoring original material for ${child.name}`);
+
           if (Array.isArray(child.material)) {
             // For material arrays, we need to restore properties individually
             child.material.forEach((mat, index) => {
@@ -1067,8 +990,6 @@ function Model({
   useEffect(() => {
     if (!gltf?.scene) return;
 
-    console.log("Setting initial Boombox visibility on model load");
-
     // Use the same logic as our toggle effect to find and set initial visibility
     const setBoomboxInitialVisibility = () => {
       let boomboxFound = false;
@@ -1094,9 +1015,6 @@ function Model({
         );
 
         if ((child.isMesh || child.isGroup) && isBoombox) {
-          console.log(
-            `Setting initial visibility for Boombox object: ${child.name}`
-          );
           boomboxFound = true;
 
           // Set initial visibility based on 80s mode
@@ -1104,10 +1022,6 @@ function Model({
 
           // Add orange emissive glow to specific Boombox objects
           if (child.name === "Boombox.844" || child.name === "Boombox.836") {
-            console.log(
-              `Setting initial orange emissive glow for ${child.name}`
-            );
-
             // Store original material properties
             if (!child.userData.originalEmissive && child.material) {
               if (Array.isArray(child.material)) {
@@ -1197,9 +1111,6 @@ function Model({
               textureName.toLowerCase().includes("stereo") ||
               textureName.toLowerCase().includes("radio")
             ) {
-              console.log(
-                `Setting initial visibility for Boombox by texture: ${child.name}`
-              );
               child.visible = is80sMode;
               boomboxFound = true;
             }
@@ -1218,9 +1129,6 @@ function Model({
               Math.abs(position.y) < 10 &&
               Math.abs(position.x) < 10
             ) {
-              console.log(
-                `Setting initial visibility for Boombox by size/position: ${child.name}`
-              );
               child.visible = is80sMode;
               boomboxFound = true;
             }
@@ -1230,10 +1138,6 @@ function Model({
 
       // Try root object approach if still not found
       if (!boomboxFound && gltf.scene.name.toLowerCase().includes("boombox")) {
-        console.log(
-          `Setting initial visibility using root model as Boombox: ${gltf.scene.name}`
-        );
-
         gltf.scene.traverse((child) => {
           if (
             child.isMesh &&
@@ -1243,9 +1147,6 @@ function Model({
               child.name.includes("cassette") ||
               child.name.includes("tape"))
           ) {
-            console.log(
-              `Setting initial visibility for Boombox component: ${child.name}`
-            );
             child.visible = is80sMode;
           }
         });
@@ -1260,7 +1161,6 @@ function Model({
   useEffect(() => {
     if (!modelRef.current) return;
 
-    console.log("Toggling Boombox visibility based on 80s mode:", is80sMode);
     let boomboxFound = false;
 
     // Find the Boombox object in the model
@@ -1272,7 +1172,6 @@ function Model({
         "boombox",
         "BoomBox",
         "BOOM_BOX",
-        "BOOM",
       ];
 
       const isBoombox = boomboxPatterns.some(
@@ -1284,9 +1183,6 @@ function Model({
       );
 
       if ((child.isMesh || child.isGroup) && isBoombox) {
-        console.log(
-          `Toggling Boombox object: ${child.name}, visible: ${is80sMode}`
-        );
         boomboxFound = true;
 
         // Toggle visibility based on 80s mode
@@ -1294,8 +1190,6 @@ function Model({
 
         // Add orange emissive glow to specific Boombox objects
         if (child.name === "Boombox.181" || child.name === "Boombox.173") {
-          console.log(`Adding orange emissive glow to ${child.name}`);
-
           // Store original material properties if not already stored
           if (!child.userData.originalEmissive && child.material) {
             if (Array.isArray(child.material)) {
@@ -1409,9 +1303,6 @@ function Model({
             textureName.toLowerCase().includes("stereo") ||
             textureName.toLowerCase().includes("radio")
           ) {
-            console.log(
-              `Toggling Boombox by texture: ${child.name}, visible: ${is80sMode}`
-            );
             child.visible = is80sMode;
             boomboxFound = true;
           }
@@ -1430,15 +1321,14 @@ function Model({
             Math.abs(position.y) < 10 &&
             Math.abs(position.x) < 10
           ) {
-            console.log(
-              `Toggling Boombox by size/position: ${child.name}, visible: ${is80sMode}`
-            );
             child.visible = is80sMode;
             boomboxFound = true;
           }
         }
       });
     }
+
+    // Try root object approach if still not found
   }, [modelRef, is80sMode]);
 
   // Set up Boombox visibility and glow effect
@@ -1446,12 +1336,6 @@ function Model({
     if (!gltf?.scene) return;
     const boomboxLED = gltf.scene.getObjectByName("BoomboxLED_2");
     if (boomboxLED) {
-      console.log("🎵 Initial Boombox LED setup:", {
-        name: boomboxLED.name,
-        is80sMode,
-        showSpotify,
-      });
-
       boomboxRef.current = boomboxLED;
       boomboxLED.visible = is80sMode;
 
@@ -1467,7 +1351,6 @@ function Model({
   // Add effect to track showSpotify changes
   useEffect(() => {
     if (boomboxRef.current?.material) {
-      console.log("🎵 showSpotify changed:", { showSpotify });
       // Immediately update LED state when showSpotify changes
       boomboxRef.current.material.emissiveIntensity = showSpotify ? 0.0 : 2.0;
     }
@@ -1545,7 +1428,6 @@ function Model({
       // If Spotify is showing, ensure LED is off
       if (showSpotify) {
         if (material.emissiveIntensity !== 0.0) {
-          console.log("🎵 Forcing LED off");
           material.emissiveIntensity = 0.0;
         }
         return; // Skip animation when Spotify is showing
@@ -1569,6 +1451,14 @@ function Model({
           pointerEvents: showFloatingViewer ? "none" : "auto",
         }}
       />
+
+      {tooltips.map((tooltip) => (
+        <XCandleTooltip
+          key={`tooltip-${tooltip.id}`}
+          position={tooltip.position}
+          username={tooltip.username}
+        />
+      ))}
       <DarkClouds />
     </>
   );
@@ -1578,5 +1468,4 @@ function Model({
 useGLTF.preload("/altarBoomboxCandles.glb");
 useGLTF.preload("/XCandle.glb");
 
-export { Sun }; // Export the Sun component
 export default Model;

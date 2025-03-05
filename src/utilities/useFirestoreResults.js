@@ -14,6 +14,7 @@ export function useFirestoreResults() {
         image: doc.data().image,
         message: doc.data().message,
         burnedAmount: doc.data().burnedAmount || 1,
+        staked: doc.data().staked || false,
       }));
 
       console.log("🔥 Firestore results fetched:", fetchedResults); // ✅ Log results

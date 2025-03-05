@@ -210,8 +210,6 @@ function ThreeDVotiveStand({
     const preset = lightingPresets[presetName];
     if (!preset) return;
 
-    console.log(`Applying ${presetName} lighting preset:`, preset);
-
     // Update all lighting properties at once
     setSkyColor(preset.skyColor);
     setGroundColor(preset.groundColor);
@@ -239,7 +237,6 @@ function ThreeDVotiveStand({
 
   // Apply preset when is80sMode prop changes
   useEffect(() => {
-    console.log("ThreeDVotiveStand: is80sMode changed to", is80sMode);
     applyPreset(is80sMode ? "eighties" : "default");
   }, [is80sMode]);
 
@@ -284,7 +281,6 @@ function ThreeDVotiveStand({
 
   // Update sky color (top color)
   const updateSkyColor = (hexColor) => {
-    console.log("Parent: Updating sky color to:", hexColor);
     setSkyColor(hexColor);
 
     // Update the model's sky color if modelRef is available
@@ -295,7 +291,6 @@ function ThreeDVotiveStand({
 
   // Update ground color (bottom color)
   const updateGroundColor = (hexColor) => {
-    console.log("Parent: Updating ground color to:", hexColor);
     setGroundColor(hexColor);
 
     // Update the model's ground color if modelRef is available
@@ -307,19 +302,10 @@ function ThreeDVotiveStand({
   // Update the parent component when model is loaded (only once)
   useEffect(() => {
     if (isModelLoaded && !hasNotifiedParentRef.current) {
-      console.log("ThreeDVotiveStand: Model loaded, notifying BurnGallery");
       setIsLoading(true); // Notify BurnGallery that everything is loaded
       hasNotifiedParentRef.current = true; // Set flag to prevent further notifications
     }
   }, [isModelLoaded, setIsLoading]);
-
-  // Log only once when component mounts
-  useEffect(() => {
-    console.log(
-      "ThreeDVotiveStand: Component mounted with onSpawnReady available:",
-      !!onSpawnReady
-    );
-  }, []); // Empty dependency array
 
   // Handle window resize and maintain consistent pixel ratio
   useEffect(() => {
@@ -418,7 +404,6 @@ function ThreeDVotiveStand({
   useEffect(() => {
     if (rendererRef.current) {
       rendererRef.current.setPixelRatio(currentDpr);
-      console.log(`DPI updated to: ${currentDpr}`);
     }
   }, [currentDpr]);
 
@@ -474,7 +459,6 @@ function ThreeDVotiveStand({
           // Apply the new DPI value to the renderer
           if (rendererRef.current) {
             rendererRef.current.setPixelRatio(nextDpr);
-            console.log(`DPI changed to: ${nextDpr}`);
           }
 
           return nextDpr;
@@ -494,7 +478,6 @@ function ThreeDVotiveStand({
   useEffect(() => {
     if (spotlightRef.current && spotlightTargetRef.current) {
       spotlightRef.current.target = spotlightTargetRef.current;
-      console.log("Spotlight target set up");
     }
   }, []);
 
