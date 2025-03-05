@@ -377,7 +377,6 @@ function Model({
 
   const [xCandleModel, setXCandleModel] = useState(null);
   const xCandleInstances = useRef(new Map()); // To track created instances
-  const [tooltips, setTooltips] = useState([]);
 
   useEffect(() => {
     const loadXCandleModel = async () => {
@@ -428,10 +427,6 @@ function Model({
     });
     xCandleInstances.current.clear();
 
-    setTooltips([]);
-
-    const newTooltips = [];
-
     // Reset ALL candles to be invisible first
     modelRef.current.traverse((child) => {
       if (child.name.startsWith("VCANDLE")) {
@@ -479,13 +474,93 @@ function Model({
             // Create a new XCandle instance
             const xCandleInstance = xCandleModel.clone();
 
-            // Position it at the same location as the VCANDLE
-            xCandleInstance.position.copy(candle.position);
+            // Set the name to ensure it's detected by the animation loop
+            xCandleInstance.name = "XCandle_" + candle.name.slice(-3);
+
+            // Find the glass component to use for positioning
+            const glassComponent = findCandleComponent(candle, "glass");
+
+            if (glassComponent) {
+              // Get the world position of the glass component
+              const glassWorldPosition = new THREE.Vector3();
+              glassComponent.getWorldPosition(glassWorldPosition);
+
+              // Convert world position to local position relative to the model
+              const glassLocalPosition = glassWorldPosition.clone();
+              if (modelRef.current) {
+                // Convert from world space to model's local space
+                modelRef.current.worldToLocal(glassLocalPosition);
+              }
+
+              // Position the XCandle at the glass component's position
+              xCandleInstance.position.copy(glassLocalPosition);
+
+              // Apply a small vertical offset if needed to align the bottom of the XCandle with the altar
+              // This value may need adjustment based on testing
+              const verticalOffset = -0.5; // Small positive value to move up slightly
+              xCandleInstance.position.y += verticalOffset;
+
+              // Copy rotation from the glass component
+              xCandleInstance.rotation.copy(glassComponent.rotation);
+
+              // Get the bounding box of the glass component to determine its size
+              const glassBoundingBox = new THREE.Box3().setFromObject(
+                glassComponent
+              );
+              const glassSize = new THREE.Vector3();
+              glassBoundingBox.getSize(glassSize);
+
+              // Get the bounding box of the XCandle to determine its size
+              const xCandleBoundingBox = new THREE.Box3().setFromObject(
+                xCandleInstance
+              );
+              const xCandleSize = new THREE.Vector3();
+              xCandleBoundingBox.getSize(xCandleSize);
+
+              // Calculate scale factor to match the glass component's size
+              // Only apply if the sizes are significantly different
+              if (glassSize.length() > 0 && xCandleSize.length() > 0) {
+                const scaleX = glassSize.x / xCandleSize.x;
+                const scaleY = glassSize.y / xCandleSize.y;
+                const scaleZ = glassSize.z / xCandleSize.z;
+
+                // Use the average scale as a reference, but don't apply extreme scaling
+                const avgScale = (scaleX + scaleY + scaleZ) / 3;
+                if (avgScale > 0.1 && avgScale < 10) {
+                  // Apply a slightly reduced scale to ensure the XCandle fits well
+                  const adjustedScale = avgScale * 0.9;
+                  xCandleInstance.scale.set(
+                    adjustedScale,
+                    adjustedScale,
+                    adjustedScale
+                  );
+                  console.log(
+                    `Applied scale adjustment to XCandle: ${adjustedScale}`
+                  );
+                }
+              }
+
+              console.log(
+                `Positioned XCandle using glass component at:`,
+                glassLocalPosition
+              );
+            } else {
+              // Fallback to using the VCANDLE's position if glass component not found
+              xCandleInstance.position.copy(candle.position);
+              console.log(
+                `Glass component not found, using VCANDLE position:`,
+                candle.position
+              );
+            }
 
             // Add user data to the XCandle for interactivity
             xCandleInstance.userData = {
               ...candle.userData,
               originalVCandleName: candle.name,
+              // Add melting properties
+              isMelting: true,
+              meltingProgress: 0,
+              originalScale: xCandleInstance.scale.clone(),
             };
 
             // Add flame effects, etc. to the XCandle instance
@@ -493,21 +568,25 @@ function Model({
               if (child.name.startsWith("XFlame")) {
                 child.visible = true;
               }
+
+              // Ensure all child objects have the same userData for melting
+              if (child.isMesh) {
+                child.userData = {
+                  ...child.userData,
+                  parentXCandle: xCandleInstance.name,
+                  isMelting: true,
+                };
+              }
             });
             // Add the XCandle to the scene AFTER traversing
             modelRef.current.add(xCandleInstance);
 
             // Keep track of the instance for cleanup
             xCandleInstances.current.set(candleIndex, xCandleInstance);
-            newTooltips.push({
-              id: candleIndex,
-              username: result.userName || "Anonymous",
-              position: [
-                xCandleInstance.position.x,
-                xCandleInstance.position.y + 3,
-                xCandleInstance.position.z,
-              ],
-            });
+
+            console.log(
+              `Created XCandle instance for unstaked user ${result.userName}`
+            );
           } else {
             console.warn(
               "XCandle model not loaded yet for unstaked candle:",
@@ -518,8 +597,6 @@ function Model({
       }
     });
 
-    setTooltips(newTooltips);
-
     return () => {
       // Cleanup function
       if (modelRef.current) {
@@ -527,32 +604,6 @@ function Model({
       }
     };
   }, [results, modelRef.current, xCandleModel]); // Add xCandleModel to dependencies
-
-  const XCandleTooltip = ({ position, username }) => {
-    const tooltipRef = useRef();
-
-    // Make the tooltip face the camera
-    useFrame(({ camera }) => {
-      if (tooltipRef.current) {
-        tooltipRef.current.lookAt(camera.position);
-      }
-    });
-
-    return (
-      <group position={position} ref={tooltipRef}>
-        <Text
-          fontSize={0.5}
-          color="#ffffff"
-          anchorX="center"
-          anchorY="bottom"
-          outlineWidth={0.05}
-          outlineColor="#000000"
-        >
-          {username}
-        </Text>
-      </group>
-    );
-  };
 
   // useEffect(() => {
   //   if (results.length === 0 || !modelRef.current) return;
@@ -1363,6 +1414,14 @@ function Model({
     modelRef.current.traverse((child) => {
       // Handle melting for XCandle objects
       if (child.name.startsWith("XCandle") && child.userData?.isMelting) {
+        // Debug log to verify melting is being applied
+        if (child.userData.meltingProgress === 0) {
+          console.log(`Starting melting for ${child.name}`, {
+            originalScale: child.userData.originalScale,
+            userData: child.userData,
+          });
+        }
+
         child.userData.meltingProgress += delta;
 
         const meltingSpeed = 0.1; // Slower melting
@@ -1451,14 +1510,6 @@ function Model({
           pointerEvents: showFloatingViewer ? "none" : "auto",
         }}
       />
-
-      {tooltips.map((tooltip) => (
-        <XCandleTooltip
-          key={`tooltip-${tooltip.id}`}
-          position={tooltip.position}
-          username={tooltip.username}
-        />
-      ))}
       <DarkClouds />
     </>
   );
