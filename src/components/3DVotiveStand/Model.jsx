@@ -67,17 +67,25 @@ function Annotation({
         circleRef.current.scale.x = THREE.MathUtils.lerp(
           circleRef.current.scale.x,
           targetScale,
-          0.15
+          0.1
         );
         circleRef.current.scale.y = THREE.MathUtils.lerp(
           circleRef.current.scale.y,
           targetScale,
-          0.15
+          0.1
         );
 
-        // Scale the border slightly larger than the image
-        borderRef.current.scale.x = circleRef.current.scale.x;
-        borderRef.current.scale.y = circleRef.current.scale.y;
+        // Also scale the border
+        borderRef.current.scale.x = THREE.MathUtils.lerp(
+          borderRef.current.scale.x,
+          targetScale,
+          0.1
+        );
+        borderRef.current.scale.y = THREE.MathUtils.lerp(
+          borderRef.current.scale.y,
+          targetScale,
+          0.1
+        );
       }
     }
   });

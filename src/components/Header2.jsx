@@ -197,7 +197,7 @@ function Header2() {
   };
 
   // Firebase sign-in logic using Clerk's custom token
-  const signIntoFirebaseWithClerk = async () => {
+  const signIntoFirebaseWithClerk = useCallback(async () => {
     try {
       const token = await getToken({ template: "integration_firebase" });
       if (!token) throw new Error("No Firebase token from Clerk.");
@@ -208,7 +208,7 @@ function Header2() {
     } catch (error) {
       console.error("Error signing into Firebase:", error);
     }
-  };
+  }, [getToken]);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -266,7 +266,7 @@ function Header2() {
 
       saveUserDataToFirestore();
     }
-  }, [isLoaded, isSignedIn, user]);
+  }, [isLoaded, isSignedIn, user, signIntoFirebaseWithClerk]);
   // Update menu width based on screen size
   useEffect(() => {
     const handleResize = () => {
@@ -326,7 +326,7 @@ function Header2() {
           <header id="header" style={{ position: "relative", width: "100%" }}>
             <div className="menu-icon" onClick={toggleMenu}></div>
             <div className="menu-wrapper">
-              <a href="/home" className="menu-item">
+              <Link href="/home" className="menu-item">
                 <div className="logo-menu-container">
                   <div id="logo">
                     <img
@@ -340,7 +340,7 @@ function Header2() {
                     <RotatingBadge2 />
                   </div>
                 </div>
-              </a>
+              </Link>
               <div ref={node}>
                 <Menu
                   isOpen={menuOpen}

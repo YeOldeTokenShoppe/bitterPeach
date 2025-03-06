@@ -144,7 +144,7 @@ function HolographicStatue() {
           if (child.name.toLowerCase().includes("halo")) {
             // ✅ Assign a new material that keeps its original Blender colors
             child.material = new THREE.MeshStandardMaterial({
-              color: child.material.color, // Keep Blender’s original color
+              color: child.material.color, // Keep Blender's original color
               emissive: child.material.color, // Make it glow with its color
               emissiveIntensity: 2.5, // Increase emissiveness
               metalness: 0.9, // Make it metallic
@@ -168,7 +168,7 @@ function HolographicStatue() {
         scene.remove(groupRef.current.anchor);
       }
     };
-  }, [scene]);
+  }, [scene, holographicMaterial, loader]);
 
   useFrame((state, delta) => {
     if (statueRef.current && groupRef.current) {

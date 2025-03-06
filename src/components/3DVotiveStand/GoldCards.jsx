@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import styles from "../../../styles/Goldcards.module.css";
 import Modal from "./Modal";
 
@@ -75,7 +76,7 @@ const GoldCards = ({ setGoldCardsLoaded }) => {
     };
 
     preloadImages();
-  }, [setGoldCardsLoaded, cards]);
+  }, [setGoldCardsLoaded]);
 
   const handleImageLoad = (src) => {
     setLoadedImages((prev) => {
@@ -100,11 +101,13 @@ const GoldCards = ({ setGoldCardsLoaded }) => {
             className={styles.card}
             onClick={() => setSelectedCard(card)}
           >
-            <img
+            <Image
               alt={card.title}
               src={card.imgSrc}
               className={styles.cardImage}
               onLoad={() => handleImageLoad(card.imgSrc)}
+              width={100}
+              height={100}
             />
             <h2>{card.title}</h2>
             <p>{card.description}</p>

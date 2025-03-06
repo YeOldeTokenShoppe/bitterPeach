@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Box,
   Flex,
@@ -245,7 +245,7 @@ const SidePanel = ({ onButtonClick, is80sMode, toggle80sMode }) => {
   };
 
   // Firebase authentication function
-  const signIntoFirebaseWithClerk = async () => {
+  const signIntoFirebaseWithClerk = useCallback(async () => {
     try {
       const token = await getToken({ template: "integration_firebase" });
       if (!token) throw new Error("No Firebase token from Clerk.");
@@ -256,7 +256,7 @@ const SidePanel = ({ onButtonClick, is80sMode, toggle80sMode }) => {
     } catch (error) {
       console.error("Error signing into Firebase:", error);
     }
-  };
+  }, [getToken]);
 
   // Close menu when clicking outside
   useEffect(() => {

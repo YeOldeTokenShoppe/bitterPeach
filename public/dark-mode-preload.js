@@ -3,7 +3,11 @@
   // Apply dark background immediately
   document.documentElement.style.backgroundColor = "#1b1724";
   document.documentElement.style.color = "white";
-  document.body.style.backgroundColor = "#1b1724";
+
+  // Check if body exists before accessing its style
+  if (document.body) {
+    document.body.style.backgroundColor = "#1b1724";
+  }
 
   // Check if we're on the gallery page by URL path
   var isGalleryPage = window.location.pathname === "/gallery";
@@ -12,14 +16,18 @@
   // Apply the appropriate background color based on the page
   if (isGalleryPage) {
     document.documentElement.style.backgroundColor = "#000000";
-    document.body.style.backgroundColor = "#000000";
+    if (document.body) {
+      document.body.style.backgroundColor = "#000000";
+      document.body.classList.add("gallery-page");
+    }
     document.documentElement.classList.add("gallery-page");
-    document.body.classList.add("gallery-page");
   } else if (isScenePage) {
     document.documentElement.style.backgroundColor = "#0d0d0d";
-    document.body.style.backgroundColor = "#0d0d0d";
+    if (document.body) {
+      document.body.style.backgroundColor = "#0d0d0d";
+      document.body.classList.add("scene-page");
+    }
     document.documentElement.classList.add("scene-page");
-    document.body.classList.add("scene-page");
   }
 
   // Create and inject a style element with critical CSS

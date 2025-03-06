@@ -86,12 +86,12 @@ function MyApp({ Component, pageProps }: MyAppProps) {
               }`.trim()} // Dynamically add class names
               style={{
                 backgroundColor: isGalleryPage
-                  ? ""
+                  ? "#000000"
                   : isScenePage
                   ? "#0d0d0d"
                   : "transparent",
-                width: isGalleryPage || isScenePage ? "100%" : "auto",
-                margin: isGalleryPage || isScenePage ? "0" : "auto",
+                width: "100%",
+                margin: "0",
                 paddingTop: "0", // Removed padding since header now scrolls with the page
               }}
             >

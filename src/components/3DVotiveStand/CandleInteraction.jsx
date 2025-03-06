@@ -481,7 +481,7 @@ function SceneContent({ userData }) {
         child.visible = hasCustomUserImage;
       }
     });
-  }, [scene, userData, animations]);
+  }, [scene, userData, animations, applyDynamicTextToLabel]);
 
   return (
     <>

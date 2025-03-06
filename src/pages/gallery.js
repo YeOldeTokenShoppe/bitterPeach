@@ -64,16 +64,31 @@ export default function GalleryPage() {
 
   // Add useEffect to set body class
   useEffect(() => {
-    // Add gallery-page class to html and body
-    document.documentElement.classList.add("gallery-page");
-    document.body.classList.add("gallery-page");
-    document.documentElement.style.backgroundColor = "#000000";
-    document.body.style.backgroundColor = "#000000";
+    // Function to apply styles safely
+    const applyStyles = () => {
+      // Add gallery-page class to html and body
+      document.documentElement.classList.add("gallery-page");
+      document.documentElement.style.backgroundColor = "#000000";
+
+      if (document.body) {
+        document.body.classList.add("gallery-page");
+        document.body.style.backgroundColor = "#000000";
+      }
+    };
+
+    // Apply styles immediately
+    applyStyles();
+
+    // Also apply after a short delay to ensure body is available
+    const timeoutId = setTimeout(applyStyles, 100);
 
     // Cleanup function to remove class when component unmounts
     return () => {
+      clearTimeout(timeoutId);
       document.documentElement.classList.remove("gallery-page");
-      document.body.classList.remove("gallery-page");
+      if (document.body) {
+        document.body.classList.remove("gallery-page");
+      }
     };
   }, []);
 
@@ -95,13 +110,27 @@ export default function GalleryPage() {
 
   // In GalleryPage.js
   useEffect(() => {
-    if (isModalOpen) {
+    if (isModalOpen && typeof document !== "undefined") {
       // Create the container if it doesn't exist
       let container = document.getElementById("oddcast-container");
       if (!container) {
         container = document.createElement("div");
         container.id = "oddcast-container";
-        document.body.appendChild(container);
+
+        // Make sure document.body exists before appending
+        if (document.body) {
+          document.body.appendChild(container);
+        } else {
+          // If body doesn't exist yet, wait for it
+          const checkBodyAndAppend = () => {
+            if (document.body) {
+              document.body.appendChild(container);
+            } else {
+              setTimeout(checkBodyAndAppend, 50);
+            }
+          };
+          setTimeout(checkBodyAndAppend, 50);
+        }
       }
 
       // Load Oddcast functions
@@ -129,10 +158,13 @@ export default function GalleryPage() {
         }
       };
 
-      container.appendChild(functionScript);
+      // Only append if container exists
+      if (container.parentNode) {
+        container.appendChild(functionScript);
+      }
 
       return () => {
-        if (container) {
+        if (container && container.parentNode) {
           container.innerHTML = "";
         }
       };
