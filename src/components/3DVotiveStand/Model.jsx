@@ -12,6 +12,7 @@ import {
   Text,
   Environment,
   useTexture,
+  Plane,
 } from "@react-three/drei";
 import * as THREE from "three";
 import { useFirestoreResults } from "../../utilities/useFirestoreResults";
@@ -21,6 +22,9 @@ import { ref, getDownloadURL } from "firebase/storage";
 import { storage } from "../../utilities/firebaseClient"; // Import storage directly
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 
+// Default profile image to use when user has no image
+const DEFAULT_PROFILE_IMAGE = "/default-profile.jpg";
+
 // Toggle visibility based on 80s mode
 // useEffect(() => {
 //   if (groupRef.current) {
@@ -29,6 +33,214 @@ import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 // }, [is80sMode]);
 
 // Use useFrame to update the sun's position relative to the camera
+
+// Add Annotation component using Text instead of Html
+function Annotation({
+  children,
+  position,
+  scale = 1,
+  isHighlighted = false,
+  message = "",
+  imageUrl = null,
+  onAnnotationClick,
+  showFloatingViewer = false,
+}) {
+  const [texture, setTexture] = useState(null);
+  const [isLoading, setIsLoading] = useState(!!imageUrl);
+  const [isHovered, setIsHovered] = useState(false);
+  const { camera } = useThree();
+  const groupRef = useRef();
+  const circleRef = useRef();
+  const borderRef = useRef();
+
+  // Billboard effect - make the annotation always face the camera
+  useFrame(() => {
+    if (groupRef.current) {
+      groupRef.current.quaternion.copy(camera.quaternion);
+
+      // Animate scale on hover
+      if (circleRef.current && borderRef.current) {
+        // Target scale based on hover state
+        const targetScale = isHovered ? 2.5 : 1.0;
+
+        // Smooth animation using lerp (linear interpolation)
+        circleRef.current.scale.x = THREE.MathUtils.lerp(
+          circleRef.current.scale.x,
+          targetScale,
+          0.15
+        );
+        circleRef.current.scale.y = THREE.MathUtils.lerp(
+          circleRef.current.scale.y,
+          targetScale,
+          0.15
+        );
+
+        // Scale the border slightly larger than the image
+        borderRef.current.scale.x = circleRef.current.scale.x;
+        borderRef.current.scale.y = circleRef.current.scale.y;
+      }
+    }
+  });
+
+  // Handle click on the annotation
+  const handleClick = (event) => {
+    // Prevent the event from bubbling up to parent elements
+    event.stopPropagation();
+
+    // Prevent the default behavior
+    if (event.nativeEvent) {
+      event.nativeEvent.preventDefault();
+    }
+
+    if (showFloatingViewer) return;
+
+    console.log("Annotation clicked:", children);
+
+    // Call the onAnnotationClick callback if provided
+    if (onAnnotationClick) {
+      onAnnotationClick(event);
+    }
+  };
+
+  // Handle pointer events for hover effect
+  const handlePointerOver = (event) => {
+    event.stopPropagation();
+    setIsHovered(true);
+    document.body.style.cursor = "pointer";
+  };
+
+  const handlePointerOut = (event) => {
+    event.stopPropagation();
+    setIsHovered(false);
+    document.body.style.cursor = "auto";
+  };
+
+  // Load user image texture
+  useEffect(() => {
+    if (!imageUrl) {
+      console.log("No image URL provided for annotation:", children);
+      return;
+    }
+
+    console.log("Loading image for annotation:", children, "URL:", imageUrl);
+    const textureLoader = new THREE.TextureLoader();
+    setIsLoading(true);
+
+    textureLoader.load(
+      imageUrl,
+      (loadedTexture) => {
+        console.log("Successfully loaded image for:", children);
+        loadedTexture.encoding = THREE.sRGBEncoding;
+        setTexture(loadedTexture);
+        setIsLoading(false);
+      },
+      undefined,
+      (error) => {
+        console.warn(
+          "Error loading annotation image:",
+          error,
+          "for user:",
+          children
+        );
+        setIsLoading(false);
+
+        // Load default image on error
+        textureLoader.load(DEFAULT_PROFILE_IMAGE, (defaultTexture) => {
+          console.log("Loaded default image for:", children);
+          defaultTexture.encoding = THREE.sRGBEncoding;
+          setTexture(defaultTexture);
+        });
+      }
+    );
+
+    return () => {
+      if (texture) texture.dispose();
+    };
+  }, [imageUrl, children]);
+
+  // When highlighted, show text with username only
+  if (isHighlighted) {
+    return (
+      <group
+        ref={groupRef}
+        position={position}
+        userData={{ isAnnotation: true }}
+      >
+        {/* Username text */}
+        <Text
+          position={[0, 1.75, 0]}
+          fontSize={0.35 * scale}
+          color="#ffcc00"
+          anchorX="center"
+          anchorY="middle"
+          outlineWidth={0.03}
+          outlineColor="#000000"
+          renderOrder={1000}
+          depthTest={true}
+          fillOpacity={1}
+          strokeOpacity={1}
+          userData={{ isAnnotation: true }}
+        >
+          {children}
+        </Text>
+      </group>
+    );
+  }
+
+  // When not highlighted, show circular user image with pointer events
+  return (
+    <group
+      ref={groupRef}
+      position={[position.x, position.y + 2, position.z]}
+      userData={{ isAnnotation: true, clickable: true }}
+      onPointerDown={handleClick}
+      onPointerOver={handlePointerOver}
+      onPointerOut={handlePointerOut}
+    >
+      {/* Circular background for the image */}
+      <mesh
+        ref={circleRef}
+        renderOrder={1000}
+        userData={{ isAnnotation: true, clickable: true }}
+        onPointerDown={handleClick}
+        onPointerOver={handlePointerOver}
+        onPointerOut={handlePointerOut}
+      >
+        <circleGeometry args={[0.2 * scale, 32]} />
+        <meshBasicMaterial
+          color={isLoading ? "#333333" : "#ffffff"}
+          transparent
+          opacity={0.9}
+          side={THREE.DoubleSide}
+          depthTest={true}
+          map={texture}
+        >
+          {texture && <primitive attach="map" object={texture} />}
+        </meshBasicMaterial>
+      </mesh>
+
+      {/* Circle border */}
+      <mesh
+        ref={borderRef}
+        position={[0, 0, -0.001]}
+        renderOrder={999}
+        userData={{ isAnnotation: true, clickable: true }}
+        onPointerDown={handleClick}
+        onPointerOver={handlePointerOver}
+        onPointerOut={handlePointerOut}
+      >
+        <ringGeometry args={[0.2 * scale, 0.22 * scale, 32]} />
+        <meshBasicMaterial
+          color="#ffcc00"
+          transparent
+          opacity={0.8}
+          side={THREE.DoubleSide}
+          depthTest={true}
+        />
+      </mesh>
+    </group>
+  );
+}
 
 function Model({
   scale,
@@ -64,6 +276,8 @@ function Model({
   const lightHelperRef = useRef();
   const lightMarkerRef = useRef();
   const boomboxRef = useRef();
+  const meltingStateRef = useRef(new Map());
+  const meltedCandlesRef = useRef(new Set());
 
   const [selectedCandleData, setSelectedCandleData] = useState(null);
   const [showLightHelper, setShowLightHelper] = useState(false); // Control visibility of helper - set to false
@@ -377,12 +591,18 @@ function Model({
 
   const [xCandleModel, setXCandleModel] = useState(null);
   const xCandleInstances = useRef(new Map()); // To track created instances
+  const [hasHandledFirstClick, setHasHandledFirstClick] = useState(false);
 
   useEffect(() => {
     const loadXCandleModel = async () => {
       try {
         // Load XCandle.glb
-        const { scene: xCandleScene } = await useGLTF("/XCandle.glb", true);
+        const { scene: xCandleScene } = await useGLTF("/XCandle1.glb", true);
+
+        // Set a base scale for the model template
+        xCandleScene.scale.set(0.5, 0.5, 0.5); // Adjust these values as needed
+
+        // Store the scaled model
         setXCandleModel(xCandleScene.clone());
       } catch (error) {
         console.error("Error loading XCandle model:", error);
@@ -417,8 +637,20 @@ function Model({
     };
   }, []);
   useEffect(() => {
-    if (results.length === 0 || !modelRef.current) return;
+    if (results.length === 0 || !modelRef.current || !xCandleModel) return;
 
+    const newMeltingState = new Map();
+
+    // Store existing positions before cleanup
+    const existingPositions = new Map();
+    xCandleInstances.current.forEach((instance, key) => {
+      existingPositions.set(instance.name, {
+        position: instance.position.clone(),
+        scale: instance.scale.clone(),
+        userData: { ...instance.userData },
+        meltingState: meltingStateRef.current.get(instance.name),
+      });
+    });
     // Cleanup any existing XCandle instances first
     xCandleInstances.current.forEach((instance) => {
       if (instance.parent) {
@@ -434,167 +666,236 @@ function Model({
       }
     });
 
-    const availableIndices = Array.from({ length: 80 }, (_, i) =>
-      String(i + 1).padStart(3, "0")
+    // Sort results by burnedAmount (descending) to get top burners
+    const sortedByBurnedAmount = [...results].sort(
+      (a, b) => b.burnedAmount - a.burnedAmount
     );
 
-    const shuffledIndices = availableIndices.sort(() => Math.random() - 0.5);
-    const userCandleIndices = shuffledIndices.slice(0, results.length);
+    // Sort results by createdAt (descending) to get most recent
+    const sortedByCreatedAt = [...results].sort((a, b) => {
+      // Handle different possible date formats
+      const getDate = (timestamp) => {
+        if (!timestamp) return new Date(0);
+        if (timestamp.toDate) return timestamp.toDate(); // Firestore Timestamp
+        if (timestamp instanceof Date) return timestamp; // JavaScript Date
+        if (typeof timestamp === "number") return new Date(timestamp); // Unix timestamp
+        if (typeof timestamp === "string") return new Date(timestamp); // ISO string
+        return new Date(0); // fallback
+      };
 
-    // Process all user candles
-    results.forEach((result, index) => {
-      const candleIndex = userCandleIndices[index];
-      const candleName = `VCANDLE${candleIndex}`;
+      const dateA = getDate(a.createdAt);
+      const dateB = getDate(b.createdAt);
+      return dateB - dateA;
+    });
+
+    // Get top 4 burners
+    const topBurners = sortedByBurnedAmount.slice(0, 4);
+
+    // Get next 4 most recent users, excluding those already in topBurners
+    const recentUsers = sortedByCreatedAt
+      .filter((user) => !topBurners.some((topUser) => topUser.id === user.id))
+      .slice(0, 4);
+
+    // Combine assignments for special positions
+    const specialAssignments = new Map();
+
+    // Assign top burners to VCANDLE001-004
+    topBurners.forEach((user, index) => {
+      const position = String(index + 1).padStart(3, "0");
+      specialAssignments.set(`VCANDLE${position}`, user);
+    });
+
+    // Assign recent users to VCANDLE005-008
+    recentUsers.forEach((user, index) => {
+      const position = String(index + 5).padStart(3, "0");
+      specialAssignments.set(`VCANDLE${position}`, user);
+    });
+
+    // Get remaining available indices (009-080)
+    const remainingIndices = Array.from({ length: 72 }, (_, i) =>
+      String(i + 9).padStart(3, "0")
+    );
+
+    // Get remaining users (not in special positions)
+    const remainingUsers = results.filter(
+      (user) =>
+        ![...topBurners, ...recentUsers].some(
+          (specialUser) => specialUser.id === user.id
+        )
+    );
+
+    // Shuffle remaining positions for random assignment
+    const shuffledIndices = remainingIndices.sort(() => Math.random() - 0.5);
+    const userCandleIndices = shuffledIndices.slice(0, remainingUsers.length);
+
+    // Process all candle assignments
+    const processCandle = (candleName, result) => {
       const candle = modelRef.current.getObjectByName(candleName);
+      if (!candle) return;
 
-      if (candle) {
-        // Store the result data in userData for both types of candles
-        candle.userData = {
-          hasUser: true,
-          userName: result.userName || "Anonymous",
-          image: result.image,
-          message: result.message,
-          burnedAmount: result.burnedAmount || 1,
-          meltingProgress: 0,
-          staked: result.staked !== false, // Default to true if undefined
-        };
+      // Extract the index from the candle name (e.g., "VCANDLE001" -> "001")
+      const candleIndex = candleName.slice(-3);
 
-        if (result.staked !== false) {
-          // STAKED CANDLE: Make the VCANDLE visible
-          if (result.image) applyUserImageToLabels(candle, result.image);
+      // Store the result data in userData for both types of candles
+      candle.userData = {
+        userName: result.userName || "Anonymous",
+        image: result.image,
+        message: result.message,
+        burnedAmount: result.burnedAmount || 1,
+        meltingProgress: 0,
+        staked: result.staked !== false,
+        createdAt: result.createdAt,
+      };
 
-          // Make all children visible for staked user candles
-          candle.children.forEach((child) => {
-            console.log(`Setting visibility for ${child.name} to true`);
-            child.visible = true;
-          });
-        } else {
-          // UNSTAKED CANDLE: Keep VCANDLE invisible, create XCandle
-          if (xCandleModel) {
-            // Create a new XCandle instance
-            const xCandleInstance = xCandleModel.clone();
+      if (result.staked !== false) {
+        if (result.image) applyUserImageToLabels(candle, result.image);
+        candle.children.forEach((child) => {
+          child.visible = true;
+        });
+      } else {
+        // UNSTAKED CANDLE: Keep VCANDLE invisible, create XCandle
+        if (xCandleModel) {
+          // Create a new XCandle instance
+          const xCandleInstance = xCandleModel.clone();
 
-            // Set the name to ensure it's detected by the animation loop
-            xCandleInstance.name = "XCandle_" + candle.name.slice(-3);
+          // Set the name and ID for the instance
+          const instanceId = "XCandle_" + candleIndex;
+          xCandleInstance.name = instanceId;
 
-            // Find the glass component to use for positioning
-            const glassComponent = findCandleComponent(candle, "glass");
+          // Apply base scaling to the instance (adjust these values as needed)
+          const baseScale = 1.5; // Base scale factor
+          xCandleInstance.scale.set(baseScale, baseScale, baseScale);
 
-            if (glassComponent) {
-              // Get the world position of the glass component
-              const glassWorldPosition = new THREE.Vector3();
-              glassComponent.getWorldPosition(glassWorldPosition);
+          // Find the glass component to use for positioning
+          const glassComponent = findCandleComponent(candle, "glass");
 
-              // Convert world position to local position relative to the model
-              const glassLocalPosition = glassWorldPosition.clone();
-              if (modelRef.current) {
-                // Convert from world space to model's local space
-                modelRef.current.worldToLocal(glassLocalPosition);
-              }
+          if (glassComponent) {
+            // Get the world position of the glass component
+            const glassWorldPosition = new THREE.Vector3();
+            glassComponent.getWorldPosition(glassWorldPosition);
 
-              // Position the XCandle at the glass component's position
-              xCandleInstance.position.copy(glassLocalPosition);
-
-              // Apply a small vertical offset if needed to align the bottom of the XCandle with the altar
-              // This value may need adjustment based on testing
-              const verticalOffset = -0.5; // Small positive value to move up slightly
-              xCandleInstance.position.y += verticalOffset;
-
-              // Copy rotation from the glass component
-              xCandleInstance.rotation.copy(glassComponent.rotation);
-
-              // Get the bounding box of the glass component to determine its size
-              const glassBoundingBox = new THREE.Box3().setFromObject(
-                glassComponent
-              );
-              const glassSize = new THREE.Vector3();
-              glassBoundingBox.getSize(glassSize);
-
-              // Get the bounding box of the XCandle to determine its size
-              const xCandleBoundingBox = new THREE.Box3().setFromObject(
-                xCandleInstance
-              );
-              const xCandleSize = new THREE.Vector3();
-              xCandleBoundingBox.getSize(xCandleSize);
-
-              // Calculate scale factor to match the glass component's size
-              // Only apply if the sizes are significantly different
-              if (glassSize.length() > 0 && xCandleSize.length() > 0) {
-                const scaleX = glassSize.x / xCandleSize.x;
-                const scaleY = glassSize.y / xCandleSize.y;
-                const scaleZ = glassSize.z / xCandleSize.z;
-
-                // Use the average scale as a reference, but don't apply extreme scaling
-                const avgScale = (scaleX + scaleY + scaleZ) / 3;
-                if (avgScale > 0.1 && avgScale < 10) {
-                  // Apply a slightly reduced scale to ensure the XCandle fits well
-                  const adjustedScale = avgScale * 0.9;
-                  xCandleInstance.scale.set(
-                    adjustedScale,
-                    adjustedScale,
-                    adjustedScale
-                  );
-                  console.log(
-                    `Applied scale adjustment to XCandle: ${adjustedScale}`
-                  );
-                }
-              }
-
-              console.log(
-                `Positioned XCandle using glass component at:`,
-                glassLocalPosition
-              );
-            } else {
-              // Fallback to using the VCANDLE's position if glass component not found
-              xCandleInstance.position.copy(candle.position);
-              console.log(
-                `Glass component not found, using VCANDLE position:`,
-                candle.position
-              );
+            // Convert world position to local position relative to the model
+            const glassLocalPosition = glassWorldPosition.clone();
+            if (modelRef.current) {
+              // Convert from world space to model's local space
+              modelRef.current.worldToLocal(glassLocalPosition);
             }
 
-            // Add user data to the XCandle for interactivity
-            xCandleInstance.userData = {
-              ...candle.userData,
-              originalVCandleName: candle.name,
-              // Add melting properties
-              isMelting: true,
-              meltingProgress: 0,
-              originalScale: xCandleInstance.scale.clone(),
-            };
+            // Position the XCandle at the glass component's position
+            xCandleInstance.position.copy(glassLocalPosition);
 
-            // Add flame effects, etc. to the XCandle instance
-            xCandleInstance.traverse((child) => {
-              if (child.name.startsWith("XFlame")) {
-                child.visible = true;
+            // Apply a small vertical offset if needed to align the bottom of the XCandle with the altar
+            // This value may need adjustment based on testing
+            const verticalOffset = -0.5; // Small positive value to move up slightly
+            xCandleInstance.position.y += verticalOffset;
+
+            // Copy rotation from the glass component
+            xCandleInstance.rotation.copy(glassComponent.rotation);
+
+            // Get the bounding box of the glass component to determine its size
+            const glassBoundingBox = new THREE.Box3().setFromObject(
+              glassComponent
+            );
+            const glassSize = new THREE.Vector3();
+            glassBoundingBox.getSize(glassSize);
+
+            // Get the bounding box of the XCandle to determine its size
+            const xCandleBoundingBox = new THREE.Box3().setFromObject(
+              xCandleInstance
+            );
+            const xCandleSize = new THREE.Vector3();
+            xCandleBoundingBox.getSize(xCandleSize);
+
+            // Calculate scale factor to match the glass component's size
+            // Only apply if the sizes are significantly different
+            if (glassSize.length() > 0 && xCandleSize.length() > 0) {
+              const scaleX = glassSize.x / xCandleSize.x;
+              const scaleY = glassSize.y / xCandleSize.y;
+              const scaleZ = glassSize.z / xCandleSize.z;
+
+              // Use the average scale as a reference, but don't apply extreme scaling
+              const avgScale = (scaleX + scaleY + scaleZ) / 3;
+              if (avgScale > 0.1 && avgScale < 10) {
+                // Apply a slightly reduced scale to ensure the XCandle fits well
+                // Multiply by baseScale to maintain the base scaling
+                const adjustedScale = avgScale * baseScale * 1.5;
+                xCandleInstance.scale.set(
+                  adjustedScale,
+                  adjustedScale,
+                  adjustedScale
+                );
+                console.log(
+                  `Applied scale adjustment to XCandle: ${adjustedScale}`
+                );
               }
-
-              // Ensure all child objects have the same userData for melting
-              if (child.isMesh) {
-                child.userData = {
-                  ...child.userData,
-                  parentXCandle: xCandleInstance.name,
-                  isMelting: true,
-                };
-              }
-            });
-            // Add the XCandle to the scene AFTER traversing
-            modelRef.current.add(xCandleInstance);
-
-            // Keep track of the instance for cleanup
-            xCandleInstances.current.set(candleIndex, xCandleInstance);
+            }
 
             console.log(
-              `Created XCandle instance for unstaked user ${result.userName}`
+              `Positioned XCandle using glass component at:`,
+              glassLocalPosition
             );
           } else {
-            console.warn(
-              "XCandle model not loaded yet for unstaked candle:",
-              result
+            // Fallback to using the VCANDLE's position if glass component not found
+            xCandleInstance.position.copy(candle.position);
+            console.log(
+              `Glass component not found, using VCANDLE position:`,
+              candle.position
             );
           }
+
+          // Add user data to the XCandle for interactivity
+          xCandleInstance.userData = {
+            ...candle.userData,
+            originalVCandleName: candle.name,
+            isMelting: true,
+            meltingProgress: 0,
+            originalScale: xCandleInstance.scale.clone(),
+            createdAt: result.createdAt, // Store the createdAt timestamp
+          };
+
+          // Add flame effects, etc. to the XCandle instance
+          xCandleInstance.traverse((child) => {
+            if (child.name.startsWith("XFlame")) {
+              child.visible = true;
+            }
+
+            // Ensure all child objects have the same userData for melting
+            if (child.isMesh) {
+              child.userData = {
+                ...child.userData,
+                parentXCandle: xCandleInstance.name,
+                isMelting: true,
+              };
+            }
+          });
+          // Add the XCandle to the scene AFTER traversing
+          modelRef.current.add(xCandleInstance);
+
+          // Keep track of the instance for cleanup (now using candleIndex from parameter)
+          xCandleInstances.current.set(candleIndex, xCandleInstance);
+          newMeltingState.set(instanceId, xCandleInstance.userData);
+          console.log(
+            `Created XCandle instance for unstaked user ${result.userName}`
+          );
+        } else {
+          console.warn(
+            "XCandle model not loaded yet for unstaked candle:",
+            result
+          );
         }
+        meltingStateRef.current = newMeltingState;
       }
+    };
+
+    // Process all candle assignments
+    specialAssignments.forEach((result, candleName) => {
+      processCandle(candleName, result);
+    });
+
+    // Process remaining candles
+    remainingUsers.forEach((result, index) => {
+      const position = userCandleIndices[index];
+      processCandle(`VCANDLE${position}`, result);
     });
 
     return () => {
@@ -604,79 +905,6 @@ function Model({
       }
     };
   }, [results, modelRef.current, xCandleModel]); // Add xCandleModel to dependencies
-
-  // useEffect(() => {
-  //   if (results.length === 0 || !modelRef.current) return;
-
-  //   // Add debugging to inspect VCANDLE structure
-  //   console.log("Inspecting VCANDLE structure:");
-  //   modelRef.current.traverse((child) => {
-  //     if (child.name.startsWith("VCANDLE")) {
-  //       console.log(`\nVCANDLE object: ${child.name}`);
-  //       console.log("Direct children:");
-  //       child.children.forEach((c) => {
-  //         console.log(`- ${c.name} (visible: ${c.visible})`);
-  //       });
-  //     }
-  //   });
-
-  //   const availableIndices = Array.from({ length: 80 }, (_, i) =>
-  //     String(i + 1).padStart(3, "0")
-  //   );
-
-  //   const shuffledIndices = availableIndices.sort(() => Math.random() - 0.5);
-  //   const userCandleIndices = shuffledIndices.slice(0, results.length);
-  //   const defaultCandleIndices = shuffledIndices.slice(results.length);
-
-  //   // Reset ALL candles clearly using your function
-  //   // Reset ALL candles to be completely invisible first
-  //   modelRef.current.traverse((child) => {
-  //     if (child.name.startsWith("VCANDLE")) {
-  //       resetCandle(child);
-  //     }
-  //   });
-
-  //   // Only process user-assigned candles, no default candles
-  //   results.forEach((result, index) => {
-  //     const candleIndex = userCandleIndices[index];
-  //     const candleName = `VCANDLE${candleIndex}`;
-  //     const candle = modelRef.current.getObjectByName(candleName);
-
-  //     if (candle) {
-  //       candle.userData = {
-  //         hasUser: true,
-  //         userName: result.userName || "Anonymous",
-  //         image: result.image,
-  //         message: result.message,
-  //         burnedAmount: result.burnedAmount || 1,
-  //         meltingProgress: 0,
-  //         staked: result.staked || false,
-  //       };
-
-  //       if (result.image) applyUserImageToLabels(candle, result.image);
-
-  //       // Make all children visible for user candles
-  //       candle.children.forEach((child) => {
-  //         console.log(`Setting visibility for ${child.name} to true`);
-  //         child.visible = true;
-  //       });
-  //     }
-  //   });
-
-  //   return () => {
-  //     modelRef.current?.traverse((child) => {
-  //       if (child.name.startsWith("VCANDLE")) {
-  //         ["Label1", "Label2"].forEach((labelType) => {
-  //           const label = findCandleComponent(child, labelType);
-  //           if (label?.material) {
-  //             label.material.map?.dispose();
-  //             label.material.dispose();
-  //           }
-  //         });
-  //       }
-  //     });
-  //   };
-  // }, [results, modelRef.current]);
 
   const applyUserImageToLabels = (candle, imageUrl) => {
     if (!imageUrl) return;
@@ -749,9 +977,22 @@ function Model({
       }
     });
   };
+
+  const [highlightedXCandle, setHighlightedXCandle] = useState(null);
+
   // Handle click events
   const handleClick = (event) => {
     event.stopPropagation();
+
+    // Check if we clicked on an annotation
+    if (
+      event.object &&
+      event.object.userData &&
+      event.object.userData.isAnnotation
+    ) {
+      // Let the annotation handle its own click
+      return;
+    }
 
     if (showFloatingViewer) return;
 
@@ -780,22 +1021,101 @@ function Model({
       }
     }
 
-    // Original candle click logic
-    const intersectableObjects = [];
-    modelRef.current.traverse((object) => {
-      if (object.name.startsWith("VCANDLE")) {
-        intersectableObjects.push(object);
-        object.children.forEach((child) => {
-          if (
-            child.name.includes("wax") ||
-            child.name.includes("glass") ||
-            child.name.startsWith("FLAME")
-          ) {
-            intersectableObjects.push(child);
-          }
-        });
+    // Check for XCandle intersections
+    const xCandleIntersects = [];
+    // Also track which VCANDLEs have XCandles (to prevent double-handling)
+    const vCandlesWithXCandles = new Set();
+
+    xCandleInstances.current.forEach((xCandle) => {
+      // Skip objects with isAnnotation flag
+      if (xCandle.userData && xCandle.userData.isAnnotation) {
+        return;
+      }
+
+      const intersects = raycaster.intersectObject(xCandle, true);
+      if (intersects.length > 0) {
+        // Filter out annotation objects from intersections
+        const nonAnnotationIntersects = intersects.filter(
+          (hit) => !(hit.object.userData && hit.object.userData.isAnnotation)
+        );
+
+        if (nonAnnotationIntersects.length > 0) {
+          xCandleIntersects.push({
+            distance: nonAnnotationIntersects[0].distance,
+            object: xCandle,
+          });
+        }
+      }
+
+      // Track the original VCANDLE name for each XCandle
+      if (xCandle.userData && xCandle.userData.originalVCandleName) {
+        vCandlesWithXCandles.add(xCandle.userData.originalVCandleName);
       }
     });
+
+    // If we hit an XCandle, handle it differently
+    if (xCandleIntersects.length > 0) {
+      // Sort by distance (closest first)
+      xCandleIntersects.sort((a, b) => a.distance - b.distance);
+      const closestXCandle = xCandleIntersects[0].object;
+
+      // For XCandles, we'll highlight the annotation
+      if (closestXCandle.userData) {
+        console.log("XCandle clicked:", closestXCandle.name);
+
+        if (!hasHandledFirstClick) {
+          console.log("First click detected - preventing state update");
+          setHasHandledFirstClick(true);
+          return;
+        }
+
+        // If we click the same candle again, toggle off the highlight
+        if (
+          highlightedXCandle &&
+          highlightedXCandle.id === closestXCandle.name
+        ) {
+          setHighlightedXCandle(null);
+        } else {
+          setHighlightedXCandle({
+            id: closestXCandle.name,
+            userData: { ...closestXCandle.userData },
+          });
+        }
+        return;
+      }
+    }
+
+    // Original candle click logic for VCANDLEs
+    const intersectableObjects = [];
+    if (modelRef && modelRef.current) {
+      modelRef.current.traverse((object) => {
+        // Skip annotation objects
+        if (object.userData && object.userData.isAnnotation) {
+          return;
+        }
+
+        // Skip VCANDLEs that have corresponding XCandles
+        if (
+          object.name.startsWith("VCANDLE") &&
+          vCandlesWithXCandles.has(object.name)
+        ) {
+          return;
+        }
+
+        if (object.name.startsWith("VCANDLE")) {
+          intersectableObjects.push(object);
+          object.children.forEach((child) => {
+            if (
+              child.name.includes("wax") ||
+              child.name.includes("glass") ||
+              child.name.startsWith("FLAME")
+            ) {
+              intersectableObjects.push(child);
+            }
+          });
+        }
+      });
+    }
 
     const intersects = raycaster.intersectObjects(intersectableObjects, true);
     if (intersects.length > 0) {
@@ -804,12 +1124,24 @@ function Model({
         candleParent = candleParent.parent;
       }
 
-      if (candleParent?.userData?.hasUser) {
+      // Check if the candle has user data (userName is a good indicator)
+      if (candleParent?.userData?.userName) {
+        console.log("VCANDLE clicked with user data:", candleParent.userData);
         onCandleSelect({
           ...candleParent.userData,
           candleId: candleParent.name,
           candleTimestamp: Date.now(),
         });
+
+        // Set showFloatingViewer to true
+        if (setShowFloatingViewer) {
+          setShowFloatingViewer(true);
+        }
+      } else {
+        console.log(
+          "VCANDLE clicked but no user data found:",
+          candleParent?.userData
+        );
       }
     }
   };
@@ -1411,72 +1743,186 @@ function Model({
   useFrame((state, delta) => {
     if (!modelRef.current) return;
 
+    // Helper function to handle candle melting
+    const handleCandleMelting = (child, instanceId = null) => {
+      // Get the appropriate userData - either directly from the child or from meltingStateRef
+      const userData = instanceId
+        ? meltingStateRef.current.get(instanceId) || child.userData
+        : child.userData;
+
+      // If there's no createdAt timestamp, use the old melting logic
+      if (!userData.createdAt) {
+        // Debug log to verify melting is being applied
+        if (userData.meltingProgress === 0) {
+        }
+
+        // Update the melting progress using delta (legacy mode)
+        userData.meltingProgress += delta;
+      } else if (userData.meltingProgress === 0) {
+        // Only log once when we start melting with timestamp
+      }
+
+      // For a 24-hour melting duration (86400 seconds)
+      // We need to go from 1.0 to MIN_SCALE (0.2) over that period
+      const SECONDS_IN_DAY = 86400;
+      // TEMPORARY: Using 10 seconds for troubleshooting
+      // const MELTING_DURATION = 10; // 10 seconds for testing
+
+      const MIN_SCALE = 0.2;
+
+      // RESTORE ORIGINAL CODE: Use timestamp-based melting progress calculation
+      // Calculate the melting progress based on time elapsed since creation
+      let meltingProgress;
+      if (userData.createdAt) {
+        // Calculate seconds elapsed since creation
+        const now = new Date();
+        const createdAt =
+          userData.createdAt instanceof Date
+            ? userData.createdAt
+            : new Date(userData.createdAt);
+
+        const secondsElapsed = (now - createdAt) / 1000;
+        meltingProgress = secondsElapsed;
+      } else {
+        // Use the accumulated meltingProgress for legacy candles
+        meltingProgress = userData.meltingProgress;
+      }
+
+      // Calculate the percentage remaining (from 1.0 to MIN_SCALE)
+      // RESTORE ORIGINAL: Using original melting speed for 24-hour duration
+      const meltingSpeed = 1 / SECONDS_IN_DAY; // Speed for 24-hour melting duration
+      // const meltingSpeed = 1 / MELTING_DURATION; // Speed for 10-second melting duration (for testing)
+      const percentageRemaining = Math.max(
+        1 - meltingSpeed * meltingProgress,
+        MIN_SCALE
+      );
+
+      // Check if candle has reached minimum scale
+      if (percentageRemaining <= MIN_SCALE) {
+        // Make the candle invisible when fully melted
+        child.visible = false;
+
+        // Also hide any associated flames
+        child.traverse((descendant) => {
+          if (descendant.name.includes("Flame")) {
+            descendant.visible = false;
+          }
+        });
+
+        // Add this candle to the melted candles set
+        meltedCandlesRef.current.add(instanceId || child.name);
+
+        // Skip the rest of the melting logic
+        return true; // Return true to indicate the candle is fully melted
+      } else {
+        // Ensure the candle is visible if it's not fully melted
+        child.visible = true;
+
+        // Remove from melted candles set if it was there
+        if (meltedCandlesRef.current.has(instanceId || child.name)) {
+          meltedCandlesRef.current.delete(instanceId || child.name);
+        }
+      }
+
+      if (userData.originalScale?.y) {
+        // Initialize original values if not already stored
+        if (!userData.originalValues) {
+          // Get the bounding box to find the actual dimensions of the geometry
+          const bbox = new THREE.Box3().setFromObject(child);
+          const height = bbox.max.y - bbox.min.y;
+          const bottom = bbox.min.y;
+          const top = bbox.max.y;
+
+          // Get the world position of the bottom of the candle
+          const worldPosition = new THREE.Vector3();
+          child.getWorldPosition(worldPosition);
+          // Calculate the world position of the bottom
+          const worldBottom = worldPosition.y - height / 2;
+
+          userData.originalValues = {
+            position: child.position.clone(),
+            scale: child.scale.clone(),
+            height: height,
+            bottom: bottom,
+            top: top,
+            worldBottom: worldBottom,
+          };
+        }
+
+        const originalScale = userData.originalScale.y;
+        const newScale = originalScale * percentageRemaining;
+
+        // Keep original X and Z scale, only modify Y
+        child.scale.set(
+          userData.originalScale.x,
+          newScale,
+          userData.originalScale.z
+        );
+
+        // Calculate height reduction
+        const originalHeight = userData.originalValues.height;
+        const newHeight = originalHeight * percentageRemaining;
+        const heightReduction = originalHeight - newHeight;
+
+        // Base position adjustment - move DOWN as in our previous working approach
+        const basePositionY =
+          userData.originalValues.position.y - heightReduction / 2;
+
+        // ADDITIONAL FIX: Add a small additional offset to compensate for any bottom movement
+        // This offset increases as the candle melts more
+        // The 0.05 factor can be adjusted based on testing
+        const additionalOffset = heightReduction * 0.2;
+
+        // Apply the position with the additional offset
+        child.position.y = basePositionY + additionalOffset;
+
+        // Debug: Check the actual bottom position
+        if (
+          userData.meltingProgress < 0.1 ||
+          userData.meltingProgress % 1 < 0.01
+        ) {
+          // Get current world position
+          const currentWorldPos = new THREE.Vector3();
+          child.getWorldPosition(currentWorldPos);
+          // Calculate current bottom in world space
+          const currentBottom = currentWorldPos.y - newHeight / 2;
+
+          // Calculate how much the bottom has moved from original
+          const bottomDifference =
+            currentBottom - userData.originalValues.worldBottom;
+
+          console.log(
+            "Melting progress:",
+            userData.meltingProgress.toFixed(2),
+            "Bottom difference:",
+            bottomDifference.toFixed(4),
+            "Additional offset:",
+            additionalOffset.toFixed(4)
+          );
+        }
+      }
+
+      // Add flame flicker
+      child.traverse((descendant) => {
+        if (descendant.name.startsWith("XFlame") && descendant.visible) {
+          const flicker = 1 + Math.sin(state.clock.elapsedTime * 10) * 0.1;
+          descendant.scale.set(flicker, flicker, flicker);
+        }
+      });
+
+      // If using meltingStateRef, update it
+      if (instanceId) {
+        meltingStateRef.current.set(instanceId, userData);
+      }
+
+      return false; // Return false to indicate the candle is still melting
+    };
+
+    // Process candles in the scene hierarchy
     modelRef.current.traverse((child) => {
       // Handle melting for XCandle objects
       if (child.name.startsWith("XCandle") && child.userData?.isMelting) {
-        // Debug log to verify melting is being applied
-        if (child.userData.meltingProgress === 0) {
-          console.log(`Starting melting for ${child.name}`, {
-            originalScale: child.userData.originalScale,
-            userData: child.userData,
-          });
-        }
-
-        child.userData.meltingProgress += delta;
-
-        const meltingSpeed = 0.1; // Slower melting
-        const MIN_SCALE = 0.2;
-
-        // Calculate the percentage remaining
-        const percentageRemaining = Math.max(
-          1 - meltingSpeed * child.userData.meltingProgress,
-          MIN_SCALE
-        );
-
-        if (child.userData.originalScale?.y) {
-          // Initialize original values if not already stored
-          if (!child.userData.originalValues) {
-            // Get the bounding box to find the actual top of the geometry
-            const bbox = new THREE.Box3().setFromObject(child);
-            const height = bbox.max.y - bbox.min.y;
-            const top = bbox.max.y;
-
-            child.userData.originalValues = {
-              position: child.position.clone(),
-              scale: child.scale.clone(),
-              height: height,
-              top: top,
-            };
-          }
-
-          const originalScale = child.userData.originalScale.y;
-          const newScale = originalScale * percentageRemaining;
-
-          // Keep original X and Z scale, only modify Y
-          child.scale.set(
-            child.userData.originalScale.x,
-            newScale,
-            child.userData.originalScale.z
-          );
-
-          // Calculate the new position to keep top fixed
-          const originalTop = child.userData.originalValues.top;
-          const originalHeight = child.userData.originalValues.height;
-          const newHeight = originalHeight * percentageRemaining;
-
-          // Move the position to keep the top fixed while bottom melts up
-          child.position.y =
-            child.userData.originalValues.position.y -
-            (originalHeight - newHeight) / 2;
-        }
-
-        // Add flame flicker
-        child.traverse((descendant) => {
-          if (descendant.name.startsWith("XFlame") && descendant.visible) {
-            const flicker = 1 + Math.sin(state.clock.elapsedTime * 10) * 0.1;
-            descendant.scale.set(flicker, flicker, flicker);
-          }
-        });
+        handleCandleMelting(child);
       }
     });
 
@@ -1496,6 +1942,14 @@ function Model({
       const intensity = 2.0 + Math.sin(state.clock.elapsedTime * 3) * 1.0;
       material.emissiveIntensity = intensity;
     }
+
+    // Process candles in the xCandleInstances collection
+    xCandleInstances.current.forEach((child) => {
+      if (child.userData.isMelting) {
+        const instanceId = child.name;
+        handleCandleMelting(child, instanceId);
+      }
+    });
   });
 
   return (
@@ -1510,6 +1964,107 @@ function Model({
           pointerEvents: showFloatingViewer ? "none" : "auto",
         }}
       />
+
+      {/* Add annotations for XCandle instances only */}
+      {Array.from(xCandleInstances.current.entries()).map(
+        ([index, xCandle]) => {
+          // Skip rendering annotations for fully melted candles
+          if (meltedCandlesRef.current.has(xCandle.name)) {
+            return null;
+          }
+
+          // Find the flame component to position the annotation above it
+          let flamePosition = new THREE.Vector3();
+          let flameFound = false;
+
+          xCandle.traverse((child) => {
+            if (child.name.startsWith("XFlame") && !flameFound) {
+              // Get the world position of the flame
+              child.getWorldPosition(flamePosition);
+              flameFound = true;
+            }
+          });
+
+          // If no flame found, use the XCandle position and adjust based on melting progress
+          if (!flameFound) {
+            // Get the candle's world position
+            xCandle.getWorldPosition(flamePosition);
+
+            // Calculate the current height of the candle based on melting progress
+            let heightAdjustment = 0.8; // Default height above candle
+
+            // If the candle is melting, adjust the annotation height to follow the top of the candle
+            if (xCandle.userData?.isMelting) {
+              // Get the original height and current scale
+              const originalHeight =
+                xCandle.userData.originalValues?.height || 1.0;
+              const currentScale =
+                xCandle.scale.y / (xCandle.userData.originalScale?.y || 1.0);
+
+              // Calculate the current height of the candle
+              const currentHeight = originalHeight * currentScale;
+
+              // Adjust the annotation position to stay at the top of the melting candle
+              // The 0.8 is the default offset, we scale it by the current height ratio
+              heightAdjustment = 0.8 * currentScale;
+            }
+
+            // Apply the height adjustment
+            flamePosition.y += heightAdjustment;
+          } else {
+            // If flame is found, position slightly above it (flame already follows the candle)
+            flamePosition.y += 0.3;
+          }
+
+          const userName = xCandle.userData.userName || "Anonymous";
+          const imageUrl = xCandle.userData.image || null;
+          const isHighlighted =
+            highlightedXCandle && highlightedXCandle.id === xCandle.name;
+
+          // Create a click handler for this specific XCandle
+          const handleAnnotationClick = (xCandleName, userData) => {
+            return (event) => {
+              event.stopPropagation();
+              console.log("Annotation clicked for XCandle:", xCandleName);
+
+              // On first click, just mark that we've handled it without changing state
+              if (!hasHandledFirstClick) {
+                console.log("First click detected - preventing state update");
+                setHasHandledFirstClick(true);
+                return;
+              }
+
+              // Normal behavior for subsequent clicks
+              if (highlightedXCandle && highlightedXCandle.id === xCandleName) {
+                setHighlightedXCandle(null);
+              } else {
+                setHighlightedXCandle({
+                  id: xCandleName,
+                  userData: userData,
+                });
+              }
+            };
+          };
+
+          return (
+            <Annotation
+              key={`xcandle-annotation-${index}`}
+              position={flamePosition}
+              scale={1.0}
+              isHighlighted={isHighlighted}
+              imageUrl={imageUrl}
+              onAnnotationClick={handleAnnotationClick(
+                xCandle.name,
+                xCandle.userData
+              )}
+              showFloatingViewer={showFloatingViewer}
+            >
+              {userName}
+            </Annotation>
+          );
+        }
+      )}
+
       <DarkClouds />
     </>
   );
@@ -1517,6 +2072,6 @@ function Model({
 
 // Preload both models
 useGLTF.preload("/altarBoomboxCandles.glb");
-useGLTF.preload("/XCandle.glb");
+useGLTF.preload("/XCandle1.glb");
 
 export default Model;

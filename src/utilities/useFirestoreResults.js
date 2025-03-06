@@ -15,6 +15,7 @@ export function useFirestoreResults() {
         message: doc.data().message,
         burnedAmount: doc.data().burnedAmount || 1,
         staked: doc.data().staked || false,
+        createdAt: doc.data().createdAt?.toDate() || new Date(), // Include createdAt timestamp
       }));
 
       console.log("🔥 Firestore results fetched:", fetchedResults); // ✅ Log results

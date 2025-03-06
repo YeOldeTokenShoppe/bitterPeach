@@ -31,15 +31,35 @@ export default function GalleryPage() {
     burnGallery: false,
     threeDScene: false,
   });
-  const [showSpotify, setShowSpotify] = useState(false);
+  const [showSpotify, setShowSpotify] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [is80sMode, setIs80sMode] = useState(false);
 
   // Toggle function for 80s mode
   const toggle80sMode = () => {
-    setIs80sMode(!is80sMode);
-    // Don't automatically show Spotify when toggling 80s mode
-    console.log("Gallery: 80's mode toggled to", !is80sMode);
+    const newMode = !is80sMode;
+    setIs80sMode(newMode);
+    // Hide music player when entering 80s mode
+    if (newMode) {
+      setShowSpotify(false);
+    } else {
+      // Show MusicPlayer2 when exiting 80s mode
+      setShowSpotify(true);
+    }
+    console.log("Gallery: 80's mode toggled to", newMode);
+  };
+
+  // Handle Boombox click
+  const handleBoomboxClick = () => {
+    if (is80sMode) {
+      setShowSpotify(true);
+    }
+  };
+
+  // Handle close for music player
+  const handleClose = () => {
+    // Always hide Spotify when closing the music player
+    setShowSpotify(false);
   };
 
   // Add useEffect to set body class
@@ -71,10 +91,6 @@ export default function GalleryPage() {
       ...prev,
       [component]: status,
     }));
-  };
-  const handleClose = () => {
-    // Always hide Spotify when closing the music player
-    setShowSpotify(false);
   };
 
   // In GalleryPage.js
@@ -210,6 +226,7 @@ export default function GalleryPage() {
             setIsModalOpen={setIsModalOpen}
             is80sMode={is80sMode}
             toggle80sMode={toggle80sMode}
+            onBoomboxClick={handleBoomboxClick}
           />
 
           {isModalOpen && (
@@ -305,7 +322,6 @@ export default function GalleryPage() {
             </div>
           </div>
           {/* Single MusicPlayer that works for both 80s mode and regular mode */}
-          {/* Only show when showSpotify is true, not based on is80sMode */}
           {showSpotify && (
             <div
               style={{
@@ -323,11 +339,19 @@ export default function GalleryPage() {
               }}
             >
               <Suspense fallback={<div>Loading music player...</div>}>
-                <MusicPlayerDynamic
-                  isVisible={true}
-                  onClose={handleClose}
-                  autoPlay={true}
-                />
+                {is80sMode ? (
+                  <MusicPlayerDynamic
+                    isVisible={true}
+                    onClose={handleClose}
+                    autoPlay={true}
+                  />
+                ) : (
+                  <MusicPlayer
+                    isVisible={true}
+                    onClose={handleClose}
+                    autoPlay={false}
+                  />
+                )}
               </Suspense>
             </div>
           )}

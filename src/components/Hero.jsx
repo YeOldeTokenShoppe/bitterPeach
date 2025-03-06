@@ -488,7 +488,7 @@ function Hero({ setHeroLoaded }) {
             >
               {" "}
               <Heading mt={3} fontSize={"2.3rem"} lineHeight={".9"}>
-                Prosper80 x Infin80
+                Prosper80 for the People!
               </Heading>
               <StyledText
                 style={{
@@ -549,7 +549,8 @@ function Hero({ setHeroLoaded }) {
         >
           <Box flex="1" mt={0} alignContent={"center"}>
             <Heading fontSize={"3rem"} lineHeight={".9"}>
-              Vanquish Evil for Fun and Profit
+              Vanquish Evil <br />
+              for Fun and Profit
             </Heading>
             <StyledText
               style={{

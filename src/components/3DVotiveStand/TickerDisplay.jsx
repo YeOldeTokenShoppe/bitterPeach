@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState } from "react";
 import * as THREE from "three";
 import { useFrame, useThree } from "@react-three/fiber";
-import { useGLTF, useAnimations } from "@react-three/drei";
+import { useGLTF } from "@react-three/drei";
 
 const TickerDisplay = ({ modelRef, ...props }) => {
   const meshRef = useRef();
@@ -10,31 +10,13 @@ const TickerDisplay = ({ modelRef, ...props }) => {
   const scrollPos = useRef(0);
   const [isInitialized, setIsInitialized] = useState(false);
   const [trendingData, setTrendingData] = useState([]);
+  const [previousData, setPreviousData] = useState([]);
+  const fetchTimeRef = useRef(Date.now());
   const gltf = useGLTF("/altarBoomboxTicker.glb");
   const scene = gltf.scene;
 
   // Get access to the main Three.js scene
   const { scene: mainScene } = useThree();
-
-  // Debug: Log the scene structure
-  useEffect(() => {
-    // Log all mesh names in the scene
-
-    scene.traverse((child) => {
-      if (child.isMesh) {
-      }
-    });
-
-    // If modelRef is provided, also check that scene
-    if (modelRef && modelRef.current && modelRef.current.scene) {
-      // Log all mesh names in the modelRef scene
-
-      modelRef.current.scene.traverse((child) => {
-        if (child.isMesh) {
-        }
-      });
-    }
-  }, [scene, modelRef, mainScene]);
 
   // Format large numbers
   const formatNumber = (value) => {
@@ -44,21 +26,35 @@ const TickerDisplay = ({ modelRef, ...props }) => {
         ? parseFloat(value.replace(/[^0-9.-]/g, ""))
         : parseFloat(value);
     if (isNaN(num)) return "---";
-    if (num >= 1e9) return `${(num / 1e9).toFixed(2)}B`;
-    if (num >= 1e6) return `${(num / 1e6).toFixed(2)}M`;
-    if (num >= 1e3) return `${(num / 1e3).toFixed(2)}K`;
-    return num.toFixed(2);
+    if (num >= 1e9) return `${(num / 1e9).toFixed(1)}B`;
+    if (num >= 1e6) return `${(num / 1e6).toFixed(1)}M`;
+    if (num >= 1e3) return `${(num / 1e3).toFixed(1)}K`;
+    return num.toFixed(1);
   };
 
   const formatPercentage = (value) => {
     const num = parseFloat(value);
     if (isNaN(num)) return "---";
-    return `${num >= 0 ? "+" : ""}${num.toFixed(2)}%`;
+    return `${num >= 0 ? "+" : ""}${num.toFixed(1)}%`;
   };
 
   const formatCurrency = (value) => {
     const formatted = formatNumber(value);
     return formatted === "---" ? formatted : `$${formatted}`;
+  };
+
+  // Format volume with whole numbers
+  const formatVolume = (value) => {
+    if (value === null || value === undefined) return "---";
+    const num =
+      typeof value === "string"
+        ? parseFloat(value.replace(/[^0-9.-]/g, ""))
+        : parseFloat(value);
+    if (isNaN(num)) return "---";
+    if (num >= 1e9) return `${Math.round(num / 1e9)}B`;
+    if (num >= 1e6) return `${Math.round(num / 1e6)}M`;
+    if (num >= 1e3) return `${Math.round(num / 1e3)}K`;
+    return Math.round(num).toString();
   };
 
   // Fetch trending coins data
@@ -79,19 +75,23 @@ const TickerDisplay = ({ modelRef, ...props }) => {
         );
         const data = await response.json();
 
-        const formattedData = data.coins.map((coin) => ({
-          symbol: coin.item.symbol.toUpperCase(),
-          name: coin.item.name,
-          market_cap_rank: coin.item.market_cap_rank || "---",
-          price_usd: coin.item.data?.price || 0,
-          market_cap: coin.item.data?.market_cap || 0,
-          volume_24h: coin.item.data?.total_volume || 0,
-          price_change_24h:
-            coin.item.data?.price_change_percentage_24h?.usd || 0,
-          score: coin.item.score || 0,
-        }));
+        const formattedData = data.coins
+          .slice(0, 7) // Reduced from 10 to 7 coins for better spacing
+          .map((coin) => ({
+            symbol: coin.item.symbol.toUpperCase(),
+            name: coin.item.name,
+            market_cap_rank: coin.item.market_cap_rank || "---",
+            price_usd: coin.item.data?.price || 0,
+            market_cap: coin.item.data?.market_cap || 0,
+            volume_24h: coin.item.data?.total_volume || 0,
+            price_change_24h:
+              coin.item.data?.price_change_percentage_24h?.usd || 0,
+          }));
 
+        // Store previous data before updating
+        setPreviousData(trendingData.length > 0 ? trendingData : formattedData);
         setTrendingData(formattedData);
+        fetchTimeRef.current = Date.now();
       } catch (error) {
         setTrendingData([
           {
@@ -102,14 +102,14 @@ const TickerDisplay = ({ modelRef, ...props }) => {
             market_cap: 0,
             volume_24h: 0,
             price_change_24h: 0,
-            score: 0,
           },
         ]);
       }
     };
 
     fetchTrendingCoins();
-    const interval = setInterval(fetchTrendingCoins, 60000);
+    // Reduced interval for more frequent updates
+    const interval = setInterval(fetchTrendingCoins, 45000);
     return () => clearInterval(interval);
   }, []);
 
@@ -117,8 +117,9 @@ const TickerDisplay = ({ modelRef, ...props }) => {
   useEffect(() => {
     try {
       const canvas = document.createElement("canvas");
-      canvas.width = 4800;
-      canvas.height = 128;
+      // Increased canvas width to provide more space
+      canvas.width = 9000;
+      canvas.height = 100;
       canvasRef.current = canvas;
 
       const texture = new THREE.CanvasTexture(canvas);
@@ -128,35 +129,43 @@ const TickerDisplay = ({ modelRef, ...props }) => {
       texture.needsUpdate = true;
       textureRef.current = texture;
 
-      // Try different texture settings
-      texture.flipY = false; // Changed from true to false
-      texture.repeat.set(1, 1); // Reset repeat
-      texture.offset.set(0, 0); // Reset offset
+      texture.flipY = false;
+      texture.repeat.set(1, 1);
+      texture.offset.set(0, 0);
 
-      // Draw something on the canvas immediately to test
+      // Draw initial test pattern
       const ctx = canvas.getContext("2d");
       if (ctx) {
-        // Fill with a more subtle background color
-        ctx.fillStyle = "#1A1A2E"; // Dark blue instead of bright magenta
+        // Fill with a black background
+        ctx.fillStyle = "#000000";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         // Add some text
         ctx.fillStyle = "#FFFFFF";
-        ctx.font = "bold 80px Arial";
+        ctx.font = "bold 40px Arial";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.fillText("TICKER TEST", canvas.width / 2, canvas.height / 2);
+        ctx.fillText(
+          "LOADING TICKER DATA...",
+          canvas.width / 2,
+          canvas.height / 2
+        );
 
         texture.needsUpdate = true;
       }
 
       textureRef.current = texture;
 
-      // Create a dedicated test mesh for the ticker display
-
-      // Create a curved cylinder for the ticker display with larger radius
-      // Increase radius to 30 and keep height small for a wide, flat cylinder
-      const geometry = new THREE.CylinderGeometry(30.25, 30.25, 1, 64, 1, true);
+      // Create a curved cylinder for the ticker display with the same radius but slightly larger
+      // to avoid text overlap at the seam
+      const geometry = new THREE.CylinderGeometry(
+        30.25,
+        30.25,
+        1,
+        128,
+        1,
+        true
+      );
 
       // Create material with our texture
       const material = new THREE.MeshBasicMaterial({
@@ -165,18 +174,18 @@ const TickerDisplay = ({ modelRef, ...props }) => {
         opacity: 1.0,
         side: THREE.DoubleSide,
         color: 0xffffff,
-        depthTest: true, // Ensure it's always visible
-        depthWrite: false, // Don't write to depth buffer
+        depthTest: true,
+        depthWrite: false,
       });
 
       // Flip the texture to correct the inside-out appearance
-      texture.repeat.set(1, -1); // Negative X repeat flips the texture horizontally
+      texture.repeat.set(1, -1);
 
       // Create the mesh
       const mesh = new THREE.Mesh(geometry, material);
 
       // Position it lower in the scene where the original 'Ticker' mesh was
-      mesh.position.set(0, -8.5, 0); // Fixed typo: removed 's' after 8.5
+      mesh.position.set(0, -8.5, 0);
       // Rotate it 90 degrees on the y-axis to make it horizontal
       mesh.rotation.set(0, Math.PI / 2, 0);
 
@@ -186,124 +195,157 @@ const TickerDisplay = ({ modelRef, ...props }) => {
       // Store reference
       meshRef.current = mesh;
 
-      // We don't need the additional test meshes anymore since we found the correct orientation
-
       setIsInitialized(true);
     } catch (error) {
       console.error("Failed to initialize ticker display:", error);
     }
   }, [mainScene]);
 
+  // Calculate total width of one set of trending data
+  const calculateTotalWidth = (ctx, data) => {
+    if (!ctx || !data || data.length === 0) return 0;
+
+    let totalWidth = 0;
+    const padding = 20;
+
+    data.forEach((coin, index) => {
+      // Rank
+      const rankText = `#${index + 1} -`;
+      totalWidth += ctx.measureText(rankText).width + padding;
+
+      // Symbol
+      const symbolText = coin.symbol;
+      totalWidth += ctx.measureText(symbolText).width + padding;
+
+      // USD Price
+      const priceText = `${parseFloat(coin.price_usd).toFixed(2)}`;
+      totalWidth += ctx.measureText(priceText).width + padding * 1.8; // Added extra space
+
+      // 24h Change
+      const changeText = formatPercentage(coin.price_change_24h);
+      totalWidth += ctx.measureText(changeText).width + padding * 1.8; // Added extra space
+
+      // Market Cap
+      const mcText = `MC: ${formatNumber(coin.market_cap)}`;
+      totalWidth += ctx.measureText(mcText).width + padding * 1.5; // Added extra space
+
+      // Volume
+      const volText = `Vol: ${formatVolume(coin.volume_24h)}`;
+      totalWidth += ctx.measureText(volText).width + padding * 2;
+
+      // Separator
+      totalWidth += ctx.measureText(" ⭐️ ").width + padding * 3; // Extra padding for separator
+    });
+
+    return totalWidth;
+  };
+
   // Update canvas content
   const updateCanvas = () => {
-    if (!canvasRef.current || !isInitialized || trendingData.length === 0)
-      return;
+    if (!canvasRef.current || !isInitialized) return;
+
+    // Use previous data if we're in the middle of fetching new data
+    const data = trendingData.length > 0 ? trendingData : previousData;
+    if (data.length === 0) return;
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Clear canvas with a more subtle background color
-    ctx.fillStyle = "#1A1A2E"; // Dark blue instead of bright magenta
+    // Set up font first to get measurements
+    ctx.font = "bold 40px Arial";
+
+    // Calculate total width needed for one set of data
+    const setWidth = calculateTotalWidth(ctx, data);
+
+    // Clear canvas with a black background
+    ctx.fillStyle = "#000000";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Scroll position
-    scrollPos.current = (scrollPos.current + 2) % canvas.width;
+    // Update scroll position
+    scrollPos.current = (scrollPos.current + 1.2) % setWidth; // Adjusted scroll speed
 
     // Draw text
-    ctx.font = "bold 50px Arial"; // Increased font size
     ctx.textBaseline = "middle";
 
     const drawTrendingData = (startX) => {
       let xPos = startX;
-      trendingData.forEach((coin, index) => {
-        // Rank and Symbol
-        ctx.fillStyle = "#FFFFFF"; // Bright white for better visibility
-        ctx.fillText(`#${index + 1}`, xPos, canvas.height / 2);
-        xPos += 65;
+      const padding = 20;
 
-        ctx.fillStyle = "#FFFFFF"; // Bright white
-        ctx.fillText(coin.symbol, xPos, canvas.height / 2);
-        xPos += 220;
+      data.forEach((coin, index) => {
+        // Rank
+        ctx.fillStyle = "#ff8c00";
+        const rankText = `#${index + 1}: `;
+        ctx.fillText(rankText, xPos, canvas.height / 2);
+        xPos += ctx.measureText(rankText).width + padding;
+
+        // Symbol
+        ctx.fillStyle = "#FFFFFF";
+        const symbolText = coin.symbol;
+        ctx.fillText(symbolText, xPos, canvas.height / 2);
+        xPos += ctx.measureText(symbolText).width + padding * 1.2;
 
         // USD Price
-        ctx.fillStyle = "#00FF00"; // Bright green
-        ctx.fillText(
-          `${formatNumber(coin.price_usd)}`,
-          xPos,
-          canvas.height / 2
-        );
-        xPos += 160;
+        ctx.fillStyle = "#00FF00";
+        const priceText = `${parseFloat(coin.price_usd).toFixed(2)}`;
+        ctx.fillText(priceText, xPos, canvas.height / 2);
+        xPos += ctx.measureText(priceText).width + padding * 2.2; // Extra space after price
 
         // 24h Change
-        const changeColor = coin.price_change_24h >= 0 ? "#00FF00" : "#FF0000"; // Bright green/red
+        const changeColor = coin.price_change_24h >= 0 ? "#00FF00" : "#FF0000";
         ctx.fillStyle = changeColor;
-        ctx.fillText(
-          formatPercentage(coin.price_change_24h),
-          xPos,
-          canvas.height / 2
-        );
-        xPos += 180;
+        const changeText = formatPercentage(coin.price_change_24h);
+        ctx.fillText(changeText, xPos, canvas.height / 2);
+        xPos += ctx.measureText(changeText).width + padding * 2.2; // Extra space after percentage
 
         // Market Cap
-        ctx.fillStyle = "#00FFFF"; // Bright cyan
-        ctx.fillText(
-          `MC: ${formatNumber(coin.market_cap)}`,
-          xPos,
-          canvas.height / 2
-        );
-        xPos += 280;
+        ctx.fillStyle = "#00FFFF";
+        const mcText = `MC: ${formatNumber(coin.market_cap)}`;
+        ctx.fillText(mcText, xPos, canvas.height / 2);
+        xPos += ctx.measureText(mcText).width + padding * 1.5; // Extra space after market cap
 
         // Volume
-        ctx.fillStyle = "#FFFF00"; // Bright yellow
-        ctx.fillText(
-          `Vol: ${formatNumber(coin.volume_24h)}`,
-          xPos,
-          canvas.height / 2
-        );
-        xPos += 280;
+        ctx.fillStyle = "#FFFF00";
+        const volText = `Vol: ${formatVolume(coin.volume_24h)}`;
+        ctx.fillText(volText, xPos, canvas.height / 2);
+        xPos += ctx.measureText(volText).width + padding * 2;
 
-        // Trending Score
-        ctx.fillStyle = "#FFA500"; // Bright orange
-        const scoreStars = "⭐".repeat(Math.min(3, Math.ceil(coin.score)));
-        ctx.fillText(scoreStars, xPos, canvas.height / 2);
-        xPos += 160;
+        // Add a separator between coins
+        ctx.fillStyle = "#666666";
+        ctx.fillText(" ⭐️ ", xPos, canvas.height / 2);
+        xPos += ctx.measureText(" ⭐️ ").width + padding * 3; // Extra padding for better separation
       });
+
       return xPos;
     };
 
     // Draw initial set
-    let endPos = drawTrendingData(-scrollPos.current);
+    let currentPos = drawTrendingData(0 - scrollPos.current);
 
-    // Draw repeated set for seamless scrolling
-    if (endPos < canvas.width) {
-      drawTrendingData(canvas.width + (canvas.width - scrollPos.current));
+    // Draw additional sets to ensure continuous scrolling
+    let repeatPosition = currentPos;
+    while (repeatPosition < canvas.width + setWidth) {
+      repeatPosition = drawTrendingData(repeatPosition);
+    }
+
+    if (textureRef.current) {
+      textureRef.current.needsUpdate = true;
     }
   };
 
   // Animation loop
-  useFrame(({ camera }) => {
+  useFrame(() => {
     if (isInitialized) {
       updateCanvas();
+
       if (textureRef.current) {
-        textureRef.current.needsUpdate = true;
-
-        // Slow down the scroll speed
-        textureRef.current.offset.x += 0.000002; // Reduced from 0.002 to 0.0005
-
-        // Log the current texture offset occasionally to confirm it's changing
-        if (Math.random() < 0.01) {
-          // Log roughly once every 100 frames
-        }
+        // Remove the offset increment - we're handling scrolling in the canvas update
+        // textureRef.current.offset.x += 0.000002; // This caused issues with the seam
       }
-
-      // We no longer need to update the test mesh position since we've confirmed visibility
-      // This reduces console spam and improves performance
     }
   });
 
-  // Create a direct mesh in the scene - now that we know meshes are visible, we can make these less obtrusive
-  return null; // No need for additional test meshes now
+  return null;
 };
 
 export default TickerDisplay;

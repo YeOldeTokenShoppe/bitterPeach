@@ -11,11 +11,11 @@ const MusicPlayer = ({ isVisible, onClose, autoPlay = true }) => {
   const audioRef = useRef(null);
   const [volume, setVolume] = useState(0.2);
 
-  const albums = [
-    "Like A Prayer - Madonna",
-    // "Every 1's A Winner",
-    // "Take Me To Church - Hozier",
-  ];
+  const albums = ["Rocket Man - Steven Drozd"];
+
+  const trackNames = ["Rocket Man - Steven Drozd"];
+
+  const trackUrls = ["rocketMan.m4a"];
 
   useEffect(() => {
     console.log(
