@@ -14,6 +14,8 @@ const TickerDisplay = ({ modelRef, ...props }) => {
   const fetchTimeRef = useRef(Date.now());
   const gltf = useGLTF("/altarBoomboxTicker.glb");
   const scene = gltf.scene;
+  const baseRadius = 30.25; // Store the base radius as a constant
+  const lastModelScale = useRef(1); // Track the last known model scale
 
   // Get access to the main Three.js scene
   const { scene: mainScene } = useThree();
@@ -159,8 +161,8 @@ const TickerDisplay = ({ modelRef, ...props }) => {
       // Create a curved cylinder for the ticker display with the same radius but slightly larger
       // to avoid text overlap at the seam
       const geometry = new THREE.CylinderGeometry(
-        30.25,
-        30.25,
+        baseRadius,
+        baseRadius,
         1,
         128,
         1,
@@ -200,6 +202,34 @@ const TickerDisplay = ({ modelRef, ...props }) => {
       console.error("Failed to initialize ticker display:", error);
     }
   }, [mainScene]);
+
+  // Function to update ticker geometry based on model scale
+  const updateTickerGeometry = (modelScale) => {
+    if (!meshRef.current || !modelScale) return;
+
+    // Only update if the scale has changed significantly
+    if (Math.abs(lastModelScale.current - modelScale) < 0.01) return;
+
+    // Calculate new radius based on model scale
+    const newRadius = baseRadius * modelScale;
+
+    // Create new geometry with updated radius
+    const newGeometry = new THREE.CylinderGeometry(
+      newRadius,
+      newRadius,
+      1,
+      128,
+      1,
+      true
+    );
+
+    // Replace the old geometry
+    meshRef.current.geometry.dispose(); // Clean up old geometry
+    meshRef.current.geometry = newGeometry;
+
+    // Update the last known scale
+    lastModelScale.current = modelScale;
+  };
 
   // Calculate total width of one set of trending data
   const calculateTotalWidth = (ctx, data) => {
@@ -338,9 +368,10 @@ const TickerDisplay = ({ modelRef, ...props }) => {
     if (isInitialized) {
       updateCanvas();
 
-      if (textureRef.current) {
-        // Remove the offset increment - we're handling scrolling in the canvas update
-        // textureRef.current.offset.x += 0.000002; // This caused issues with the seam
+      // Check if modelRef exists and update ticker geometry based on model scale
+      if (modelRef && modelRef.current) {
+        const modelScale = modelRef.current.scale.x;
+        updateTickerGeometry(modelScale);
       }
     }
   });
