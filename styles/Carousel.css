@@ -134,7 +134,7 @@
 .element:nth-child(odd)::after {
   content: "";
   display: block;
-  background-image: url("/marquee.png");
+  background-image: url("/marquee2.jpg");
   background-color: #1b1724;
   background-size: contain;
   background-repeat: repeat;
@@ -153,7 +153,7 @@
 .element:nth-child(2)::after {
   content: "";
   display: block;
-  background-image: url("/marquee.png");
+  background-image: url("/marquee2.jpg");
   background-size: stretch;
   background-repeat: no-repeat;
   background-position: center;
@@ -169,7 +169,7 @@
 .element:nth-child(4)::after {
   content: "";
   display: block;
-  background-image: url("/marquee.png");
+  background-image: url("/marquee2.jpg");
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
@@ -183,7 +183,7 @@
 .element:nth-child(6)::after {
   content: "";
   display: block;
-  background-image: url("/marquee.png");
+  background-image: url("/marquee2.jpg");
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
@@ -197,7 +197,7 @@
 .element:nth-child(8)::after {
   content: "";
   display: block;
-  background-image: url("/marquee.png");
+  background-image: url("/marquee2.jpg");
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
@@ -211,7 +211,7 @@
 .element:nth-child(10)::after {
   content: "";
   display: block;
-  background-image: url("/marquee.png");
+  background-image: url("/marquee2.jpg");
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
@@ -225,7 +225,7 @@
 .element:nth-child(12)::after {
   content: "";
   display: block;
-  background-image: url("/marquee.png");
+  background-image: url("/marquee2.jpg");
   background-size: cover;
   background-repeat: no-repeat;
   background-position: center;
@@ -269,8 +269,8 @@
 
 .beast {
   position: absolute;
-  width: 150px;
-  height: 150px;
+  width: 130px;
+  height: 130px;
   background-size: contain;
   background-repeat: no-repeat;
   top: 0;

@@ -345,11 +345,11 @@ const MusicPlayer = ({ isVisible, onClose, autoPlay = true }) => {
                     toggleShuffle();
                   }}
                 >
-                  <i
+                  {/* <i
                     className={`fa-solid fa-random ${
                       isShuffled ? "text-green-400" : "text-white"
                     }`}
-                  ></i>
+                  ></i> */}
                 </div>
               </div>
               <div className="control">

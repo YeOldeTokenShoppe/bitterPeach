@@ -27,7 +27,7 @@ const MOBILE_CONTROL_SETTINGS = {
   target: [-3, 22, -8.4],
 };
 
-function MobileModel({ scale, setTooltipData, onScreenClick }) {
+function l({ scale, setTooltipData, onScreenClick }) {
   const gltf = useGLTF("/mobileVersion.glb");
   const modelRef = useRef();
   const controlsRef = useRef();

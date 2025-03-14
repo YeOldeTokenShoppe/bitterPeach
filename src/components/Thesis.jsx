@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Box, Flex, Text, Skeleton } from "@chakra-ui/react";
 import Image from "next/image";
 import SwipeIcon from "../components/SwipeIcon";
@@ -8,10 +8,14 @@ const scrollUrl = "/html/scroll.html";
 
 function Thesis({ setThesisLoaded }) {
   const [loadedImages, setLoadedImages] = useState(new Set());
-  const thesisImages = [
-    "/s8ntgr81.png",
-    // Add any other critical images used in the Thesis component
-  ];
+
+  const thesisImages = useMemo(
+    () => [
+      "/s8ntgr81.png",
+      // Add any other critical images used in the Thesis component
+    ],
+    []
+  );
 
   useEffect(() => {
     const preloadThesisImages = async () => {
@@ -153,6 +157,15 @@ function Thesis({ setThesisLoaded }) {
                 width="423"
                 onLoad={() => setImageLoaded(true)}
               />
+              <Text
+                fontSize="sm"
+                fontStyle="italic"
+                textAlign="center"
+                mt={2}
+                color="gray.600"
+              >
+                Saint GR80 - medieval theologian and crypto scholar
+              </Text>
             </Skeleton>
           </Box>
         </Flex>

@@ -1,5 +1,6 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useMemo } from "react";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
+import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader";
 import * as THREE from "three";
 import { useFrame, useThree } from "@react-three/fiber";
 
@@ -7,16 +8,27 @@ function HolographicStatue() {
   const statueRef = useRef();
   const groupRef = useRef();
   const { scene } = useThree();
-  const loader = new GLTFLoader();
   const initialY = useRef(0);
 
-  const holographicMaterial = new THREE.ShaderMaterial({
-    precision: "lowp",
-    uniforms: {
-      uTime: { value: 0 },
-      uColor: { value: new THREE.Color(0x00ffff) },
-    },
-    vertexShader: `
+  // Use useMemo to prevent recreating the loader on every render
+  const loader = useMemo(() => {
+    const gltfLoader = new GLTFLoader();
+    const dracoLoader = new DRACOLoader();
+    dracoLoader.setDecoderPath("/draco/");
+    gltfLoader.setDRACOLoader(dracoLoader);
+    return gltfLoader;
+  }, []);
+
+  // Use useMemo to prevent recreating the shader material on every render
+  const holographicMaterial = useMemo(
+    () =>
+      new THREE.ShaderMaterial({
+        precision: "lowp",
+        uniforms: {
+          uTime: { value: 0 },
+          uColor: { value: new THREE.Color(0x00ffff) },
+        },
+        vertexShader: `
       uniform float uTime;
       varying vec3 vPosition;
       varying vec3 vNormal;
@@ -45,7 +57,7 @@ function HolographicStatue() {
         vNormal = modelNormal.xyz;
       }
     `,
-    fragmentShader: `
+        fragmentShader: `
       uniform vec3 uColor;
       uniform float uTime;
       varying vec3 vPosition;
@@ -72,12 +84,14 @@ function HolographicStatue() {
         gl_FragColor = vec4(uColor, holographic);
       }
     `,
-    transparent: true,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
-    depthTest: true, // Disable depth testing
-    side: THREE.FrontSide,
-  });
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        depthTest: true, // Disable depth testing
+        side: THREE.FrontSide,
+      }),
+    []
+  );
 
   const applyHolographicEffect = (model) => {
     model.traverse((child) => {
@@ -96,7 +110,7 @@ function HolographicStatue() {
   }
 
   useEffect(() => {
-    loader.load("/statue5.glb", (gltf) => {
+    loader.load("/statue6.glb", (gltf) => {
       const statue = gltf.scene;
 
       // Create an anchor group with initial position

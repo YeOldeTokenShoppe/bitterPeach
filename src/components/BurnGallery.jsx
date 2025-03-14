@@ -102,7 +102,7 @@ function BurnGallery({
   }, [setComponentLoaded]);
 
   const router = useRouter();
-  const { user } = useUser();
+  const { isLoaded, isSignedIn, user } = useUser();
   const { openSignIn } = useClerk();
   const [isBurnModalOpen, setIsBurnModalOpen] = useState(false);
   const [isImageSelectionModalOpen, setIsImageSelectionModalOpen] =
@@ -132,6 +132,8 @@ function BurnGallery({
   const [modelRef, setModelRef] = useState(null);
   const [modelCenter, setModelCenter] = useState(new THREE.Vector3());
   const [isModelLoaded, setIsModelLoaded] = useState(false);
+  const [monsterMode, setMonsterMode] = useState(false);
+  const [clerkUserData, setClerkUserData] = useState(null);
 
   const setSpawnFunction = (functionFromMoonScene) => {
     console.log("BurnGallery: Received spawn function from ThreeDVotiveStand");
@@ -278,24 +280,45 @@ function BurnGallery({
     }
   };
 
+  // Add toggleMonsterMode function
+  const toggleMonsterMode = () => {
+    setMonsterMode((prev) => !prev);
+  };
+
+  // Update user data when Clerk user changes
+  useEffect(() => {
+    if (isLoaded && isSignedIn && user) {
+      setClerkUserData({
+        userId: user.id,
+        username: user.username || user.firstName || "Anonymous",
+        imageUrl: user.imageUrl,
+        email: user.emailAddresses?.[0]?.emailAddress,
+      });
+    } else {
+      setClerkUserData(null);
+    }
+  }, [isLoaded, isSignedIn, user]);
+
   return (
     <>
-      <Box py="0" position="relative" height="100vh" width="100%">
-        <Grid gap={0} width="100%">
-          {/* <GridItem width="100%" zIndex={isChandelierVisible ? 5 : 3}>
-            {!isMobileView && isMounted && <Scene visible={isVisible} />}
-          </GridItem> */}
-
-          <GridItem width="100%" zIndex={4}>
+      <Box
+        position="relative"
+        width="100%"
+        height="100vh"
+        overflow="hidden"
+        className="burn-gallery"
+      >
+        <Grid
+          templateColumns="1fr"
+          gap={0}
+          height="100%"
+          width="100%"
+          overflow="hidden"
+        >
+          <GridItem colSpan={1} height="100%" overflow="hidden">
             {currentView === "main" ? (
               <MemoizedThreeDVotiveStand
-                onSpawnReady={setSpawnFunction}
-                isMobileView={isMobileView}
-                onScreenClick={handleScreenClick}
-                setIsLoading={handleComponentLoad}
-                setShowSpotify={setShowSpotify}
-                isModalOpen={isModalOpen}
-                setIsModalOpen={setIsModalOpen}
+                setIsLoading={setThreeDSceneLoaded}
                 onCameraMove={() => {
                   setIsInMarkerView(true);
                   setIsChandelierVisible(false);
@@ -310,10 +333,18 @@ function BurnGallery({
                     setIsChandelierVisible(false);
                   }
                 }}
+                isInMarkerView={isInMarkerView}
+                isMobileView={isMobileView}
+                onScreenClick={handleScreenClick}
+                setShowSpotify={setShowSpotify}
+                isModalOpen={isModalOpen}
+                setIsModalOpen={setIsModalOpen}
+                onSpawnReady={setSpawnFunction}
                 is80sMode={is80sMode}
-                toggle80sMode={toggle80sMode}
                 showSpotify={showSpotify}
                 onBoomboxClick={handleBoomboxClick}
+                monsterMode={monsterMode}
+                userData={clerkUserData}
               />
             ) : currentView === "stand1" ? (
               <div
@@ -413,6 +444,8 @@ function BurnGallery({
             onButtonClick={handleButtonClick}
             is80sMode={is80sMode}
             toggle80sMode={toggle80sMode}
+            monsterMode={monsterMode}
+            toggleMonsterMode={toggleMonsterMode}
           />
         )}
         {/* <Box

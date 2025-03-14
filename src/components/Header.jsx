@@ -397,9 +397,9 @@ function Header() {
                     onClick={() => setMenuOpen(false)}
                     onMouseEnter={handleMouseEnter}
                     onMouseLeave={handleMouseLeave}
-                    data-value="RL80 Faire"
+                    data-value="Gangster's Paradise"
                   >
-                    RL80 Faire
+                    Gangster's Paradise
                   </Link>
                   {/* </div> */}
                 </Menu>
@@ -414,7 +414,7 @@ function Header() {
                   fontSize: "2.5rem",
                   objectFit: "cover",
                   layout: "fill",
-                  right: "15%",
+                  right: "5%",
                   border: "3px solid goldenrod",
                   background: "#444",
                   position: "absolute",

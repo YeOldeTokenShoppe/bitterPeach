@@ -25,13 +25,21 @@ export default function Page() {
   }, [wordPressSliderLoaded, badgeLoaded, allImagesLoaded]);
 
   // List of critical images to preload for the index page
-  const criticalImages = [
-    // Add your critical index page images here
-    // For example:
-    "/rotating-badge.png", // If your RotatingBadge uses this image
-    "/nuhart1.svg", // Badge image
-    // Add any other critical images
-  ];
+  const criticalImages = useMemo(
+    () => [
+      // Add your critical index page images here
+      // For example:
+      "/rotating-badge.png", // If your RotatingBadge uses this image
+      "/nuhart1.svg", // Badge image
+      // Coin images
+      "/coinFront.png",
+      "/coinBack1.png",
+      // VVV image
+      "/vvv.jpg",
+      // Add any other critical images
+    ],
+    []
+  );
 
   // Preload all critical images
   useEffect(() => {

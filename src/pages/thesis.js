@@ -1,5 +1,5 @@
 // pages/thesis.js
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Thesis from "../components/Thesis";
 import NavBar from "../components/NavBar.client";
 import Footer from "../components/Footer";
@@ -12,17 +12,20 @@ export default function ThesisPage() {
   const [allImagesLoaded, setAllImagesLoaded] = useState(false);
 
   // List of critical images to preload for the thesis page
-  const criticalImages = [
-    // Add your critical thesis page images here
-    // For example:
-    "/3D_spotify.png",
-    "/3D_tiktok.png",
-    "/3d_discord.png",
-    "/3d_X.png",
-    "/3d_instagram.png",
-    "/3d_tg2.png",
-    // Add any thesis-specific images
-  ];
+  const criticalImages = useMemo(
+    () => [
+      // Add your critical thesis page images here
+      // For example:
+      "/3D_spotify.png",
+      "/3D_tiktok.png",
+      "/3d_discord.png",
+      "/3d_X.png",
+      "/3d_instagram.png",
+      "/3d_tg2.png",
+      // Add any thesis-specific images
+    ],
+    []
+  );
 
   // Preload all critical images
   useEffect(() => {

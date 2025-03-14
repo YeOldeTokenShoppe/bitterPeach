@@ -21,6 +21,15 @@ import FloatingCandleViewer from "./CandleInteraction";
 import { ref, getDownloadURL } from "firebase/storage";
 import { storage } from "../../utilities/firebaseClient"; // Import storage directly
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
+import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader";
+
+// Configure draco loader for useGLTF
+useGLTF.preload("/altarBoomboxCandles.glb");
+const dracoLoader = new DRACOLoader();
+dracoLoader.setDecoderPath("/draco/");
+// Set up GLTFLoader to use Draco compression
+GLTFLoader.prototype.setDRACOLoader(dracoLoader);
 
 // Default profile image to use when user has no image
 const DEFAULT_PROFILE_IMAGE = "/default-profile.jpg";
@@ -269,6 +278,7 @@ function Model({
   is80sMode,
   showSpotify,
   onBoomboxClick,
+  monsterMode,
 }) {
   const [modelUrl, setModelUrl] = useState("/altarBoomboxCandles.glb"); // Update default fallback
   const { progress } = useProgress(); // Track loading progress
@@ -468,7 +478,16 @@ function Model({
       modelRef.current.getGroundColor = () => groundColor;
       modelRef.current.getShowLightHelper = () => showLightHelper;
     }
-  }, [lightPosition, lightIntensity, skyColor, groundColor, showLightHelper]);
+  }, [
+    lightPosition,
+    lightIntensity,
+    skyColor,
+    groundColor,
+    showLightHelper,
+    modelRef,
+    updateLightPosition,
+    toggleLightHelper,
+  ]);
 
   // Update local state when parent props change
   useEffect(() => {
@@ -604,8 +623,22 @@ function Model({
   useEffect(() => {
     const loadXCandleModel = async () => {
       try {
-        // Load XCandle.glb
-        const { scene: xCandleScene } = await useGLTF("/XCandle1.glb", true);
+        // Use GLTFLoader directly instead of useGLTF hook
+        const loader = new GLTFLoader();
+        // Set up DRACOLoader for this specific loader instance
+        const dracoLoader = new DRACOLoader();
+        dracoLoader.setDecoderPath("/draco/");
+        loader.setDRACOLoader(dracoLoader);
+
+        // Load XCandle.glb using a promise-based approach
+        const xCandleScene = await new Promise((resolve, reject) => {
+          loader.load(
+            "/XCandle1.glb",
+            (gltf) => resolve(gltf.scene),
+            undefined,
+            (error) => reject(error)
+          );
+        });
 
         // Set a base scale for the model template
         xCandleScene.scale.set(0.5, 0.5, 0.5); // Adjust these values as needed
@@ -907,12 +940,13 @@ function Model({
     });
 
     return () => {
-      // Cleanup function
-      if (modelRef.current) {
+      // Cleanup function - capture the current value of modelRef
+      const model = modelRef.current;
+      if (model) {
         // No need to explicitly remove XCandle instances here as it's handled in the main cleanup effect
       }
     };
-  }, [results, modelRef.current, xCandleModel]); // Add xCandleModel to dependencies
+  }, [results, xCandleModel]); // Remove modelRef.current from dependencies
 
   const applyUserImageToLabels = (candle, imageUrl) => {
     if (!imageUrl) return;
@@ -1898,15 +1932,6 @@ function Model({
           // Calculate how much the bottom has moved from original
           const bottomDifference =
             currentBottom - userData.originalValues.worldBottom;
-
-          console.log(
-            "Melting progress:",
-            userData.meltingProgress.toFixed(2),
-            "Bottom difference:",
-            bottomDifference.toFixed(4),
-            "Additional offset:",
-            additionalOffset.toFixed(4)
-          );
         }
       }
 
@@ -1959,6 +1984,19 @@ function Model({
       }
     });
   });
+
+  // Add effect to toggle visibility of specific objects based on monsterMode
+  useEffect(() => {
+    if (!gltf.scene) return;
+
+    // Find Object_3 and Object_2.001 in the model
+    gltf.scene.traverse((child) => {
+      if (child.name === "Object_3" || child.name === "Object_2.001") {
+        child.visible = !monsterMode;
+        console.log(`${child.name} visibility set to: ${!monsterMode}`);
+      }
+    });
+  }, [monsterMode, gltf.scene]);
 
   return (
     <>

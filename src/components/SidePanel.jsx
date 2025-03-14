@@ -26,11 +26,27 @@ import { slide as Menu } from "react-burger-menu";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { signInWithCustomToken } from "firebase/auth";
 import { db, auth } from "../utilities/firebaseClient";
+import { createThirdwebClient } from "thirdweb";
+import { ConnectButton } from "thirdweb/react";
+import { darkTheme } from "thirdweb/react";
+import { inAppWallet, createWallet } from "thirdweb/wallets";
+import { baseSepolia, ethereum } from "thirdweb/chains";
+import { PayEmbed } from "thirdweb/react";
+import { client } from "../utilities/client";
+import { Stake } from "./3DVotiveStand/Stake";
 
-const SidePanel = ({ onButtonClick, is80sMode, toggle80sMode }) => {
+const SidePanel = ({
+  onButtonClick,
+  is80sMode,
+  toggle80sMode,
+  monsterMode,
+  toggleMonsterMode,
+}) => {
   const [isTextBoxVisible, setIsTextBoxVisible] = useState(true); // Start open
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const [isTouchDevice, setIsTouchDevice] = useState(false);
+  const [showPayEmbed, setShowPayEmbed] = useState(false); // Add this state
+  const [showStake, setShowStake] = useState(false); // Add this state
   const panelRef = useRef(null);
   const hotzoneSize = 20; // Size in pixels for the hotzone
 
@@ -47,6 +63,18 @@ const SidePanel = ({ onButtonClick, is80sMode, toggle80sMode }) => {
   // Letter scramble effect variables
   const [activeInterval, setActiveInterval] = useState(null);
   const isHovering = useRef(false);
+
+  const wallets = [
+    inAppWallet({
+      auth: {
+        options: ["google", "discord", "telegram", "x"],
+      },
+    }),
+    createWallet("io.metamask"),
+    createWallet("com.coinbase.wallet"),
+    createWallet("org.uniswap"),
+    createWallet("app.phantom"),
+  ];
 
   // Letters for scramble effect
   const letters = [
@@ -79,9 +107,6 @@ const SidePanel = ({ onButtonClick, is80sMode, toggle80sMode }) => {
 
   // Update panel width based on screen size
   const [panelWidth, setPanelWidth] = useState("25%");
-
-  // Add new state for toggle modes
-  const [monsterMode, setMonsterMode] = useState(false);
 
   // Detect touch devices
   useEffect(() => {
@@ -319,7 +344,7 @@ const SidePanel = ({ onButtonClick, is80sMode, toggle80sMode }) => {
 
       saveUserDataToFirestore();
     }
-  }, [isLoaded, isSignedIn, user]);
+  }, [isLoaded, isSignedIn, user, signIntoFirebaseWithClerk]);
 
   // Update panel width based on screen size
   useEffect(() => {
@@ -379,13 +404,6 @@ const SidePanel = ({ onButtonClick, is80sMode, toggle80sMode }) => {
       }
     };
   }, [activeInterval]);
-
-  // Toggle handlers for new modes
-  const toggleMonsterMode = () => {
-    setMonsterMode(!monsterMode);
-    // Here you would add any side effects for enabling monster mode
-    console.log("Monster mode:", !monsterMode);
-  };
 
   return (
     <>
@@ -601,7 +619,11 @@ const SidePanel = ({ onButtonClick, is80sMode, toggle80sMode }) => {
 
             <SignedOut>
               <SignInButton mode="modal" forceRedirectUrl={currentPath}>
-                <Button style={{ fontSize: "2rem" }}>{emoji}</Button>
+                <Button
+                  style={{ fontSize: "2rem", position: "relative", top: "0" }}
+                >
+                  {emoji}
+                </Button>
               </SignInButton>
             </SignedOut>
           </div>
@@ -636,50 +658,59 @@ const SidePanel = ({ onButtonClick, is80sMode, toggle80sMode }) => {
           direction="column"
           marginBottom="5rem"
         >
-          <Link href="#">
+          <Link
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              setShowPayEmbed(true);
+            }}
+          >
             <button
               style={{
                 color: "#1b1724",
                 transform: "skew(-10deg)",
-                width: "7rem",
+                width: "6rem",
                 marginBottom: "0.5rem",
               }}
               className="shimmer-button"
               data-shimmer-index="1"
             >
-              Buy RL80<span className="shimmer"></span>
+              Buy<span className="shimmer"></span>
             </button>
-            {/* <RadioButton2 text="Buy RL80" link="https://example.com/" /> */}
           </Link>
-          <Link href="#">
+          <Link
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              setShowStake(true);
+            }}
+          >
             <button
               style={{
                 color: "#1b1724",
                 transform: "skew(-10deg)",
-                width: "7rem",
+                width: "6rem",
                 marginBottom: "0.5rem",
               }}
               className="shimmer-button"
               data-shimmer-index="2"
             >
-              Stake RL80<span className="shimmer"></span>
+              Earn<span className="shimmer"></span>
             </button>
-            {/* <RadioButton2 text="Buy RL80" link="https://example.com/" /> */}
           </Link>
           <Link href="#">
             <button
               style={{
                 color: "#1b1724",
                 transform: "skew(-10deg)",
-                width: "7rem",
+                width: "6rem",
                 marginBottom: "0.5rem",
               }}
               className="shimmer-button"
               data-shimmer-index="3"
             >
-              Burn Pi80<span className="shimmer"></span>
+              Redeem<span className="shimmer"></span>
             </button>
-            {/* <RadioButton2 text="Buy RL80" link="https://example.com/" /> */}
           </Link>
           {/* <AnimatedRadioButtons onButtonClick={onButtonClick} /> */}
 
@@ -853,6 +884,254 @@ const SidePanel = ({ onButtonClick, is80sMode, toggle80sMode }) => {
           </Link>
         </Menu>
       </div>
+
+      {/* Add Stake Modal */}
+      {showStake && (
+        <Box
+          position="fixed"
+          top="0"
+          left="0"
+          width="100vw"
+          height="100vh"
+          backgroundColor="rgba(0, 0, 0, 0.85)"
+          backdropFilter="blur(5px)"
+          display="flex"
+          justifyContent="center"
+          alignItems="center"
+          zIndex="9999"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowStake(false);
+            }
+          }}
+        >
+          <Box
+            position="relative"
+            width="90%"
+            maxWidth={{ base: "350px", md: "500px" }}
+            backgroundColor="rgba(21, 21, 21, 0.95)"
+            borderRadius="20px"
+            padding={{ base: "1.5rem", md: "2rem" }}
+            boxShadow="0 0 20px rgba(142, 102, 43, 0.3)"
+            border="1px solid rgba(142, 102, 43, 0.2)"
+            _before={{
+              content: '""',
+              position: "absolute",
+              inset: "-2px",
+              borderRadius: "22px",
+              padding: "2px",
+              background:
+                "linear-gradient(45deg, rgba(142, 102, 43, 0.3), rgba(255, 215, 0, 0.3))",
+              WebkitMask:
+                "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+              WebkitMaskComposite: "xor",
+              maskComposite: "exclude",
+              pointerEvents: "none",
+            }}
+          >
+            <Button
+              position="absolute"
+              right="-12px"
+              top="-12px"
+              size="sm"
+              width="30px"
+              height="30px"
+              minWidth="30px"
+              borderRadius="full"
+              onClick={() => setShowStake(false)}
+              zIndex="1"
+              backgroundColor="rgba(21, 21, 21, 0.95)"
+              border="1px solid rgba(142, 102, 43, 0.4)"
+              color="#8e662b"
+              fontSize="14px"
+              display="flex"
+              alignItems="center"
+              justifyContent="center"
+              _hover={{
+                backgroundColor: "rgba(142, 102, 43, 0.2)",
+                color: "#8e662b",
+                transform: "scale(1.1)",
+              }}
+              transition="all 0.2s ease"
+            >
+              ✕
+            </Button>
+            <Box
+              sx={{
+                ".burnButton, button": {
+                  background:
+                    "linear-gradient(315deg, #ffc4ec -10%, #efdbfd 50%, #ffedd6 110%) !important",
+                  color: "#1b1724 !important",
+                  fontWeight: "bold",
+                  transition: "all 0.3s ease",
+                  "&:hover": {
+                    transform: "scale(1.05)",
+                    boxShadow: "0 0 15px rgba(142, 102, 43, 0.3)",
+                  },
+                },
+                input: {
+                  background: "rgba(255, 255, 255, 0.05)",
+                  border: "1px solid rgba(142, 102, 43, 0.3)",
+                  borderRadius: "8px",
+                  color: "#fff",
+                  padding: "10px",
+                  "&:focus": {
+                    borderColor: "#8e662b",
+                    boxShadow: "0 0 0 1px #8e662b",
+                  },
+                },
+                p: {
+                  color: "#8e662b",
+                  margin: "8px 0",
+                  fontSize: "1rem",
+                  textAlign: "center",
+                },
+                // Center the ConnectButton and its container
+                "& > div:first-of-type": {
+                  display: "flex !important",
+                  justifyContent: "center !important",
+                  marginBottom: "1rem !important",
+                },
+                // Style the wallet details section
+                "& > div > div": {
+                  display: "flex !important",
+                  flexDirection: "column !important",
+                  alignItems: "center !important",
+                  margin: "10px 0 !important",
+                },
+                // Style the button container for Stake and Withdraw
+                "& > div > div:nth-of-type(2)": {
+                  display: "flex !important",
+                  flexDirection: "row !important",
+                  justifyContent: "center !important",
+                  alignItems: "center !important",
+                  gap: "10px !important",
+                  width: "100% !important",
+                  maxWidth: "300px !important",
+                  margin: "1rem auto !important",
+                  "& > button": {
+                    flex: "1 1 auto !important",
+                    minWidth: "120px !important",
+                    height: "40px !important",
+                    margin: "0 !important",
+                    padding: "0 15px !important",
+                    fontSize: "14px !important",
+                    fontWeight: "600 !important",
+                    whiteSpace: "nowrap !important",
+                    overflow: "hidden !important",
+                    textOverflow: "ellipsis !important",
+                    display: "flex !important",
+                    alignItems: "center !important",
+                    justifyContent: "center !important",
+                    borderRadius: "8px !important",
+                    border: "none !important",
+                    boxSizing: "border-box !important",
+                  },
+                },
+                // Style the claim rewards button container
+                "& > div > div:last-of-type": {
+                  display: "flex !important",
+                  flexDirection: "column !important",
+                  alignItems: "center !important",
+                  width: "100% !important",
+                  marginTop: "1rem !important",
+                  "& > button": {
+                    margin: "0 !important",
+                    minWidth: "150px !important",
+                  },
+                },
+                // Make modal content more compact
+                "& > div": {
+                  margin: "0 !important",
+                  padding: "0 !important",
+                },
+              }}
+            >
+              <Stake />
+            </Box>
+          </Box>
+        </Box>
+      )}
+
+      {/* Existing PayEmbed Modal */}
+      {showPayEmbed && (
+        <Box
+          position="fixed"
+          top="0"
+          left="0"
+          width="100vw"
+          height="100vh"
+          backgroundColor="rgba(0, 0, 0, 0.8)"
+          display="flex"
+          justifyContent="center"
+          alignItems="center"
+          zIndex="9999"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowPayEmbed(false);
+            }
+          }}
+        >
+          <Box
+            position="relative"
+            width="90%"
+            maxWidth="600px"
+            backgroundColor="transparent"
+            borderRadius="10px"
+            padding="20px"
+          >
+            <Button
+              position="absolute"
+              right="-10px"
+              top="-10px"
+              size="sm"
+              borderRadius="full"
+              onClick={() => setShowPayEmbed(false)}
+              zIndex="1"
+              backgroundColor="rgba(0, 0, 0, 0.8)"
+              color="white"
+              _hover={{ backgroundColor: "rgba(0, 0, 0, 0.9)" }}
+            >
+              ✕
+            </Button>
+            <PayEmbed
+              client={client}
+              themeConfig={{
+                colors: {
+                  accentText: "#8e662b",
+                  accentButtonBg: "#8e662b",
+                  modalBg: "rgba(21, 21, 21, 0.95)",
+                },
+              }}
+              connectOptions={{
+                connectModal: {
+                  size: "compact",
+                  title: "Sign in",
+                },
+              }}
+              payOptions={{
+                buyWithFiat: {
+                  testMode: true, // defaults to false
+                },
+                prefillBuy: {
+                  token: {
+                    address: "0x1D0AE877913917eE3a3e8585D658E9e4dC545c83",
+                    name: "STAKE",
+                    symbol: "STAKE",
+                    icon: "...", // optional
+                  },
+                  chain: baseSepolia,
+                  allowEdits: {
+                    amount: true, // allow editing buy amount
+                    token: false, // disable selecting buy token
+                    chain: false, // disable selecting buy chain
+                  },
+                },
+              }}
+            />
+          </Box>
+        </Box>
+      )}
     </>
   );
 };

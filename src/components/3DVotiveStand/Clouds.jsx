@@ -7,13 +7,26 @@ import React, {
 } from "react";
 import { Cloud, Clouds } from "@react-three/drei";
 import * as THREE from "three";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useLoader } from "@react-three/fiber";
 import { random } from "maath";
+import dynamic from "next/dynamic";
 
 // Create context for sharing lightning effects
 const lightningContext = createContext();
 
-function DarkClouds() {
+// Define the component first
+function DarkCloudsComponent() {
+  // Load texture only on client side
+  const [cloudTexture, setCloudTexture] = useState(null);
+
+  useEffect(() => {
+    // Only load texture on client side
+    const loader = new THREE.TextureLoader();
+    loader.load("/assets/textures/cloud.png", (texture) => {
+      setCloudTexture(texture);
+    });
+  }, []);
+
   const shake = useRef(); // For camera shake effect if you use CameraShake
 
   // Create multiple independent flash generators for distributed lightning
@@ -55,6 +68,8 @@ function DarkClouds() {
   const lightningRef1 = useRef();
   const lightningRef2 = useRef();
   const lightningRef3 = useRef();
+  const staticLightRef1 = useRef(); // Add ref for the static light
+  const staticLightRef2 = useRef(); // Add ref for the hidden light in bigCloudGroup
 
   useFrame((state, delta) => {
     const time = state.clock.elapsedTime;
@@ -68,6 +83,13 @@ function DarkClouds() {
     if (lightningRef1.current) lightningRef1.current.intensity = impulse1 * 150;
     if (lightningRef2.current) lightningRef2.current.intensity = impulse2 * 80;
     if (lightningRef3.current) lightningRef3.current.intensity = impulse3 * 100;
+
+    // Control the static lights with the lightning impulses
+    const mixedImpulse = impulse1 * 0.3 + impulse2 * 0.5 + impulse3 * 0.2;
+    if (staticLightRef1.current)
+      staticLightRef1.current.intensity = mixedImpulse * 1.5;
+    if (staticLightRef2.current)
+      staticLightRef2.current.intensity = mixedImpulse * 2.5;
 
     // Trigger camera shake only on major lightning events
     const maxImpulse = Math.max(impulse1, impulse2, impulse3);
@@ -215,98 +237,128 @@ function DarkClouds() {
           position={[40, 75, 30]}
         />
 
-        <Clouds material={THREE.MeshStandardMaterial}>
-          {/* ☁️ Cloud group 1 - center */}
-          <group ref={cloudGroup1} position={[0, 25, 0]}>
-            <Cloud
-              seed={1}
-              fade={30}
-              speed={0.1}
-              growth={4}
-              segments={30}
-              volume={9}
-              opacity={0.7}
-              bounds={[10, 2, 10]}
-            />
-            <Cloud
-              seed={2}
-              fade={30}
-              speed={0.5}
-              growth={4}
-              volume={8}
-              opacity={0.5}
-              bounds={[8, 2, 8]}
-              position={[2, 1, 2]}
-            />
-          </group>
+        {cloudTexture ? (
+          <Clouds>
+            {/* ☁️ Cloud group 1 - center */}
+            <group ref={cloudGroup1} position={[0, 25, 0]}>
+              <Cloud
+                seed={1}
+                fade={30}
+                speed={0.1}
+                growth={4}
+                segments={30}
+                volume={9}
+                opacity={0.7}
+                bounds={[10, 2, 10]}
+                texture={cloudTexture}
+              />
+              <Cloud
+                seed={2}
+                fade={30}
+                speed={0.5}
+                growth={4}
+                volume={8}
+                opacity={0.5}
+                bounds={[8, 2, 8]}
+                position={[2, 1, 2]}
+                texture={cloudTexture}
+              />
+            </group>
 
-          {/* ☁️ Cloud group 2 - left */}
-          <group ref={cloudGroup2} position={[-20, 26, -10]}>
-            <Cloud
-              seed={3}
-              fade={30}
-              speed={0.2}
-              growth={4}
-              segments={30}
-              volume={5}
-              opacity={0.6}
-              bounds={[8, 2, 8]}
-            />
-          </group>
+            {/* ☁️ Cloud group 2 - left */}
+            <group ref={cloudGroup2} position={[-20, 26, -10]}>
+              <Cloud
+                seed={3}
+                fade={30}
+                speed={0.2}
+                growth={4}
+                segments={30}
+                volume={5}
+                opacity={0.6}
+                bounds={[6, 2, 6]}
+                texture={cloudTexture}
+              />
+            </group>
 
-          {/* ☁️ Cloud group 3 - right */}
-          <group ref={cloudGroup3} position={[20, 27, 10]}>
-            <Cloud
-              seed={4}
-              fade={30}
-              speed={0.15}
-              growth={4}
-              segments={30}
-              volume={7}
-              opacity={0.6}
-              bounds={[9, 2, 9]}
-            />
-          </group>
+            {/* ☁️ Cloud group 3 - right */}
+            <group ref={cloudGroup3} position={[20, 27, 10]}>
+              <Cloud
+                seed={5}
+                fade={30}
+                speed={0.3}
+                growth={4}
+                segments={30}
+                volume={6}
+                opacity={0.5}
+                bounds={[7, 2, 7]}
+                texture={cloudTexture}
+              />
+            </group>
 
-          {/* ☁️ Cloud group 4 - back */}
-          <group ref={cloudGroup4} position={[5, 28, -15]}>
-            <Cloud
-              seed={5}
-              fade={30}
-              speed={0.1}
-              growth={4}
-              segments={30}
-              volume={6}
-              opacity={0.5}
-              bounds={[7, 2, 7]}
-            />
+            {/* ☁️ Cloud group 4 - back */}
+            <group ref={cloudGroup4} position={[5, 28, -15]}>
+              <Cloud
+                seed={6}
+                fade={30}
+                speed={0.2}
+                growth={4}
+                segments={30}
+                volume={7}
+                opacity={0.6}
+                bounds={[9, 2, 9]}
+                texture={cloudTexture}
+              />
+            </group>
+
             {/* Add dedicated lightning source inside a cloud for glow effect */}
-            <pointLight color="#dcebff" intensity={0} distance={12} decay={2} />
-          </group>
-
-          {/* New cloud group with internal lightning */}
-          <group ref={bigCloudGroup} position={[-15, 30, 12]}>
-            <Cloud
-              seed={6}
-              fade={30}
-              speed={0.05}
-              growth={5}
-              segments={45}
-              volume={10}
-              opacity={0.65}
-              bounds={[12, 3, 12]}
+            <pointLight
+              ref={staticLightRef1}
+              color="#f0f8ff"
+              intensity={0} // Start with intensity 0
+              position={[-15, 30, 12]}
+              distance={15}
+              decay={2}
             />
-            {/* Hidden light source inside cloud */}
-            <PuffyLightning position={[0, 0, 0]} />
-          </group>
-        </Clouds>
+
+            {/* New cloud group with internal lightning */}
+            <group ref={bigCloudGroup} position={[-15, 30, 12]}>
+              <Cloud
+                seed={7}
+                fade={30}
+                speed={0.1}
+                growth={5}
+                segments={45}
+                volume={10}
+                opacity={0.65}
+                bounds={[12, 3, 12]}
+                texture={cloudTexture}
+              />
+              {/* Hidden light source inside cloud */}
+              <pointLight
+                ref={staticLightRef2}
+                color="#f0f8ff"
+                intensity={0} // Start with intensity 0
+                distance={10}
+                decay={2}
+              />
+            </group>
+          </Clouds>
+        ) : (
+          // Fallback when texture is not loaded yet
+          <Clouds>{/* Empty clouds as placeholder */}</Clouds>
+        )}
       </group>
     </lightningContext.Provider>
   );
 }
 
+// Use dynamic import with no SSR to avoid 'document is not defined' error
+const DarkClouds = dynamic(() => Promise.resolve(DarkCloudsComponent), {
+  ssr: false,
+});
+
 // Component for cloud with internal lightning - similar to Puffycloud from example
-function PuffyLightning({ position = [0, 0, 0] }) {
+function PuffyLightningComponent({ position = [0, 0, 0] }) {
   const light = useRef();
   const { flash2 } = useContext(lightningContext);
 
@@ -329,5 +381,10 @@ function PuffyLightning({ position = [0, 0, 0] }) {
     </group>
   );
 }
+
+// Use dynamic import for PuffyLightning as well
+const PuffyLightning = dynamic(() => Promise.resolve(PuffyLightningComponent), {
+  ssr: false,
+});
 
 export default DarkClouds;

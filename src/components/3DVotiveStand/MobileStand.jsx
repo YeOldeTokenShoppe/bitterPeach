@@ -60,7 +60,7 @@ function MobileStand({ scale, onBack, onTooltipUpdate }) {
       controlsRef.current.maxDistance = 30;
       controlsRef.current.update();
     }
-  }, [camera, modelRef.current]);
+  }, [camera]);
 
   useEffect(() => {
     if (gltf.animations.length) {

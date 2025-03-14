@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import {
   Accordion,
   AccordionButton,
@@ -107,12 +107,21 @@ const useOutsideClick = (refs, handler) => {
 
 function Hero({ setHeroLoaded }) {
   const [loadedImages, setLoadedImages] = useState(new Set());
-  const heroImages = [
-    // Add critical hero images here
-    "/logo.png",
-    "/hero-image.jpg",
-    // Add any other critical images used in the Hero component
-  ];
+
+  const heroImages = useMemo(
+    () => [
+      // Add critical hero images here
+      "/logo.png",
+      "/hero-image.jpg",
+      // Coin images
+      "/coinFront.png",
+      "/coinBack1.png",
+      // VVV image
+      "/vvv.jpg",
+      // Add any other critical images used in the Hero component
+    ],
+    []
+  );
 
   useEffect(() => {
     // Preload all hero images
@@ -616,7 +625,7 @@ function Hero({ setHeroLoaded }) {
             >
               <img
                 // className="logo"
-                src="./vvv.jpg"
+                src="/vvv.jpg"
                 width="100%"
                 height="auto"
                 alt=""

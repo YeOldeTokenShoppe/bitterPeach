@@ -33,7 +33,6 @@ import dynamic from "next/dynamic";
 import styled from "styled-components";
 
 import { debounce } from "lodash";
-import MobileModel from "./MobileModel";
 
 import FloatingCandleViewer from "./CandleInteraction";
 
@@ -103,6 +102,7 @@ const DebugOverlay = ({ isVisible, dpr, modelScale, size, networkType }) => {
 // Lazy load scene components
 const MoonScene = lazy(() => import("./MoonLamps"));
 const HolographicStatue = lazy(() => import("./HolographicStatue"));
+import RocketModel from "./RocketModel";
 const PostProcessingEffects = lazy(() => import("./PostProcessingEffects"));
 
 function ThreeDVotiveStand({
@@ -120,6 +120,8 @@ function ThreeDVotiveStand({
   is80sMode,
   showSpotify,
   onBoomboxClick,
+  monsterMode,
+  userData,
 }) {
   const [showFloatingViewer, setShowFloatingViewer] = useState(false);
   const [selectedCandleData, setSelectedCandleData] = useState(null);
@@ -128,8 +130,8 @@ function ThreeDVotiveStand({
   const [networkType, setNetworkType] = useState("");
 
   const results = useFirestoreResults();
-  const [userData, setUserData] = useState([]);
-  // Add in index.jsx
+  // const [userData, setUserData] = useState([]);
+  // // Add in index.jsx
   const [tooltipData, setTooltipData] = useState([]);
 
   const [shuffledCandleIndices, setShuffledCandleIndices] = useState([]);
@@ -481,6 +483,47 @@ function ThreeDVotiveStand({
     }
   }, []);
 
+  // Add a ref to store the ambient light dimming value from RocketModel
+  const ambientLightDimmingRef = useRef(0.1);
+
+  // Function to update the ambient light dimming value
+  const updateAmbientLightDimming = (value) => {
+    ambientLightDimmingRef.current = value;
+  };
+
+  // Add an effect to dim ambient light when monsterMode is active
+  useEffect(() => {
+    // Find ambient light in the scene
+    scene.traverse((object) => {
+      if (object.isAmbientLight) {
+        // Store original intensity if not already stored
+        if (!object.userData.originalIntensity && monsterMode) {
+          object.userData.originalIntensity = object.intensity;
+        }
+
+        // Dim the light when in monster mode
+        if (monsterMode) {
+          // Reduce intensity based on the dimming value from GUI
+          object.intensity = object.userData.originalIntensity
+            ? object.userData.originalIntensity * ambientLightDimmingRef.current
+            : ambientLightDimmingRef.current;
+        } else if (object.userData.originalIntensity) {
+          // Restore original intensity when exiting monster mode
+          object.intensity = object.userData.originalIntensity;
+        }
+      }
+    });
+
+    return () => {
+      // Restore original intensity when component unmounts
+      scene.traverse((object) => {
+        if (object.isAmbientLight && object.userData.originalIntensity) {
+          object.intensity = object.userData.originalIntensity;
+        }
+      });
+    };
+  }, [monsterMode, scene]);
+
   return (
     <>
       <div
@@ -554,6 +597,7 @@ function ThreeDVotiveStand({
               is80sMode={is80sMode}
               showSpotify={showSpotify}
               onBoomboxClick={onBoomboxClick}
+              monsterMode={monsterMode}
             />
 
             {/* Add Sun to the scene at a visible position */}
@@ -563,8 +607,18 @@ function ThreeDVotiveStand({
               <MoonScene modelRef={modelRef} onSpawnReady={onSpawnReady} />
             </Suspense>
 
+            {/* Conditionally render HolographicStatue or RocketModel based on monsterMode */}
             <Suspense fallback={null}>
-              <HolographicStatue />
+              {!monsterMode ? (
+                <HolographicStatue />
+              ) : (
+                // Render RocketModel directly without Suspense since it's no longer lazy loaded
+                <RocketModel
+                  updateAmbientLightDimming={updateAmbientLightDimming}
+                  userData={userData}
+                  is80sMode={is80sMode}
+                />
+              )}
             </Suspense>
             <Suspense fallback={null}>
               <TickerDisplay

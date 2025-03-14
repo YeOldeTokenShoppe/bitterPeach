@@ -11,6 +11,7 @@ import dynamic from "next/dynamic";
 import MoonRoomModal from "../components/MoonRoomModal";
 import Bouncer from "../components/Bouncer";
 import GoldCards from "../components/3DVotiveStand/GoldCards";
+// import { zIndex } from "html2canvas/dist/types/css/property-descriptors/z-index";
 
 export default function CommunionPage() {
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -34,30 +35,33 @@ export default function CommunionPage() {
   }, [carouselLoaded, communionLoaded, goldCardsLoaded, allImagesLoaded]);
 
   // List of all critical images that need to be preloaded
-  const criticalImages = [
-    "/carouselSign.png",
-    // Add other critical images here
-    "seaMonster.png",
-    "bull.png",
-    "bear.png",
-    "gator.png",
-    "chupa.png",
-    "snowman.png",
-    "unicorn.png",
-    "jackalope.png",
-    "liger.png",
-    "dire.png",
-    "warthog.png",
-    "mothmanRide.png",
-    "/telegram.svg",
-    "/x_.svg",
-    "/threads_.png",
-    "/instagram_.png",
-    "/discord.svg",
-    "/8ballicon.svg",
-    "/horseshoe.svg",
-    "/roulette.svg",
-  ];
+  const criticalImages = useMemo(
+    () => [
+      "/carouselSign.png",
+      // Add other critical images here
+      "seaMonster.png",
+      "bull.png",
+      "bear.png",
+      "gator.png",
+      "chupa.png",
+      "snowman.png",
+      "unicorn.png",
+      "jackalope.png",
+      "liger.png",
+      "dire.png",
+      "warthog.png",
+      "mothmanRide.png",
+      "/telegram.svg",
+      "/x_.svg",
+      "/threads_.png",
+      "/instagram_.png",
+      "/discord.svg",
+      "/8ballicon.svg",
+      "/horseshoe.svg",
+      "/roulette.svg",
+    ],
+    []
+  );
 
   // Preload all critical images
   useEffect(() => {
@@ -70,18 +74,16 @@ export default function CommunionPage() {
         const img = typeof window !== "undefined" ? new window.Image() : null;
 
         if (!img) {
-          console.warn("Window not available, skipping image preload");
           resolve(false);
           return;
         }
 
         img.onload = () => {
           loadedCount++;
-          console.log(`Loaded image ${loadedCount}/${totalImages}: ${src}`);
+
           resolve(true);
         };
         img.onerror = () => {
-          console.error(`Failed to load image: ${src}`);
           loadedCount++;
           resolve(false);
         };
@@ -91,11 +93,9 @@ export default function CommunionPage() {
 
     Promise.all(criticalImages.map(preloadImage))
       .then(() => {
-        console.log("All critical images preloaded");
         setAllImagesLoaded(true);
       })
       .catch((err) => {
-        console.error("Error preloading images:", err);
         // Still set as loaded after timeout to prevent hanging
         setTimeout(() => setAllImagesLoaded(true), 3000);
       });
@@ -121,7 +121,6 @@ export default function CommunionPage() {
       communionLoaded &&
       goldCardsLoaded
     ) {
-      console.log("✅ All components and images loaded, showing page");
       setIsLoading(false);
     }
   }, [carouselLoaded, allImagesLoaded, communionLoaded, goldCardsLoaded]);
@@ -151,7 +150,7 @@ export default function CommunionPage() {
         width: "auto",
         maxWidth: "none",
         maxHeight: "none",
-        zIndex: 1000,
+        zIndex: 5000,
       }
     : {
         transform: "translateX(-50%) scale(0.5)",
@@ -161,7 +160,7 @@ export default function CommunionPage() {
         width: "auto",
         maxWidth: "none",
         maxHeight: "none",
-        zIndex: 1000,
+        zIndex: 5000,
       };
 
   useEffect(() => {

@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Hero from "../components/Hero";
 import Header from "../components/Header";
 import NavBar from "../components/NavBar.client";
@@ -19,18 +19,26 @@ export default function Home() {
   const [allImagesLoaded, setAllImagesLoaded] = useState(false);
 
   // List of critical images to preload for the home page
-  const criticalImages = [
-    // Add your critical home page images here
-    // For example:
-    "/logo.png",
-    "/hero-image.jpg",
-    "/3D_spotify.png",
-    "/3D_tiktok.png",
-    "/3d_discord.png",
-    "/3d_X.png",
-    "/3d_instagram.png",
-    "/3d_tg2.png",
-  ];
+  const criticalImages = useMemo(
+    () => [
+      // Add your critical home page images here
+      // For example:
+      "/logo.png",
+      "/hero-image.jpg",
+      "/3D_spotify.png",
+      "/3D_tiktok.png",
+      "/3d_discord.png",
+      "/3d_X.png",
+      "/3d_instagram.png",
+      "/3d_tg2.png",
+      // Coin images
+      "/coinFront.png",
+      "/coinBack1.png",
+      // VVV image
+      "/vvv.jpg",
+    ],
+    []
+  ); // Empty dependency array means this will only be created once
 
   // Preload all critical images
   useEffect(() => {

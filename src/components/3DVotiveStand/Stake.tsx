@@ -83,7 +83,12 @@ export const Stake = () => {
     }, 10000);
 
     return () => clearInterval(interval);
-  }, [refetchStakeInfo, refetchStakingTokenBalance, refetchRewardTokenBalance]);
+  }, [
+    refetchStakeInfo,
+    refetchStakingTokenBalance,
+    refetchRewardTokenBalance,
+    refetchData,
+  ]);
 
   // Debug logs
   // useEffect(() => {
@@ -149,18 +154,35 @@ export const Stake = () => {
 
         {account && (
           <>
-            <div>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "row",
+                justifyContent: "center",
+                width: "100%",
+                gap: "10px",
+                margin: "10px 0",
+              }}
+            >
               <button
                 style={{
-                  margin: "5px",
-                  padding: "10px",
+                  margin: "0",
+                  padding: "0 15px",
                   backgroundColor: "#efefef",
                   border: "none",
                   borderRadius: "6px",
                   color: "#333",
-                  fontSize: "1rem",
-                  width: "45%",
+                  fontSize: "14px",
+                  flex: "1",
+                  maxWidth: "140px",
                   cursor: "pointer",
+                  height: "40px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
                 }}
                 onClick={() => setIsStaking(true)}
               >
@@ -168,15 +190,23 @@ export const Stake = () => {
               </button>
               <button
                 style={{
-                  margin: "5px",
-                  padding: "10px",
+                  margin: "0",
+                  padding: "0 15px",
                   backgroundColor: "#efefef",
                   border: "none",
                   borderRadius: "6px",
                   color: "#333",
-                  fontSize: "1rem",
-                  width: "45%",
+                  fontSize: "14px",
+                  flex: "1",
+                  maxWidth: "140px",
                   cursor: "pointer",
+                  height: "40px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
                 }}
                 onClick={() => setIsWithdrawing(true)}
               >
@@ -345,7 +375,7 @@ export const Stake = () => {
                 flexDirection: "column",
                 alignItems: "center",
                 backgroundColor: "#151515",
-                padding: "40px",
+                padding: "20px",
                 borderRadius: "10px",
                 minWidth: "300px",
               }}

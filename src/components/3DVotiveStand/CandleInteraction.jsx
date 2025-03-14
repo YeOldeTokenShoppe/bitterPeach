@@ -1,13 +1,10 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useCallback } from "react";
 import { Canvas, useThree } from "@react-three/fiber";
 import { useGLTF, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 
 function FloatingCandleViewer({ isVisible, onClose, userData }) {
   if (!isVisible) return null;
-
-  // Add debugging to log the userData
-  console.log("FloatingCandleViewer received userData:", userData);
 
   const handleClick = (e) => {
     // Close viewer when clicking outside the canvas area
@@ -116,14 +113,13 @@ function SceneContent({ userData }) {
   const flamePointLightRef = useRef();
   const mixerRef = useRef(null);
 
-  const applyUserImageToLabel = (scene, imageUrl) => {
+  const applyUserImageToLabel = useCallback((scene, imageUrl) => {
     if (!scene || !imageUrl) return;
 
     let labelMesh = null;
     scene.traverse((child) => {
       if (child.name.includes("Label2")) {
         labelMesh = child;
-        console.log("Found Label2 mesh:", child.name);
       }
     });
 
@@ -162,9 +158,9 @@ function SceneContent({ userData }) {
         (error) => console.error("Error loading texture:", error)
       );
     }
-  };
+  }, []);
 
-  const createDynamicTextTexture = (text, userData) => {
+  const createDynamicTextTexture = useCallback((text, userData) => {
     const canvas = document.createElement("canvas");
     canvas.width = 1024;
     canvas.height = 1024;
@@ -238,86 +234,82 @@ function SceneContent({ userData }) {
     texture.needsUpdate = true;
 
     return texture;
-  };
+  }, []);
 
-  const applyDynamicTextToLabel = (scene, userData) => {
-    if (!scene || !userData) return;
+  const applyDynamicTextToLabel = useCallback(
+    (scene, userData) => {
+      if (!scene || !userData) return;
 
-    let labelMesh = null;
-    scene.traverse((child) => {
-      if (child.name.includes("Label1")) {
-        labelMesh = child;
-        console.log("Found Label1 mesh:", child.name);
-      }
-    });
-
-    if (labelMesh) {
-      // Define default images to check against
-      const DEFAULT_IMAGES = [
-        "/Triumph.jpg",
-        "/vsClown.jpg",
-        "/vsZombie.webp",
-        "/vsSkeleton.webp",
-      ];
-
-      // Check if this is a default candle
-      const isDefaultCandle =
-        userData.isDefault ||
-        (userData.image &&
-          DEFAULT_IMAGES.some((img) => userData.image.includes(img)));
-
-      // Create appropriate message based on whether it's a default or user candle
-      let message, userName;
-
-      if (isDefaultCandle) {
-        // For default candles
-        userName = "Anonymous";
-        message = "Stake RL80 to dedicate a votive candle.";
-      } else {
-        // For user candles with custom images
-        userName = userData.userName || "Friend";
-        message =
-          userData.message && userData.message.trim() !== ""
-            ? userData.message
-            : "may the light of Our Lady of Perpetual Profit illuminate the path to prosperity.";
-      }
-
-      console.log("Applying text to label:", {
-        userName,
-        message,
-        isDefaultCandle,
-      });
-
-      // Different text format for default vs user candles
-      const dynamicText = isDefaultCandle
-        ? message
-        : `On behalf of ${userName},\n\n${message}`;
-
-      // Create texture with the text (without using {userName} placeholder)
-      const texture = createDynamicTextTexture(dynamicText, userData);
-
-      const material = new THREE.MeshStandardMaterial({
-        map: texture,
-        transparent: true,
-        side: THREE.DoubleSide,
-        emissive: new THREE.Color(0xffffff),
-        emissiveIntensity: 0.5,
-        emissiveMap: texture,
-        metalness: 0.2,
-        roughness: 0.8,
-      });
-
-      if (labelMesh.material) {
-        if (labelMesh.material.map) {
-          labelMesh.material.map.dispose();
+      let labelMesh = null;
+      scene.traverse((child) => {
+        if (child.name.includes("Label1")) {
+          labelMesh = child;
         }
-        labelMesh.material.dispose();
-      }
+      });
 
-      labelMesh.material = material;
-      labelMesh.material.needsUpdate = true;
-    }
-  };
+      if (labelMesh) {
+        // Define default images to check against
+        const DEFAULT_IMAGES = [
+          "/Triumph.jpg",
+          "/vsClown.jpg",
+          "/vsZombie.webp",
+          "/vsSkeleton.webp",
+        ];
+
+        // Check if this is a default candle
+        const isDefaultCandle =
+          userData.isDefault ||
+          (userData.image &&
+            DEFAULT_IMAGES.some((img) => userData.image.includes(img)));
+
+        // Create appropriate message based on whether it's a default or user candle
+        let message, userName;
+
+        if (isDefaultCandle) {
+          // For default candles
+          userName = "Anonymous";
+          message = "Stake RL80 to dedicate a votive candle.";
+        } else {
+          // For user candles with custom images
+          userName = userData.userName || "Friend";
+          message =
+            userData.message && userData.message.trim() !== ""
+              ? userData.message
+              : "may the light of Our Lady of Perpetual Profit illuminate the path to prosperity.";
+        }
+
+        // Different text format for default vs user candles
+        const dynamicText = isDefaultCandle
+          ? message
+          : `On behalf of ${userName},\n\n${message}`;
+
+        // Create texture with the text (without using {userName} placeholder)
+        const texture = createDynamicTextTexture(dynamicText, userData);
+
+        const material = new THREE.MeshStandardMaterial({
+          map: texture,
+          transparent: true,
+          side: THREE.DoubleSide,
+          emissive: new THREE.Color(0xffffff),
+          emissiveIntensity: 0.5,
+          emissiveMap: texture,
+          metalness: 0.2,
+          roughness: 0.8,
+        });
+
+        if (labelMesh.material) {
+          if (labelMesh.material.map) {
+            labelMesh.material.map.dispose();
+          }
+          labelMesh.material.dispose();
+        }
+
+        labelMesh.material = material;
+        labelMesh.material.needsUpdate = true;
+      }
+    },
+    [createDynamicTextTexture]
+  );
 
   // Add this function to update on each frame
   const onFrame = () => {
@@ -393,9 +385,6 @@ function SceneContent({ userData }) {
       }
     }
 
-    // Add debugging to see what objects are in the scene
-    console.log("User data received:", userData);
-
     // Define all default images to check against
     const DEFAULT_IMAGES = [
       "/Triumph.jpg",
@@ -412,10 +401,6 @@ function SceneContent({ userData }) {
 
     const hasCustomUserImage = userData && userData.image && !isDefaultImage;
 
-    console.log("Has user image:", userData?.image);
-    console.log("Is default image:", isDefaultImage);
-    console.log("Has custom user image:", hasCustomUserImage);
-
     // Disable flame animation if no custom user image
     if (!hasCustomUserImage && mixerRef.current) {
       mixerRef.current.stopAllAction();
@@ -429,9 +414,7 @@ function SceneContent({ userData }) {
         object.name.toLowerCase().includes("fire") ||
         object.name.toLowerCase().includes("light")
       ) {
-        console.log(`Found flame-related object: ${object.name}`);
         object.visible = hasCustomUserImage;
-        console.log(`Set ${object.name} visibility to ${hasCustomUserImage}`);
       }
 
       // Recursively check children
@@ -452,7 +435,6 @@ function SceneContent({ userData }) {
           object.name.toLowerCase().includes("light")
         ) {
           if (object.material.emissive) {
-            console.log(`Found emissive material on ${object.name}`);
             if (!hasCustomUserImage) {
               // Save original emissive color if needed later
               if (!object.userData.originalEmissive) {
@@ -475,13 +457,16 @@ function SceneContent({ userData }) {
     // Original flame visibility code (keep this as well)
     scene.traverse((child) => {
       if (child.name.startsWith("Flame")) {
-        console.log(
-          `Setting direct visibility for ${child.name} to ${hasCustomUserImage}`
-        );
         child.visible = hasCustomUserImage;
       }
     });
-  }, [scene, userData, animations, applyDynamicTextToLabel]);
+  }, [
+    scene,
+    userData,
+    animations,
+    applyDynamicTextToLabel,
+    applyUserImageToLabel,
+  ]);
 
   return (
     <>

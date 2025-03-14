@@ -892,7 +892,7 @@ s.box .shimmer {
   position: absolute;
   width: 3rem !important;
   height: 3rem !important;
-  top: 3rem;
+  top: -0.03rem;
   right: 5%;
 
   cursor: pointer;
@@ -1197,7 +1197,7 @@ ul.icons li .icon:hover:active {
   position: absolute;
   width: 4em;
   height: 4em;
-  left: 15% !important;
+  left: 5% !important;
   top: 3rem;
 }
 
@@ -6041,4 +6041,10 @@ header,
 body {
   overflow-y: auto !important;
   position: relative !important;
+}
+
+.css-1v6i4q9 {
+  position: relative !important;
+  top: 3rem !important;
+  left: 16rem !important;
 }

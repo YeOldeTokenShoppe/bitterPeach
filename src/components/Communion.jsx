@@ -1,22 +1,26 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 
 function Communion({ setCommunionLoaded }) {
   const [loadedIcons, setLoadedIcons] = useState(new Set());
-  const icons = [
-    { src: "/3D_spotify.png", alt: "Spotify" },
-    { src: "/3D_tiktok.png", alt: "Tiktok" },
-    { src: "/3d_discord.png", alt: "Discord" },
-    { src: "/3d_X.png", alt: "X" },
-    { src: "/3d_instagram.png", alt: "Instagram" },
-    {
-      src: "/3d_tg2.png",
-      alt: "Telegram",
-      style: { marginBottom: "0.5rem" },
-    },
-  ];
+
+  const icons = useMemo(
+    () => [
+      { src: "/3D_spotify.png", alt: "Spotify" },
+      { src: "/3D_tiktok.png", alt: "Tiktok" },
+      { src: "/3d_discord.png", alt: "Discord" },
+      { src: "/3d_X.png", alt: "X" },
+      { src: "/3d_instagram.png", alt: "Instagram" },
+      {
+        src: "/3d_tg2.png",
+        alt: "Telegram",
+        style: { marginBottom: "0.5rem" },
+      },
+    ],
+    []
+  );
 
   useEffect(() => {
     // If setCommunionLoaded is not provided, we don't need to track loading
