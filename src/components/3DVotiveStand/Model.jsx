@@ -25,7 +25,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader";
 
 // Configure draco loader for useGLTF
-useGLTF.preload("/altarBoomboxCandles.glb");
+useGLTF.preload("/altar8.glb");
 const dracoLoader = new DRACOLoader();
 dracoLoader.setDecoderPath("/draco/");
 // Set up GLTFLoader to use Draco compression
@@ -280,7 +280,7 @@ function Model({
   onBoomboxClick,
   monsterMode,
 }) {
-  const [modelUrl, setModelUrl] = useState("/altarBoomboxCandles.glb"); // Update default fallback
+  const [modelUrl, setModelUrl] = useState("/altar8.glb"); // Update default fallback
   const { progress } = useProgress(); // Track loading progress
   const gltf = useGLTF(modelUrl, true); // Enable caching
   const { camera, scene } = useThree();
@@ -377,7 +377,7 @@ function Model({
   useEffect(() => {
     const fetchModelUrl = async () => {
       try {
-        const modelRef = ref(storage, "models/altarBoomboxCandles.glb"); // Update Firebase path
+        const modelRef = ref(storage, "models/altar8.glb"); // Update Firebase path
         const downloadUrl = await getDownloadURL(modelRef);
 
         setModelUrl(downloadUrl);
@@ -2116,8 +2116,9 @@ function Model({
   );
 }
 
-// Preload both models
-useGLTF.preload("/altarBoomboxCandles.glb");
-useGLTF.preload("/XCandle1.glb");
+// Preload the main model only
+useGLTF.preload("/altar8.glb");
+
+// useGLTF.preload("/XCandle1.glb");
 
 export default Model;

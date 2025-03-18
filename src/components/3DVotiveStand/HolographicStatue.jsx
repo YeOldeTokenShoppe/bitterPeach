@@ -110,7 +110,7 @@ function HolographicStatue() {
   }
 
   useEffect(() => {
-    loader.load("/statue6.glb", (gltf) => {
+    loader.load("/CyberpunkMary.glb", (gltf) => {
       const statue = gltf.scene;
 
       // Create an anchor group with initial position
@@ -130,7 +130,7 @@ function HolographicStatue() {
       groupRef.current = { anchor: anchorGroup, rotation: rotationGroup };
 
       // Apply your existing transformations
-      statue.scale.set(0.4, 0.4, 0.4);
+      statue.scale.set(18, 18, 18);
       statue.rotation.y = Math.PI / 180;
 
       // Center the statue in the rotation group
@@ -148,24 +148,30 @@ function HolographicStatue() {
         fragmentShader: holographicMaterial.fragmentShader,
         transparent: true,
         blending: THREE.NormalBlending, // 🟢 Try Normal Blending instead of Additive
-        depthWrite: false,
+        depthWrite: true,
         depthTest: true,
         side: THREE.DoubleSide,
       });
 
       statue.traverse((child) => {
         if (child.isMesh) {
-          if (child.name.toLowerCase().includes("halo")) {
-            // ✅ Assign a new material that keeps its original Blender colors
+          const meshName = child.name.toLowerCase(); // Ensure consistent matching
+
+          if (
+            meshName.includes("halotext1") ||
+            meshName.includes("halotext2")
+          ) {
+            // ✅ Apply double-sided material
             child.material = new THREE.MeshStandardMaterial({
-              color: child.material.color, // Keep Blender's original color
-              emissive: child.material.color, // Make it glow with its color
-              emissiveIntensity: 2.5, // Increase emissiveness
-              metalness: 0.9, // Make it metallic
-              roughness: 0.1, // Reduce roughness for a shinier look
+              color: child.material.color, // Retains Blender's original color
+              emissive: child.material.color, // Makes it glow with the same color
+              emissiveIntensity: 4.0, // Adjust glow strength
+              metalness: 0.8, // Keeps a metallic shine
+              roughness: 0.2, // Ensures slight reflection for a clean cyberpunk look
+              side: THREE.DoubleSide, // ✅ Makes it visible from all angles
             });
 
-            return; // ✅ Skip applying the holographic shader to the halo
+            return; // ✅ Skip holographic effect for the halo text
           }
 
           // ✅ Apply holographic effect to everything else
