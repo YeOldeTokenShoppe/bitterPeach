@@ -32,7 +32,7 @@ dracoLoader.setDecoderPath("/draco/");
 GLTFLoader.prototype.setDRACOLoader(dracoLoader);
 
 // Default profile image to use when user has no image
-const DEFAULT_PROFILE_IMAGE = "/default-profile.jpg";
+const DEFAULT_PROFILE_IMAGE = "/defaultAvatar.png";
 
 // Toggle visibility based on 80s mode
 // useEffect(() => {
