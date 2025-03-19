@@ -396,7 +396,7 @@ function Header2() {
                     onMouseLeave={handleMouseLeave}
                     data-value="Gangster's Paradise"
                   >
-                    Gangster's Paradise
+                    Gangster&apos;s Paradise
                   </Link>
                 </Menu>
               </div>

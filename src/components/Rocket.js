@@ -10,7 +10,7 @@ const RocketSimulator = () => {
   const containerRef = useRef(null);
   const [countdown, setCountdown] = useState(10);
   let currentFace = 1; // Track the current face
-  let toggled = false; // Track the toggle state for visibility
+  const toggledRef = useRef(false);
   const raysRef = useRef(null);
   // Add rays animation effect
   useEffect(() => {
@@ -412,8 +412,8 @@ const RocketSimulator = () => {
     const mousedown = (e) => {
       e.preventDefault();
 
-      if (toggled) return; // Prevent further clicks until animation completes
-      toggled = true;
+      if (toggledRef.current) return; // Prevent further clicks until animation completes
+      toggledRef.current = true;
 
       const dir = currentFace === 1 ? 1 : -1; // Adjust the direction based on currentFace
 
@@ -430,7 +430,7 @@ const RocketSimulator = () => {
         },
         onComplete: () => {
           currentFace = currentFace === 1 ? 2 : 1; // Toggle the face
-          toggled = false; // Reset toggle flag for the next rotation
+          toggledRef.current = false; // Reset toggle flag for the next rotation
         },
       });
 

@@ -147,7 +147,7 @@ export default function Page() {
         <div
           style={{
             maxWidth: "1400px",
-            width: "100%",
+
             margin: "auto",
             position: "absolute",
           }}

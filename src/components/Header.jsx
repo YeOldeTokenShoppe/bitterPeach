@@ -160,7 +160,7 @@ function Header() {
 
       setActiveInterval(interval);
     },
-    [activeInterval]
+    [activeInterval, letters]
   );
 
   const handleMouseEnter = useCallback(
@@ -399,7 +399,7 @@ function Header() {
                     onMouseLeave={handleMouseLeave}
                     data-value="Gangster's Paradise"
                   >
-                    Gangster's Paradise
+                    Gangster&apos;s Paradise
                   </Link>
                   {/* </div> */}
                 </Menu>

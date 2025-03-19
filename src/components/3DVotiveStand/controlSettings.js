@@ -11,6 +11,8 @@ export const CONTROL_SETTINGS = {
     minPolarAngle: -Math.PI / 1.6,
     maxPolarAngle: Math.PI / 1.6,
     enablePan: true,
+    panSpeed: 2, // Increase pan sensitivity if needed
+    screenSpacePanning: false,
     enableZoom: true,
     zoomSpeed: 0.5,
     // Add touch-specific settings

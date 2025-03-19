@@ -534,38 +534,12 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode }) {
 
   // Function to clean up avatar planes
   const cleanupAvatarPlanes = () => {
-    // First check if there's a plane in our ref
-    if (avatarPlaneRef.current) {
-      console.log("Cleaning up avatar plane from ref");
-
-      // Remove from scene
-      scene.remove(avatarPlaneRef.current);
-
-      // Dispose of resources
-      if (avatarPlaneRef.current.geometry)
-        avatarPlaneRef.current.geometry.dispose();
-      if (avatarPlaneRef.current.material) {
-        if (Array.isArray(avatarPlaneRef.current.material)) {
-          avatarPlaneRef.current.material.forEach((m) => m.dispose());
-        } else {
-          avatarPlaneRef.current.material.dispose();
-        }
-      }
-
-      // Clear the ref
-      avatarPlaneRef.current = null;
-    }
-
-    // Also check for any other avatar planes in the scene
     if (!rocketRef.current) return;
 
     // Find all avatar planes
     const avatarPlanes = [];
-    scene.traverse((child) => {
-      if (
-        child.name === "AvatarPlane" ||
-        (child.userData && child.userData.isAvatarPlane)
-      ) {
+    rocketRef.current.traverse((child) => {
+      if (child.name === "AvatarPlane" || child.userData.isAvatarPlane) {
         avatarPlanes.push(child);
       }
     });
@@ -593,31 +567,28 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode }) {
     console.log("Avatar planes cleaned up");
   };
 
-  // Add a useEffect to handle visibility based on is80sMode
+  // Update the useEffect that handles is80sMode changes
   useEffect(() => {
     if (groupRef.current) {
       console.log(`RocketModel: is80sMode changed to ${is80sMode}`);
       groupRef.current.visible = !is80sMode;
 
-      // Handle avatar plane based on mode
+      // If switching to 80s mode, clean up the avatar plane
       if (is80sMode) {
-        // If Monster Mode is turned on, clean up the avatar plane
-        console.log("Monster Mode turned on, cleaning up avatar plane");
-        cleanupAvatarPlanes();
-      } else {
-        // Monster Mode is off
-        if (avatarPlaneRef.current) {
-          console.log(`Setting avatar plane visibility to visible`);
-          avatarPlaneRef.current.visible = true;
-        } else if (rocketRef.current) {
-          // If we're turning off 80s mode and there's no avatar plane but we have a rocket,
-          // we need to reapply the avatar
-          console.log("Reapplying avatar after Monster Mode was turned off");
-          applyUserAvatar(rocketRef.current);
+        // Remove avatar plane from scene
+        const plane = avatarPlaneRef.current;
+        if (plane) {
+          scene.remove(plane);
+          if (plane.geometry) plane.geometry.dispose();
+          if (plane.material) {
+            if (plane.material.map) plane.material.map.dispose();
+            plane.material.dispose();
+          }
+          avatarPlaneRef.current = null;
         }
       }
     }
-  }, [is80sMode]);
+  }, [is80sMode, scene]);
 
   // Load the rocket model
   useEffect(() => {
@@ -818,6 +789,18 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode }) {
       // Clean up avatar texture
       if (avatarTextureRef.current) {
         avatarTextureRef.current.dispose();
+      }
+
+      // Clean up avatar plane explicitly
+      const plane = avatarPlaneRef.current;
+      if (plane) {
+        scene.remove(plane);
+        if (plane.geometry) plane.geometry.dispose();
+        if (plane.material) {
+          if (plane.material.map) plane.material.map.dispose();
+          plane.material.dispose();
+        }
+        avatarPlaneRef.current = null;
       }
 
       // Clean up RIDER mesh material

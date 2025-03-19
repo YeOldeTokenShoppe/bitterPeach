@@ -135,7 +135,13 @@ function BurnModal({
     if (transactionStatus === "completed" && isResultSaved) {
       handleFetchImage();
     }
-  }, [transactionStatus, isResultSaved, user, setSelectedImage]);
+  }, [
+    transactionStatus,
+    isResultSaved,
+    user,
+    setSelectedImage,
+    setSaveMessage,
+  ]);
 
   // Ensure the fetched image is displayed correctly, including the frame
   {

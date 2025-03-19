@@ -16,6 +16,9 @@ const SpinningTextRing = ({
   const mountRef = useRef(null);
 
   useEffect(() => {
+    // Store ref value in variable at the start of effect
+    const mount = mountRef.current;
+
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(
       75,
@@ -26,7 +29,7 @@ const SpinningTextRing = ({
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setClearColor(0x000000, 0); // Transparent background
     renderer.setSize(canvasWidth, canvasHeight);
-    mountRef.current.appendChild(renderer.domElement);
+    mount.appendChild(renderer.domElement);
 
     const ringGroup = new THREE.Group();
     scene.add(ringGroup);
@@ -85,8 +88,10 @@ const SpinningTextRing = ({
     animate();
 
     return () => {
-      if (mountRef.current) {
-        mountRef.current.removeChild(renderer.domElement);
+      // Use the stored variable in cleanup, not mountRef.current
+      if (mount) {
+        // Cleanup using mount instead of mountRef.current
+        mount.removeChild(renderer.domElement);
       }
       renderer.dispose();
     };

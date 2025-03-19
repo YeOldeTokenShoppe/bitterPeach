@@ -1,6 +1,7 @@
 // RotatingBadge.js
 "use client";
 import React, { useEffect, useRef } from "react";
+import Image from "next/image";
 
 const RotatingBadge = ({ setBadgeLoaded }) => {
   const badgeRef = useRef(null);
@@ -8,7 +9,6 @@ const RotatingBadge = ({ setBadgeLoaded }) => {
   useEffect(() => {
     // Signal that the badge is loaded
     if (setBadgeLoaded) {
-      console.log("✅ Rotating badge loaded");
       setBadgeLoaded(true);
     }
   }, [setBadgeLoaded]);
@@ -175,7 +175,7 @@ const RotatingBadge = ({ setBadgeLoaded }) => {
       <span className="badge__char" style={{ color: "#e1b67e" }}>
         ★
       </span>
-      <img
+      <Image
         className="badge__emoji"
         src="/nuhart1.svg"
         width="72"

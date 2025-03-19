@@ -17,8 +17,7 @@ import { useFirestoreResults } from "../../utilities/useFirestoreResults";
 import * as THREE from "three";
 import gsap from "gsap";
 import Model from "./Model";
-import { Sun } from "./Model"; // Import the Sun component from Model.jsx
-import { DEFAULT_MARKERS } from "./markers";
+
 // import { DEFAULT_CAMERA, getCameraSettings } from "./defaultCamera";
 // In your Canvas component
 
@@ -28,7 +27,7 @@ import { CONTROL_SETTINGS } from "./controlSettings";
 import { Box } from "@chakra-ui/react";
 // import CameraGUI from "./CameraGUI";
 import { PerspectiveCamera } from "@react-three/drei";
-import { Stars } from "@react-three/drei";
+
 import dynamic from "next/dynamic";
 import styled from "styled-components";
 
@@ -37,67 +36,8 @@ import { debounce } from "lodash";
 import FloatingCandleViewer from "./CandleInteraction";
 
 import CameraGUI from "./CameraGUI";
-import WireframeTerrain from "./WireframeTerrain";
+
 const scene = new THREE.Scene();
-
-// Debug overlay component
-const DebugOverlay = ({ isVisible, dpr, modelScale, size, networkType }) => {
-  if (!isVisible) return null;
-
-  // Calculate performance recommendation
-  const getPerformanceRecommendation = () => {
-    if (dpr <= 1) return "Optimized for performance";
-    if (dpr <= 1.5) return "Balanced performance/quality";
-    return "Optimized for quality (may impact performance)";
-  };
-
-  return (
-    <div
-      style={{
-        position: "fixed",
-        top: 10,
-        right: 10,
-        background: "rgba(0,0,0,0.7)",
-        color: "white",
-        padding: 10,
-        borderRadius: 5,
-        fontSize: 12,
-        zIndex: 1000,
-      }}
-    >
-      <div
-        style={{
-          borderBottom: "1px solid #444",
-          paddingBottom: 5,
-          marginBottom: 5,
-        }}
-      >
-        <strong>3D Votive Stand Settings</strong>
-      </div>
-      <div>Device Pixel Ratio: {window.devicePixelRatio.toFixed(2)}</div>
-      <div>
-        Applied DPI: {dpr.toFixed(2)}{" "}
-        {dpr === 1
-          ? "✓ (recommended for mobile)"
-          : dpr === 1.5
-          ? "✓ (recommended for desktop)"
-          : ""}
-      </div>
-      <div>Performance: {getPerformanceRecommendation()}</div>
-      <div>Model Scale: {modelScale.toFixed(2)}</div>
-      <div>
-        Viewport: {size.width}x{size.height}
-      </div>
-      <div>Network: {networkType || "unknown"}</div>
-      <div style={{ marginTop: 5, fontSize: 10, color: "#aaa" }}>
-        Press &apos;P&apos; to toggle DPI: 1 → 1.5 → 2 → 0.75 → 1
-      </div>
-      <div style={{ marginTop: 5, fontSize: 10, color: "#aaa" }}>
-        Press &apos;D&apos; to toggle this debug overlay
-      </div>
-    </div>
-  );
-};
 
 // Lazy load scene components
 const MoonScene = lazy(() => import("./MoonLamps"));
@@ -119,7 +59,7 @@ function ThreeDVotiveStand({
   onSpawnReady,
   is80sMode,
   showSpotify,
-  onBoomboxClick,
+
   monsterMode,
   userData,
 }) {
@@ -143,7 +83,7 @@ function ThreeDVotiveStand({
   // const [clickedButtonName, setClickedButtonName] = useState("");
   const [buttonData, setButtonData] = useState("");
   const [camera, setCamera] = useState(null);
-  const [markers, setMarkers] = useState(DEFAULT_MARKERS);
+
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [isResetVisible, setIsResetVisible] = useState(true);
   const [rotation, setRotation] = useState([0, 0, 0]);
@@ -161,12 +101,7 @@ function ThreeDVotiveStand({
   const cameraRef = useRef(null); // Reference to the camera
   const controlsRef = useRef(null); // Reference to OrbitControls
   // const spotlightRef = useRef();
-  const directionalLightRef = useRef();
-  const directionalLight1Ref = useRef();
-  const directionalLight2Ref = useRef();
-  const hemisphereLightRef = useRef();
-  const ambientLightRef = useRef(null);
-  const pointLightRef = useRef();
+
   const rendererRef = useRef(null);
   // const [showPhoneViewer, setShowPhoneViewer] = useState(false);
 
@@ -240,20 +175,11 @@ function ThreeDVotiveStand({
   // Apply preset when is80sMode prop changes
   useEffect(() => {
     applyPreset(is80sMode ? "eighties" : "default");
-  }, [is80sMode]);
+  }, [is80sMode, applyPreset]);
 
   // Handle light position changes from Model component
   const handleLightPositionChange = (newPosition) => {
     setLightPosition(newPosition);
-  };
-
-  // Toggle light helper visibility
-  const toggleLightHelper = () => {
-    setShowLightHelper(!showLightHelper);
-    // Also update the model's light helper if modelRef is available
-    if (modelRef.current && modelRef.current.toggleLightHelper) {
-      modelRef.current.toggleLightHelper();
-    }
   };
 
   // Update light position
@@ -346,60 +272,9 @@ function ThreeDVotiveStand({
 
   // Detect device type and network conditions to set appropriate DPI
   useEffect(() => {
-    // Function to detect if device is mobile
-    const isMobileDevice = () => {
-      return (
-        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-          navigator.userAgent
-        ) || window.innerWidth <= 768
-      );
-    };
-
-    // Function to check network speed
-    const checkNetworkCondition = async () => {
-      // Use the Network Information API if available
-      if ("connection" in navigator) {
-        const connection = navigator.connection;
-        setNetworkType(
-          connection.effectiveType || connection.type || "unknown"
-        );
-
-        // Set DPI based on network type
-        if (connection.effectiveType === "4g" && !isMobileDevice()) {
-          setCurrentDpr(1.5); // Higher DPI for good connections on desktop
-        } else {
-          setCurrentDpr(1); // Lower DPI for slower connections or mobile
-        }
-
-        // Listen for changes to connection
-        const updateConnectionStatus = () => {
-          setNetworkType(
-            connection.effectiveType || connection.type || "unknown"
-          );
-          if (connection.effectiveType === "4g" && !isMobileDevice()) {
-            setCurrentDpr(1.5);
-          } else {
-            setCurrentDpr(1);
-          }
-        };
-
-        connection.addEventListener("change", updateConnectionStatus);
-        return () =>
-          connection.removeEventListener("change", updateConnectionStatus);
-      } else {
-        // Fallback when Network Information API is not available
-        // Just use device type to determine DPI
-        if (isMobileDevice()) {
-          setCurrentDpr(1);
-          setNetworkType("mobile device");
-        } else {
-          setCurrentDpr(1.5);
-          setNetworkType("desktop device");
-        }
-      }
-    };
-
-    checkNetworkCondition();
+    // Always use DPI of 1 for consistent performance
+    setCurrentDpr(1);
+    setNetworkType("forced-standard");
   }, []);
 
   // Update renderer when DPI changes
@@ -439,38 +314,6 @@ function ThreeDVotiveStand({
   };
 
   // Add a keyboard listener to toggle debug overlay with 'D' key
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === "d" || e.key === "D") {
-        setShowDebugOverlay((prev) => !prev);
-      }
-
-      // Add DPI toggle with 'P' key
-      if (e.key === "p" || e.key === "P") {
-        // Cycle through DPI values: 1 -> 1.5 -> 2 -> 0.75 -> 1
-        setCurrentDpr((prevDpr) => {
-          const nextDpr =
-            prevDpr === 1
-              ? 1.5
-              : prevDpr === 1.5
-              ? 2
-              : prevDpr === 2
-              ? 0.75
-              : 1;
-
-          // Apply the new DPI value to the renderer
-          if (rendererRef.current) {
-            rendererRef.current.setPixelRatio(nextDpr);
-          }
-
-          return nextDpr;
-        });
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
 
   // Add refs for spotlight and target
   const spotlightRef = useRef();
@@ -523,6 +366,13 @@ function ThreeDVotiveStand({
       });
     };
   }, [monsterMode, scene]);
+
+  const startCandlePlacement = () => {
+    if (modelRef.current && modelRef.current.togglePlacementMode) {
+      // Pass the current user's data
+      modelRef.current.togglePlacementMode(userData);
+    }
+  };
 
   return (
     <>
@@ -596,7 +446,6 @@ function ThreeDVotiveStand({
               showLightHelper={showLightHelper}
               is80sMode={is80sMode}
               showSpotify={showSpotify}
-              onBoomboxClick={onBoomboxClick}
               monsterMode={monsterMode}
             />
 
@@ -643,6 +492,45 @@ function ThreeDVotiveStand({
           {/* <TickerDisplay /> */}
         </Canvas>
 
+        {/* Add placement button */}
+        <button
+          className="place-candle-btn"
+          onClick={startCandlePlacement}
+          style={{
+            position: "absolute",
+            bottom: "20px",
+            right: "20px",
+            zIndex: 100,
+            padding: "8px 16px",
+            background: "#ff6700",
+            color: "white",
+            border: "none",
+            borderRadius: "4px",
+            cursor: "pointer",
+          }}
+        >
+          Place Your Candle
+        </button>
+
+        {/* Show instructions when in placement mode */}
+        {modelRef.current?.placementMode && (
+          <div
+            style={{
+              position: "absolute",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              backgroundColor: "rgba(0,0,0,0.7)",
+              color: "white",
+              padding: "20px",
+              borderRadius: "8px",
+              zIndex: 100,
+            }}
+          >
+            Click anywhere on the floor to place your candle
+          </div>
+        )}
+
         {showFloatingViewer && selectedCandleData && (
           <FloatingCandleViewer
             key={`candle-viewer-${selectedCandleData.candleId || ""}-${
@@ -657,13 +545,6 @@ function ThreeDVotiveStand({
           />
         )}
       </div>
-      <DebugOverlay
-        isVisible={showDebugOverlay}
-        dpr={currentDpr}
-        modelScale={modelScale}
-        size={size}
-        networkType={networkType}
-      />
     </>
   );
 }

@@ -50,18 +50,15 @@ import styled from "styled-components";
 import Candle from "../components/Candle";
 import { useUser, useClerk } from "@clerk/nextjs";
 import { Canvas } from "@react-three/fiber";
-import Scene from "./3dChandelier";
+
 import ThreeDVotiveStand from "./3DVotiveStand/index";
-import MobileStand from "./3DVotiveStand/MobileStand";
+
 import Communion3 from "./Communion3";
-import NeonSign from "./NeonSign";
+
 import Model from "./3DVotiveStand/Model";
 import * as THREE from "three";
 
 const BurnModal = dynamic(() => import("./BurnModal"), {
-  ssr: false,
-});
-const ImageSelectionModal = dynamic(() => import("./ImageSelectionModal"), {
   ssr: false,
 });
 
@@ -233,7 +230,7 @@ function BurnGallery({
     } else if (!isBurnModalOpen && router.query.burnModal === "open") {
       router.push("/gallery", undefined, { shallow: true });
     }
-  }, [isBurnModalOpen]);
+  }, [isBurnModalOpen, router]);
 
   const handleSignIn = (userInfo) => {
     // Update the user state after successful sign-in
@@ -257,27 +254,18 @@ function BurnGallery({
   };
 
   // Use useCallback for event handlers
-  const handleComponentLoad = useCallback((component, status) => {
-    setThreeDSceneLoaded((prev) => ({
-      ...prev,
-      [component]: status,
-    }));
-  }, []);
+  const handleComponentLoad = useCallback(
+    (component, status) => {
+      setThreeDSceneLoaded((prev) => ({
+        ...prev,
+        [component]: status,
+      }));
+    },
+    [setThreeDSceneLoaded]
+  );
 
   const handleCandleSelect = (data) => {
     console.log("Candle selected:", data);
-  };
-
-  // Update the handleBoomboxClick function
-  const handleBoomboxClick = () => {
-    console.log("Boombox clicked in BurnGallery, toggling showSpotify");
-    // Pass the updated state to the parent component
-    if (setShowSpotify) {
-      // Only toggle showSpotify when in 80s mode
-      if (is80sMode) {
-        setShowSpotify(!showSpotify);
-      }
-    }
   };
 
   // Add toggleMonsterMode function
@@ -342,7 +330,6 @@ function BurnGallery({
                 onSpawnReady={setSpawnFunction}
                 is80sMode={is80sMode}
                 showSpotify={showSpotify}
-                onBoomboxClick={handleBoomboxClick}
                 monsterMode={monsterMode}
                 userData={clerkUserData}
               />

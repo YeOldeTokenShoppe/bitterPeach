@@ -229,7 +229,7 @@ export default function BurningEffect() {
       gl.uniform2f(uniforms.u_resolution, canvasEl.width, canvasEl.height);
       render();
     }
-  }, []);
+  }, [fragmentShaderSource, vertexShaderSource]);
 
   return (
     <>

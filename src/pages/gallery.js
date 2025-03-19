@@ -39,21 +39,11 @@ export default function GalleryPage() {
   const toggle80sMode = () => {
     const newMode = !is80sMode;
     setIs80sMode(newMode);
-    // Hide music player when entering 80s mode
-    if (newMode) {
-      setShowSpotify(false);
-    } else {
-      // Show MusicPlayer2 when exiting 80s mode
-      setShowSpotify(true);
-    }
-    console.log("Gallery: 80's mode toggled to", newMode);
-  };
 
-  // Handle Boombox click
-  const handleBoomboxClick = () => {
-    if (is80sMode) {
-      setShowSpotify(true);
-    }
+    // Always show music player, it will conditionally render the correct component
+    setShowSpotify(true);
+
+    console.log("Gallery: 80's mode toggled to", newMode);
   };
 
   // Handle close for music player
@@ -258,7 +248,6 @@ export default function GalleryPage() {
             setIsModalOpen={setIsModalOpen}
             is80sMode={is80sMode}
             toggle80sMode={toggle80sMode}
-            onBoomboxClick={handleBoomboxClick}
           />
 
           {isModalOpen && (

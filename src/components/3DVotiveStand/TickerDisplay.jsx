@@ -12,7 +12,7 @@ const TickerDisplay = ({ modelRef, ...props }) => {
   const [trendingData, setTrendingData] = useState([]);
   const [previousData, setPreviousData] = useState([]);
   const fetchTimeRef = useRef(Date.now());
-  const gltf = useGLTF("/altarBoomboxTicker.glb");
+  const gltf = useGLTF("/altar8.glb");
   const scene = gltf.scene;
   const baseRadius = 30.25; // Store the base radius as a constant
   const lastModelScale = useRef(1); // Track the last known model scale
@@ -113,7 +113,7 @@ const TickerDisplay = ({ modelRef, ...props }) => {
     // Reduced interval for more frequent updates
     const interval = setInterval(fetchTrendingCoins, 45000);
     return () => clearInterval(interval);
-  }, []);
+  }, [trendingData]);
 
   // Initialize canvas and texture
   useEffect(() => {

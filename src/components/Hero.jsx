@@ -623,7 +623,7 @@ function Hero({ setHeroLoaded }) {
                 // marginBottom: "10rem",
               }}
             >
-              <img
+              <Image
                 // className="logo"
                 src="/vvv.jpg"
                 width="100%"

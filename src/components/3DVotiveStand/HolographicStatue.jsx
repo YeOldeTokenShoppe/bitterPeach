@@ -9,6 +9,7 @@ function HolographicStatue() {
   const groupRef = useRef();
   const { scene } = useThree();
   const initialY = useRef(0);
+  const mixerRef = useRef();
 
   // Use useMemo to prevent recreating the loader on every render
   const loader = useMemo(() => {
@@ -113,6 +114,21 @@ function HolographicStatue() {
     loader.load("/CyberpunkMary.glb", (gltf) => {
       const statue = gltf.scene;
 
+      // Create and store the animation mixer
+      const mixer = new THREE.AnimationMixer(statue);
+      mixerRef.current = mixer;
+
+      // Find and play the HaloRotation animation
+      const haloAnimation = gltf.animations.find(
+        (anim) => anim.name === "HaloRotation"
+      );
+      if (haloAnimation) {
+        const action = mixer.clipAction(haloAnimation);
+        action.play();
+      } else {
+        console.warn("HaloRotation animation not found in the model");
+      }
+
       // Create an anchor group with initial position
       const anchorGroup = new THREE.Group();
       const basePosition = [0.3, 5.5, -1.2]; // Store base position
@@ -148,8 +164,8 @@ function HolographicStatue() {
         fragmentShader: holographicMaterial.fragmentShader,
         transparent: true,
         blending: THREE.NormalBlending, // 🟢 Try Normal Blending instead of Additive
-        depthWrite: true,
-        depthTest: true,
+        depthWrite: false,
+        depthTest: false,
         side: THREE.DoubleSide,
       });
 
@@ -184,6 +200,9 @@ function HolographicStatue() {
     });
 
     return () => {
+      if (mixerRef.current) {
+        mixerRef.current.stopAllAction();
+      }
       if (groupRef.current?.anchor) {
         scene.remove(groupRef.current.anchor);
       }
@@ -191,6 +210,11 @@ function HolographicStatue() {
   }, [scene, holographicMaterial, loader]);
 
   useFrame((state, delta) => {
+    // Update the animation mixer
+    if (mixerRef.current) {
+      mixerRef.current.update(delta);
+    }
+
     if (statueRef.current && groupRef.current) {
       // Apply hover animation to the anchor group
       groupRef.current.anchor.position.y =

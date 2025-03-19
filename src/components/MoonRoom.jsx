@@ -41,7 +41,14 @@ const MoonLamps = ({
       // Add to scene
       scene.add(mesh);
     });
-  }, [scene, physicsWorld, lunarTexture, envMap, addPhysicsMesh]);
+  }, [
+    scene,
+    physicsWorld,
+    lunarTexture,
+    envMap,
+    addPhysicsMesh,
+    moonPositions,
+  ]);
 
   return null;
 };

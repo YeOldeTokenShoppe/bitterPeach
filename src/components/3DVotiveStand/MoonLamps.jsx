@@ -49,7 +49,8 @@ const MoonScene = ({
   const COLLISION_GROUP_PROJECTILE = 8;
   const COLLISION_GROUP_OUTER_WALL = 16; // New collision group for outer wall
 
-  const setupScene = () => {
+  // Wrap setupScene in useCallback
+  const setupScene = useCallback(() => {
     if (controlsRef.current) return;
 
     const controls = new OrbitControls(camera, gl.domElement);
@@ -73,9 +74,8 @@ const MoonScene = ({
     camera.updateProjectionMatrix();
     controls.update();
     controlsRef.current = controls;
-  };
+  }, [camera, gl.domElement]);
 
-  // Within your initialization useEffect or setup function
   useEffect(() => {
     const loader = new THREE.CubeTextureLoader();
     loader.load(

@@ -51,7 +51,7 @@ const Bouncer = ({
   const handleMouseEnter = useCallback(() => {
     setIsHovered(true);
     setCurrentMessage(Math.floor(Math.random() * bouncerMessages.length));
-  }, []);
+  }, [bouncerMessages.length]);
 
   const handleDoorClick = (e) => {
     e.preventDefault();
