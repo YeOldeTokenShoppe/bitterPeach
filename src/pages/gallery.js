@@ -5,25 +5,23 @@ import NavBar from "../components/NavBar.client";
 import Communion3 from "../components/Communion3";
 import Loader from "../components/Loader";
 import MusicPlayer from "../components/MusicPlayer2";
-import Draggable from "react-draggable";
-import Head from "next/head";
-
+import LightweightTestCanvas from "../components/LightweightTestCanvas";
 import { X } from "lucide-react";
 
 // Dynamically import heavy components
-const BurnGalleryDynamic = dynamic(() => import("../components/BurnGallery"), {
-  ssr: false,
-  loading: () => <Loader />,
-});
+// const BurnGalleryDynamic = dynamic(() => import("../components/BurnGallery"), {
+//   ssr: false,
+//   loading: () => <Loader />,
+// });
 
-// Use dynamic import for MusicPlayer to ensure it's loaded properly
+// // Use dynamic import for MusicPlayer to ensure it's loaded properly
 const MusicPlayerDynamic = dynamic(() => import("../components/MusicPlayer3"), {
   ssr: false,
 });
 
-const NavBarDynamic = dynamic(() => import("../components/NavBar.client"), {
-  ssr: false,
-});
+// const NavBarDynamic = dynamic(() => import("../components/NavBar.client"), {
+//   ssr: false,
+// });
 
 export default function GalleryPage() {
   const [isLoading, setIsLoading] = useState(true);
@@ -34,6 +32,7 @@ export default function GalleryPage() {
   const [showSpotify, setShowSpotify] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [is80sMode, setIs80sMode] = useState(false);
+  const [shouldRenderGallery, setShouldRenderGallery] = useState(false);
 
   // Toggle function for 80s mode
   const toggle80sMode = () => {
@@ -52,36 +51,6 @@ export default function GalleryPage() {
     setShowSpotify(false);
   };
 
-  // Add useEffect to set body class
-  useEffect(() => {
-    // Function to apply styles safely
-    const applyStyles = () => {
-      // Add gallery-page class to html and body
-      document.documentElement.classList.add("gallery-page");
-      document.documentElement.style.backgroundColor = "#000000";
-
-      if (document.body) {
-        document.body.classList.add("gallery-page");
-        document.body.style.backgroundColor = "#000000";
-      }
-    };
-
-    // Apply styles immediately
-    applyStyles();
-
-    // Also apply after a short delay to ensure body is available
-    const timeoutId = setTimeout(applyStyles, 100);
-
-    // Cleanup function to remove class when component unmounts
-    return () => {
-      clearTimeout(timeoutId);
-      document.documentElement.classList.remove("gallery-page");
-      if (document.body) {
-        document.body.classList.remove("gallery-page");
-      }
-    };
-  }, []);
-
   // Add loading state management
   useEffect(() => {
     if (componentsLoaded.burnGallery && componentsLoaded.threeDScene) {
@@ -98,116 +67,38 @@ export default function GalleryPage() {
     }));
   };
 
-  // In GalleryPage.js
   useEffect(() => {
-    if (isModalOpen && typeof document !== "undefined") {
-      // Create the container if it doesn't exist
-      let container = document.getElementById("oddcast-container");
-      if (!container) {
-        container = document.createElement("div");
-        container.id = "oddcast-container";
+    // Delay mounting the heavy component until needed
+    setShouldRenderGallery(true);
 
-        // Make sure document.body exists before appending
-        if (document.body) {
-          document.body.appendChild(container);
-        } else {
-          // If body doesn't exist yet, wait for it
-          const checkBodyAndAppend = () => {
-            if (document.body) {
-              document.body.appendChild(container);
-            } else {
-              setTimeout(checkBodyAndAppend, 50);
-            }
-          };
-          setTimeout(checkBodyAndAppend, 50);
-        }
-      }
+    return () => {
+      // Ensure unmounting when page changes
+      setShouldRenderGallery(false);
+    };
+  }, []);
 
-      // Load Oddcast functions
-      const functionScript = document.createElement("script");
-      functionScript.src =
-        "//vhss-d.oddcast.com/vhost_embed_functions_v4.php?acc=9157686&js=0";
+  // Add this to identify memory issues
+  useEffect(() => {
+    if (process.env.NODE_ENV === "development") {
+      const memoryUsage = performance.memory
+        ? `${Math.round(performance.memory.usedJSHeapSize / 1048576)}MB`
+        : "Not available";
+      console.log(`Memory usage: ${memoryUsage}`);
 
-      functionScript.onload = () => {
-        if (typeof window.AC_VHost_Embed === "function") {
-          window.AC_VHost_Embed(
-            9157686,
-            600,
-            800,
-            "",
-            1,
-            1,
-            2771572,
-            0,
-            1,
-            0,
-            "PeyjLQTbroKvn5GemUFaLhU5dYbIHZH6",
-            0,
-            1
-          );
-        }
-      };
+      // Log at intervals to track memory growth
+      const intervalId = setInterval(() => {
+        const updatedMemory = performance.memory
+          ? `${Math.round(performance.memory.usedJSHeapSize / 1048576)}MB`
+          : "Not available";
+        console.log(`Memory usage (updated): ${updatedMemory}`);
+      }, 10000);
 
-      // Only append if container exists
-      if (container.parentNode) {
-        container.appendChild(functionScript);
-      }
-
-      return () => {
-        if (container && container.parentNode) {
-          container.innerHTML = "";
-        }
-      };
+      return () => clearInterval(intervalId);
     }
-  }, [isModalOpen]);
+  }, []);
 
   return (
     <>
-      <Head>
-        <meta name="theme-color" content="#000000" />
-        <style>{`
-          html, body, #__next {
-            background-color: #000000 !important;
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            overflow-x: hidden;
-          }
-          
-          /* Target any container with max-width */
-          [style*="max-width"] {
-            background-color: #000000 !important;
-          }
-          
-          /* Ensure the entire viewport has a black background */
-          html.gallery-page,
-          body.gallery-page,
-          .gallery-page,
-          .gallery-page body,
-          .gallery-page html,
-          .gallery-page #__next,
-          body.gallery-page #__next,
-          html.gallery-page #__next {
-            background-color: #000000 !important;
-          }
-          
-          /* Center the header */
-          #header {
-            display: flex;
-            justify-content: center;
-            width: 100%;
-          }
-          
-          .menu-wrapper {
-            display: flex;
-            justify-content: center;
-            width: 100%;
-            position: relative;
-          }
-        `}</style>
-      </Head>
-
       <div
         style={{
           backgroundColor: "#000000",
@@ -224,8 +115,6 @@ export default function GalleryPage() {
           overflow: "auto",
         }}
       >
-        <div id="oddcast-container" style={{ display: "none" }}></div>
-
         {isLoading && <Loader />}
         <div
           style={{
@@ -235,22 +124,24 @@ export default function GalleryPage() {
             zIndex: 1,
           }}
         >
-          <BurnGalleryDynamic
-            setComponentLoaded={(status) =>
-              handleComponentLoad("burnGallery", status)
-            }
-            setThreeDSceneLoaded={(status) =>
-              handleComponentLoad("threeDScene", status)
-            }
-            setShowSpotify={setShowSpotify}
-            showSpotify={showSpotify}
-            isModalOpen={isModalOpen}
-            setIsModalOpen={setIsModalOpen}
-            is80sMode={is80sMode}
-            toggle80sMode={toggle80sMode}
-          />
+          {shouldRenderGallery && (
+            <BurnGallery
+              setComponentLoaded={(status) =>
+                handleComponentLoad("burnGallery", status)
+              }
+              setThreeDSceneLoaded={(status) =>
+                handleComponentLoad("threeDScene", status)
+              }
+              setShowSpotify={setShowSpotify}
+              showSpotify={showSpotify}
+              isModalOpen={isModalOpen}
+              setIsModalOpen={setIsModalOpen}
+              is80sMode={is80sMode}
+              toggle80sMode={toggle80sMode}
+            />
+          )}
 
-          {isModalOpen && (
+          {/* {isModalOpen && (
             <>
               <div
                 // className="fixed inset-0 bg-black bg-opacity-50"
@@ -287,61 +178,10 @@ export default function GalleryPage() {
                 >
                   <X size={24} />
                 </button>
-                <script
-                  async
-                  type="text/javascript"
-                  src="//vhss-d.oddcast.com/vhost_embed_functions_v4.php?acc=9157686&js=0"
-                ></script>
-                <script type="text/javascript">
-                  AC_VHost_Embed(9157686,600,800,&quot;&quot;,1,1,2771572,0,1,0,&quot;q8ZaEpXFSepCuYqUKCKgCBXBz1Q5nqqi&quot;,0,1);
-                </script>
               </div>
             </>
-          )}
+          )} */}
 
-          {/* <div style={{ marginTop: "1rem" }}>
-            <Communion3 />
-          </div> */}
-          <div id="magic8Modal" className="modal-overlay">
-            <div className="magic-modal-content">
-              <iframe
-                src="/html/magic.html" // Make sure this path matches where you put the HTML file
-                frameBorder="0"
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  borderRadius: "20px",
-                  backgroundColor: "rgba(0, 0, 0, 0.5)",
-                  overflow: "hidden", // Prevent content from spilling out
-                }}
-              />
-            </div>
-          </div>
-          <div
-            id="phoneModal"
-            className="phone-modal-overlay"
-            style={{ display: "none" }}
-          >
-            <div
-              className="phone-modal-content"
-              style={{
-                transform: "scale(1.5)", // Adjust this value to scale up or down
-                transformOrigin: "center center",
-              }}
-            >
-              <iframe
-                src="/html/phone_modal.html"
-                frameBorder="0"
-                style={{
-                  width: "240px",
-                  height: "480px",
-                  borderRadius: "20px",
-                  overflow: "hidden",
-                  backgroundColor: "rgba(0, 0, 0, 0.5)",
-                }}
-              />
-            </div>
-          </div>
           {/* Single MusicPlayer that works for both 80s mode and regular mode */}
           {showSpotify && (
             <div
@@ -380,5 +220,4 @@ export default function GalleryPage() {
       </div>
     </>
   );
-  GalleryPage.theme = "dark";
 }

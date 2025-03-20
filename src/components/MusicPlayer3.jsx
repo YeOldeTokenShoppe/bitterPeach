@@ -1,4 +1,6 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
+import { storage } from "../utilities/firebaseClient";
+import { ref, getDownloadURL } from "firebase/storage";
 
 const MusicPlayer = ({ isVisible, onClose, autoPlay = true }) => {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -11,24 +13,35 @@ const MusicPlayer = ({ isVisible, onClose, autoPlay = true }) => {
   const audioRef = useRef(null);
   // Set initial volume to 0.15 (15%) for an even lower starting volume
   const [volume, setVolume] = useState(0.15);
+  const [trackUrl, setTrackUrl] = useState(""); // Add state for the track URL
+  const [isLoaded, setIsLoaded] = useState(false);
 
   const albums = [
     "Like A Prayer - Madonna",
-    "Intergalactic - Beastie Boys",
+    // "Intergalactic - Beastie Boys",
     "For Those About To Rock - AC/DC",
     "Good Life - Paradise",
   ];
 
   const trackNames = [
     "Like A Prayer - Madonna",
-    "Intergalactic - Beastie Boys",
+    // "Intergalactic - Beastie Boys",
     "For Those About To Rock - AC/DC",
     "Good Life - Inner City",
   ];
 
+  // Map of file paths in Firebase Storage
+  const trackStoragePaths = [
+    "audio/320k/like-a-prayer-madonna.m4a",
+    // "audio/320k/intergalactic-beastie-boys.mp3",
+    "audio/320k/for-those-about-to-rock-ac-dc.m4a",
+    "audio/320k/good-life-inner-city.m4a",
+  ];
+
+  // Fallback local paths
   const trackUrls = [
     "likeAPrayer.m4a",
-    "Intergalactic.mp3",
+    // "Intergalactic.mp3",
     "ForThoseAboutToRock.m4a",
     "goodLife.m4a",
   ];
@@ -289,124 +302,229 @@ const MusicPlayer = ({ isVisible, onClose, autoPlay = true }) => {
     ? "fa-solid fa-pause"
     : "fa-solid fa-play";
 
+  // Effect to load the current track URL from Firebase Storage
+  useEffect(() => {
+    async function loadTrackFromStorage() {
+      try {
+        // Check if trackStoragePaths is valid and has the current index
+        if (
+          !trackStoragePaths ||
+          currentTrackIndex >= trackStoragePaths.length
+        ) {
+          console.error("Invalid storage path:", {
+            trackStoragePaths,
+            currentTrackIndex,
+          });
+          // Fallback to local URL
+          setTrackUrl(trackUrls[currentTrackIndex]);
+          return;
+        }
+
+        // Get track from Firebase Storage
+        console.log(`Loading track ${currentTrackIndex} from Firebase Storage`);
+        const storageRef = ref(storage, trackStoragePaths[currentTrackIndex]);
+
+        const downloadUrl = await getDownloadURL(storageRef);
+        console.log("Got download URL:", downloadUrl);
+        setTrackUrl(downloadUrl);
+      } catch (error) {
+        console.error("Error getting track from Firebase:", error);
+        // Fallback to local URL
+        console.log("Falling back to local URL:", trackUrls[currentTrackIndex]);
+        setTrackUrl(trackUrls[currentTrackIndex]);
+      }
+    }
+
+    loadTrackFromStorage();
+  }, [currentTrackIndex]);
+
+  // Initialize audio element when track URL changes
+  useEffect(() => {
+    if (!trackUrl) {
+      return;
+    }
+
+    // Create a new audio element
+    const audio = new Audio();
+    audio.preload = "metadata";
+    audio.volume = volume;
+    audio.src = trackUrl;
+
+    console.log(`Loading audio from URL: ${trackUrl}`);
+    audioRef.current = audio;
+
+    const handlePlay = () => setIsPlaying(true);
+    const handlePause = () => setIsPlaying(false);
+    const handleLoaded = () => setIsLoaded(true);
+
+    // Add an error handler to debug issues
+    const handleError = (e) => {
+      console.error("Audio error:", e);
+      console.error("Audio error details:", {
+        error: e.target.error,
+        src: e.target.src,
+        readyState: e.target.readyState,
+      });
+
+      // If Firebase URL fails, try local fallback
+      if (trackUrl.includes("firebasestorage.googleapis.com")) {
+        console.log("Firebase URL failed, trying local fallback");
+        audio.src = trackUrls[currentTrackIndex];
+      }
+    };
+
+    audio.addEventListener("play", handlePlay);
+    audio.addEventListener("pause", handlePause);
+    audio.addEventListener("error", handleError);
+    audio.addEventListener("loadedmetadata", () => {
+      setDuration(formatTime(audio.duration));
+      setIsLoaded(true);
+
+      // Auto-play if component is visible
+      if (isVisible && autoPlay) {
+        audio.play().catch((error) => {
+          console.error("Auto-play on metadata load failed:", error);
+        });
+      }
+    });
+    audio.addEventListener("timeupdate", updateProgress);
+
+    return () => {
+      audio.removeEventListener("play", handlePlay);
+      audio.removeEventListener("pause", handlePause);
+      audio.removeEventListener("error", handleError);
+      audio.removeEventListener("timeupdate", updateProgress);
+      audio.pause();
+      audio.src = "";
+      audioRef.current = null;
+    };
+  }, [trackUrl, isVisible, volume, autoPlay]);
+
   return (
     <div className="music-player">
-      <div id="app-cover">
-        <div
-          style={closeButtonStyle}
-          onClick={handleClose}
-          className="hover:bg-black/50"
-          title="Close player"
-        >
-          <i className="fa-solid fa-times text-white text-xl">X</i>
+      {!trackUrl ? (
+        <div style={{ textAlign: "center", padding: "20px" }}>
+          Loading audio file...
         </div>
+      ) : (
+        <div id="app-cover">
+          <div
+            style={closeButtonStyle}
+            onClick={handleClose}
+            className="hover:bg-black/50"
+            title="Close player"
+          >
+            <i className="fa-solid fa-times text-white text-xl">X</i>
+          </div>
 
-        <div id="player">
-          <div id="player-track" className={isPlaying ? "active" : ""}>
-            <div id="album-name">{albums[currentTrackIndex]}</div>
-            <div id="track-name">{trackNames[currentTrackIndex]}</div>
-            <div id="track-time">
-              <div id="current-time">{currentTime}</div>
-              <div id="track-length">{duration}</div>
+          <div id="player">
+            <div id="player-track" className={isPlaying ? "active" : ""}>
+              <div id="album-name">{albums[currentTrackIndex]}</div>
+              <div id="track-name">{trackNames[currentTrackIndex]}</div>
+              <div id="track-time">
+                <div id="current-time">{currentTime}</div>
+                <div id="track-length">{duration}</div>
+              </div>
+              <div id="s-area" onClick={handleSeek}>
+                <div id="seek-bar" style={{ width: `${playProgress}%` }}></div>
+              </div>
             </div>
-            <div id="s-area" onClick={handleSeek}>
-              <div id="seek-bar" style={{ width: `${playProgress}%` }}></div>
-            </div>
-          </div>
-          <div id="player-content">
-            <div id="album-art" className={`${isPlaying ? "rotate" : ""}`}>
-              <img
-                src="/virginRecords.jpg"
-                className="active"
-                alt="Album Art"
-              />
-            </div>
-            <div id="player-controls">
-              <div className="control" onClick={() => changeTrack(-1)}>
-                <div className="button" id="play-previous">
-                  <i className="fa-solid fa-backward"></i>
-                </div>
+            <div id="player-content">
+              <div id="album-art" className={`${isPlaying ? "rotate" : ""}`}>
+                <img
+                  src="/virginRecords.jpg"
+                  className="active"
+                  alt="Album Art"
+                />
               </div>
-              <div className="control" onClick={playPause}>
-                <div className="button" id="play-pause-button">
-                  <i className={playPauseIconClass}></i>
+              <div id="player-controls">
+                <div className="control" onClick={() => changeTrack(-1)}>
+                  <div className="button" id="play-previous">
+                    <i className="fa-solid fa-backward"></i>
+                  </div>
                 </div>
-              </div>
-              <div className="control" onClick={() => changeTrack(1)}>
-                <div className="button" id="play-next">
-                  <i className="fa-solid fa-forward"></i>
+                <div className="control" onClick={playPause}>
+                  <div className="button" id="play-pause-button">
+                    <i className={playPauseIconClass}></i>
+                  </div>
                 </div>
-              </div>
-              <div className="control">
-                <div
-                  className="button"
-                  id="shuffle-button"
-                  onClick={(e) => {
-                    toggleShuffle();
-                  }}
-                >
-                  {/* <i
-                    className={`fa-solid fa-random ${
-                      isShuffled ? "text-green-400" : "text-white"
-                    }`}
-                  ></i> */}
+                <div className="control" onClick={() => changeTrack(1)}>
+                  <div className="button" id="play-next">
+                    <i className="fa-solid fa-forward"></i>
+                  </div>
                 </div>
-              </div>
-              <div className="control">
-                <div
-                  className="volume-control"
-                  style={{ display: "flex", alignItems: "center" }}
-                >
-                  <i
-                    className={`fa-solid ${
-                      volume === 0 ? "fa-volume-mute" : "fa-volume-up"
-                    }`}
-                    style={{
-                      marginRight: "8px",
-                      cursor: "pointer",
-                      position: "absolute",
-                      bottom: "25px",
-                      left: "50%",
+                <div className="control">
+                  <div
+                    className="button"
+                    id="shuffle-button"
+                    onClick={(e) => {
+                      toggleShuffle();
                     }}
-                    onClick={() =>
-                      handleVolumeChange({
-                        target: { value: volume === 0 ? 0.15 : 0 },
-                      })
-                    }
-                  />
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.01"
-                    value={volume}
-                    onChange={handleVolumeChange}
-                    style={{
-                      position: "absolute",
-                      bottom: "10px",
-                      left: "60%",
-                      width: "60px",
-                      height: "4px",
-                      WebkitAppearance: "none",
-                      background: `linear-gradient(to right, #fff ${
-                        volume * 100
-                      }%, #4a4a4a ${volume * 100}%)`,
-                      borderRadius: "2px",
-                      cursor: "pointer",
-                    }}
-                  />
+                  >
+                    {/* <i
+                      className={`fa-solid fa-random ${
+                        isShuffled ? "text-green-400" : "text-white"
+                      }`}
+                    ></i> */}
+                  </div>
                 </div>
-              </div>
-              <div
-                id="current-track-info"
-                style={{ textAlign: "center", marginTop: "2.5rem" }}
-              >
-                {trackNames[currentTrackIndex]}
+                <div className="control">
+                  <div
+                    className="volume-control"
+                    style={{ display: "flex", alignItems: "center" }}
+                  >
+                    <i
+                      className={`fa-solid ${
+                        volume === 0 ? "fa-volume-mute" : "fa-volume-up"
+                      }`}
+                      style={{
+                        marginRight: "8px",
+                        cursor: "pointer",
+                        position: "absolute",
+                        bottom: "25px",
+                        left: "50%",
+                      }}
+                      onClick={() =>
+                        handleVolumeChange({
+                          target: { value: volume === 0 ? 0.15 : 0 },
+                        })
+                      }
+                    />
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      value={volume}
+                      onChange={handleVolumeChange}
+                      style={{
+                        position: "absolute",
+                        bottom: "10px",
+                        left: "60%",
+                        width: "60px",
+                        height: "4px",
+                        WebkitAppearance: "none",
+                        background: `linear-gradient(to right, #fff ${
+                          volume * 100
+                        }%, #4a4a4a ${volume * 100}%)`,
+                        borderRadius: "2px",
+                        cursor: "pointer",
+                      }}
+                    />
+                  </div>
+                </div>
+                <div
+                  id="current-track-info"
+                  style={{ textAlign: "center", marginTop: "2.5rem" }}
+                >
+                  {trackNames[currentTrackIndex]}
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
+      {/* <div className="text-xs text-gray-400 mt-2 text-center">80's Mode</div> */}
     </div>
   );
 };

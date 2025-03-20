@@ -9,6 +9,7 @@ import styled from "styled-components";
 import { ethers, utils } from "ethers";
 import axios from "axios";
 import Confetti from "./Confetti";
+import { sepolia } from "thirdweb/chains";
 
 const WideContainer = styled.div`
   width: 100%;
@@ -26,7 +27,7 @@ const client = createThirdwebClient({ clientId: CLIENT_ID });
 
 const contract = getContract({
   client: client,
-  chain: 1,
+  chain: sepolia,
   address: "0x6982508145454Ce325dDbE47a25d4ec3d2311933",
 });
 
@@ -496,8 +497,8 @@ const Numerology = ({ setNumerologyLoaded }) => {
                       fontWeight: "bold",
                     }}
                   >
-                    <p>Price: {price}</p>
-                    <p>USD Price: {usdPrice}</p>
+                    {/* <p>Price: {price}</p>
+                    <p>USD Price: {usdPrice}</p> */}
                   </Card.Text>
                 </Card>
               </div>

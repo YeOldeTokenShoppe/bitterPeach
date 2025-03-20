@@ -132,19 +132,9 @@ function BurnGallery({
   const [monsterMode, setMonsterMode] = useState(false);
   const [clerkUserData, setClerkUserData] = useState(null);
 
-  const setSpawnFunction = (functionFromMoonScene) => {
-    console.log("BurnGallery: Received spawn function from ThreeDVotiveStand");
-    if (typeof functionFromMoonScene === "function") {
-      spawnMonsterFunctionRef.current = functionFromMoonScene;
-      console.log("BurnGallery: Successfully stored spawn function");
-    } else {
-      console.error(
-        "BurnGallery: Received invalid spawn function type:",
-        typeof functionFromMoonScene
-      );
-    }
-  };
-
+  const setSpawnFunction = useCallback((func) => {
+    spawnMonsterFunctionRef.current = func;
+  }, []);
   const handleButtonClick = (key) => {
     console.log(`BurnGallery: Button clicked with key: ${key}`);
 
@@ -157,17 +147,20 @@ function BurnGallery({
       }
     }
   };
+
   useEffect(() => {
     const checkMobile = () => {
       const mobile = typeof window !== "undefined" && window.innerWidth <= 576;
       setIsMobileView(mobile);
     };
 
-    // Only add event listener if window exists
     if (typeof window !== "undefined") {
       checkMobile();
       window.addEventListener("resize", checkMobile);
-      return () => window.removeEventListener("resize", checkMobile);
+      return () => {
+        window.removeEventListener("resize", checkMobile);
+        // Also clean up any firebase listeners, timers, or other resources
+      };
     }
   }, []);
 
@@ -195,62 +188,48 @@ function BurnGallery({
     }
   }, [router.asPath]);
 
-  useEffect(() => {
-    if (isChandelierVisible) {
-      setIsMounted(true);
-      // Wait a frame before starting fade-in
-      requestAnimationFrame(() => setIsVisible(true));
-    } else {
-      setIsVisible(false);
-      // Delay unmounting until fade-out completes
-      const timer = setTimeout(() => setIsMounted(false), 2500); // Match your GSAP duration
-      return () => clearTimeout(timer);
-    }
-  }, [isChandelierVisible]);
+  // useEffect(() => {
+  //   if (isChandelierVisible) {
+  //     setIsMounted(true);
+  //     // Wait a frame before starting fade-in
+  //     requestAnimationFrame(() => setIsVisible(true));
+  //   } else {
+  //     setIsVisible(false);
+  //     // Delay unmounting until fade-out completes
+  //     const timer = setTimeout(() => setIsMounted(false), 2500); // Match your GSAP duration
+  //     return () => clearTimeout(timer);
+  //   }
+  // }, [isChandelierVisible]);
 
   const avatarUrl = user ? user.imageUrl : "/defaultAvatar.png";
 
-  const handleOpenBurnModal = () => {
-    if (!user) {
-      openSignIn({ forceRedirectUrl: currentPath });
-    } else {
-      setIsBurnModalOpen(true);
-      router.push("/gallery?burnModal=open", undefined, { shallow: true });
-    }
-  };
+  // const handleOpenBurnModal = () => {
+  //   if (!user) {
+  //     openSignIn({ forceRedirectUrl: currentPath });
+  //   } else {
+  //     setIsBurnModalOpen(true);
+  //     router.push("/gallery?burnModal=open", undefined, { shallow: true });
+  //   }
+  // };
 
-  const handleOpenImageSelectionModal = () =>
-    setIsImageSelectionModalOpen(true);
-  const handleCloseImageSelectionModal = () =>
-    setIsImageSelectionModalOpen(false);
+  // const handleOpenImageSelectionModal = () =>
+  //   setIsImageSelectionModalOpen(true);
+  // const handleCloseImageSelectionModal = () =>
+  //   setIsImageSelectionModalOpen(false);
 
-  useEffect(() => {
-    if (isBurnModalOpen && router.query.burnModal !== "open") {
-      router.push("/gallery?burnModal=open", undefined, { shallow: true });
-    } else if (!isBurnModalOpen && router.query.burnModal === "open") {
-      router.push("/gallery", undefined, { shallow: true });
-    }
-  }, [isBurnModalOpen, router]);
-
-  const handleSignIn = (userInfo) => {
-    // Update the user state after successful sign-in
-    setUser(userInfo);
-    setIsSignedIn(true);
-    setIsAuthModalOpen(false); // Close the AuthModal
-  };
+  // useEffect(() => {
+  //   if (isBurnModalOpen && router.query.burnModal !== "open") {
+  //     router.push("/gallery?burnModal=open", undefined, { shallow: true });
+  //   } else if (!isBurnModalOpen && router.query.burnModal === "open") {
+  //     router.push("/gallery", undefined, { shallow: true });
+  //   }
+  // }, [isBurnModalOpen, router]);
 
   // Handler for screen clicks in the mobile model
-  const handleScreenClick = (view) => {
-    setCurrentView(view);
-  };
 
   // Handler to return to the main view
   const handleBack = () => {
     setCurrentView("main");
-  };
-
-  const handleTooltipUpdate = (newTooltipData) => {
-    setTooltipData(newTooltipData);
   };
 
   // Use useCallback for event handlers
@@ -263,10 +242,6 @@ function BurnGallery({
     },
     [setThreeDSceneLoaded]
   );
-
-  const handleCandleSelect = (data) => {
-    console.log("Candle selected:", data);
-  };
 
   // Add toggleMonsterMode function
   const toggleMonsterMode = () => {
@@ -286,6 +261,8 @@ function BurnGallery({
       setClerkUserData(null);
     }
   }, [isLoaded, isSignedIn, user]);
+
+  // Add this near your other handler functions
 
   return (
     <>
@@ -307,23 +284,7 @@ function BurnGallery({
             {currentView === "main" ? (
               <MemoizedThreeDVotiveStand
                 setIsLoading={setThreeDSceneLoaded}
-                onCameraMove={() => {
-                  setIsInMarkerView(true);
-                  setIsChandelierVisible(false);
-                }}
-                onResetView={() => {
-                  setIsInMarkerView(false);
-                  // Only show chandelier on reset if not mobile
-                  setIsChandelierVisible(!isMobileView);
-                }}
-                onZoom={() => {
-                  if (!isInMarkerView) {
-                    setIsChandelierVisible(false);
-                  }
-                }}
-                isInMarkerView={isInMarkerView}
                 isMobileView={isMobileView}
-                onScreenClick={handleScreenClick}
                 setShowSpotify={setShowSpotify}
                 isModalOpen={isModalOpen}
                 setIsModalOpen={setIsModalOpen}
@@ -333,95 +294,6 @@ function BurnGallery({
                 monsterMode={monsterMode}
                 userData={clerkUserData}
               />
-            ) : currentView === "stand1" ? (
-              <div
-                style={{
-                  position: "relative",
-                  width: "100vw", // Full viewport width
-                  height: "100vh", // Full viewport height
-                  maxWidth: "none", // Override parent constraints
-                  maxHeight: "none",
-                }}
-              >
-                {/* <Canvas
-                  camera={{
-                    fov: 75,
-                    near: 0.1,
-                    far: 1000,
-                    position: [0, 5, 15],
-                  }}
-                >
-                  <Suspense fallback={null}>
-                    <MobileStand
-                      onBack={handleBack}
-                      onTooltipUpdate={handleTooltipUpdate}
-                      scale={7}
-                    />
-                  </Suspense>
-                </Canvas> */}
-                <Box
-                  position="absolute"
-                  bottom="10%"
-                  left="4"
-                  zIndex={500}
-                  pointerEvents="auto"
-                >
-                  <Button
-                    width="7rem"
-                    background="#8e662b"
-                    color="white"
-                    onClick={handleBack}
-                    className="w-56 text-xl px-4 py-2 bg-black/70 text-white rounded-lg hover:bg-black/90 transition-colors"
-                  >
-                    ← Back
-                  </Button>
-                </Box>
-                {/* Mobile Stand Instructions */}
-                {isMobileView && (
-                  <Box
-                    position="absolute"
-                    top="10%"
-                    zIndex={500}
-                    textAlign="right"
-                    width="100%"
-                    px="4"
-                    pointerEvents="none"
-                  >
-                    <h1 className="thelma1">RL80 is Lit!</h1>
-                    <Text fontSize={"1rem"}>
-                      Hover over the candles to see who lit them. Click anywhere
-                      to return to the main view.
-                    </Text>
-                  </Box>
-                )}
-
-                {/* Tooltips */}
-                <div className="tooltip-wrapper absolute inset-0 pointer-events-none">
-                  {tooltipData && (
-                    <div
-                      className="tooltip-container"
-                      style={{
-                        position: "absolute",
-                        padding: "8px 12px",
-                        left: `${tooltipData.position.x}px`,
-                        top: `${tooltipData.position.y}px`,
-                        transform: "translate(-50%, -100%)",
-                        backgroundColor: "rgba(0, 0, 0, 0.9)",
-                        color: "white",
-                        borderRadius: "4px",
-                        zIndex: 1000,
-                        fontSize: "16px",
-                        fontWeight: "600",
-                        opacity: tooltipData.userName ? 1 : 0,
-                        visibility: tooltipData.userName ? "visible" : "hidden",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {tooltipData.userName}
-                    </div>
-                  )}
-                </div>
-              </div>
             ) : null}
           </GridItem>
         </Grid>

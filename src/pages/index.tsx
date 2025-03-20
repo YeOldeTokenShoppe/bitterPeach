@@ -25,21 +25,12 @@ export default function Page() {
   }, [wordPressSliderLoaded, badgeLoaded, allImagesLoaded]);
 
   // List of critical images to preload for the index page
-  const criticalImages = useMemo(
-    () => [
-      // Add your critical index page images here
-      // For example:
-      "/rotating-badge.png", // If your RotatingBadge uses this image
-      "/nuhart1.svg", // Badge image
-      // Coin images
-      "/coinFront.png",
-      "/coinBack1.png",
-      // VVV image
-      "/vvv.jpg",
-      // Add any other critical images
-    ],
-    []
-  );
+  const criticalImages = [
+    // Add your critical index page images here
+    // For example:
+    "/nuhart1.svg", // Badge image
+    // Add any other critical images
+  ];
 
   // Preload all critical images
   useEffect(() => {
@@ -147,7 +138,7 @@ export default function Page() {
         <div
           style={{
             maxWidth: "1400px",
-
+            width: "100%",
             margin: "auto",
             position: "absolute",
           }}

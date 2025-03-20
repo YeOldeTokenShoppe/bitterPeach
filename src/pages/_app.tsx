@@ -38,15 +38,23 @@ type MyAppProps = AppProps & {
 };
 
 function MyApp({ Component, pageProps }: MyAppProps) {
+  const router = useRouter();
+
   useEffect(() => {
     // Ensure theme is forced to "dark"
     const html = document.documentElement;
     html.setAttribute("data-theme", "dark");
     html.style.colorScheme = "dark";
-    html.style.backgroundColor = "";
+
+    // Only set the default background color here if we're not on gallery or rocket page
+    const path = window.location.pathname;
+    if (path !== "/gallery" && path !== "/rocket") {
+      html.style.backgroundColor = "#1b1724";
+    } else {
+      html.style.backgroundColor = "#000000"; // Black for gallery and rocket
+    }
     // html.style.color = "white";
-  }, []);
-  const router = useRouter();
+  }, [router.pathname]); // Add router.pathname as dependency to re-run when route changes
 
   const isGalleryPage = router.pathname === "/gallery";
   const isIndexPage = router.pathname === "/";
@@ -85,11 +93,12 @@ function MyApp({ Component, pageProps }: MyAppProps) {
                 isScenePage ? "scene-page" : ""
               }`.trim()} // Dynamically add class names
               style={{
-                backgroundColor: isGalleryPage
-                  ? "#000000"
-                  : isScenePage
-                  ? "#0d0d0d"
-                  : "transparent",
+                backgroundColor:
+                  isGalleryPage || isRocketPage
+                    ? "#000000"
+                    : isScenePage
+                    ? "#0d0d0d"
+                    : "#1b1724", // Set explicit background colors here
                 width: "100%",
                 margin: "0",
                 paddingTop: "0", // Removed padding since header now scrolls with the page

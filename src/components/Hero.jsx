@@ -111,8 +111,8 @@ function Hero({ setHeroLoaded }) {
   const heroImages = useMemo(
     () => [
       // Add critical hero images here
-      "/logo.png",
-      "/hero-image.jpg",
+      // "/logo.png",
+
       // Coin images
       "/coinFront.png",
       "/coinBack1.png",
@@ -609,29 +609,35 @@ function Hero({ setHeroLoaded }) {
             position="relative"
             display="flex"
             flexDirection="column"
-            justifyContent="flex-end" // Ensure content is at the bottom on larger screens
+            justifyContent="flex-end"
             alignItems="stretch"
-            mt={{ base: 6, md: 0 }} // Add some margin-top on smaller screens
+            mt={{ base: 6, md: 0 }}
           >
             <div
               style={{
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
+                position: "relative",
                 width: "100%",
-                // maxWidth: "15rem",
-                // marginBottom: "10rem",
               }}
             >
-              <Image
-                // className="logo"
-                src="/vvv.jpg"
-                width="100%"
-                height="auto"
-                alt=""
-                style={{ zIndex: "1" }}
-                // objectFit={"contain"}
-              />
+              <Box
+                position="relative"
+                paddingBottom={{
+                  base: "100%", // Square on mobile
+                  md: "100%", // 4:3 on desktop
+                }}
+              >
+                <Image
+                  src="/vvv.jpg"
+                  fill
+                  alt="VVV"
+                  style={{
+                    objectFit: "cover",
+                    zIndex: "1",
+                  }}
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                  priority
+                />
+              </Box>
             </div>
           </Box>
         </Flex>

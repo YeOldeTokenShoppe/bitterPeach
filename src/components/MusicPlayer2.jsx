@@ -1,4 +1,11 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
+import {
+  getBrowserConnectionSpeed,
+  getRecommendedAudioQuality,
+  isMeteredConnection,
+} from "../utils/networkUtils";
+import { storage } from "../utilities/firebaseClient"; // Import Firebase storage
+import { ref, getDownloadURL } from "firebase/storage"; // Import Firebase storage functions
 
 const MusicPlayer = ({ isVisible, onClose, autoPlay = true }) => {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -10,12 +17,48 @@ const MusicPlayer = ({ isVisible, onClose, autoPlay = true }) => {
   const [shuffledQueue, setShuffledQueue] = useState([]);
   const audioRef = useRef(null);
   const [volume, setVolume] = useState(0.2);
+  const [userBandwidth, setUserBandwidth] = useState(200); // Default to medium
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [networkQuality, setNetworkQuality] = useState("medium");
+  const [trackUrl, setTrackUrl] = useState(""); // Add state for the track URL
 
-  const albums = ["Rocket Man - Steven Drozd"];
+  const albums = ["  Man - Steven Drozd"];
 
   const trackNames = ["Rocket Man - Steven Drozd"];
 
-  const trackUrls = ["rocketMan.m4a"];
+  // Detect user bandwidth
+  useEffect(() => {
+    // Skip bandwidth detection and just set a default value
+    setUserBandwidth(200); // Default to 200 kbps
+  }, []);
+
+  // Get audio URLs based on network quality
+  const getTrackUrl = (index) => {
+    const baseUrl = ""; // Your base URL (empty if files are in public folder)
+    const track = trackNames[index].replace(/\s+/g, "-").toLowerCase();
+
+    // Select the right quality
+    const quality =
+      networkQuality === "low"
+        ? "128k"
+        : networkQuality === "medium"
+        ? "192k"
+        : "320k";
+
+    return `${baseUrl}/audio/${quality}/${track}.m4a`;
+  };
+
+  // Detect network quality on mount
+  useEffect(() => {
+    let isMounted = true;
+
+    // Set a default quality and don't try to detect
+    setNetworkQuality("medium");
+
+    return () => {
+      isMounted = false;
+    };
+  }, []); // Empty dependency array = run once
 
   useEffect(() => {
     console.log(
@@ -26,7 +69,7 @@ const MusicPlayer = ({ isVisible, onClose, autoPlay = true }) => {
     );
   }, [isShuffled, shuffledQueue]);
   const getRandomTrackIndex = () => {
-    return Math.floor(Math.random() * trackUrls.length);
+    return Math.floor(Math.random() * trackNames.length);
   };
 
   const [currentTrackIndex, setCurrentTrackIndex] = useState(
@@ -36,7 +79,7 @@ const MusicPlayer = ({ isVisible, onClose, autoPlay = true }) => {
   useEffect(() => {
     console.log("Shuffle state changed:", isShuffled);
     if (isShuffled) {
-      const allTracks = [...Array(trackUrls.length).keys()];
+      const allTracks = [...Array(trackNames.length).keys()];
       const shuffled = allTracks
         .filter((index) => index !== currentTrackIndex)
         .sort(() => Math.random() - 0.5);
@@ -46,7 +89,7 @@ const MusicPlayer = ({ isVisible, onClose, autoPlay = true }) => {
       console.log("Clearing shuffle queue");
       setShuffledQueue([]); // Clear queue when shuffle is disabled
     }
-  }, [isShuffled, currentTrackIndex, trackUrls.length]); // Add all dependencies
+  }, [isShuffled, currentTrackIndex, trackNames.length]); // Add all dependencies
 
   const getNextTrackIndex = (direction) => {
     console.log(
@@ -60,14 +103,14 @@ const MusicPlayer = ({ isVisible, onClose, autoPlay = true }) => {
 
     if (!isShuffled) {
       const nextIndex =
-        (currentTrackIndex + direction + trackUrls.length) % trackUrls.length;
+        (currentTrackIndex + direction + trackNames.length) % trackNames.length;
       console.log("Sequential playback, next index:", nextIndex);
       return nextIndex;
     }
 
     if (shuffledQueue.length === 0) {
       console.log("Empty shuffle queue, creating new one");
-      const allTracks = [...Array(trackUrls.length).keys()];
+      const allTracks = [...Array(trackNames.length).keys()];
       const newQueue = allTracks
         .filter((index) => index !== currentTrackIndex)
         .sort(() => Math.random() - 0.5);
@@ -163,7 +206,7 @@ const MusicPlayer = ({ isVisible, onClose, autoPlay = true }) => {
 
     if (newShuffleState) {
       // Create new shuffle queue
-      const allTracks = [...Array(trackUrls.length).keys()];
+      const allTracks = [...Array(trackNames.length).keys()];
       const shuffled = allTracks
         .filter((index) => index !== currentTrackIndex)
         .sort(() => Math.random() - 0.5);
@@ -211,60 +254,71 @@ const MusicPlayer = ({ isVisible, onClose, autoPlay = true }) => {
   };
   // Initialize audio element
   useEffect(() => {
-    // Check if trackUrls is valid and has the current index
-    if (
-      !trackUrls ||
-      !trackUrls.length ||
-      currentTrackIndex >= trackUrls.length
-    ) {
-      console.error("Invalid track URL or index:", {
-        trackUrls,
-        currentTrackIndex,
-      });
+    // Direct URL to Firebase Storage audio file
+    const firebaseAudioUrl =
+      "https://firebasestorage.googleapis.com/v0/b/hailmary-3ff6c.firebasestorage.app/o/audio%2F320k%2Frocket-man---steven-drozd.m4a?alt=media&token=03a93b83-7077-4090-aff9-58b1ddabb6f8";
+
+    console.log("Setting audio URL:", firebaseAudioUrl);
+    setTrackUrl(firebaseAudioUrl);
+  }, []);
+
+  // Update the useEffect that creates the audio element
+  useEffect(() => {
+    // Only proceed if we have a valid URL
+    if (!trackUrl) {
       return;
     }
 
-    const audio = new Audio(trackUrls[currentTrackIndex]);
-    // Set initial volume to match state (20%)
+    // Create a new audio element
+    const audio = new Audio();
+    audio.preload = "metadata";
     audio.volume = volume;
-    console.log("Initializing new audio element with volume:", audio.volume);
+    audio.src = trackUrl;
+
+    console.log(`Loading audio from URL: ${trackUrl}`);
     audioRef.current = audio;
 
-    const handlePlay = () => {
-      setIsPlaying(true);
-      console.log("Audio playing, current volume:", audio.volume);
-    };
+    const handlePlay = () => setIsPlaying(true);
     const handlePause = () => setIsPlaying(false);
+    const handleLoaded = () => setIsLoaded(true);
+
+    // Add an error handler to debug issues
+    const handleError = (e) => {
+      console.error("Audio error:", e);
+      console.error("Audio error details:", {
+        error: e.target.error,
+        src: e.target.src,
+        readyState: e.target.readyState,
+      });
+    };
 
     audio.addEventListener("play", handlePlay);
     audio.addEventListener("pause", handlePause);
-    audio.addEventListener("timeupdate", updateProgress);
+    audio.addEventListener("error", handleError);
     audio.addEventListener("loadedmetadata", () => {
       setDuration(formatTime(audio.duration));
-      console.log("Audio metadata loaded, volume:", audio.volume);
+      setIsLoaded(true);
 
-      // Auto-play if component is visible when audio is ready
+      // Auto-play if component is visible
       if (isVisible && autoPlay) {
-        audio
-          .play()
-          .then(() => {
-            console.log("Auto-play on metadata load successful");
-            setIsPlaying(true);
-          })
-          .catch((error) =>
-            console.error("Auto-play on metadata load failed:", error)
-          );
+        audio.play().catch((error) => {
+          console.error("Auto-play failed:", error);
+        });
       }
     });
+    audio.addEventListener("timeupdate", updateProgress);
 
+    // Cleanup function
     return () => {
       audio.removeEventListener("play", handlePlay);
       audio.removeEventListener("pause", handlePause);
+      audio.removeEventListener("error", handleError);
       audio.removeEventListener("timeupdate", updateProgress);
       audio.pause();
       audio.src = "";
+      audioRef.current = null;
     };
-  }, [currentTrackIndex, isVisible, volume, autoPlay]);
+  }, [trackUrl, isVisible, autoPlay, volume]);
 
   // Handle play/pause state changes
   useEffect(() => {
@@ -320,123 +374,132 @@ const MusicPlayer = ({ isVisible, onClose, autoPlay = true }) => {
 
   return (
     <div className="music-player">
-      <div id="app-cover">
-        <div
-          style={closeButtonStyle}
-          onClick={handleClose}
-          className="hover:bg-black/50"
-          title="Close player"
-        >
-          <i className="fa-solid fa-times text-white text-xl"></i>
+      {!trackUrl ? (
+        <div style={{ textAlign: "center", padding: "20px" }}>
+          Loading audio file...
         </div>
+      ) : (
+        <div id="app-cover">
+          <div
+            style={closeButtonStyle}
+            onClick={handleClose}
+            className="hover:bg-black/50"
+            title="Close player"
+          >
+            <i className="fa-solid fa-times text-white text-xl"></i>
+          </div>
 
-        <div id="player">
-          <div id="player-track" className={isPlaying ? "active" : ""}>
-            <div id="album-name">{albums[currentTrackIndex]}</div>
-            <div id="track-name">{trackNames[currentTrackIndex]}</div>
-            <div id="track-time">
-              <div id="current-time">{currentTime}</div>
-              <div id="track-length">{duration}</div>
+          <div id="player">
+            <div id="player-track" className={isPlaying ? "active" : ""}>
+              <div id="album-name">{albums[currentTrackIndex]}</div>
+              <div id="track-name">{trackNames[currentTrackIndex]}</div>
+              <div id="track-time">
+                <div id="current-time">{currentTime}</div>
+                <div id="track-length">{duration}</div>
+              </div>
+              <div id="s-area" onClick={handleSeek}>
+                <div id="seek-bar" style={{ width: `${playProgress}%` }}></div>
+              </div>
             </div>
-            <div id="s-area" onClick={handleSeek}>
-              <div id="seek-bar" style={{ width: `${playProgress}%` }}></div>
-            </div>
-          </div>
-          <div id="player-content">
-            <div id="album-art" className={`${isPlaying ? "rotate" : ""}`}>
-              <img
-                src="/virginRecords.jpg"
-                className="active"
-                alt="Album Art"
-              />
-            </div>
-            <div id="player-controls">
-              <div className="control" onClick={() => changeTrack(-1)}>
-                <div className="button" id="play-previous">
-                  <i className="fa-solid fa-backward"></i>
-                </div>
+            <div id="player-content">
+              <div id="album-art" className={`${isPlaying ? "rotate" : ""}`}>
+                <img
+                  src="/virginRecords.jpg"
+                  className="active"
+                  alt="Album Art"
+                />
               </div>
-              <div className="control" onClick={playPause}>
-                <div className="button" id="play-pause-button">
-                  <i className={playPauseIconClass}></i>
+              <div id="player-controls">
+                <div className="control" onClick={() => changeTrack(-1)}>
+                  <div className="button" id="play-previous">
+                    <i className="fa-solid fa-backward"></i>
+                  </div>
                 </div>
-              </div>
-              <div className="control" onClick={() => changeTrack(1)}>
-                <div className="button" id="play-next">
-                  <i className="fa-solid fa-forward"></i>
+                <div className="control" onClick={playPause}>
+                  <div className="button" id="play-pause-button">
+                    <i className={playPauseIconClass}></i>
+                  </div>
                 </div>
-              </div>
-              <div className="control">
-                <div
-                  className="button"
-                  id="shuffle-button"
-                  onClick={(e) => {
-                    console.log("Shuffle button clicked"); // Add this log
-                    toggleShuffle();
-                  }}
-                >
-                  {/* <i
-                    className={`fa-solid fa-random ${
-                      isShuffled ? "text-green-400" : "text-white"
-                    }`}
-                  ></i> */}
+                <div className="control" onClick={() => changeTrack(1)}>
+                  <div className="button" id="play-next">
+                    <i className="fa-solid fa-forward"></i>
+                  </div>
                 </div>
-              </div>
-              <div className="control">
-                <div
-                  className="volume-control"
-                  style={{ display: "flex", alignItems: "center" }}
-                >
-                  <i
-                    className={`fa-solid ${
-                      volume === 0 ? "fa-volume-mute" : "fa-volume-up"
-                    }`}
-                    style={{
-                      marginRight: "8px",
-                      cursor: "pointer",
-                      position: "absolute",
-                      bottom: "25px",
-                      left: "50%",
+                <div className="control">
+                  <div
+                    className="button"
+                    id="shuffle-button"
+                    onClick={(e) => {
+                      console.log("Shuffle button clicked"); // Add this log
+                      toggleShuffle();
                     }}
-                    onClick={() =>
-                      handleVolumeChange({
-                        target: { value: volume === 0 ? 0.2 : 0 },
-                      })
-                    }
-                  />
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.01"
-                    value={volume}
-                    onChange={handleVolumeChange}
-                    style={{
-                      position: "absolute",
-                      bottom: "10px",
-                      left: "60%",
-                      width: "60px",
-                      height: "4px",
-                      WebkitAppearance: "none",
-                      background: `linear-gradient(to right, #fff ${
-                        volume * 100
-                      }%, #4a4a4a ${volume * 100}%)`,
-                      borderRadius: "2px",
-                      cursor: "pointer",
-                    }}
-                  />
+                  >
+                    {/* <i
+                      className={`fa-solid fa-random ${
+                        isShuffled ? "text-green-400" : "text-white"
+                      }`}
+                    ></i> */}
+                  </div>
                 </div>
-              </div>
-              <div
-                id="current-track-info"
-                style={{ textAlign: "center", marginTop: "2.5rem" }}
-              >
-                {trackNames[currentTrackIndex]}
+                <div className="control">
+                  <div
+                    className="volume-control"
+                    style={{ display: "flex", alignItems: "center" }}
+                  >
+                    <i
+                      className={`fa-solid ${
+                        volume === 0 ? "fa-volume-mute" : "fa-volume-up"
+                      }`}
+                      style={{
+                        marginRight: "8px",
+                        cursor: "pointer",
+                        position: "absolute",
+                        bottom: "25px",
+                        left: "50%",
+                      }}
+                      onClick={() =>
+                        handleVolumeChange({
+                          target: { value: volume === 0 ? 0.2 : 0 },
+                        })
+                      }
+                    />
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      value={volume}
+                      onChange={handleVolumeChange}
+                      style={{
+                        position: "absolute",
+                        bottom: "10px",
+                        left: "60%",
+                        width: "60px",
+                        height: "4px",
+                        WebkitAppearance: "none",
+                        background: `linear-gradient(to right, #fff ${
+                          volume * 100
+                        }%, #4a4a4a ${volume * 100}%)`,
+                        borderRadius: "2px",
+                        cursor: "pointer",
+                      }}
+                    />
+                  </div>
+                </div>
+                <div
+                  id="current-track-info"
+                  style={{ textAlign: "center", marginTop: "2.5rem" }}
+                >
+                  {trackNames[currentTrackIndex]}
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
+      {/* <div className="text-xs text-gray-400 mt-2 text-center">
+        Playing in {networkQuality} quality
+      </div> */}
     </div>
   );
 };

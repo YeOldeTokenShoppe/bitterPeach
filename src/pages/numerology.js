@@ -3,12 +3,7 @@ import React, { useState, useEffect } from "react";
 import NavBar from "../components/NavBar.client";
 import Footer from "../components/Footer";
 import Loader from "../components/Loader";
-
-import dynamic from "next/dynamic";
-
-const Numerology = dynamic(() => import("../components/Numerology"), {
-  ssr: false,
-});
+import Numerology from "../components/Numerology";
 
 export default function NumerologyPage() {
   const [isLoading, setIsLoading] = useState(true);

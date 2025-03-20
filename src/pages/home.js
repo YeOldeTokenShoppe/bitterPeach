@@ -23,8 +23,8 @@ export default function Home() {
     () => [
       // Add your critical home page images here
       // For example:
-      "/logo.png",
-      "/hero-image.jpg",
+      // "/logo.png",
+
       "/3D_spotify.png",
       "/3D_tiktok.png",
       "/3d_discord.png",

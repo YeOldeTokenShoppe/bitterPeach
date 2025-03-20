@@ -34,16 +34,14 @@ import styled from "styled-components";
 import { debounce } from "lodash";
 
 import FloatingCandleViewer from "./CandleInteraction";
-
+import MoonScene from "./MoonLamps";
 import CameraGUI from "./CameraGUI";
+import HolographicStatue from "./HolographicStatue";
+import PostProcessingEffects from "./PostProcessingEffects";
 
 const scene = new THREE.Scene();
 
 // Lazy load scene components
-const MoonScene = lazy(() => import("./MoonLamps"));
-const HolographicStatue = lazy(() => import("./HolographicStatue"));
-import RocketModel from "./RocketModel";
-const PostProcessingEffects = lazy(() => import("./PostProcessingEffects"));
 
 function ThreeDVotiveStand({
   setIsLoading,
@@ -143,34 +141,37 @@ function ThreeDVotiveStand({
   };
 
   // Apply a preset configuration
-  const applyPreset = (presetName) => {
-    const preset = lightingPresets[presetName];
-    if (!preset) return;
+  const applyPreset = useCallback(
+    (presetName) => {
+      const preset = lightingPresets[presetName];
+      if (!preset) return;
 
-    // Update all lighting properties at once
-    setSkyColor(preset.skyColor);
-    setGroundColor(preset.groundColor);
-    setLightIntensity(preset.lightIntensity);
-    setLightPosition(preset.lightPosition);
+      // Update all lighting properties at once
+      setSkyColor(preset.skyColor);
+      setGroundColor(preset.groundColor);
+      setLightIntensity(preset.lightIntensity);
+      setLightPosition(preset.lightPosition);
 
-    // Update the model's light properties if modelRef is available
-    if (modelRef.current) {
-      if (modelRef.current.updateSkyColor) {
-        modelRef.current.updateSkyColor(preset.skyColor);
+      // Update the model's light properties if modelRef is available
+      if (modelRef.current) {
+        if (modelRef.current.updateSkyColor) {
+          modelRef.current.updateSkyColor(preset.skyColor);
+        }
+        if (modelRef.current.updateGroundColor) {
+          modelRef.current.updateGroundColor(preset.groundColor);
+        }
+        if (modelRef.current.updateLightIntensity) {
+          modelRef.current.updateLightIntensity(preset.lightIntensity);
+        }
+        if (modelRef.current.updateLightPosition) {
+          modelRef.current.updateLightPosition("x", preset.lightPosition.x);
+          modelRef.current.updateLightPosition("y", preset.lightPosition.y);
+          modelRef.current.updateLightPosition("z", preset.lightPosition.z);
+        }
       }
-      if (modelRef.current.updateGroundColor) {
-        modelRef.current.updateGroundColor(preset.groundColor);
-      }
-      if (modelRef.current.updateLightIntensity) {
-        modelRef.current.updateLightIntensity(preset.lightIntensity);
-      }
-      if (modelRef.current.updateLightPosition) {
-        modelRef.current.updateLightPosition("x", preset.lightPosition.x);
-        modelRef.current.updateLightPosition("y", preset.lightPosition.y);
-        modelRef.current.updateLightPosition("z", preset.lightPosition.z);
-      }
-    }
-  };
+    },
+    [modelRef]
+  );
 
   // Apply preset when is80sMode prop changes
   useEffect(() => {
@@ -284,35 +285,6 @@ function ThreeDVotiveStand({
     }
   }, [currentDpr]);
 
-  const handleCandleSelect = (candleData) => {
-    setSelectedCandleData(candleData);
-    setShowFloatingViewer(true);
-  };
-
-  let previousTooltipData = []; // Track previous tooltip data to prevent unnecessary updates
-  const findCandleComponent = (parent, type) => {
-    const candleNumber = parent.name.slice(-3);
-
-    switch (type) {
-      case "FLAME":
-        // Look for any FLAME in children (since it has different numbering)
-        return parent.children.find((child) => child.name.startsWith("FLAME"));
-
-      case "TooltipPlane":
-        // Look for TooltipPlane with matching candle number
-        return parent.children.find(
-          (child) => child.name === `TooltipPlane${candleNumber}`
-        );
-
-      case "wax":
-        // Find shared wax mesh
-        return parent.children.find((child) => child.name.includes("wax"));
-
-      default:
-        return null;
-    }
-  };
-
   // Add a keyboard listener to toggle debug overlay with 'D' key
 
   // Add refs for spotlight and target
@@ -367,12 +339,47 @@ function ThreeDVotiveStand({
     };
   }, [monsterMode, scene]);
 
-  const startCandlePlacement = () => {
-    if (modelRef.current && modelRef.current.togglePlacementMode) {
-      // Pass the current user's data
-      modelRef.current.togglePlacementMode(userData);
-    }
-  };
+  // Add a cleanup function in your component
+  useEffect(() => {
+    return () => {
+      // Dispose of Three.js resources when component unmounts
+      if (modelRef.current) {
+        modelRef.current.traverse((object) => {
+          if (object.geometry) {
+            object.geometry.dispose();
+          }
+
+          if (object.material) {
+            if (Array.isArray(object.material)) {
+              object.material.forEach((material) => material.dispose());
+            } else {
+              object.material.dispose();
+            }
+          }
+
+          if (object.texture) {
+            object.texture.dispose();
+          }
+        });
+      }
+
+      // Clear any cached scenes, renderers, etc.
+      if (rendererRef.current) {
+        rendererRef.current.dispose();
+      }
+
+      // Clear three.js cache
+      THREE.Cache.clear();
+    };
+  }, []);
+
+  // Only calculate modelCenter when dependencies actually change
+  // useEffect(() => {
+  //   const newCenter = calculateModelCenter();
+  //   if (!modelCenter.equals(newCenter)) {
+  //     setModelCenter(newCenter);
+  //   }
+  // }, [modelScale]);
 
   return (
     <>
@@ -412,7 +419,7 @@ function ThreeDVotiveStand({
           }}
         >
           {/* Manually controlling DPI now, so AdaptiveDpr is disabled */}
-          {/* <AdaptiveDpr pixelated /> */}
+          <AdaptiveDpr pixelated />
           <AdaptiveEvents />
           <BakeShadows />
           {/* <FlyInEffect
@@ -422,114 +429,64 @@ function ThreeDVotiveStand({
           /> */}
           {/* <TourCamera points={pointsOfInterest} /> */}
           <Perf position="top-left" />
-          {/* <RoomWalls db={db} /> */}
+
+          <Model
+            scale={modelScale}
+            rotation={[0, 0, 0]}
+            modelRef={modelRef}
+            showFloatingViewer={showFloatingViewer}
+            setShowFloatingViewer={setShowFloatingViewer}
+            onCandleSelect={(data) => {
+              setSelectedCandleData(data);
+              setShowFloatingViewer(true);
+            }}
+            setModelCenter={setModelCenter}
+            isModalOpen={isModalOpen}
+            setIsModalOpen={setIsModalOpen}
+            setIsModelLoaded={setIsModelLoaded}
+            onLightPositionChange={handleLightPositionChange}
+            lightIntensity={lightIntensity}
+            skyColor={skyColor}
+            groundColor={groundColor}
+            showLightHelper={showLightHelper}
+            is80sMode={is80sMode}
+            showSpotify={showSpotify}
+            monsterMode={monsterMode}
+          />
 
           <Suspense fallback={null}>
-            <Model
-              scale={modelScale}
-              rotation={[0, 0, 0]}
-              modelRef={modelRef}
-              showFloatingViewer={showFloatingViewer}
-              setShowFloatingViewer={setShowFloatingViewer}
-              onCandleSelect={(data) => {
-                setSelectedCandleData(data);
-                setShowFloatingViewer(true);
-              }}
-              setModelCenter={setModelCenter}
-              isModalOpen={isModalOpen}
-              setIsModalOpen={setIsModalOpen}
-              setIsModelLoaded={setIsModelLoaded}
-              onLightPositionChange={handleLightPositionChange}
-              lightIntensity={lightIntensity}
-              skyColor={skyColor}
-              groundColor={groundColor}
-              showLightHelper={showLightHelper}
-              is80sMode={is80sMode}
-              showSpotify={showSpotify}
-              monsterMode={monsterMode}
-            />
+            <MoonScene modelRef={modelRef} onSpawnReady={onSpawnReady} />
+          </Suspense>
 
-            {/* Add Sun to the scene at a visible position */}
-            {/* <Sun scale={1.3} is80sMode={is80sMode} /> */}
-
-            <Suspense fallback={null}>
-              <MoonScene modelRef={modelRef} onSpawnReady={onSpawnReady} />
-            </Suspense>
-
-            {/* Conditionally render HolographicStatue or RocketModel based on monsterMode */}
-            <Suspense fallback={null}>
-              {!monsterMode ? (
-                <HolographicStatue />
-              ) : (
-                // Render RocketModel directly without Suspense since it's no longer lazy loaded
-                <RocketModel
-                  updateAmbientLightDimming={updateAmbientLightDimming}
-                  userData={userData}
-                  is80sMode={is80sMode}
-                />
-              )}
-            </Suspense>
-            <Suspense fallback={null}>
-              <TickerDisplay
-                modelRef={modelRef}
-                // position={[0, 2, 0]}
-                // rotation={[0, 0, 0]}
-                // scale={[18, 0.8, 0.01]}
+          {/* Conditionally render HolographicStatue or RocketModel based on monsterMode */}
+          <Suspense fallback={null}>
+            {!monsterMode ? (
+              <HolographicStatue />
+            ) : (
+              // Render RocketModel directly without Suspense since it's no longer lazy loaded
+              <RocketModel
+                updateAmbientLightDimming={updateAmbientLightDimming}
+                userData={userData}
+                is80sMode={is80sMode}
               />
-              {/* <TickerDisplay
-      
-            /> */}
-            </Suspense>
-            <Suspense fallback={null}>
-              <PostProcessingEffects is80sMode={is80sMode} />
-            </Suspense>
+            )}
+          </Suspense>
+          <Suspense fallback={null}>
+            <TickerDisplay modelRef={modelRef} />
+          </Suspense>
+          <Suspense fallback={null}>
+            <PostProcessingEffects is80sMode={is80sMode} />
+          </Suspense>
 
-            {/* Add Wireframe Terrain */}
-            {/* <Suspense fallback={null}>
+          {/* Add Wireframe Terrain */}
+          {/* <Suspense fallback={null}>
               <WireframeTerrain is80sMode={is80sMode} />
             </Suspense> */}
-          </Suspense>
+
           {/* <TickerDisplay /> */}
         </Canvas>
 
         {/* Add placement button */}
-        <button
-          className="place-candle-btn"
-          onClick={startCandlePlacement}
-          style={{
-            position: "absolute",
-            bottom: "20px",
-            right: "20px",
-            zIndex: 100,
-            padding: "8px 16px",
-            background: "#ff6700",
-            color: "white",
-            border: "none",
-            borderRadius: "4px",
-            cursor: "pointer",
-          }}
-        >
-          Place Your Candle
-        </button>
-
-        {/* Show instructions when in placement mode */}
-        {modelRef.current?.placementMode && (
-          <div
-            style={{
-              position: "absolute",
-              top: "50%",
-              left: "50%",
-              transform: "translate(-50%, -50%)",
-              backgroundColor: "rgba(0,0,0,0.7)",
-              color: "white",
-              padding: "20px",
-              borderRadius: "8px",
-              zIndex: 100,
-            }}
-          >
-            Click anywhere on the floor to place your candle
-          </div>
-        )}
 
         {showFloatingViewer && selectedCandleData && (
           <FloatingCandleViewer
