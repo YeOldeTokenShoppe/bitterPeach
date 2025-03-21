@@ -87,7 +87,7 @@ function HolographicStatue() {
     `,
         transparent: true,
         blending: THREE.AdditiveBlending,
-        depthWrite: false,
+        depthWrite: true,
         depthTest: true, // Disable depth testing
         side: THREE.FrontSide,
       }),
@@ -164,8 +164,8 @@ function HolographicStatue() {
         fragmentShader: holographicMaterial.fragmentShader,
         transparent: true,
         blending: THREE.NormalBlending, // 🟢 Try Normal Blending instead of Additive
-        depthWrite: false,
-        depthTest: false,
+        depthWrite: true,
+        depthTest: true,
         side: THREE.DoubleSide,
       });
 
@@ -181,10 +181,13 @@ function HolographicStatue() {
             child.material = new THREE.MeshStandardMaterial({
               color: child.material.color, // Retains Blender's original color
               emissive: child.material.color, // Makes it glow with the same color
-              emissiveIntensity: 4.0, // Adjust glow strength
+              emissiveIntensity: 3.0, // Adjust glow strength
               metalness: 0.8, // Keeps a metallic shine
               roughness: 0.2, // Ensures slight reflection for a clean cyberpunk look
               side: THREE.DoubleSide, // ✅ Makes it visible from all angles
+              transparent: true,
+              depthWrite: true,
+              depthTest: true,
             });
 
             return; // ✅ Skip holographic effect for the halo text

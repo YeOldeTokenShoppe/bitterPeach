@@ -9,7 +9,7 @@ const MoonScene = ({
   modelRef,
   modelCenter,
   onControlsCreated,
-  initialTarget = [0, 0, 0],
+  // initialTarget = [0, -10, 0],
   onSpawnReady,
 }) => {
   const { scene, camera, gl } = useThree();
@@ -57,24 +57,52 @@ const MoonScene = ({
     controls.autoRotate = true;
     controls.autoRotateSpeed = 0.2;
     controls.enableDamping = true;
-    controls.enablePan = false;
+    controls.enablePan = true;
     controls.enableZoom = true;
-    controls.minDistance = 3;
-    controls.maxDistance = 300;
+    controls.minDistance = 10;
+    controls.maxDistance = 100;
     controls.minPolarAngle = 0;
-    controls.maxPolarAngle = (Math.PI / 2) * 0.9;
+    controls.maxPolarAngle = Math.PI / 2;
 
-    // ✅ Hardcoded camera position and target
-    const hardcodedTarget = new THREE.Vector3(0, 0, 0);
-    controls.target.copy(hardcodedTarget);
-    camera.position.set(0, 10, 70);
-    camera.lookAt(hardcodedTarget);
+    // Use modelCenter if provided, or a default target
+    const targetPosition = modelCenter || new THREE.Vector3(0, 10, 0);
 
-    camera.fov = 45;
+    // Set a very extreme camera position to test if it takes effect
+    camera.position.set(0, 0, 40); // Significantly different position for testing
+    controls.target.copy(targetPosition);
+
+    camera.fov = 35;
     camera.updateProjectionMatrix();
     controls.update();
     controlsRef.current = controls;
-  }, [camera, gl.domElement]);
+
+    // If we have an onControlsCreated callback, call it
+    if (onControlsCreated) {
+      onControlsCreated(controls);
+    }
+  }, [camera, gl.domElement, modelCenter, onControlsCreated]);
+
+  // Add a new useEffect specifically to force camera positioning
+  useEffect(() => {
+    // Ensure camera positioning takes effect after a slight delay
+    // This can help override any other code that might be setting the camera position
+    const timer = setTimeout(() => {
+      if (camera && controlsRef.current) {
+        const targetPosition = modelCenter || new THREE.Vector3(0, 10, 0);
+
+        // Very dramatic position for testing
+        camera.position.set(50, 0, 10);
+        controlsRef.current.target.copy(targetPosition);
+        camera.lookAt(targetPosition);
+        camera.updateProjectionMatrix();
+        controlsRef.current.update();
+
+        console.log("Camera position forced to:", camera.position);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [camera, modelCenter]);
 
   useEffect(() => {
     const loader = new THREE.CubeTextureLoader();

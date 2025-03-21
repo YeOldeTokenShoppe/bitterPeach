@@ -17,6 +17,7 @@ import { useFirestoreResults } from "../../utilities/useFirestoreResults";
 import * as THREE from "three";
 import gsap from "gsap";
 import Model from "./Model";
+import RocketModel from "./RocketModel";
 
 // import { DEFAULT_CAMERA, getCameraSettings } from "./defaultCamera";
 // In your Canvas component
@@ -399,12 +400,12 @@ function ThreeDVotiveStand({
         <Canvas
           dpr={currentDpr} // Using dynamic DPI based on device and network
           performance={{ min: 0.5 }} // Allow ThreeJS to reduce quality for performance
-          camera={{
-            fov: 45,
-            position: [0, 10, 70], // ✅ Use the copied values from CameraGUI
-            near: 0.03,
-            far: 350,
-          }}
+          // camera={{
+          //   fov: 45,
+          //   position: [0, -10, 70], // ✅ Use the copied values from CameraGUI
+          //   near: 0.1,
+          //   far: 350,
+          // }}
           onCreated={({ gl, camera }) => {
             cameraRef.current = camera;
             rendererRef.current = gl;
