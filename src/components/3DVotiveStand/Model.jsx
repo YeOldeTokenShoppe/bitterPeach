@@ -98,6 +98,233 @@ function Model({
   const lightHelperRef = useRef();
   const lightMarkerRef = useRef();
 
+  // Add these new refs and state variables for candle placement
+  const instancedXCandleRef = useRef();
+  const candleModelRef = useRef();
+  const [candleCount, setCandleCount] = useState(0);
+  const maxCandles = 100; // Maximum number of candles to allow
+
+  // Load candle model - use a different approach
+  const candle = useGLTF("/XCandle1.glb");
+
+  // Add this near the top of your component
+  const [debugPoints, setDebugPoints] = useState([]);
+
+  // Add this near the top of your component to inspect the candle model
+  useEffect(() => {
+    if (candle && candle.scene) {
+      console.log("Candle model structure:", candle);
+
+      // Log all objects in the model
+      candle.scene.traverse((obj) => {
+        if (obj.isMesh) {
+          console.log("Found mesh in candle model:", obj.name, obj);
+        }
+      });
+    }
+  }, [candle]);
+
+  // Let's create a more direct debug visualization - update this function:
+  function addDebugPoint(position, color = 0xff0000) {
+    // Create a sphere to visualize the point
+    const geometry = new THREE.SphereGeometry(0.2, 16, 16);
+    const material = new THREE.MeshBasicMaterial({ color });
+    const sphere = new THREE.Mesh(geometry, material);
+
+    // Position the sphere at the exact point
+    sphere.position.copy(position);
+
+    // Add to scene
+    scene.add(sphere);
+
+    // Optional: Remove after some time
+    setTimeout(() => {
+      scene.remove(sphere);
+    }, 10000); // Remove after 10 seconds
+
+    console.log("Added debug sphere at:", position);
+  }
+
+  // Function to handle floor clicks and place candles
+  const handleFloorClick = useCallback(
+    (event) => {
+      event.stopPropagation();
+
+      if (candleCount >= maxCandles) return; // Limit number of candles
+
+      // Get the intersection point and object from the event
+      const point = event.point.clone();
+      const floorObject = event.object;
+
+      console.log("Click detected on:", floorObject.name, "at point:", point);
+
+      // Add a debug point at the initial click location
+      addDebugPoint(point, 0x00ff00); // Green for initial click
+
+      // Create a candle object with proper placement on the surface
+      const placeCandleAtPoint = (point) => {
+        // Clone the candle model for this instance
+        const newCandle = candle.scene.clone();
+
+        // Mark this as a candle for easier cleanup
+        newCandle.userData.isCandle = true;
+
+        // Set the basic position using the exact point
+        newCandle.position.set(point.x, point.y, point.z);
+
+        // Add some random rotation
+        newCandle.rotation.y = Math.random() * Math.PI * 2;
+
+        // Add a small random scale variation for visual interest
+        const randomScale = 0.9 + Math.random() * 0.2;
+        newCandle.scale.set(randomScale, randomScale, randomScale);
+
+        // Add to scene
+        scene.add(newCandle);
+
+        // Increment the candle count
+        setCandleCount((prevCount) => prevCount + 1);
+
+        const candleData = {
+          position: { x: point.x, y: point.y, z: point.z },
+          rotation: { y: newCandle.rotation.y },
+          scale: randomScale,
+          id: `candle_${candleCount}`,
+          createdAt: new Date(),
+        };
+
+        console.log("Added candle:", candleData);
+
+        // Optional: Save to Firestore
+        // saveCandleToFirestore(candleData);
+      };
+
+      // A more direct approach for Floor2.002
+      if (floorObject.name === "Floor2.002") {
+        // We'll use a different approach with the raycaster
+        // Cast ray directly from the camera through the click point
+        const raycaster = new THREE.Raycaster();
+
+        // Create a ray starting from high above the scene
+        const rayOrigin = new THREE.Vector3(point.x, point.y + 50, point.z);
+        const rayDirection = new THREE.Vector3(0, -1, 0);
+        rayDirection.normalize();
+
+        // Visualize ray origin
+        addDebugPoint(rayOrigin, 0x0000ff); // Blue for ray origin
+
+        // Set up the raycaster
+        raycaster.set(rayOrigin, rayDirection);
+
+        // Get all objects in the scene for better detection
+        const allFloors = [];
+        gltf.scene.traverse((obj) => {
+          if (
+            obj.isMesh &&
+            (obj.name === "Floor2.002" || obj.name.includes("Floor2"))
+          ) {
+            allFloors.push(obj);
+          }
+        });
+
+        // Get intersections
+        const intersects = raycaster.intersectObjects(allFloors, false);
+
+        console.log(`Found ${intersects.length} intersections with floors`);
+
+        if (intersects.length > 0) {
+          // Sort intersections by distance (closest first)
+          intersects.sort((a, b) => a.distance - b.distance);
+
+          // Get top intersection
+          const topIntersection = intersects[0];
+          const exactPoint = topIntersection.point.clone();
+
+          // Add offset to prevent z-fighting
+          exactPoint.y += 0.1;
+
+          // Debug the intersection point
+          addDebugPoint(exactPoint, 0xff0000); // Red for final placement
+
+          console.log("Exact intersection point:", exactPoint);
+          console.log("Intersection object:", topIntersection.object.name);
+
+          // Place candle
+          placeCandleAtPoint(exactPoint);
+        } else {
+          console.warn("No intersection found with Floor2.002");
+          // Use original point as fallback
+          point.y += 0.1;
+          placeCandleAtPoint(point);
+        }
+      } else {
+        // For regular floor, use the original point with a small y-offset
+        point.y += 0.1; // Slightly larger offset to prevent clipping
+        placeCandleAtPoint(point);
+      }
+    },
+    [candleCount, candle, scene, gltf]
+  );
+
+  // Optional helper function to save candles to Firestore
+  const saveCandleToFirestore = async (candleData) => {
+    try {
+      const docRef = await addDoc(collection(db, "userCandles"), {
+        position: candleData.position,
+        rotation: candleData.rotation,
+        scale: candleData.scale,
+        instanceId: candleData.id,
+        createdAt: candleData.createdAt,
+        // Add any other metadata you want
+        userName: "Anonymous", // Could be dynamic
+        message: "", // Could prompt user for a message
+      });
+      console.log("Candle saved to Firestore with ID:", docRef.id);
+      return docRef.id;
+    } catch (error) {
+      console.error("Error saving candle:", error);
+      return null;
+    }
+  };
+
+  // Remove the previous instanced mesh effect since we're using a different approach
+
+  // Optional: Add this effect to clean up candles when component unmounts
+  useEffect(() => {
+    return () => {
+      // Clean up any added candles when component unmounts
+      scene.children.forEach((child) => {
+        if (child.userData && child.userData.isCandle) {
+          scene.remove(child);
+        }
+      });
+    };
+  }, [scene]);
+
+  // Add click handlers to floor objects
+  useEffect(() => {
+    if (!gltf || !gltf.scene) return;
+
+    // Find floor objects and add click handlers
+    gltf.scene.traverse((child) => {
+      if (
+        child.isMesh &&
+        (child.name === "Floor" ||
+          child.name === "Floor2.002" ||
+          child.name === "goldCircuit")
+      ) {
+        // Store original material for hover effects (optional)
+        if (!child.userData.originalMaterial) {
+          child.userData.originalMaterial = child.material.clone();
+        }
+
+        // Make the floor interactive
+        child.userData.clickable = true;
+        child.layers.enable(1); // Enable the interactive layer
+      }
+    });
+  }, [gltf]);
+
   const loadUserCandles = useCallback(async () => {
     console.log("loadUserCandles called");
 
@@ -407,8 +634,30 @@ function Model({
         scale={[scale, scale, scale]}
         position={[0, -20, 0]}
         rotation={rotation}
+        onClick={(event) => {
+          // Check if we clicked on a floor object
+          if (
+            event.object.name === "Floor" ||
+            event.object.name === "Floor2.002" ||
+            event.object.name.includes("Floor2")
+          ) {
+            handleFloorClick(event);
+          }
+        }}
       />
+      <primitive ref={candleModelRef} object={new THREE.Group()} />{" "}
+      {/* Placeholder for candle model */}
       <DarkClouds />
+      {/* Debug visualization */}
+      {debugPoints.map((point) => (
+        <mesh
+          key={point.id}
+          position={[point.position.x, point.position.y, point.position.z]}
+        >
+          <sphereGeometry args={[0.1, 16, 16]} />
+          <meshBasicMaterial color={point.color} />
+        </mesh>
+      ))}
     </>
   );
 }
