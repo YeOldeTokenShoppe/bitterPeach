@@ -102,13 +102,20 @@ function Model({
   const instancedXCandleRef = useRef();
   const candleModelRef = useRef();
   const [candleCount, setCandleCount] = useState(0);
-  const maxCandles = 100; // Maximum number of candles to allow
+  const maxFloorCandles = 72; // Maximum number of candles users can place on floor
 
-  // Load candle model - use a different approach
+  // Add these state/ref variables
+  const instancedMeshRef = useRef();
+  const [candleInstances, setCandleInstances] = useState([]);
+
+  // Load candle model
   const candle = useGLTF("/XCandle1.glb");
 
   // Add this near the top of your component
   const [debugPoints, setDebugPoints] = useState([]);
+
+  // Add this state to track debug points with labels
+  const [debugLabels, setDebugLabels] = useState([]);
 
   // Add this near the top of your component to inspect the candle model
   useEffect(() => {
@@ -124,11 +131,15 @@ function Model({
     }
   }, [candle]);
 
-  // Let's create a more direct debug visualization - update this function:
-  function addDebugPoint(position, color = 0xff0000) {
+  // Modified debug point function
+  function addDebugPoint(position, color = 0xff0000, label = "") {
     // Create a sphere to visualize the point
     const geometry = new THREE.SphereGeometry(0.2, 16, 16);
-    const material = new THREE.MeshBasicMaterial({ color });
+    const material = new THREE.MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity: 0.7,
+    });
     const sphere = new THREE.Mesh(geometry, material);
 
     // Position the sphere at the exact point
@@ -137,134 +148,234 @@ function Model({
     // Add to scene
     scene.add(sphere);
 
-    // Optional: Remove after some time
+    // If there's a label, add it to the state so React can render it
+    if (label) {
+      const newLabel = {
+        id: `label-${Date.now()}-${Math.random()}`,
+        position: new THREE.Vector3(position.x, position.y + 0.5, position.z),
+        text: label,
+        color: "white",
+      };
+
+      setDebugLabels((prev) => [...prev, newLabel]);
+
+      // Remove the label after some time
+      setTimeout(() => {
+        setDebugLabels((prev) => prev.filter((l) => l.id !== newLabel.id));
+      }, 10000);
+    }
+
+    // Set up removal timer for sphere
     setTimeout(() => {
       scene.remove(sphere);
-    }, 10000); // Remove after 10 seconds
+    }, 10000);
 
-    console.log("Added debug sphere at:", position);
+    console.log(
+      `Added debug point at (${position.x.toFixed(2)}, ${position.y.toFixed(
+        2
+      )}, ${position.z.toFixed(2)})`
+    );
+
+    return sphere;
   }
 
-  // Function to handle floor clicks and place candles
+  // Now let's fix the candle model issue
+  useEffect(() => {
+    if (!candle || !candle.scene) return;
+
+    console.log("Analyzing candle model structure...");
+    let hasMeshes = false;
+
+    // Log complete hierarchy
+    console.log("Candle scene hierarchy:");
+    candle.scene.traverse((obj) => {
+      console.log(`- ${obj.type}: ${obj.name} ${obj.isMesh ? "(MESH)" : ""}`);
+      if (obj.isMesh) hasMeshes = true;
+    });
+
+    if (!hasMeshes) {
+      console.warn(
+        "No meshes found in candle model - model may be empty or have a different structure!"
+      );
+    }
+
+    // Store unmodified original for reference
+    candleModelRef.current = candle.scene;
+
+    // Create a visible placeholder if model seems empty
+    if (!hasMeshes) {
+      console.log("Creating placeholder candle");
+      const placeholderCandle = new THREE.Group();
+
+      // Add basic cylinder for wax
+      const waxGeometry = new THREE.CylinderGeometry(0.5, 0.5, 2, 16);
+      const waxMaterial = new THREE.MeshStandardMaterial({ color: 0xf0f0f0 });
+      const wax = new THREE.Mesh(waxGeometry, waxMaterial);
+
+      // Add small cylinder for wick
+      const wickGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.5, 8);
+      const wickMaterial = new THREE.MeshStandardMaterial({ color: 0x222222 });
+      const wick = new THREE.Mesh(wickGeometry, wickMaterial);
+      wick.position.y = 1.2;
+
+      // Add point light for flame
+      const flame = new THREE.PointLight(0xff7700, 1, 5);
+      flame.position.y = 1.5;
+
+      // Add flame mesh
+      const flameGeometry = new THREE.SphereGeometry(0.15, 8, 8);
+      const flameMaterial = new THREE.MeshBasicMaterial({
+        color: 0xff9900,
+        emissive: 0xff7700,
+        transparent: true,
+        opacity: 0.7,
+      });
+      const flameMesh = new THREE.Mesh(flameGeometry, flameMaterial);
+      flameMesh.position.y = 1.5;
+      flameMesh.scale.y = 1.5;
+
+      // Add all parts to placeholder
+      placeholderCandle.add(wax);
+      placeholderCandle.add(wick);
+      placeholderCandle.add(flame);
+      placeholderCandle.add(flameMesh);
+
+      // Use placeholder instead
+      candleModelRef.current = placeholderCandle;
+    }
+  }, [candle]);
+
+  // Simplify the candle placement code - replace the existing handleFloorClick function
+
   const handleFloorClick = useCallback(
     (event) => {
       event.stopPropagation();
 
-      if (candleCount >= maxCandles) return; // Limit number of candles
+      // Check if we've reached the candle limit
+      if (candleCount >= maxFloorCandles) {
+        console.log(`Maximum candles reached (${maxFloorCandles})`);
+        return;
+      }
 
-      // Get the intersection point and object from the event
+      // Get the intersection point
       const point = event.point.clone();
       const floorObject = event.object;
 
-      console.log("Click detected on:", floorObject.name, "at point:", point);
+      // Add a debug sphere at click point (optional)
+      const debugSphere = new THREE.Mesh(
+        new THREE.SphereGeometry(0.1, 8, 8),
+        new THREE.MeshBasicMaterial({ color: 0x00ff00 })
+      );
+      debugSphere.position.copy(point);
+      scene.add(debugSphere);
 
-      // Add a debug point at the initial click location
-      addDebugPoint(point, 0x00ff00); // Green for initial click
+      // Remove debug sphere after 2 seconds
+      setTimeout(() => scene.remove(debugSphere), 2000);
 
-      // Create a candle object with proper placement on the surface
-      const placeCandleAtPoint = (point) => {
-        // Clone the candle model for this instance
-        const newCandle = candle.scene.clone();
+      // Create a deep clone of the original candle model
+      const newCandle = candle.scene.clone();
+      if (!newCandle) {
+        console.error("Failed to clone candle model");
+        return;
+      }
 
-        // Mark this as a candle for easier cleanup
-        newCandle.userData.isCandle = true;
-
-        // Set the basic position using the exact point
-        newCandle.position.set(point.x, point.y, point.z);
-
-        // Add some random rotation
-        newCandle.rotation.y = Math.random() * Math.PI * 2;
-
-        // Add a small random scale variation for visual interest
-        const randomScale = 0.9 + Math.random() * 0.2;
-        newCandle.scale.set(randomScale, randomScale, randomScale);
-
-        // Add to scene
-        scene.add(newCandle);
-
-        // Increment the candle count
-        setCandleCount((prevCount) => prevCount + 1);
-
-        const candleData = {
-          position: { x: point.x, y: point.y, z: point.z },
-          rotation: { y: newCandle.rotation.y },
-          scale: randomScale,
-          id: `candle_${candleCount}`,
-          createdAt: new Date(),
-        };
-
-        console.log("Added candle:", candleData);
-
-        // Optional: Save to Firestore
-        // saveCandleToFirestore(candleData);
-      };
-
-      // A more direct approach for Floor2.002
-      if (floorObject.name === "Floor2.002") {
-        // We'll use a different approach with the raycaster
-        // Cast ray directly from the camera through the click point
+      // Handle placement based on floor type
+      if (
+        floorObject.name === "Floor2.002" ||
+        floorObject.name.includes("Floor2")
+      ) {
+        // Use raycasting to find exact height for tiered floor
         const raycaster = new THREE.Raycaster();
+        const rayStart = new THREE.Vector3(point.x, point.y + 50, point.z);
+        const rayDir = new THREE.Vector3(0, -1, 0);
+        raycaster.set(rayStart, rayDir);
 
-        // Create a ray starting from high above the scene
-        const rayOrigin = new THREE.Vector3(point.x, point.y + 50, point.z);
-        const rayDirection = new THREE.Vector3(0, -1, 0);
-        rayDirection.normalize();
-
-        // Visualize ray origin
-        addDebugPoint(rayOrigin, 0x0000ff); // Blue for ray origin
-
-        // Set up the raycaster
-        raycaster.set(rayOrigin, rayDirection);
-
-        // Get all objects in the scene for better detection
-        const allFloors = [];
+        // Test against floor objects
+        const floors = [];
         gltf.scene.traverse((obj) => {
           if (
             obj.isMesh &&
             (obj.name === "Floor2.002" || obj.name.includes("Floor2"))
           ) {
-            allFloors.push(obj);
+            floors.push(obj);
           }
         });
 
-        // Get intersections
-        const intersects = raycaster.intersectObjects(allFloors, false);
+        const hits = raycaster.intersectObjects(floors, false);
 
-        console.log(`Found ${intersects.length} intersections with floors`);
+        // Filter hits by face normal to only select upward-facing surfaces
+        const up = new THREE.Vector3(0, 1, 0);
+        const validHits = hits.filter((hit) => hit.face.normal.dot(up) > 0.7);
 
-        if (intersects.length > 0) {
-          // Sort intersections by distance (closest first)
-          intersects.sort((a, b) => a.distance - b.distance);
-
-          // Get top intersection
-          const topIntersection = intersects[0];
-          const exactPoint = topIntersection.point.clone();
-
-          // Add offset to prevent z-fighting
-          exactPoint.y += 0.1;
-
-          // Debug the intersection point
-          addDebugPoint(exactPoint, 0xff0000); // Red for final placement
-
-          console.log("Exact intersection point:", exactPoint);
-          console.log("Intersection object:", topIntersection.object.name);
-
-          // Place candle
-          placeCandleAtPoint(exactPoint);
+        if (validHits.length > 0) {
+          validHits.sort((a, b) => a.distance - b.distance);
+          const exactPoint = validHits[0].point.clone();
+          exactPoint.y += 0.05; // Offset to avoid z-fighting
+          newCandle.position.copy(exactPoint);
         } else {
-          console.warn("No intersection found with Floor2.002");
-          // Use original point as fallback
-          point.y += 0.1;
-          placeCandleAtPoint(point);
+          point.y += 0.05;
+          newCandle.position.copy(point);
         }
       } else {
-        // For regular floor, use the original point with a small y-offset
-        point.y += 0.1; // Slightly larger offset to prevent clipping
-        placeCandleAtPoint(point);
+        // Standard floor placement
+        point.y += 0.05;
+        newCandle.position.copy(point);
       }
+
+      // Add random rotation for visual interest
+      newCandle.rotation.y = Math.random() * Math.PI * 2;
+
+      // Use a consistent scale for all candles
+      const fixedScale = 0.7;
+      newCandle.scale.set(fixedScale, fixedScale, fixedScale);
+
+      // Mark as a candle for cleanup later
+      newCandle.userData = {
+        ...newCandle.userData,
+        isCandle: true,
+        candleId: `placed_candle_${candleCount}`,
+        placedAt: new Date(),
+      };
+
+      // Add the candle to the scene
+      scene.add(newCandle);
+
+      // Increment the candle counter
+      setCandleCount((prev) => prev + 1);
+
+      // Log the remaining candle count
+      console.log(
+        `Added candle #${candleCount + 1}. ${
+          maxFloorCandles - (candleCount + 1)
+        } remaining.`
+      );
     },
-    [candleCount, candle, scene, gltf]
+    [candle, candleCount, gltf, scene, maxFloorCandles]
   );
+
+  // Add a function to show the user how many candles are available
+  const getRemainingCandleCount = useCallback(() => {
+    return maxFloorCandles - candleCount;
+  }, [maxFloorCandles, candleCount]);
+
+  // Add a reset function (optional)
+  const resetCandles = useCallback(() => {
+    // Remove all placed candles
+    scene.children.forEach((child) => {
+      if (child.userData && child.userData.isCandle) {
+        scene.remove(child);
+      }
+    });
+
+    // Reset counter
+    setCandleCount(0);
+
+    console.log(
+      "All candles have been removed. You can place up to",
+      maxFloorCandles,
+      "candles."
+    );
+  }, [scene, maxFloorCandles]);
 
   // Optional helper function to save candles to Firestore
   const saveCandleToFirestore = async (candleData) => {
@@ -287,12 +398,12 @@ function Model({
     }
   };
 
-  // Remove the previous instanced mesh effect since we're using a different approach
+  // Remove all the complex test and debug code from earlier
+  // Just keep the basic cleanup effect:
 
-  // Optional: Add this effect to clean up candles when component unmounts
   useEffect(() => {
     return () => {
-      // Clean up any added candles when component unmounts
+      // Clean up any candles when component unmounts
       scene.children.forEach((child) => {
         if (child.userData && child.userData.isCandle) {
           scene.remove(child);
@@ -300,6 +411,19 @@ function Model({
       });
     };
   }, [scene]);
+
+  // Add effect to toggle visibility of specific objects based on monsterMode
+  useEffect(() => {
+    if (!gltf.scene) return;
+
+    // Find Object_3 and Object_2.001 in the model
+    gltf.scene.traverse((child) => {
+      if (child.name === "Object_3" || child.name === "Object_2.001") {
+        child.visible = !monsterMode;
+        console.log(`${child.name} visibility set to: ${!monsterMode}`);
+      }
+    });
+  }, [monsterMode, gltf.scene]);
 
   // Add click handlers to floor objects
   useEffect(() => {
@@ -626,6 +750,55 @@ function Model({
     });
   }, [is80sMode, gltf]);
 
+  // Add this somewhere in your component
+  const testCandleModel = useCallback(() => {
+    if (!candle || !candle.scene) {
+      console.error("No candle model loaded");
+      return;
+    }
+
+    // Create a test display at a fixed position for visibility
+    const testPosition = new THREE.Vector3(0, 10, 0);
+
+    // Original model
+    const originalModel = candle.scene.clone();
+    originalModel.position.set(
+      testPosition.x - 3,
+      testPosition.y,
+      testPosition.z
+    );
+    originalModel.scale.set(1, 1, 1);
+    scene.add(originalModel);
+
+    // Our placeholder/optimized model
+    const optimizedModel = candleModelRef.current.clone();
+    optimizedModel.position.set(
+      testPosition.x + 3,
+      testPosition.y,
+      testPosition.z
+    );
+    optimizedModel.scale.set(1, 1, 1);
+    scene.add(optimizedModel);
+
+    // Add comparison markers
+    addDebugPoint(originalModel.position, 0x00ffff, "Original");
+    addDebugPoint(optimizedModel.position, 0xff00ff, "Optimized");
+
+    console.log("Added test models at y=10 for comparison");
+  }, [candle, scene]);
+
+  // Call this somewhere after models are loaded
+  useEffect(() => {
+    if (candle && candleModelRef.current) {
+      // Wait a bit to make sure everything is loaded
+      const timer = setTimeout(() => {
+        testCandleModel();
+      }, 2000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [candle, candleModelRef.current, testCandleModel]);
+
   return (
     <>
       <primitive
@@ -657,6 +830,19 @@ function Model({
           <sphereGeometry args={[0.1, 16, 16]} />
           <meshBasicMaterial color={point.color} />
         </mesh>
+      ))}
+      {/* Debug labels using Text component */}
+      {debugLabels.map((label) => (
+        <Text
+          key={label.id}
+          position={[label.position.x, label.position.y, label.position.z]}
+          fontSize={0.5}
+          color={label.color}
+          anchorX="center"
+          anchorY="middle"
+        >
+          {label.text}
+        </Text>
       ))}
     </>
   );

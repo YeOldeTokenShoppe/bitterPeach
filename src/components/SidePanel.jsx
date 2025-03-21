@@ -405,6 +405,24 @@ const SidePanel = ({
     };
   }, [activeInterval]);
 
+  // Modified handler for 80s mode toggle
+  const handle80sModeToggle = () => {
+    if (!is80sMode && monsterMode) {
+      // If turning on 80s mode while monster mode is on, turn off monster mode
+      toggleMonsterMode(); // Turn off monster mode
+    }
+    toggle80sMode(); // Toggle 80s mode
+  };
+
+  // Modified handler for monster mode toggle
+  const handleMonsterModeToggle = () => {
+    if (!monsterMode && is80sMode) {
+      // If turning on monster mode while 80s mode is on, turn off 80s mode
+      toggle80sMode(); // Turn off 80s mode
+    }
+    toggleMonsterMode(); // Toggle monster mode
+  };
+
   return (
     <>
       {/* Always visible toggle button for touch devices */}
@@ -543,7 +561,7 @@ const SidePanel = ({
                 id="eighties-mode"
                 size="sm"
                 isChecked={is80sMode}
-                onChange={toggle80sMode}
+                onChange={handle80sModeToggle}
                 colorScheme="pink"
                 sx={{
                   "& .chakra-switch__track": {
@@ -571,13 +589,13 @@ const SidePanel = ({
                 color={monsterMode ? "#01cdfe" : "#8e662b"}
                 mr="0.5rem"
               >
-                Monster Mode
+                Mission Mode
               </FormLabel>
               <Switch
                 id="monster-mode"
                 size="sm"
                 isChecked={monsterMode}
-                onChange={toggleMonsterMode}
+                onChange={handleMonsterModeToggle}
                 colorScheme="cyan"
                 sx={{
                   "& .chakra-switch__track": {

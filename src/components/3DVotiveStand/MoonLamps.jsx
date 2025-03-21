@@ -91,7 +91,7 @@ const MoonScene = ({
         const targetPosition = modelCenter || new THREE.Vector3(0, 10, 0);
 
         // Very dramatic position for testing
-        camera.position.set(50, 0, 10);
+        camera.position.set(0, 0, 80);
         controlsRef.current.target.copy(targetPosition);
         camera.lookAt(targetPosition);
         camera.updateProjectionMatrix();
