@@ -44,15 +44,6 @@ GLTFLoader.prototype.setDRACOLoader(dracoLoader);
 // Default profile image to use when user has no image
 const DEFAULT_PROFILE_IMAGE = "/defaultAvatar.png";
 
-// Toggle visibility based on 80s mode
-// useEffect(() => {
-//   if (groupRef.current) {
-//     groupRef.current.visible = is80sMode;
-//   }
-// }, [is80sMode]);
-
-// Use useFrame to update the sun's position relative to the camera
-
 function Model({
   scale,
   modelRef,
@@ -111,142 +102,6 @@ function Model({
   // Load candle model
   const candle = useGLTF("/XCandle1.glb");
 
-  // Add this near the top of your component
-  const [debugPoints, setDebugPoints] = useState([]);
-
-  // Add this state to track debug points with labels
-  const [debugLabels, setDebugLabels] = useState([]);
-
-  // Add this near the top of your component to inspect the candle model
-  useEffect(() => {
-    if (candle && candle.scene) {
-      console.log("Candle model structure:", candle);
-
-      // Log all objects in the model
-      candle.scene.traverse((obj) => {
-        if (obj.isMesh) {
-          console.log("Found mesh in candle model:", obj.name, obj);
-        }
-      });
-    }
-  }, [candle]);
-
-  // Modified debug point function
-  function addDebugPoint(position, color = 0xff0000, label = "") {
-    // Create a sphere to visualize the point
-    const geometry = new THREE.SphereGeometry(0.2, 16, 16);
-    const material = new THREE.MeshBasicMaterial({
-      color,
-      transparent: true,
-      opacity: 0.7,
-    });
-    const sphere = new THREE.Mesh(geometry, material);
-
-    // Position the sphere at the exact point
-    sphere.position.copy(position);
-
-    // Add to scene
-    scene.add(sphere);
-
-    // If there's a label, add it to the state so React can render it
-    if (label) {
-      const newLabel = {
-        id: `label-${Date.now()}-${Math.random()}`,
-        position: new THREE.Vector3(position.x, position.y + 0.5, position.z),
-        text: label,
-        color: "white",
-      };
-
-      setDebugLabels((prev) => [...prev, newLabel]);
-
-      // Remove the label after some time
-      setTimeout(() => {
-        setDebugLabels((prev) => prev.filter((l) => l.id !== newLabel.id));
-      }, 10000);
-    }
-
-    // Set up removal timer for sphere
-    setTimeout(() => {
-      scene.remove(sphere);
-    }, 10000);
-
-    console.log(
-      `Added debug point at (${position.x.toFixed(2)}, ${position.y.toFixed(
-        2
-      )}, ${position.z.toFixed(2)})`
-    );
-
-    return sphere;
-  }
-
-  // Now let's fix the candle model issue
-  useEffect(() => {
-    if (!candle || !candle.scene) return;
-
-    console.log("Analyzing candle model structure...");
-    let hasMeshes = false;
-
-    // Log complete hierarchy
-    console.log("Candle scene hierarchy:");
-    candle.scene.traverse((obj) => {
-      console.log(`- ${obj.type}: ${obj.name} ${obj.isMesh ? "(MESH)" : ""}`);
-      if (obj.isMesh) hasMeshes = true;
-    });
-
-    if (!hasMeshes) {
-      console.warn(
-        "No meshes found in candle model - model may be empty or have a different structure!"
-      );
-    }
-
-    // Store unmodified original for reference
-    candleModelRef.current = candle.scene;
-
-    // Create a visible placeholder if model seems empty
-    if (!hasMeshes) {
-      console.log("Creating placeholder candle");
-      const placeholderCandle = new THREE.Group();
-
-      // Add basic cylinder for wax
-      const waxGeometry = new THREE.CylinderGeometry(0.5, 0.5, 2, 16);
-      const waxMaterial = new THREE.MeshStandardMaterial({ color: 0xf0f0f0 });
-      const wax = new THREE.Mesh(waxGeometry, waxMaterial);
-
-      // Add small cylinder for wick
-      const wickGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.5, 8);
-      const wickMaterial = new THREE.MeshStandardMaterial({ color: 0x222222 });
-      const wick = new THREE.Mesh(wickGeometry, wickMaterial);
-      wick.position.y = 1.2;
-
-      // Add point light for flame
-      const flame = new THREE.PointLight(0xff7700, 1, 5);
-      flame.position.y = 1.5;
-
-      // Add flame mesh
-      const flameGeometry = new THREE.SphereGeometry(0.15, 8, 8);
-      const flameMaterial = new THREE.MeshBasicMaterial({
-        color: 0xff9900,
-        emissive: 0xff7700,
-        transparent: true,
-        opacity: 0.7,
-      });
-      const flameMesh = new THREE.Mesh(flameGeometry, flameMaterial);
-      flameMesh.position.y = 1.5;
-      flameMesh.scale.y = 1.5;
-
-      // Add all parts to placeholder
-      placeholderCandle.add(wax);
-      placeholderCandle.add(wick);
-      placeholderCandle.add(flame);
-      placeholderCandle.add(flameMesh);
-
-      // Use placeholder instead
-      candleModelRef.current = placeholderCandle;
-    }
-  }, [candle]);
-
-  // Simplify the candle placement code - replace the existing handleFloorClick function
-
   const handleFloorClick = useCallback(
     (event) => {
       event.stopPropagation();
@@ -260,17 +115,6 @@ function Model({
       // Get the intersection point
       const point = event.point.clone();
       const floorObject = event.object;
-
-      // Add a debug sphere at click point (optional)
-      const debugSphere = new THREE.Mesh(
-        new THREE.SphereGeometry(0.1, 8, 8),
-        new THREE.MeshBasicMaterial({ color: 0x00ff00 })
-      );
-      debugSphere.position.copy(point);
-      scene.add(debugSphere);
-
-      // Remove debug sphere after 2 seconds
-      setTimeout(() => scene.remove(debugSphere), 2000);
 
       // Create a deep clone of the original candle model
       const newCandle = candle.scene.clone();
@@ -397,9 +241,6 @@ function Model({
       return null;
     }
   };
-
-  // Remove all the complex test and debug code from earlier
-  // Just keep the basic cleanup effect:
 
   useEffect(() => {
     return () => {
@@ -750,55 +591,6 @@ function Model({
     });
   }, [is80sMode, gltf]);
 
-  // Add this somewhere in your component
-  const testCandleModel = useCallback(() => {
-    if (!candle || !candle.scene) {
-      console.error("No candle model loaded");
-      return;
-    }
-
-    // Create a test display at a fixed position for visibility
-    const testPosition = new THREE.Vector3(0, 10, 0);
-
-    // Original model
-    const originalModel = candle.scene.clone();
-    originalModel.position.set(
-      testPosition.x - 3,
-      testPosition.y,
-      testPosition.z
-    );
-    originalModel.scale.set(1, 1, 1);
-    scene.add(originalModel);
-
-    // Our placeholder/optimized model
-    const optimizedModel = candleModelRef.current.clone();
-    optimizedModel.position.set(
-      testPosition.x + 3,
-      testPosition.y,
-      testPosition.z
-    );
-    optimizedModel.scale.set(1, 1, 1);
-    scene.add(optimizedModel);
-
-    // Add comparison markers
-    addDebugPoint(originalModel.position, 0x00ffff, "Original");
-    addDebugPoint(optimizedModel.position, 0xff00ff, "Optimized");
-
-    console.log("Added test models at y=10 for comparison");
-  }, [candle, scene]);
-
-  // Call this somewhere after models are loaded
-  useEffect(() => {
-    if (candle && candleModelRef.current) {
-      // Wait a bit to make sure everything is loaded
-      const timer = setTimeout(() => {
-        testCandleModel();
-      }, 2000);
-
-      return () => clearTimeout(timer);
-    }
-  }, [candle, candleModelRef.current, testCandleModel]);
-
   return (
     <>
       <primitive
@@ -821,29 +613,6 @@ function Model({
       <primitive ref={candleModelRef} object={new THREE.Group()} />{" "}
       {/* Placeholder for candle model */}
       <DarkClouds />
-      {/* Debug visualization */}
-      {debugPoints.map((point) => (
-        <mesh
-          key={point.id}
-          position={[point.position.x, point.position.y, point.position.z]}
-        >
-          <sphereGeometry args={[0.1, 16, 16]} />
-          <meshBasicMaterial color={point.color} />
-        </mesh>
-      ))}
-      {/* Debug labels using Text component */}
-      {debugLabels.map((label) => (
-        <Text
-          key={label.id}
-          position={[label.position.x, label.position.y, label.position.z]}
-          fontSize={0.5}
-          color={label.color}
-          anchorX="center"
-          anchorY="middle"
-        >
-          {label.text}
-        </Text>
-      ))}
     </>
   );
 }

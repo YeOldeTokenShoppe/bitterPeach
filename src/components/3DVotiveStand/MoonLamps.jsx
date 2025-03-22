@@ -64,11 +64,15 @@ const MoonScene = ({
     controls.minPolarAngle = 0;
     controls.maxPolarAngle = Math.PI / 2;
 
+    // Add vertical panning limits
+    controls.maxPanUp = 10; // Limit upward panning to 10 units
+    controls.maxPanDown = 10; // Limit downward panning to 10 units
+    controls.panSpeed = 0.5; // Optional: adjust pan speed for smoother control
+
     // Use modelCenter if provided, or a default target
     const targetPosition = modelCenter || new THREE.Vector3(0, 10, 0);
 
-    // Set a very extreme camera position to test if it takes effect
-    camera.position.set(0, 0, 40); // Significantly different position for testing
+    camera.position.set(0, 0, 40);
     controls.target.copy(targetPosition);
 
     camera.fov = 35;

@@ -1,14 +1,22 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    match /models/{fileName} {
-      allow read, write: if true;
+    // Default rule - deny access unless specified below
+    match /{allPaths=**} {
+      allow read: if false;
+      allow write: if false;
     }
     
-    // Rules for other paths
-    match /{allPaths=**} {
-      allow read: if true;
-      allow write: if false;  // Restrict write access to other folders
+    // Audio folder - anyone can read, only admin can write
+    match /audio/{file=**} {
+      allow read: if true;  // Public read access
+      allow write: if request.auth != null && request.auth.uid == 'user_2nWNryLvqBLjXW7MBXud0yeocdq';
+    }
+    
+    // Models folder - anyone can read, only admin can write
+    match /models/{file=**} {
+      allow read: if true;  // Public read access
+      allow write: if request.auth != null && request.auth.uid == 'user_2nWNryLvqBLjXW7MBXud0yeocdq';
     }
   }
 }

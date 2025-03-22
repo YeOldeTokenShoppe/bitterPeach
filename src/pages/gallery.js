@@ -4,8 +4,6 @@ import BurnGallery from "../components/BurnGallery";
 import NavBar from "../components/NavBar.client";
 import Communion3 from "../components/Communion3";
 import Loader from "../components/Loader";
-import MusicPlayer from "../components/MusicPlayer2";
-import LightweightTestCanvas from "../components/LightweightTestCanvas";
 import { X } from "lucide-react";
 
 // Dynamically import heavy components
@@ -14,8 +12,12 @@ import { X } from "lucide-react";
 //   loading: () => <Loader />,
 // });
 
-// // Use dynamic import for MusicPlayer to ensure it's loaded properly
-const MusicPlayerDynamic = dynamic(() => import("../components/MusicPlayer3"), {
+// Dynamically import both music players
+const MusicPlayer2 = dynamic(() => import("../components/MusicPlayer2"), {
+  ssr: false,
+});
+
+const MusicPlayer3 = dynamic(() => import("../components/MusicPlayer3"), {
   ssr: false,
 });
 
@@ -29,20 +31,52 @@ export default function GalleryPage() {
     burnGallery: false,
     threeDScene: false,
   });
-  const [showSpotify, setShowSpotify] = useState(true);
+  // Initialize showSpotify based on screen size
+  const [showSpotify, setShowSpotify] = useState(() => {
+    // Only run this during client-side rendering
+    if (typeof window !== "undefined") {
+      return window.innerWidth > 768; // true for desktop, false for mobile
+    }
+    return false; // default for server-side rendering
+  });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [is80sMode, setIs80sMode] = useState(false);
   const [shouldRenderGallery, setShouldRenderGallery] = useState(false);
+  const [isMobileView, setIsMobileView] = useState(false);
 
-  // Toggle function for 80s mode
+  // Modify the mobile detection useEffect
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = typeof window !== "undefined" && window.innerWidth <= 768;
+      setIsMobileView(mobile);
+      // Set showSpotify based on screen size
+      setShowSpotify(!mobile);
+    };
+
+    if (typeof window !== "undefined") {
+      checkMobile();
+      window.addEventListener("resize", checkMobile);
+      return () => window.removeEventListener("resize", checkMobile);
+    }
+  }, []);
+
+  // Modify toggle80sMode to respect mobile view
   const toggle80sMode = () => {
     const newMode = !is80sMode;
     setIs80sMode(newMode);
 
-    // Always show music player, it will conditionally render the correct component
-    setShowSpotify(true);
+    // Always show music player when 80s mode is turned on
+    if (newMode) {
+      setShowSpotify(true);
+    }
+    // Don't hide the player when turning 80s mode off
 
-    console.log("Gallery: 80's mode toggled to", newMode);
+    console.log(
+      "Gallery: 80's mode toggled to",
+      newMode,
+      "showSpotify:",
+      showSpotify
+    );
   };
 
   // Handle close for music player
@@ -96,6 +130,23 @@ export default function GalleryPage() {
       return () => clearInterval(intervalId);
     }
   }, []);
+
+  // Add debugging
+  useEffect(() => {
+    console.log("Gallery page showSpotify state:", showSpotify);
+  }, [showSpotify]);
+
+  // Add a useEffect to monitor showSpotify state changes
+  useEffect(() => {
+    console.log("Gallery.js: showSpotify changed to:", showSpotify);
+
+    // Ensure music players are mounted/unmounted correctly when showSpotify changes
+    if (showSpotify) {
+      console.log("Music player should be visible");
+    } else {
+      console.log("Music player should be hidden");
+    }
+  }, [showSpotify]);
 
   return (
     <>
@@ -182,34 +233,36 @@ export default function GalleryPage() {
             </>
           )} */}
 
-          {/* Single MusicPlayer that works for both 80s mode and regular mode */}
+          {/* Music Player with proper conditional rendering */}
           {showSpotify && (
             <div
               style={{
                 position: "fixed",
-                bottom: "6rem",
-                left: "4rem",
+                bottom: isMobileView ? "60px" : "6rem",
+                left: isMobileView ? "20%" : "4rem",
+                transform: isMobileView
+                  ? "translate(-50%, 0) scale(0.5)"
+                  : "scale(0.6)",
                 zIndex: 1000,
                 borderRadius: "12px",
                 boxShadow: "0 4px 30px rgba(0, 0, 0, 0.3)",
                 opacity: 1,
-                transform: "scale(0.6)",
-                transition: "opacity 0.3s ease, transform 0.3s ease",
+                transition: "all 0.3s ease",
                 pointerEvents: "auto",
                 cursor: "move",
               }}
             >
               <Suspense fallback={<div>Loading music player...</div>}>
                 {is80sMode ? (
-                  <MusicPlayerDynamic
-                    isVisible={true}
-                    onClose={handleClose}
+                  <MusicPlayer3
+                    isVisible={showSpotify}
+                    onClose={() => setShowSpotify(false)}
                     autoPlay={true}
                   />
                 ) : (
-                  <MusicPlayer
-                    isVisible={true}
-                    onClose={handleClose}
+                  <MusicPlayer2
+                    isVisible={showSpotify}
+                    onClose={() => setShowSpotify(false)}
                     autoPlay={false}
                   />
                 )}

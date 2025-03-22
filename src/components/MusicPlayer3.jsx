@@ -18,32 +18,36 @@ const MusicPlayer = ({ isVisible, onClose, autoPlay = true }) => {
 
   const albums = [
     "Like A Prayer - Madonna",
-    // "Intergalactic - Beastie Boys",
+    "Intergalactic - Beastie Boys",
     "For Those About To Rock - AC/DC",
     "Good Life - Paradise",
+    "99 Luftballons - Nena",
   ];
 
   const trackNames = [
     "Like A Prayer - Madonna",
-    // "Intergalactic - Beastie Boys",
+    "Intergalactic - Beastie Boys",
     "For Those About To Rock - AC/DC",
     "Good Life - Inner City",
+    "99 Luftballoons - Nena",
   ];
 
   // Map of file paths in Firebase Storage
   const trackStoragePaths = [
     "audio/320k/like-a-prayer-madonna.m4a",
-    // "audio/320k/intergalactic-beastie-boys.mp3",
+    "audio/320k/intergalactic-beastie-boys.m4a",
     "audio/320k/for-those-about-to-rock-ac-dc.m4a",
     "audio/320k/good-life-inner-city.m4a",
+    "audio/320k/99-luftballoons-nena.m4a",
   ];
 
   // Fallback local paths
   const trackUrls = [
     "likeAPrayer.m4a",
-    // "Intergalactic.mp3",
+    "intergalactic Beastie Boys.m4a",
     "ForThoseAboutToRock.m4a",
     "goodLife.m4a",
+    "99 Luftballoons Nena.m4a",
   ];
 
   useEffect(() => {}, [isShuffled, shuffledQueue]);
@@ -173,9 +177,24 @@ const MusicPlayer = ({ isVisible, onClose, autoPlay = true }) => {
   };
 
   const changeTrack = (direction) => {
+    console.log("Changing track. Current audio state:", {
+      ref: audioRef.current,
+      isPlaying,
+      currentTrackIndex,
+    });
+
+    // If there's an existing audio, ensure it's stopped
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = "";
+      console.log("Paused previous audio");
+    }
+
     const newIndex = getNextTrackIndex(direction);
     setCurrentTrackIndex(newIndex);
     setIsPlaying(true);
+
+    console.log("Changed to track index:", newIndex);
   };
   const closeButtonStyle = {
     position: "absolute",
@@ -203,59 +222,6 @@ const MusicPlayer = ({ isVisible, onClose, autoPlay = true }) => {
     }
     onClose && onClose();
   };
-  // Initialize audio element
-  useEffect(() => {
-    // Check if trackUrls is valid and has the current index
-    if (
-      !trackUrls ||
-      !trackUrls.length ||
-      currentTrackIndex >= trackUrls.length
-    ) {
-      console.error("Invalid track URL or index:", {
-        trackUrls,
-        currentTrackIndex,
-      });
-      return;
-    }
-
-    const audio = new Audio(trackUrls[currentTrackIndex]);
-    // Set initial volume to match state (15%)
-    audio.volume = volume;
-
-    audioRef.current = audio;
-
-    const handlePlay = () => {
-      setIsPlaying(true);
-    };
-    const handlePause = () => setIsPlaying(false);
-
-    audio.addEventListener("play", handlePlay);
-    audio.addEventListener("pause", handlePause);
-    audio.addEventListener("timeupdate", updateProgress);
-    audio.addEventListener("loadedmetadata", () => {
-      setDuration(formatTime(audio.duration));
-
-      // Auto-play if component is visible when audio is ready
-      if (isVisible && autoPlay) {
-        audio
-          .play()
-          .then(() => {
-            setIsPlaying(true);
-          })
-          .catch((error) =>
-            console.error("Auto-play on metadata load failed:", error)
-          );
-      }
-    });
-
-    return () => {
-      audio.removeEventListener("play", handlePlay);
-      audio.removeEventListener("pause", handlePause);
-      audio.removeEventListener("timeupdate", updateProgress);
-      audio.pause();
-      audio.src = "";
-    };
-  }, [currentTrackIndex, isVisible, volume, autoPlay]);
 
   // Handle play/pause state changes
   useEffect(() => {

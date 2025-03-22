@@ -57,6 +57,7 @@ import Communion3 from "./Communion3";
 
 import Model from "./3DVotiveStand/Model";
 import * as THREE from "three";
+import MobileSidePanel from "./MobileSidePanel";
 
 const BurnModal = dynamic(() => import("./BurnModal"), {
   ssr: false,
@@ -262,7 +263,17 @@ function BurnGallery({
     }
   }, [isLoaded, isSignedIn, user]);
 
-  // Add this near your other handler functions
+  // Add some debugging
+  useEffect(() => {
+    console.log("BurnGallery showSpotify state:", showSpotify);
+  }, [showSpotify]);
+
+  // Add this effect to ensure music player visibility syncs with 80s mode
+  useEffect(() => {
+    if (is80sMode) {
+      setShowSpotify(true);
+    }
+  }, [is80sMode, setShowSpotify]);
 
   return (
     <>
@@ -298,15 +309,27 @@ function BurnGallery({
           </GridItem>
         </Grid>
 
-        {!isMobileView && currentView === "main" && (
-          <SidePanel
-            onButtonClick={handleButtonClick}
-            is80sMode={is80sMode}
-            toggle80sMode={toggle80sMode}
-            monsterMode={monsterMode}
-            toggleMonsterMode={toggleMonsterMode}
-          />
-        )}
+        {/* Conditionally render desktop or mobile panel */}
+        {currentView === "main" &&
+          (isMobileView ? (
+            <MobileSidePanel
+              onButtonClick={handleButtonClick}
+              is80sMode={is80sMode}
+              toggle80sMode={toggle80sMode}
+              monsterMode={monsterMode}
+              toggleMonsterMode={toggleMonsterMode}
+              showSpotify={showSpotify}
+              setShowSpotify={setShowSpotify}
+            />
+          ) : (
+            <SidePanel
+              onButtonClick={handleButtonClick}
+              is80sMode={is80sMode}
+              toggle80sMode={toggle80sMode}
+              monsterMode={monsterMode}
+              toggleMonsterMode={toggleMonsterMode}
+            />
+          ))}
         {/* <Box
             display="flex"
             justifyContent="center"
