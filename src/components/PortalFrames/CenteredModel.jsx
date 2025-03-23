@@ -1,3 +1,5 @@
+"use client";
+
 import { useEffect, useRef, useState } from "react";
 import { useThree } from "@react-three/fiber";
 import { Box3, Vector3 } from "three";

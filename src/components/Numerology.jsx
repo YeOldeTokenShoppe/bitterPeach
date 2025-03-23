@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useEffect, useState } from "react";
 import { Card, Row, Col } from "react-bootstrap";
 import { PieChart, Pie, Sector, Cell, ResponsiveContainer } from "recharts";
@@ -449,6 +451,9 @@ const Numerology = ({ setNumerologyLoaded }) => {
   const [burnedPercentage, setBurnedPercentage] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [clientSideReady, setClientSideReady] = useState(false);
+
+  const isBrowser = typeof window !== "undefined";
 
   useEffect(() => {
     // Simulate async data or image loading
@@ -684,6 +689,8 @@ const Numerology = ({ setNumerologyLoaded }) => {
 
   // Add this effect to initialize the Magic 8-Ball functionality
   useEffect(() => {
+    if (!isBrowser) return; // Skip this on server-side rendering
+
     const possibilities = [
       "It is certain",
       "It is<br>decidedly<br>so",
@@ -708,360 +715,377 @@ const Numerology = ({ setNumerologyLoaded }) => {
     ];
 
     // Only run this client-side
-    if (typeof window !== "undefined") {
-      const form = document.querySelector(".ninth form");
-      if (form) {
-        // Create the radio inputs and answer containers
-        possibilities.forEach((text, i) => {
-          const radio = document.createElement("input");
-          radio.type = "radio";
-          radio.name = "answer";
-          radio.id = `answer${i + 1}`;
-          radio.value = text;
-          radio.checked = false;
+    const form = document.querySelector(".ninth form");
+    if (form) {
+      // Create the radio inputs and answer containers
+      possibilities.forEach((text, i) => {
+        const radio = document.createElement("input");
+        radio.type = "radio";
+        radio.name = "answer";
+        radio.id = `answer${i + 1}`;
+        radio.value = text;
+        radio.checked = false;
 
-          const container = document.createElement("div");
-          container.className = "answer-container";
-          container.innerHTML = text;
+        const container = document.createElement("div");
+        container.className = "answer-container";
+        container.innerHTML = text;
 
-          form.insertBefore(container, form.firstChild);
-          form.insertBefore(radio, form.firstChild);
-        });
+        form.insertBefore(container, form.firstChild);
+        form.insertBefore(radio, form.firstChild);
+      });
 
-        // Add click handler for the form
-        let isFirstClick = true;
-        form.addEventListener("click", function (e) {
-          // Don't trigger if clicking a link inside an answer
-          if (e.target.tagName === "A") {
-            e.stopPropagation();
-            return;
-          }
+      // Add click handler for the form
+      let isFirstClick = true;
+      form.addEventListener("click", function (e) {
+        // Don't trigger if clicking a link inside an answer
+        if (e.target.tagName === "A") {
+          e.stopPropagation();
+          return;
+        }
 
-          // Don't trigger if clicking within an answer that's already shown
-          if (
-            e.target.closest(".answer-container") &&
-            e.target.closest(".answer-container").style.opacity === "1" &&
-            !isFirstClick
-          ) {
-            return;
-          }
+        // Don't trigger if clicking within an answer that's already shown
+        if (
+          e.target.closest(".answer-container") &&
+          e.target.closest(".answer-container").style.opacity === "1" &&
+          !isFirstClick
+        ) {
+          return;
+        }
 
-          isFirstClick = false;
+        isFirstClick = false;
 
-          if (e.target.tagName !== "INPUT") {
-            const radios = Array.from(this.querySelectorAll('[type="radio"]'));
-            const randomRadio =
-              radios[Math.floor(Math.random() * radios.length)];
-            randomRadio.checked = true;
-          }
-        });
-      }
+        if (e.target.tagName !== "INPUT") {
+          const radios = Array.from(this.querySelectorAll('[type="radio"]'));
+          const randomRadio = radios[Math.floor(Math.random() * radios.length)];
+          randomRadio.checked = true;
+        }
+      });
     }
   }, []); // Empty dependency array means this runs once on mount
+
+  useEffect(() => {
+    setClientSideReady(true);
+  }, []);
 
   return (
     <>
       <CustomPropertiesStyle />
-      <div style={{ width: "100%", margin: "0", display: "block" }}></div>
-      <Box py={0}>
-        <Flex
-          direction={["column-reverse", "column-reverse", "row-reverse"]}
-          align="center"
-          gridGap={5}
-        >
-          <Box
-            flex={["1 0 100%", "1 0 100%", "1 0 50%"]}
-            minH={{ base: "300px", md: "auto" }}
+      {clientSideReady ? (
+        <Box py={0}>
+          <Flex
+            direction={["column-reverse", "column-reverse", "row-reverse"]}
+            align="center"
+            gridGap={5}
           >
-            <h1 className="thelma" style={{ fontSize: "3em" }}>
-              Numerology
-            </h1>
-            <br />
-            <div className="numerology">
-              <div className="first">
-                <Card className="numbers-card" style={cardStyle1}>
-                  <Card.Title style={titleStyle}>Initial Allocation</Card.Title>
-                  {/* <Card.Text
-                    style={{
-                      position: "absolute",
-                      bottom: "10px",
-                      fontSize: "12px",
-                      color: "grey",
-                    }}
-                  >
-                    RL80 tokens
-                  </Card.Text> */}
-                  <ResponsiveContainer width="100%" height="70%">
-                    <PieChart>
-                      <Pie
-                        data={data}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={renderLabel}
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="value"
-                      >
-                        {data.map((entry, index) => (
-                          <Cell
-                            key={`cell-${index}`}
-                            fill={COLORS[index % COLORS.length]}
-                          />
-                        ))}
-                      </Pie>
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "flex-start",
-                    }}
-                  >
-                    <Card.Text style={{ color: "#0088fe", fontWeight: "bold" }}>
-                      85%: Liquidity Pool
-                    </Card.Text>
-                    <Card.Text style={{ color: "#00c49F", fontWeight: "bold" }}>
-                      10%: Treasury
-                    </Card.Text>
-                    <Card.Text style={{ color: "#ffbb27", fontWeight: "bold" }}>
-                      5%: Centralized Exchange Reserve
-                    </Card.Text>
-                  </div>
-                </Card>
-              </div>
-              <div className="second">
-                <Card className="numbers-card" style={cardStyle2}>
-                  <Card.Title style={titleStyle}>Tokens Burned</Card.Title>
-                  <Card.Text style={numberStyle}>
-                    {/* {isLoading || tokensBurned === null
-                      ? "Loading..."
-                      : tokensBurned.toFixed(2)} */}
-                    1,123,456,789
-                  </Card.Text>
-                  <Card.Text
-                    style={{
-                      position: "absolute",
-                      bottom: "10px",
-                      fontSize: "12px",
-                      color: "grey",
-                    }}
-                  >
-                    {/* {isLoading
-                      ? "Loading..."
-                      : `${burnedPercentage.toFixed(
-                          2
-                        )}% of total supply burned`} */}
-                    12.34% of total supply burned
-                  </Card.Text>
-                </Card>
-              </div>
-              <div className="third">
-                <Card className="numbers-card" style={cardStyle2}>
-                  <Card.Title style={titleStyle}>Current Prize Pool</Card.Title>
-                  <Card.Text style={numberStyle}>100,775</Card.Text>
-                  {/* <Card.Text
-                    style={{
-                      position: "absolute",
-                      bottom: "10px",
-                      fontSize: "12px",
-                      color: "grey",
-                    }}
-                  >
-                    RL80 Tokens
-                  </Card.Text> */}
-                </Card>
-              </div>
-              <div className="fourth">
-                <Card className="numbers-card" style={cardStyle2}>
-                  <Card.Title style={titleStyle}>
-                    Current Price (USD)
-                  </Card.Title>
-                  <Card.Text
-                    style={{
-                      fontSize: "32px",
-                      fontWeight: "bold",
-                    }}
-                  >
-                    {/* <p>Price: {price}</p>
-                    <p>USD Price: {usdPrice}</p> */}
-                  </Card.Text>
-                </Card>
-              </div>
-              <div className="fifth">
-                <Card style={cardStyle2}>
-                  <Card.Title style={titleStyle}>Current Entries</Card.Title>
-                  <Card.Text style={numberStyle}>334</Card.Text>
-                </Card>
-              </div>
-              <div className="sixth">
-                <Card className="numbers-card" style={cardStyle2}>
-                  <Card.Title style={titleStyle}>Dex Stats</Card.Title>
-                  <Card.Text style={{ fontSize: "16px", fontWeight: "bold" }}>
-                    {dexdata.volume ? (
-                      <Text
-                        style={{
-                          color: "#ffffff",
-                          fontSize: "15px",
-                          position: "relative",
-                          zIndex: "2",
-                          marginLeft: "10px",
-                          textAlign: "left", // Align the text to the left
-                        }}
-                      >
-                        Volume (USD): ${formatDollarValues(dexdata.volume.h24)}
-                        <br />
-                        <br />
-                        Liquidity: ${formatDollarValues(dexdata.liquidity?.usd)}
-                        <br />
-                        <br />
-                        FDV: ${formatDollarValues(dexdata.fdv)}
-                        <br />
-                        <br />
-                        Buys/Sells: {dexdata.buys} / {dexdata.sells}
-                      </Text>
-                    ) : (
-                      "Loading..."
-                    )}
-                  </Card.Text>
-                </Card>
-              </div>
-              <div className="seventh">
-                <Card style={cardStyle1}>
-                  <div
-                    style={{
-                      overflow: "hidden",
-                      transform: isHovered ? "scale(1.3)" : "scale(1)",
-                      transition: "transform 0.3s ease-in-out",
-                      zIndex: "10",
-                    }}
-                    onMouseEnter={() => setIsHovered(true)}
-                    onMouseLeave={() => setIsHovered(false)}
-                  >
-                    <Card.Img
-                      variant="top"
-                      src="/cryptoMeme.jpg"
+            <Box
+              flex={["1 0 100%", "1 0 100%", "1 0 50%"]}
+              minH={{ base: "300px", md: "auto" }}
+            >
+              <h1 className="thelma" style={{ fontSize: "3em" }}>
+                Numerology
+              </h1>
+              <br />
+              <div className="numerology">
+                <div className="first">
+                  <Card className="numbers-card" style={cardStyle1}>
+                    <Card.Title style={titleStyle}>
+                      Initial Allocation
+                    </Card.Title>
+                    {/* <Card.Text
                       style={{
-                        width: "100%",
-                        height: "100%",
-                        objectFit: "contain",
-                        borderRadius: "10%",
-                      }}
-                    />
-                  </div>
-                </Card>
-              </div>
-              <div>
-                <Card className="numbers-card" style={cardStyle2}>
-                  <Confetti>
-                    <div
-                      style={{
-                        width: "100%",
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        paddingTop: "25px", // Add some padding at the top
-                        paddingBottom: "15px",
+                        position: "absolute",
+                        bottom: "10px",
+                        fontSize: "12px",
+                        color: "grey",
                       }}
                     >
-                      <Card.Title style={titleStyle}>Latest Winners</Card.Title>
-
+                      RL80 tokens
+                    </Card.Text> */}
+                    <ResponsiveContainer width="100%" height="70%">
+                      <PieChart>
+                        <Pie
+                          data={data}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={renderLabel}
+                          outerRadius={80}
+                          fill="#8884d8"
+                          dataKey="value"
+                        >
+                          {data.map((entry, index) => (
+                            <Cell
+                              key={`cell-${index}`}
+                              fill={COLORS[index % COLORS.length]}
+                            />
+                          ))}
+                        </Pie>
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "flex-start",
+                      }}
+                    >
                       <Card.Text
-                        style={{ fontSize: "16px", fontWeight: "bold" }}
+                        style={{ color: "#0088fe", fontWeight: "bold" }}
                       >
+                        85%: Liquidity Pool
+                      </Card.Text>
+                      <Card.Text
+                        style={{ color: "#00c49F", fontWeight: "bold" }}
+                      >
+                        10%: Treasury
+                      </Card.Text>
+                      <Card.Text
+                        style={{ color: "#ffbb27", fontWeight: "bold" }}
+                      >
+                        5%: Centralized Exchange Reserve
+                      </Card.Text>
+                    </div>
+                  </Card>
+                </div>
+                <div className="second">
+                  <Card className="numbers-card" style={cardStyle2}>
+                    <Card.Title style={titleStyle}>Tokens Burned</Card.Title>
+                    <Card.Text style={numberStyle}>
+                      {/* {isLoading || tokensBurned === null
+                        ? "Loading..."
+                        : tokensBurned.toFixed(2)} */}
+                      1,123,456,789
+                    </Card.Text>
+                    <Card.Text
+                      style={{
+                        position: "absolute",
+                        bottom: "10px",
+                        fontSize: "12px",
+                        color: "grey",
+                      }}
+                    >
+                      {/* {isLoading
+                        ? "Loading..."
+                        : `${burnedPercentage.toFixed(
+                            2
+                          )}% of total supply burned`} */}
+                      12.34% of total supply burned
+                    </Card.Text>
+                  </Card>
+                </div>
+                <div className="third">
+                  <Card className="numbers-card" style={cardStyle2}>
+                    <Card.Title style={titleStyle}>
+                      Current Prize Pool
+                    </Card.Title>
+                    <Card.Text style={numberStyle}>100,775</Card.Text>
+                    {/* <Card.Text
+                      style={{
+                        position: "absolute",
+                        bottom: "10px",
+                        fontSize: "12px",
+                        color: "grey",
+                      }}
+                    >
+                      RL80 Tokens
+                    </Card.Text> */}
+                  </Card>
+                </div>
+                <div className="fourth">
+                  <Card className="numbers-card" style={cardStyle2}>
+                    <Card.Title style={titleStyle}>
+                      Current Price (USD)
+                    </Card.Title>
+                    <Card.Text
+                      style={{
+                        fontSize: "32px",
+                        fontWeight: "bold",
+                      }}
+                    ></Card.Text>
+                  </Card>
+                </div>
+                <div className="fifth">
+                  <Card style={cardStyle2}>
+                    <Card.Title style={titleStyle}>Current Entries</Card.Title>
+                    <Card.Text style={numberStyle}>334</Card.Text>
+                  </Card>
+                </div>
+                <div className="sixth">
+                  <Card className="numbers-card" style={cardStyle2}>
+                    <Card.Title style={titleStyle}>Dex Stats</Card.Title>
+                    <Card.Text style={{ fontSize: "16px", fontWeight: "bold" }}>
+                      {dexdata.volume ? (
                         <Text
                           style={{
                             color: "#ffffff",
-                            fontSize: "25px",
+                            fontSize: "15px",
                             position: "relative",
                             zIndex: "2",
-                            textAlign: "center", // Center the text
+                            marginLeft: "10px",
+                            textAlign: "left", // Align the text to the left
                           }}
                         >
-                          @ethereumcrude <br />
-                          1.2M tokens
+                          Volume (USD): $
+                          {formatDollarValues(dexdata.volume.h24)}
+                          <br />
+                          <br />
+                          Liquidity: $
+                          {formatDollarValues(dexdata.liquidity?.usd)}
+                          <br />
+                          <br />
+                          FDV: ${formatDollarValues(dexdata.fdv)}
+                          <br />
+                          <br />
+                          Buys/Sells: {dexdata.buys} / {dexdata.sells}
                         </Text>
-                      </Card.Text>
-                    </div>
-                  </Confetti>
-                </Card>
-              </div>
-              <div className="ninth">
-                <Card className="numbers-card" style={cardStyle1}>
-                  {/* SVG filter */}
-                  <svg width="0" height="0" aria-hidden="true">
-                    <filter id="smoke" colorInterpolationFilters="sRGB">
-                      <feTurbulence baseFrequency="0.00713" result="t" />
-                      <feComponentTransfer>
-                        <feFuncA type="discrete" tableValues="1" />
-                      </feComponentTransfer>
-                      <feGaussianBlur stdDeviation="5" result="i" />
-                      <feBlend in="SourceGraphic" in2="t" mode="exclusion" />
-                      <feDisplacementMap
-                        in="i"
-                        scale="180"
-                        xChannelSelector="R"
-                        yChannelSelector="G"
-                      />
-                    </filter>
-                  </svg>
-
-                  {/* The fluid background and magic 8 ball combination */}
-                  <div
-                    style={{
-                      position: "relative",
-                      width: "100%",
-                      height: "100%",
-                    }}
-                  >
-                    {/* Fluid background as the base layer */}
-                    <FluidBackground
+                      ) : (
+                        "Loading..."
+                      )}
+                    </Card.Text>
+                  </Card>
+                </div>
+                <div className="seventh">
+                  <Card style={cardStyle1}>
+                    <div
                       style={{
-                        position: "absolute",
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
+                        overflow: "hidden",
+                        transform: isHovered ? "scale(1.3)" : "scale(1)",
+                        transition: "transform 0.3s ease-in-out",
+                        zIndex: "10",
                       }}
-                    />
+                      onMouseEnter={() => setIsHovered(true)}
+                      onMouseLeave={() => setIsHovered(false)}
+                    >
+                      <Card.Img
+                        variant="top"
+                        src="/cryptoMeme.jpg"
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "contain",
+                          borderRadius: "10%",
+                        }}
+                      />
+                    </div>
+                  </Card>
+                </div>
+                <div>
+                  <Card className="numbers-card" style={cardStyle2}>
+                    <Confetti>
+                      <div
+                        style={{
+                          width: "100%",
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          paddingTop: "25px", // Add some padding at the top
+                          paddingBottom: "15px",
+                        }}
+                      >
+                        <Card.Title style={titleStyle}>
+                          Latest Winners
+                        </Card.Title>
 
-                    {/* Magic 8 ball as an iframe */}
+                        <Card.Text
+                          style={{ fontSize: "16px", fontWeight: "bold" }}
+                        >
+                          <Text
+                            style={{
+                              color: "#ffffff",
+                              fontSize: "25px",
+                              position: "relative",
+                              zIndex: "2",
+                              textAlign: "center", // Center the text
+                            }}
+                          >
+                            @ethereumcrude <br />
+                            1.2M tokens
+                          </Text>
+                        </Card.Text>
+                      </div>
+                    </Confetti>
+                  </Card>
+                </div>
+                <div className="ninth">
+                  <Card className="numbers-card" style={cardStyle1}>
+                    {/* SVG filter */}
+                    <svg width="0" height="0" aria-hidden="true">
+                      <filter id="smoke" colorInterpolationFilters="sRGB">
+                        <feTurbulence baseFrequency="0.00713" result="t" />
+                        <feComponentTransfer>
+                          <feFuncA type="discrete" tableValues="1" />
+                        </feComponentTransfer>
+                        <feGaussianBlur stdDeviation="5" result="i" />
+                        <feBlend in="SourceGraphic" in2="t" mode="exclusion" />
+                        <feDisplacementMap
+                          in="i"
+                          scale="180"
+                          xChannelSelector="R"
+                          yChannelSelector="G"
+                        />
+                      </filter>
+                    </svg>
+
+                    {/* The fluid background and magic 8 ball combination */}
                     <div
                       style={{
                         position: "relative",
                         width: "100%",
                         height: "100%",
-                        display: "flex",
-                        justifyContent: "center",
-                        alignItems: "center",
-                        zIndex: "0",
-                        background: "transparent",
-                        borderRadius: "50%",
                       }}
                     >
-                      <iframe
-                        src="/html/magic.html"
+                      {/* Fluid background as the base layer */}
+                      <FluidBackground
                         style={{
-                          width: "300px",
-                          height: "300px",
-                          border: "none",
+                          position: "absolute",
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                        }}
+                      />
+
+                      {/* Magic 8 ball as an iframe */}
+                      <div
+                        style={{
+                          position: "relative",
+                          width: "100%",
+                          height: "100%",
+                          display: "flex",
+                          justifyContent: "center",
+                          alignItems: "center",
+                          zIndex: "0",
                           background: "transparent",
                           borderRadius: "50%",
                         }}
-                        title="Magic 8 Ball"
-                        frameBorder="0"
-                        scrolling="no"
-                        allowTransparency="true"
-                      />
+                      >
+                        {isBrowser && (
+                          <iframe
+                            src="/html/magic.html"
+                            style={{
+                              width: "300px",
+                              height: "300px",
+                              border: "none",
+                              background: "transparent",
+                              borderRadius: "50%",
+                            }}
+                            title="Magic 8 Ball"
+                            frameBorder="0"
+                            scrolling="no"
+                            allowTransparency="true"
+                          />
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </Card>
+                  </Card>
+                </div>
               </div>
-            </div>
-          </Box>
-        </Flex>
-      </Box>
+            </Box>
+          </Flex>
+        </Box>
+      ) : (
+        <div>Loading numerology data...</div>
+      )}
     </>
   );
 };
