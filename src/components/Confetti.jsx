@@ -134,12 +134,21 @@ function Confetti({ children }) {
         width: "100%",
         height: "100%",
         overflow: "hidden",
+        justifyContent: "center",
+        alignItems: "center",
       }}
     >
       <canvas
         ref={canvasRef}
         className="confetti-canvas"
-        style={{ position: "absolute", top: 0, left: 0, zIndex: 0 }}
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          zIndex: 0,
+          justifyContent: "center",
+          alignItems: "center",
+        }}
       />
       <div
         style={{

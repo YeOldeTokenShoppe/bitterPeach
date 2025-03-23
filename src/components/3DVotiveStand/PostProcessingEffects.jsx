@@ -16,11 +16,21 @@ const PostProcessingEffects = ({ is80sMode }) => {
   const { scene } = useThree();
   const composerRef = useRef();
   const timeRef = useRef(0);
+  const bloomRef = useRef();
 
   // Increase time for animated effects
   useFrame((state, delta) => {
     timeRef.current += delta;
   });
+
+  // Update bloom settings when 80s mode changes
+  useEffect(() => {
+    if (bloomRef.current) {
+      // Enhance bloom effect when in 80s mode
+      bloomRef.current.intensity = is80sMode ? 1.5 : 0.3;
+      bloomRef.current.luminanceThreshold = is80sMode ? 0.6 : 0.9;
+    }
+  }, [is80sMode]);
 
   // Regular effects for normal mode
   const normalEffects = (
@@ -40,15 +50,17 @@ const PostProcessingEffects = ({ is80sMode }) => {
   const eightiesEffects = (
     <>
       <Bloom
-        intensity={1.5}
-        luminanceThreshold={0.1}
-        luminanceSmoothing={0.5}
-        height={300}
+        ref={bloomRef}
+        intensity={is80sMode ? 1.5 : 0.3}
+        luminanceThreshold={is80sMode ? 0.6 : 0.9}
+        luminanceSmoothing={0.9}
+        mipmapBlur
       />
       <ChromaticAberration
-        offset={[0.005, 0.005]}
+        offset={[0.003, 0.003]}
+        blendFunction={BlendFunction.NORMAL}
         radialModulation={true}
-        modulationOffset={0.3}
+        modulationOffset={0.2}
       />
       <Scanline
         density={1.5}

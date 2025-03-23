@@ -63,7 +63,8 @@
     "tailwindcss-animate": "^1.0.7",
     "thirdweb": "^5.61.6",
     "three": "^0.171.0",
-    "wavesurfer.js": "^7.9.1"
+    "wavesurfer.js": "^7.9.1",
+    "wouter": "^3.6.0"
   },
   "devDependencies": {
     "@types/node": "^20",

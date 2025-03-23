@@ -8,6 +8,7 @@ import {
   Switch,
   FormControl,
   FormLabel,
+  Grid,
 } from "@chakra-ui/react";
 import AnimatedRadioButtons from "./3DVotiveStand/CyberButtons";
 import Communion3 from "./Communion3";
@@ -76,36 +77,25 @@ const SidePanel = ({
     createWallet("app.phantom"),
   ];
 
-  // Letters for scramble effect
-  const letters = [
-    "1",
-    "2",
-    "3",
-    "4",
-    "5",
-    "6",
-    "7",
-    "8",
-    "9",
-    "0",
-    "🜁",
-    "β",
-    "Σ",
-    "λ",
-    "π",
-    "$",
-    "∞",
-    "Ð",
-    "Θ",
-    "Λ",
-    "Ξ",
-    "Π",
+  const [systemPower, setSystemPower] = useState(true);
+  const [emergencyMode, setEmergencyMode] = useState(false);
+
+  // Mock leaderboard data
+  const leaderboardData = [
+    { name: "Armstrong", score: 1969 },
+    { name: "Aldrin", score: 1930 },
+    { name: "Collins", score: 1890 },
+    { name: "Lovell", score: 1850 },
+    { name: "Cernan", score: 1800 },
   ];
 
-  // Add debounce timer state
+  // // Button click handlers
+  // const handleButtonClick = (buttonName) => {
+  //   console.log(`Button clicked: ${buttonName}`);
+  // }; // Add debounce timer state
   const [debounceTimer, setDebounceTimer] = useState(null);
 
-  // Update panel width based on screen size
+  // Update panel width based on screen size and orientation
   const [panelWidth, setPanelWidth] = useState("25%");
 
   // Detect touch devices
@@ -120,34 +110,31 @@ const SidePanel = ({
   // Handle first click to close panel and mark user interaction
   useEffect(() => {
     const handleFirstClick = (e) => {
-      if (!hasUserInteracted && !panelRef.current?.contains(e.target)) {
-        setIsTextBoxVisible(false);
-        setHasUserInteracted(true);
-        document.removeEventListener("click", handleFirstClick);
+      // Don't close if clicking inside the panel
+      if (panelRef.current?.contains(e.target)) {
+        return;
       }
+
+      setIsTextBoxVisible(false);
+      setHasUserInteracted(true);
     };
 
-    if (!hasUserInteracted) {
+    // Add click listener if panel is visible
+    if (isTextBoxVisible) {
       document.addEventListener("click", handleFirstClick);
     }
 
     return () => {
       document.removeEventListener("click", handleFirstClick);
     };
-  }, [hasUserInteracted]);
+  }, [isTextBoxVisible]); // Add isTextBoxVisible to dependencies
 
   // Handle mouse movement for panel visibility after first interaction
   useEffect(() => {
-    if (isTouchDevice || !hasUserInteracted) return;
+    if (isTouchDevice) return;
 
     const handleMouseMove = (event) => {
       const rightEdgeDistance = window.innerWidth - event.clientX;
-
-      // Keep panel open if menu is open
-      if (menuOpen) {
-        setIsTextBoxVisible(true);
-        return;
-      }
 
       // Clear any existing timer
       if (debounceTimer) {
@@ -160,7 +147,7 @@ const SidePanel = ({
         if (rightEdgeDistance < hotzoneSize) {
           setIsTextBoxVisible(true);
         } else if (rightEdgeDistance > 300) {
-          // Hide when mouse moves away, but only if menu is closed
+          // Only hide if mouse is far enough away
           setIsTextBoxVisible(false);
         }
       }, 100); // 100ms debounce delay
@@ -168,7 +155,9 @@ const SidePanel = ({
       setDebounceTimer(timer);
     };
 
-    document.addEventListener("mousemove", handleMouseMove);
+    if (hasUserInteracted) {
+      document.addEventListener("mousemove", handleMouseMove);
+    }
 
     return () => {
       document.removeEventListener("mousemove", handleMouseMove);
@@ -176,19 +165,10 @@ const SidePanel = ({
         clearTimeout(debounceTimer);
       }
     };
-  }, [
-    hasUserInteracted,
-    isTouchDevice,
-    hotzoneSize,
-    menuOpen,
-    isTextBoxVisible,
-    debounceTimer,
-  ]);
+  }, [hasUserInteracted, isTouchDevice, hotzoneSize, debounceTimer]);
 
   const handleButtonClick = (e) => {
-    e.stopPropagation();
-
-    // Simple toggle without complex animations
+    if (e) e.stopPropagation();
     setIsTextBoxVisible(!isTextBoxVisible);
     setHasUserInteracted(true);
   };
@@ -346,23 +326,25 @@ const SidePanel = ({
     }
   }, [isLoaded, isSignedIn, user, signIntoFirebaseWithClerk]);
 
-  // Update panel width based on screen size
+  // Update panel width based on screen size and orientation
   useEffect(() => {
     const handleResize = () => {
       if (typeof window !== "undefined") {
+        const isPortrait = window.innerHeight > window.innerWidth;
+
         if (window.innerWidth <= 768) {
           setPanelWidth("85%");
         } else if (window.innerWidth <= 1024) {
-          setPanelWidth("40%");
+          setPanelWidth(isPortrait ? "50%" : "40%");
         } else {
-          setPanelWidth("25%");
+          setPanelWidth(isPortrait ? "35%" : "25%");
         }
       }
     };
 
     if (typeof window !== "undefined") {
       window.addEventListener("resize", handleResize);
-      handleResize();
+      handleResize(); // Initial call
     }
 
     return () => {
@@ -468,7 +450,7 @@ const SidePanel = ({
         />
       )}
 
-      {/* Main panel */}
+      {/* Updated Main Panel */}
       <Box
         ref={panelRef}
         position="fixed"
@@ -476,13 +458,14 @@ const SidePanel = ({
         right="0"
         width={panelWidth}
         height="100%"
-        background="rgba(0, 0, 0, 0.8)"
-        color="white"
-        p="1.5rem 2rem"
-        borderRadius="8px 0 0 8px"
+        bg="gray.900"
+        color="blue.300"
+        p="1rem"
+        borderLeft="2px solid"
+        borderColor="blue.500"
+        boxShadow="lg"
         zIndex="5000"
         className={isTextBoxVisible ? "panel-visible" : "panel-hidden"}
-        boxShadow="-5px 0 15px rgba(0, 0, 0, 0.3)"
         sx={{
           ".panel-visible": {
             transform: "translateX(0)",
@@ -502,406 +485,243 @@ const SidePanel = ({
           },
         }}
       >
-        {/* Panel toggle button */}
-        <Button
-          onClick={handleButtonClick}
-          size="lg"
-          background="rgba(0, 0, 0, 0.7)"
-          position="absolute"
-          color="white"
-          top="50%"
-          left="-30px"
-          transform="translateY(-50%)"
-          height="80px"
-          width="30px"
-          _hover={{ background: "rgba(0, 0, 0, 0.9)" }}
-          boxShadow="0 0 10px rgba(0, 0, 0, 0.5)"
-          borderRadius="4px 0 0 4px"
-          display={isTouchDevice && !isTextBoxVisible ? "none" : "flex"}
-          zIndex="5001"
-          transition="background 0.3s ease"
+        {/* Mission Control Header */}
+        <Box
+          textAlign="center"
+          mb="4"
+          borderBottom="2px solid"
+          borderColor="blue.500"
+          pb="2"
         >
-          {isTextBoxVisible ? "❯" : "❮"}
-        </Button>
-
-        {/* Header with toggle buttons and sign-in button */}
-        <Flex
-          justify="space-between"
-          align="center"
-          width="100%"
-          marginBottom="2rem"
-          position="relative"
-        >
-          {/* Toggle Buttons (left) */}
-          <Flex
-            direction="column"
-            gap="0.75rem"
-            ml="0.5rem"
-            mt="0.5rem"
-            minWidth="110px"
-            maxWidth="130px"
+          <Text
+            fontSize="xl"
+            fontFamily="mono"
+            letterSpacing="wider"
+            color="blue.100"
           >
-            <FormControl
-              display="flex"
-              alignItems="center"
-              justifyContent="space-between"
-              size="sm"
-            >
-              <FormLabel
-                htmlFor="eighties-mode"
-                mb="0"
-                fontSize="0.8rem"
-                fontWeight="600"
-                color={is80sMode ? "#ff71ce" : "#8e662b"}
-                mr="0.5rem"
-              >
-                80&apos;s Mode
-              </FormLabel>
-              <Switch
-                id="eighties-mode"
-                size="sm"
-                isChecked={is80sMode}
-                onChange={handle80sModeToggle}
-                colorScheme="pink"
-                sx={{
-                  "& .chakra-switch__track": {
-                    background: is80sMode ? "#ff71ce" : "#8e662b",
-                    boxShadow: is80sMode ? "0 0 10px #ff71ce" : "none",
-                  },
-                  "& .chakra-switch__thumb": {
-                    background: "white",
-                  },
-                }}
-              />
-            </FormControl>
+            MISSION CONTROL
+          </Text>
+          <Text fontSize="xs" color="blue.400" fontFamily="mono">
+            LUNAR OPERATIONS
+          </Text>
+        </Box>
 
-            <FormControl
-              display="flex"
-              alignItems="center"
-              justifyContent="space-between"
-              size="sm"
+        {/* Button Grid */}
+        <Grid templateColumns="repeat(2, 1fr)" gap="4" mb="6">
+          <Button
+            bg="red.700"
+            _hover={{ bg: "red.600" }}
+            rounded="lg"
+            p="3"
+            color="white"
+            fontFamily="mono"
+            boxShadow="md"
+            border="2px solid"
+            borderColor="red.500"
+            flexDirection="column"
+            onClick={() => onButtonClick("LAUNCH")}
+          >
+            <Text fontSize="xs" mb="1">
+              INITIATE
+            </Text>
+            <Text fontWeight="bold">LAUNCH</Text>
+          </Button>
+
+          <Button
+            bg="blue.700"
+            _hover={{ bg: "blue.600" }}
+            rounded="lg"
+            p="3"
+            color="white"
+            fontFamily="mono"
+            boxShadow="md"
+            border="2px solid"
+            borderColor="blue.500"
+            flexDirection="column"
+            onClick={() => onButtonClick("ORBIT")}
+          >
+            <Text fontSize="xs" mb="1">
+              ADJUST
+            </Text>
+            <Text fontWeight="bold">ORBIT</Text>
+          </Button>
+
+          <Button
+            bg="green.700"
+            _hover={{ bg: "green.600" }}
+            rounded="lg"
+            p="3"
+            color="white"
+            fontFamily="mono"
+            boxShadow="md"
+            border="2px solid"
+            borderColor="green.500"
+            flexDirection="column"
+            onClick={() => onButtonClick("COMMS")}
+          >
+            <Text fontSize="xs" mb="1">
+              ACTIVATE
+            </Text>
+            <Text fontWeight="bold">COMMS</Text>
+          </Button>
+
+          <Button
+            bg="yellow.700"
+            _hover={{ bg: "yellow.600" }}
+            rounded="lg"
+            p="3"
+            color="white"
+            fontFamily="mono"
+            boxShadow="md"
+            border="2px solid"
+            borderColor="yellow.500"
+            flexDirection="column"
+            onClick={() => onButtonClick("RETURN")}
+          >
+            <Text fontSize="xs" mb="1">
+              PLAN
+            </Text>
+            <Text fontWeight="bold">RETURN</Text>
+          </Button>
+        </Grid>
+
+        {/* System Controls - Updated to 80s and Mission Mode */}
+        <Box
+          bg="gray.800"
+          p="3"
+          rounded="md"
+          border="1px"
+          borderColor="gray.700"
+          mb="6"
+        >
+          <Flex justify="space-between" align="center" mb="4">
+            <Text
+              fontFamily="mono"
+              fontSize="sm"
+              color={is80sMode ? "pink.300" : "gray.400"}
             >
-              <FormLabel
-                htmlFor="monster-mode"
-                mb="0"
-                fontSize="0.8rem"
-                fontWeight="600"
-                color={monsterMode ? "#01cdfe" : "#8e662b"}
-                mr="0.5rem"
-              >
-                Mission Mode
-              </FormLabel>
-              <Switch
-                id="monster-mode"
-                size="sm"
-                isChecked={monsterMode}
-                onChange={handleMonsterModeToggle}
-                colorScheme="cyan"
-                sx={{
-                  "& .chakra-switch__track": {
-                    background: monsterMode ? "#01cdfe" : "#8e662b",
-                    boxShadow: monsterMode ? "0 0 10px #01cdfe" : "none",
-                  },
-                  "& .chakra-switch__thumb": {
-                    background: "white",
-                  },
-                }}
-              />
-            </FormControl>
+              80&apos;S MODE
+            </Text>
+            <Switch
+              isChecked={is80sMode}
+              onChange={handle80sModeToggle}
+              sx={{
+                "& .chakra-switch__track": {
+                  background: is80sMode ? "#ff71ce" : "#8e662b",
+                  boxShadow: is80sMode ? "0 0 10px #ff71ce" : "none",
+                },
+                "& .chakra-switch__thumb": {
+                  background: "white",
+                },
+              }}
+            />
           </Flex>
 
-          {/* Sign-in Button (right) */}
-          <div
-            id="sign-in-button"
-            style={{
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              fontSize: "2.5rem",
-              objectFit: "cover",
-              border: "3px solid goldenrod",
-              background: "#444",
-              width: "3.5rem",
-              height: "3.5rem",
-              minWidth: "3.5rem",
-              overflow: "hidden",
-              marginLeft: "1.5rem",
-              marginRight: "0.5rem",
-            }}
-          >
-            <SignedIn>
-              <SignOutButton redirectUrl={currentPath}>
-                <UserButton afterSignOutUrl={currentPath} />
-              </SignOutButton>
-            </SignedIn>
-
-            <SignedOut>
-              <SignInButton mode="modal" forceRedirectUrl={currentPath}>
-                <Button
-                  style={{ fontSize: "2rem", position: "relative", top: "0" }}
-                >
-                  {emoji}
-                </Button>
-              </SignInButton>
-            </SignedOut>
-          </div>
-        </Flex>
-        <h1
-          style={{
-            position: "relative",
-            top: "0",
-            fontSize: "4rem",
-          }}
-          className="thelma2"
-        >
-          The Moon Room
-        </h1>
-        <Text
-          position="relative"
-          marginTop="1rem"
-          fontSize="1rem"
-          marginBottom="1rem"
-        >
-          Lorem ipsum dolor sit amet, ea est mutat viris nostrud. Vix eros
-          quodsi insolens ad, oblique recteque ex sit. Vim no clita suavitate
-          necessitatibus, impetus vocibus invenire his id.
-        </Text>
-
-        <Flex
-          position="relative"
-          top="0"
-          width="100%"
-          justifyContent="center"
-          alignItems="center"
-          direction="column"
-          marginBottom="5rem"
-        >
-          <Link
-            href="#"
-            onClick={(e) => {
-              e.preventDefault();
-              setShowPayEmbed(true);
-            }}
-          >
-            <button
-              style={{
-                color: "#1b1724",
-                transform: "skew(-10deg)",
-                width: "6rem",
-                marginBottom: "0.5rem",
-              }}
-              className="shimmer-button"
-              data-shimmer-index="1"
+          <Flex justify="space-between" align="center">
+            <Text
+              fontFamily="mono"
+              fontSize="sm"
+              color={monsterMode ? "cyan.300" : "gray.400"}
             >
-              Buy<span className="shimmer"></span>
-            </button>
-          </Link>
-          <Link
-            href="#"
-            onClick={(e) => {
-              e.preventDefault();
-              setShowStake(true);
-            }}
-          >
-            <button
-              style={{
-                color: "#1b1724",
-                transform: "skew(-10deg)",
-                width: "6rem",
-                marginBottom: "0.5rem",
+              MISSION MODE
+            </Text>
+            <Switch
+              isChecked={monsterMode}
+              onChange={handleMonsterModeToggle}
+              sx={{
+                "& .chakra-switch__track": {
+                  background: monsterMode ? "#01cdfe" : "#8e662b",
+                  boxShadow: monsterMode ? "0 0 10px #01cdfe" : "none",
+                },
+                "& .chakra-switch__thumb": {
+                  background: "white",
+                },
               }}
-              className="shimmer-button"
-              data-shimmer-index="2"
-            >
-              Earn<span className="shimmer"></span>
-            </button>
-          </Link>
-          <Link href="#">
-            <button
-              style={{
-                color: "#1b1724",
-                transform: "skew(-10deg)",
-                width: "6rem",
-                marginBottom: "0.5rem",
-              }}
-              className="shimmer-button"
-              data-shimmer-index="3"
-            >
-              Redeem<span className="shimmer"></span>
-            </button>
-          </Link>
-          {/* <AnimatedRadioButtons onButtonClick={onButtonClick} /> */}
+            />
+          </Flex>
+        </Box>
 
-          {/* Door icon for main landing page */}
-          <Box
-            as="button"
-            mt="2rem"
-            width="60px"
-            height="60px"
-            borderRadius="50%"
-            background="rgba(0, 0, 0, 0.7)"
-            color="white"
-            fontSize="28px"
-            display="flex"
-            alignItems="center"
-            justifyContent="center"
-            boxShadow="0 0 10px 2px rgba(186, 85, 211, 0.8), 0 0 25px 5px rgba(255, 105, 180, 0.6), 0 0 60px 15px rgba(186, 85, 211, 0.4)"
-            onClick={() => router.push("/home")}
-            transition="all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55)"
-            _hover={{
-              background: "rgba(0, 0, 0, 0.9)",
-              transform: "scale(1.1)",
-              boxShadow:
-                "0 0 15px 5px rgba(186, 85, 211, 0.9), 0 0 30px 8px rgba(255, 105, 180, 0.8), 0 0 70px 20px rgba(186, 85, 211, 0.6)",
-            }}
-            _active={{
-              transform: "scale(0.95)",
-              boxShadow: "0 0 20px 6px rgba(255, 105, 180, 1)",
-            }}
-            cursor="pointer"
-            sx={{
-              "@keyframes springIn": {
-                "0%": { transform: "scale(0)" },
-                "60%": { transform: "scale(1.1)" },
-                "80%": { transform: "scale(0.95)" },
-                "100%": { transform: "scale(1)" },
-              },
-              animation: "springIn 0.5s ease-out forwards",
-              position: "relative",
-              "&::before": {
-                content: '""',
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: "100%",
-                height: "100%",
-                borderRadius: "50%",
-                backgroundColor: "#24252c",
-                backgroundImage:
-                  "repeating-linear-gradient(0deg, #181a29, #181a29 1px, #202436 1px, #202436 2px)",
-                zIndex: -1,
-              },
-              "&:hover::before": {
-                backgroundColor: "#9400D3",
-                backgroundImage:
-                  "repeating-linear-gradient(45deg, #9400D3, #FF69B4 10px, #9400D3 20px)",
-              },
-            }}
+        {/* Leaderboard Display */}
+        <Box
+          flexGrow="1"
+          bg="black"
+          rounded="md"
+          border="2px"
+          borderColor="gray.700"
+          p="2"
+          fontFamily="mono"
+          color="green.500"
+          fontSize="sm"
+          overflow="hidden"
+        >
+          <Text
+            textAlign="center"
+            borderBottom="1px"
+            borderColor="green.800"
+            pb="1"
+            mb="2"
+            fontSize="xs"
           >
-            <span style={{ fontSize: "2rem" }}> 🚪</span>
+            MISSION LEADERBOARD
+          </Text>
+
+          <Flex
+            justify="space-between"
+            fontSize="xs"
+            mb="1"
+            borderBottom="1px"
+            borderColor="gray.800"
+            pb="1"
+          >
+            <Text>ASTRONAUT</Text>
+            <Text>SCORE</Text>
+          </Flex>
+
+          <Box overflowY="auto" height="40">
+            {leaderboardData.map((entry, index) => (
+              <Flex
+                key={index}
+                justify="space-between"
+                py="1"
+                color={index === 0 ? "yellow.400" : "inherit"}
+                fontWeight={index === 0 ? "bold" : "normal"}
+              >
+                <Text>{entry.name}</Text>
+                <Text>{entry.score}</Text>
+              </Flex>
+            ))}
           </Box>
+
+          <Text
+            mt="2"
+            fontSize="xs"
+            textAlign="center"
+            color="blue.400"
+            animation="pulse 2s infinite"
+          >
+            TRANSMISSION LIVE
+          </Text>
+        </Box>
+
+        {/* Status Footer */}
+        <Flex mt="4" justify="space-between">
+          <Flex align="center">
+            <Box
+              w="3"
+              h="3"
+              rounded="full"
+              mr="2"
+              bg={systemPower ? "green.500" : "red.500"}
+            />
+            <Text fontSize="xs" fontFamily="mono">
+              STATUS
+            </Text>
+          </Flex>
+          <Text fontSize="xs" fontFamily="mono" color="gray.500">
+            MCP v1.0
+          </Text>
         </Flex>
       </Box>
-
-      {/* Keep the burger menu for now, but we'll hide it since we're using the circular menu */}
-      <div
-        ref={menuNode}
-        style={{
-          position: "fixed",
-          top: 0,
-          right: 0,
-          left: "auto",
-          zIndex: "5002",
-          opacity: 0, // Hide the old menu
-          pointerEvents: "none", // Disable interaction with old menu
-          transition: "opacity 0.4s ease-out",
-        }}
-      >
-        <Menu
-          isOpen={menuOpen}
-          onStateChange={({ isOpen }) => setMenuOpen(isOpen)}
-          width={menuWidth}
-          right
-          className="header-two"
-          styles={{
-            bmMenu: {
-              textAlign: "center",
-              background: "rgba(0, 0, 0, 0.9)",
-              padding: "2.5em 1.5em 0",
-              borderLeft: "1px solid rgba(142, 102, 43, 0.5)",
-              transition: "all 0.4s ease-out",
-            },
-            bmMenuWrap: {
-              textAlign: "center",
-              position: "fixed",
-              height: "100%",
-              right: 0,
-              left: "auto",
-              transition: "all 0.4s ease-out",
-            },
-            bmItem: {
-              display: "inline-block",
-              textAlign: "center",
-              padding: "0.8em",
-              color: "white",
-              textDecoration: "none",
-              fontSize: "1.5rem",
-            },
-            bmItemList: {
-              textAlign: "center",
-              padding: "0.8em",
-            },
-            bmOverlay: {
-              background: "rgba(0, 0, 0, 0.3)",
-              transition: "opacity 0.4s ease-out",
-            },
-            bmBurgerButton: {
-              display: "none", // Hide the default burger button
-            },
-          }}
-        >
-          <Link
-            href="/home"
-            className="menu-item"
-            onClick={() => setMenuOpen(false)}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-            data-value="Home"
-          >
-            Home
-          </Link>
-          <Link
-            href="/thesis"
-            className="menu-item"
-            onClick={() => setMenuOpen(false)}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-            data-value="Unorthodoxy"
-          >
-            Unorthodoxy
-          </Link>
-          <Link
-            href="/numerology"
-            className="menu-item"
-            onClick={() => setMenuOpen(false)}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-            data-value="Numerology"
-          >
-            Numerology
-          </Link>
-          <Link
-            href="/gallery"
-            className="menu-item"
-            onClick={() => setMenuOpen(false)}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-            data-value="Moon Room"
-          >
-            Moon Room
-          </Link>
-          <Link
-            href="/communion"
-            className="menu-item"
-            onClick={() => setMenuOpen(false)}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-            data-value="RL80 Faire"
-          >
-            RL80 Faire
-          </Link>
-        </Menu>
-      </div>
 
       {/* Add Stake Modal */}
       {showStake && (

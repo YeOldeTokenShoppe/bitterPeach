@@ -39,6 +39,7 @@ import MoonScene from "./MoonLamps";
 import CameraGUI from "./CameraGUI";
 import HolographicStatue from "./HolographicStatue";
 import PostProcessingEffects from "./PostProcessingEffects";
+import NeonConfetti from "./NeonConfetti";
 
 const scene = new THREE.Scene();
 
@@ -382,6 +383,9 @@ function ThreeDVotiveStand({
   //   }
   // }, [modelScale]);
 
+  // Add a state to control the confetti effect independently
+  const [showNeonConfetti, setShowNeonConfetti] = useState(false);
+
   return (
     <>
       <div
@@ -429,7 +433,7 @@ function ThreeDVotiveStand({
             duration={4}
           /> */}
           {/* <TourCamera points={pointsOfInterest} /> */}
-          <Perf position="top-left" />
+          <Perf position="top-left" showGraph={true} chart={true} />
 
           <Model
             scale={modelScale}
@@ -454,6 +458,10 @@ function ThreeDVotiveStand({
             showSpotify={showSpotify}
             monsterMode={monsterMode}
           />
+
+          {/* Remove the conditional rendering - don't tie to is80sMode */}
+          {/* Only render if explicitly enabled later */}
+          {showNeonConfetti && <NeonConfetti isActive={true} />}
 
           <Suspense fallback={null}>
             <MoonScene modelRef={modelRef} onSpawnReady={onSpawnReady} />

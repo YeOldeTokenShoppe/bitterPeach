@@ -3518,8 +3518,8 @@ div.css-161tt0w {
   grid-template-areas:
     "first second third"
     "first fourth fifth"
-    "sixth seventh ninth"
-    "eighth eighth ninth";
+    "seventh sixth ninth"
+    "seventh eighth ninth";
 }
 
 .first {

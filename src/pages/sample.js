@@ -1,10 +1,10 @@
 import React from "react";
-import LightweightTestCanvas from "../components/LightweightTestCanvas";
+import ExampleGallery from "../components/PortalFrames/ExampleGallery";
 
 export default function SamplePage() {
   return (
     <div>
-      <LightweightTestCanvas />
+      <ExampleGallery />
     </div>
   );
 }

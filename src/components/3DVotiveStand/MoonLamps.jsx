@@ -63,6 +63,7 @@ const MoonScene = ({
     controls.maxDistance = 100;
     controls.minPolarAngle = 0;
     controls.maxPolarAngle = Math.PI / 2;
+    controls.zoomToCursor = true;
 
     // Add vertical panning limits
     controls.maxPanUp = 10; // Limit upward panning to 10 units
@@ -239,7 +240,7 @@ const MoonScene = ({
       side: THREE.DoubleSide,
       color: 0x555555,
       transparent: true,
-      opacity: 0.1, // Slightly visible for debugging
+      opacity: 0, // Slightly visible for debugging
       depthWrite: false,
       colorWrite: true, // Allow color writing for debugging
     });

@@ -3,13 +3,10 @@ import { Box, Image, Text, useDisclosure } from "@chakra-ui/react";
 import Carousel from "../components/Carousel";
 import NavBar from "../components/NavBar.client";
 import Footer from "../components/Footer";
-import MusicPlayer from "../components/MusicPlayer2";
 import { Heading } from "@chakra-ui/react";
 import gsap from "gsap";
 import Loader from "../components/Loader";
 import dynamic from "next/dynamic";
-import MoonRoomModal from "../components/MoonRoomModal";
-import Bouncer from "../components/Bouncer";
 import GoldCards from "../components/3DVotiveStand/GoldCards";
 // import { zIndex } from "html2canvas/dist/types/css/property-descriptors/z-index";
 
@@ -145,7 +142,8 @@ export default function CommunionPage() {
         width: "auto",
         maxWidth: "none",
         maxHeight: "none",
-        zIndex: 5000,
+        zIndex: 9999,
+        pointerEvents: "none",
       }
     : {
         transform: "translateX(-50%) scale(0.5)",
@@ -155,7 +153,8 @@ export default function CommunionPage() {
         width: "auto",
         maxWidth: "none",
         maxHeight: "none",
-        zIndex: 5000,
+        zIndex: 9999,
+        pointerEvents: "none",
       };
 
   useEffect(() => {
@@ -298,7 +297,7 @@ export default function CommunionPage() {
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            zIndex: 10,
+            zIndex: 9998,
             opacity: isLoading ? 0 : 1,
             transition: "opacity 0.5s ease-in-out",
             visibility: isLoading ? "hidden" : "visible",
@@ -322,6 +321,11 @@ export default function CommunionPage() {
               { src: "mothmanRide.png", title: "Mothman" },
             ]}
             logos={[
+              {
+                logo: "/3d_spotify.png",
+                title: "Threads",
+                link: "https://www.threads.net",
+              },
               {
                 logo: "/telegram.svg",
                 title: "Telegram",

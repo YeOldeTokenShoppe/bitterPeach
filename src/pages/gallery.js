@@ -237,9 +237,9 @@ export default function GalleryPage() {
           {showSpotify && (
             <div
               style={{
-                position: "fixed",
-                bottom: isMobileView ? "60px" : "6rem",
-                left: isMobileView ? "20%" : "4rem",
+                position: "absolute",
+                bottom: isMobileView ? "60px" : "3rem",
+                left: isMobileView ? "20%" : "0",
                 transform: isMobileView
                   ? "translate(-50%, 0) scale(0.5)"
                   : "scale(0.6)",

@@ -15,6 +15,7 @@ import {
   useDisclosure,
   Text,
   Flex,
+  Grid,
 } from "@chakra-ui/react";
 import {
   useUser,
@@ -39,6 +40,13 @@ const MobileSidePanel = ({
   const router = useRouter();
   const [currentPath, setCurrentPath] = useState(router.asPath);
   const [emoji, setEmoji] = useState("😇");
+  const leaderboardData = [
+    { name: "Armstrong", score: 1969 },
+    { name: "Aldrin", score: 1930 },
+    { name: "Collins", score: 1890 },
+    { name: "Lovell", score: 1850 },
+    { name: "Cernan", score: 1800 },
+  ];
 
   // Simplified direct handlers for the mode toggles
   const handle80sModeToggle = () => {
@@ -88,7 +96,7 @@ const MobileSidePanel = ({
 
   return (
     <>
-      {/* Make FAB button slightly smaller */}
+      {/* Mission Control FAB */}
       <Button
         position="fixed"
         bottom="15px"
@@ -97,13 +105,16 @@ const MobileSidePanel = ({
         height="50px"
         borderRadius="full"
         backgroundColor="rgba(0, 0, 0, 0.8)"
-        color="white"
+        color="blue.300"
+        border="2px solid"
+        borderColor="blue.500"
+        boxShadow="0 0 10px rgba(0, 123, 255, 0.3)"
         zIndex="1000"
         onClick={onOpen}
-        boxShadow="0 0 10px rgba(255, 255, 255, 0.2)"
         _hover={{
           backgroundColor: "rgba(0, 0, 0, 0.9)",
           transform: "scale(1.1)",
+          boxShadow: "0 0 15px rgba(0, 123, 255, 0.5)",
         }}
       >
         ☰
@@ -117,283 +128,259 @@ const MobileSidePanel = ({
         closeOnOverlayClick={true}
         closeOnEsc={true}
       >
-        <DrawerOverlay />
+        <DrawerOverlay bg="rgba(0, 0, 0, 0.5)" backdropFilter="blur(5px)" />
         <DrawerContent
-          backgroundColor="rgba(0, 0, 0, 0.95)"
+          backgroundColor="gray.900"
           borderTopRadius="20px"
-          maxHeight="75vh"
+          maxHeight="70vh"
+          borderTop="2px solid"
+          borderColor="blue.500"
+          boxShadow="0 -5px 15px rgba(0, 123, 255, 0.2)"
         >
           <DrawerCloseButton
-            color="white"
-            onClick={handleCloseClick}
+            color="blue.300"
             size="lg"
             top="8px"
             right="8px"
-            backgroundColor="rgba(20, 20, 20, 0.5)"
-            padding="8px"
-            _hover={{
-              backgroundColor: "rgba(255, 255, 255, 0.2)",
-              transform: "scale(1.1)",
-            }}
             zIndex="2000"
           />
+
+          {/* Mission Control Header */}
           <DrawerHeader
-            color="white"
+            borderBottom="2px solid"
+            borderColor="blue.500"
+            pb="2"
             textAlign="center"
-            className="thelma1"
-            mt={6}
-            mb={4}
-            style={{ fontSize: "2rem", py: 2 }}
           >
-            The Moon Room
+            <Text
+              fontSize="xl"
+              fontFamily="mono"
+              letterSpacing="wider"
+              color="blue.100"
+            >
+              MISSION CONTROL
+            </Text>
+            <Text fontSize="xs" color="blue.400" fontFamily="mono">
+              LUNAR OPERATIONS
+            </Text>
           </DrawerHeader>
 
-          <DrawerBody>
-            <VStack spacing={4} width="100%" p={2}>
-              {/* Add an additional close button at the top */}
-              {/* <Box width="100%" display="flex" justifyContent="flex-end" mb={0}>
+          <DrawerBody bg="rgba(0, 0, 0, 0.5)">
+            <VStack spacing={6} width="100%" p={4}>
+              {/* Control Grid */}
+              <Grid templateColumns="repeat(2, 1fr)" gap={4} width="100%">
                 <Button
-                  size="sm"
-                  variant="ghost"
+                  bg="red.700"
+                  _hover={{ bg: "red.600" }}
+                  rounded="lg"
+                  p="3"
                   color="white"
-                  onClick={handleCloseClick}
-                  _hover={{ backgroundColor: "rgba(255, 255, 255, 0.1)" }}
+                  fontFamily="mono"
+                  boxShadow="md"
+                  border="2px solid"
+                  borderColor="red.500"
+                  flexDirection="column"
+                  onClick={() => onButtonClick("LAUNCH")}
                 >
-                  Close
+                  <Text fontSize="xs" mb="1">
+                    INITIATE
+                  </Text>
+                  <Text fontWeight="bold">LAUNCH</Text>
                 </Button>
-              </Box> */}
 
-              {/* User Profile Section - made more compact */}
-              {/* <Box width="100%" display="flex" justifyContent="center" mb={2}>
-                  id="sign-in-button"
-                 <div
-                 style={{
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    fontSize: "2rem",
-                    border: "3px solid goldenrod",
-                    background: "#444",
-                    width: "3rem",
-                    height: "3rem",
-                    minWidth: "3rem",
-                    overflow: "hidden",
-                    marginLeft: "1rem",
-                    marginRight: "0.5rem",
-                  }}
+                <Button
+                  bg="blue.700"
+                  _hover={{ bg: "blue.600" }}
+                  rounded="lg"
+                  p="3"
+                  color="white"
+                  fontFamily="mono"
+                  boxShadow="md"
+                  border="2px solid"
+                  borderColor="blue.500"
+                  flexDirection="column"
+                  onClick={() => onButtonClick("ORBIT")}
                 >
-                  <SignedIn>
-                    <SignOutButton redirectUrl={currentPath}>
-                      <UserButton afterSignOutUrl={currentPath} />
-                    </SignOutButton>
-                  </SignedIn>
+                  <Text fontSize="xs" mb="1">
+                    ADJUST
+                  </Text>
+                  <Text fontWeight="bold">ORBIT</Text>
+                </Button>
 
-                  <SignedOut>
-                    <SignInButton mode="modal" forceRedirectUrl={currentPath}>
-                      <Button
-                        style={{
-                          fontSize: "2rem",
-                          position: "relative",
-                          top: "0",
-                        }}
-                      >
-                        {emoji}
-                      </Button>
-                    </SignInButton>
-                  </SignedOut>
-                </div>
-              </Box> */}
+                <Button
+                  bg="green.700"
+                  _hover={{ bg: "green.600" }}
+                  rounded="lg"
+                  p="3"
+                  color="white"
+                  fontFamily="mono"
+                  boxShadow="md"
+                  border="2px solid"
+                  borderColor="green.500"
+                  flexDirection="column"
+                  onClick={() => onButtonClick("COMMS")}
+                >
+                  <Text fontSize="xs" mb="1">
+                    ACTIVATE
+                  </Text>
+                  <Text fontWeight="bold">COMMS</Text>
+                </Button>
 
-              {/* Mode Toggles - updated to match Music Player styling */}
-              <VStack width="100%" spacing={2}>
-                {/* Updated FormControl for mode buttons */}
-                <FormControl
-                  display="flex"
-                  alignItems="center"
-                  justifyContent="space-between"
-                  mb={2}
+                <Button
+                  bg="yellow.700"
+                  _hover={{ bg: "yellow.600" }}
+                  rounded="lg"
+                  p="3"
+                  color="white"
+                  fontFamily="mono"
+                  boxShadow="md"
+                  border="2px solid"
+                  borderColor="yellow.500"
+                  flexDirection="column"
+                  onClick={() => onButtonClick("RETURN")}
                 >
-                  <FormLabel
-                    color={
-                      is80sMode || monsterMode
-                        ? is80sMode
-                          ? "#ff71ce"
-                          : "#01cdfe"
-                        : "#8e662b"
-                    }
-                    mb="0"
-                    fontWeight={is80sMode || monsterMode ? "bold" : "normal"}
-                  >
-                    Mode
-                  </FormLabel>
-                  <Flex>
-                    <Button
-                      size="sm"
-                      mr={2}
-                      colorScheme={is80sMode ? "pink" : "gray"}
-                      variant={is80sMode ? "solid" : "outline"}
-                      onClick={handle80sModeToggle}
-                      boxShadow={is80sMode ? "0 0 10px #ff71ce" : "none"}
-                      color={is80sMode ? "white" : "#8e662b"}
-                      _hover={{
-                        opacity: 0.9,
-                        transform: "scale(1.05)",
-                      }}
-                    >
-                      80's
-                    </Button>
-                    <Button
-                      size="sm"
-                      colorScheme={monsterMode ? "cyan" : "gray"}
-                      variant={monsterMode ? "solid" : "outline"}
-                      onClick={handleMonsterModeToggle}
-                      boxShadow={monsterMode ? "0 0 10px #01cdfe" : "none"}
-                      color={monsterMode ? "white" : "#8e662b"}
-                      _hover={{
-                        opacity: 0.9,
-                        transform: "scale(1.05)",
-                      }}
-                    >
-                      Mission
-                    </Button>
-                  </Flex>
-                </FormControl>
+                  <Text fontSize="xs" mb="1">
+                    PLAN
+                  </Text>
+                  <Text fontWeight="bold">RETURN</Text>
+                </Button>
+              </Grid>
 
-                {/* Music Player Toggle - no changes needed here */}
-                <FormControl
-                  display="flex"
-                  alignItems="center"
-                  justifyContent="space-between"
-                  mb={2}
-                >
-                  <FormLabel
-                    color={showSpotify ? "#f0c000" : "#8e662b"}
-                    mb="0"
-                    fontWeight={showSpotify ? "bold" : "normal"}
-                  >
-                    Music Player
-                  </FormLabel>
-                  <Button
-                    size="sm"
-                    colorScheme={showSpotify ? "yellow" : "gray"}
-                    variant={showSpotify ? "solid" : "outline"}
-                    onClick={handleMusicToggle}
-                    boxShadow={showSpotify ? "0 0 10px #f0c000" : "none"}
-                    color={showSpotify ? "black" : "#8e662b"} // Make text visible when off
-                  >
-                    {showSpotify ? "On" : "Off"}
-                  </Button>
-                </FormControl>
-              </VStack>
-
-              {/* Action Buttons - reduced spacing and size */}
-              <VStack width="100%" spacing={2} mt={2}>
-                <button
-                  style={{
-                    color: "#1b1724",
-                    transform: "skew(-10deg)",
-                    width: "6rem",
-                    marginBottom: "0.5rem",
-                  }}
-                  className="shimmer-button"
-                  data-shimmer-index="1"
-                >
-                  Buy<span className="shimmer"></span>
-                </button>
-                <button
-                  style={{
-                    color: "#1b1724",
-                    transform: "skew(-10deg)",
-                    width: "6rem",
-                    marginBottom: "0.5rem",
-                  }}
-                  className="shimmer-button"
-                  data-shimmer-index="2"
-                >
-                  Earn<span className="shimmer"></span>
-                </button>
-                <button
-                  style={{
-                    color: "#1b1724",
-                    transform: "skew(-10deg)",
-                    width: "6rem",
-                    marginBottom: "0.5rem",
-                  }}
-                  className="shimmer-button"
-                  data-shimmer-index="3"
-                >
-                  Redeem<span className="shimmer"></span>
-                </button>
-              </VStack>
-
-              {/* Home Button with updated shadow styling */}
+              {/* System Controls */}
               <Box
-                as="button"
-                mt="1rem"
-                width="50px"
-                height="50px"
-                borderRadius="50%"
-                background="rgba(0, 0, 0, 0.7)"
-                color="white"
-                fontSize="28px"
-                display="flex"
-                alignItems="center"
-                justifyContent="center"
-                onClick={() => router.push("/home")}
-                transition="all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55)"
-                _hover={{
-                  background: "rgba(0, 0, 0, 0.9)",
-                  transform: "scale(1.1)",
-                }}
-                _active={{
-                  transform: "scale(0.95)",
-                }}
-                cursor="pointer"
-                sx={{
-                  "@keyframes springIn": {
-                    "0%": { transform: "scale(0)" },
-                    "60%": { transform: "scale(1.1)" },
-                    "80%": { transform: "scale(0.95)" },
-                    "100%": { transform: "scale(1)" },
-                  },
-                  animation: "springIn 0.5s ease-out forwards",
-                  position: "relative",
-                  boxShadow:
-                    "0 0 5px #fff, 0 0 10px #fff, 0 0 15px #8e662b, 0 0 20px turquoise, 0 0 25px turquoise, 2px 2px 3px rgba(0, 0, 0, 0.5)",
-                  "&::before": {
-                    content: '""',
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    width: "100%",
-                    height: "100%",
-                    borderRadius: "50%",
-                    backgroundColor: "#24252c",
-                    backgroundImage:
-                      "repeating-linear-gradient(0deg, #181a29, #181a29 1px, #202436 1px, #202436 2px)",
-                    zIndex: -1,
-                  },
-                  "&:hover::before": {
-                    backgroundColor: "#9400D3",
-                    backgroundImage:
-                      "repeating-linear-gradient(45deg, #9400D3, #FF69B4 10px, #9400D3 20px)",
-                  },
-                  "&:hover": {
-                    boxShadow:
-                      "0 0 10px #fff, 0 0 15px #fff, 0 0 20px #8e662b, 0 0 25px turquoise, 0 0 30px turquoise, 3px 3px 5px rgba(0, 0, 0, 0.7)",
-                  },
-                }}
+                bg="gray.800"
+                p="4"
+                rounded="md"
+                border="1px"
+                borderColor="gray.700"
+                width="100%"
               >
-                <span
-                  style={{
-                    fontSize: "1.75rem",
-                    // textShadow:
-                    //   "0 0 5px #fff, 0 0 10px #fff, 0 0 15px #8e662b, 0 0 20px turquoise, 0 0 25px turquoise, 2px 2px 3px rgba(0, 0, 0, 0.5)",
-                  }}
-                >
-                  🚪
-                </span>
+                <Flex justify="space-between" align="center" mb="4">
+                  <Text
+                    fontFamily="mono"
+                    fontSize="sm"
+                    color={is80sMode ? "pink.300" : "gray.400"}
+                  >
+                    80&apos;S MODE
+                  </Text>
+                  <Switch
+                    isChecked={is80sMode}
+                    onChange={handle80sModeToggle}
+                    sx={{
+                      "& .chakra-switch__track": {
+                        background: is80sMode ? "#ff71ce" : "#8e662b",
+                        boxShadow: is80sMode ? "0 0 10px #ff71ce" : "none",
+                      },
+                      "& .chakra-switch__thumb": {
+                        background: "white",
+                      },
+                    }}
+                  />
+                </Flex>
+
+                <Flex justify="space-between" align="center">
+                  <Text
+                    fontFamily="mono"
+                    fontSize="sm"
+                    color={monsterMode ? "cyan.300" : "gray.400"}
+                  >
+                    MISSION MODE
+                  </Text>
+                  <Switch
+                    isChecked={monsterMode}
+                    onChange={handleMonsterModeToggle}
+                    sx={{
+                      "& .chakra-switch__track": {
+                        background: monsterMode ? "#01cdfe" : "#8e662b",
+                        boxShadow: monsterMode ? "0 0 10px #01cdfe" : "none",
+                      },
+                      "& .chakra-switch__thumb": {
+                        background: "white",
+                      },
+                    }}
+                  />
+                </Flex>
               </Box>
+
+              {/* Leaderboard Display */}
+              <Box
+                bg="black"
+                rounded="md"
+                border="2px"
+                borderColor="gray.700"
+                p="3"
+                width="100%"
+                fontFamily="mono"
+                color="green.500"
+                fontSize="sm"
+              >
+                <Text
+                  textAlign="center"
+                  borderBottom="1px"
+                  borderColor="green.800"
+                  pb="1"
+                  mb="2"
+                  fontSize="xs"
+                >
+                  MISSION LEADERBOARD
+                </Text>
+
+                <Flex
+                  justify="space-between"
+                  fontSize="xs"
+                  mb="1"
+                  borderBottom="1px"
+                  borderColor="gray.800"
+                  pb="1"
+                >
+                  <Text>ASTRONAUT</Text>
+                  <Text>SCORE</Text>
+                </Flex>
+
+                <Box maxH="120px" overflowY="auto">
+                  {leaderboardData.map((entry, index) => (
+                    <Flex
+                      key={index}
+                      justify="space-between"
+                      py="1"
+                      color={index === 0 ? "yellow.400" : "inherit"}
+                      fontWeight={index === 0 ? "bold" : "normal"}
+                    >
+                      <Text>{entry.name}</Text>
+                      <Text>{entry.score}</Text>
+                    </Flex>
+                  ))}
+                </Box>
+
+                <Text
+                  mt="2"
+                  fontSize="xs"
+                  textAlign="center"
+                  color="blue.400"
+                  animation="pulse 2s infinite"
+                >
+                  TRANSMISSION LIVE
+                </Text>
+              </Box>
+
+              {/* Status Footer */}
+              <Flex width="100%" justify="space-between" mt="2">
+                <Flex align="center">
+                  <Box
+                    w="3"
+                    h="3"
+                    rounded="full"
+                    mr="2"
+                    bg={is80sMode || monsterMode ? "green.500" : "red.500"}
+                  />
+                  <Text fontSize="xs" fontFamily="mono">
+                    STATUS
+                  </Text>
+                </Flex>
+                <Text fontSize="xs" fontFamily="mono" color="gray.500">
+                  MCP v1.0
+                </Text>
+              </Flex>
             </VStack>
           </DrawerBody>
         </DrawerContent>

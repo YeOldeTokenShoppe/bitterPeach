@@ -8,7 +8,7 @@ function Communion({ setCommunionLoaded }) {
 
   const icons = useMemo(
     () => [
-      { src: "/3D_spotify.png", alt: "Spotify" },
+      { src: "/3d_spotify.png", alt: "Spotify" },
       { src: "/3D_tiktok.png", alt: "Tiktok" },
       { src: "/3d_discord.png", alt: "Discord" },
       { src: "/3d_X.png", alt: "X" },
