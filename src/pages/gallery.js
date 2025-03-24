@@ -25,6 +25,62 @@ const MusicPlayer3 = dynamic(() => import("../components/MusicPlayer3"), {
 //   ssr: false,
 // });
 
+const ClientOnlyMusicPlayer = ({
+  is80sMode,
+  showSpotify,
+  setShowSpotify,
+  isMobileView,
+}) => {
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  if (!isMounted) return null;
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        bottom: isMobileView ? "60px" : "3rem",
+        left: isMobileView ? "20%" : "0",
+        transform: isMobileView
+          ? "translate(-50%, 0) scale(0.5)"
+          : "scale(0.6)",
+        zIndex: 1000,
+        borderRadius: "12px",
+        boxShadow: "0 4px 30px rgba(0, 0, 0, 0.3)",
+        opacity: 1,
+        transition: "all 0.3s ease",
+        pointerEvents: "auto",
+        cursor: "move",
+      }}
+    >
+      <Suspense fallback={<div>Loading music player...</div>}>
+        {is80sMode ? (
+          <MusicPlayer3
+            isVisible={showSpotify}
+            onClose={() => setShowSpotify(false)}
+            autoPlay={true}
+          />
+        ) : (
+          <MusicPlayer2
+            isVisible={showSpotify}
+            onClose={() => setShowSpotify(false)}
+            autoPlay={false}
+          />
+        )}
+      </Suspense>
+    </div>
+  );
+};
+
+const BurnGalleryClient = dynamic(() => import("../components/BurnGallery"), {
+  ssr: false,
+  loading: () => <Loader />,
+});
+
 export default function GalleryPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [componentsLoaded, setComponentsLoaded] = useState({
@@ -32,17 +88,18 @@ export default function GalleryPage() {
     threeDScene: false,
   });
   // Initialize showSpotify based on screen size
-  const [showSpotify, setShowSpotify] = useState(() => {
-    // Only run this during client-side rendering
-    if (typeof window !== "undefined") {
-      return window.innerWidth > 768; // true for desktop, false for mobile
-    }
-    return false; // default for server-side rendering
-  });
+  const [showSpotify, setShowSpotify] = useState(false); // Start with false for SSR
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [is80sMode, setIs80sMode] = useState(false);
   const [shouldRenderGallery, setShouldRenderGallery] = useState(false);
   const [isMobileView, setIsMobileView] = useState(false);
+
+  // Move the window check to useEffect
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setShowSpotify(window.innerWidth > 768);
+    }
+  }, []);
 
   // Modify the mobile detection useEffect
   useEffect(() => {
@@ -149,128 +206,61 @@ export default function GalleryPage() {
   }, [showSpotify]);
 
   return (
-    <>
+    <div
+      style={{
+        backgroundColor: "#000000",
+        minHeight: "100vh",
+        width: "100vw",
+        maxWidth: "100%",
+        margin: 0,
+        padding: 0,
+        position: "fixed",
+        left: 0,
+        top: 0,
+        right: 0,
+        bottom: 0,
+        overflow: "auto",
+      }}
+    >
+      {/* Loader */}
+      {isLoading && <Loader />}
+
+      {/* Main content */}
       <div
         style={{
-          backgroundColor: "#000000",
-          minHeight: "100vh",
-          width: "100vw",
-          maxWidth: "100%",
-          margin: 0,
-          padding: 0,
-          position: "fixed",
-          left: 0,
-          top: 0,
-          right: 0,
-          bottom: 0,
-          overflow: "auto",
+          opacity: isLoading ? 0 : 1,
+          transition: "opacity 0.5s ease-in-out",
+          position: "relative",
+          zIndex: 1,
         }}
       >
-        {isLoading && <Loader />}
-        <div
-          style={{
-            opacity: isLoading ? 0 : 1,
-            transition: "opacity 0.5s ease-in-out",
-            position: "relative",
-            zIndex: 1,
-          }}
-        >
-          {shouldRenderGallery && (
-            <BurnGallery
-              setComponentLoaded={(status) =>
-                handleComponentLoad("burnGallery", status)
-              }
-              setThreeDSceneLoaded={(status) =>
-                handleComponentLoad("threeDScene", status)
-              }
-              setShowSpotify={setShowSpotify}
-              showSpotify={showSpotify}
-              isModalOpen={isModalOpen}
-              setIsModalOpen={setIsModalOpen}
-              is80sMode={is80sMode}
-              toggle80sMode={toggle80sMode}
-            />
-          )}
+        {shouldRenderGallery && (
+          <BurnGalleryClient
+            setComponentLoaded={(status) =>
+              handleComponentLoad("burnGallery", status)
+            }
+            setThreeDSceneLoaded={(status) =>
+              handleComponentLoad("threeDScene", status)
+            }
+            setShowSpotify={setShowSpotify}
+            showSpotify={showSpotify}
+            isModalOpen={isModalOpen}
+            setIsModalOpen={setIsModalOpen}
+            is80sMode={is80sMode}
+            toggle80sMode={toggle80sMode}
+          />
+        )}
 
-          {/* {isModalOpen && (
-            <>
-              <div
-                // className="fixed inset-0 bg-black bg-opacity-50"
-                onClick={() => setIsModalOpen(false)}
-                style={{ zIndex: 9998 }}
-              />
-              <div
-                style={{
-                  position: "fixed",
-                  top: "50%",
-                  left: "50%",
-                  transform: "translate(-50%, -50%)",
-                  width: "400px", // Smaller width to clip sides
-                  height: "370px",
-                  zIndex: 9999,
-                  backgroundColor: "#000000",
-                  borderRadius: "12px",
-                  overflow: "hidden",
-                  border: "2px goldenrod solid",
-                }}
-              >
-                <button
-                  onClick={() => setIsModalOpen(false)}
-                  className="absolute top-2 right-2 text-white hover:text-gray-300 transition-colors"
-                  style={{
-                    position: "absolute",
-                    top: "8px",
-                    right: "8px",
-                    zIndex: 1,
-                    background: "transparent",
-                    border: "none",
-                    padding: "4px",
-                  }}
-                >
-                  <X size={24} />
-                </button>
-              </div>
-            </>
-          )} */}
-
-          {/* Music Player with proper conditional rendering */}
-          {showSpotify && (
-            <div
-              style={{
-                position: "absolute",
-                bottom: isMobileView ? "60px" : "3rem",
-                left: isMobileView ? "20%" : "0",
-                transform: isMobileView
-                  ? "translate(-50%, 0) scale(0.5)"
-                  : "scale(0.6)",
-                zIndex: 1000,
-                borderRadius: "12px",
-                boxShadow: "0 4px 30px rgba(0, 0, 0, 0.3)",
-                opacity: 1,
-                transition: "all 0.3s ease",
-                pointerEvents: "auto",
-                cursor: "move",
-              }}
-            >
-              <Suspense fallback={<div>Loading music player...</div>}>
-                {is80sMode ? (
-                  <MusicPlayer3
-                    isVisible={showSpotify}
-                    onClose={() => setShowSpotify(false)}
-                    autoPlay={true}
-                  />
-                ) : (
-                  <MusicPlayer2
-                    isVisible={showSpotify}
-                    onClose={() => setShowSpotify(false)}
-                    autoPlay={true}
-                  />
-                )}
-              </Suspense>
-            </div>
-          )}
-        </div>
+        {/* Music Player */}
+        {showSpotify && (
+          <ClientOnlyMusicPlayer
+            is80sMode={is80sMode}
+            showSpotify={showSpotify}
+            setShowSpotify={setShowSpotify}
+            isMobileView={isMobileView}
+          />
+        )}
       </div>
-    </>
+    </div>
   );
 }

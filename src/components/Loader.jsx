@@ -30,9 +30,6 @@ function Loader({ progress }) {
     }
   }, [progress]);
 
-  // Log current percentage for debugging
-  useEffect(() => {}, [loadingPercentage]);
-
   return (
     <div className={styles.loaderRoot}>
       <div className={styles.loaderWrapper}>
@@ -59,12 +56,20 @@ function Loader({ progress }) {
             <div className={styles.pl__shadow}></div>
           </div>
 
-          {/* Loading percentage display - now as a separate element */}
+          {/* Simple elegant loading display */}
           <div className={styles.loadingInfo}>
             <div className={styles.loadingMessage}>Loading...</div>
-            <div className={styles.progressBar}>
+
+            {/* Elegant numerical progress indicator */}
+            <div className={styles.numericalProgress}>
+              <span className={styles.numericalValue}>{loadingPercentage}</span>
+              <span className={styles.percentSymbol}>%</span>
+            </div>
+
+            {/* Simple line progress indicator */}
+            <div className={styles.lineProgress}>
               <div
-                className={styles.progressFill}
+                className={styles.lineProgressFill}
                 style={{ width: `${loadingPercentage}%` }}
               ></div>
             </div>

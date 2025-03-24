@@ -82,22 +82,172 @@
   margin: 0.2em 0;
 }
 
-.progressBar {
-  width: 12em; /* Slightly smaller width */
-  height: 0.4em; /* Thinner bar */
-  background-color: rgba(255, 255, 255, 0.15);
-  border-radius: 0.25em;
-  overflow: hidden;
-  box-shadow: 0 0 8px rgba(0, 0, 0, 0.5) inset, 0 0 2px rgba(255, 255, 255, 0.3);
+/* Replace the current progress bar styles with these new ones */
+
+.progressBarContainer {
+  width: 12em;
+  height: 2.5em;
+  position: relative;
+  margin-top: 0.5em;
+  perspective: 200px;
+  display: flex;
+  justify-content: center;
 }
 
-.progressFill {
+.candleProgress {
+  width: 3em;
   height: 100%;
-  background-color: #e1b67e;
-  background-image: linear-gradient(to right, #e1b67e, #f7d795, #e1b67e);
-  border-radius: 0.25em;
-  transition: width 0.3s ease-out;
-  box-shadow: 0 0 15px rgba(225, 182, 126, 0.9);
+  background: linear-gradient(180deg, #fff9ea 0%, #e1b67e 100%);
+  border-radius: 0.2em;
+  position: relative;
+  box-shadow: 0 0 15px rgba(225, 182, 126, 0.6);
+  transform-style: preserve-3d;
+  transform: rotateX(-10deg);
+  overflow: hidden;
+}
+
+.candleInner {
+  position: absolute;
+  width: 100%;
+  background: linear-gradient(180deg, #ff9d5c 0%, #ff7b00 100%);
+  bottom: 0;
+  border-radius: 0 0 0.2em 0.2em;
+  box-shadow: 0 0 10px rgba(255, 123, 0, 0.8);
+  transition: height 0.3s ease-out;
+}
+
+.wickContainer {
+  position: absolute;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  top: -0.6em;
+  z-index: 2;
+}
+
+.wick {
+  width: 0.2em;
+  height: 0.6em;
+  background-color: #333;
+  border-radius: 0.1em;
+  position: relative;
+}
+
+.flame {
+  position: absolute;
+  width: 0.8em;
+  height: 1.2em;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(255, 247, 130, 1) 0%,
+    rgba(255, 153, 0, 0.8) 60%,
+    rgba(255, 30, 0, 0) 100%
+  );
+  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+  top: -1.2em;
+  left: 50%;
+  transform: translateX(-50%);
+  filter: blur(0.05em);
+  animation: flicker 0.5s ease-in-out infinite alternate;
+  transform-origin: center bottom;
+}
+
+.reflection {
+  position: absolute;
+  width: 80%;
+  height: 0.4em;
+  background: rgba(255, 255, 255, 0.5);
+  bottom: 0.2em;
+  left: 10%;
+  border-radius: 50%;
+  filter: blur(0.05em);
+  opacity: 0.5;
+}
+
+.progressText {
+  position: absolute;
+  bottom: -1.8em;
+  font-family: "UnifrakturCook", "UnifrakturCook-Bold", serif;
+  color: #e1b67e;
+  font-size: 1.2em;
+  text-shadow: 0 0 8px rgba(225, 182, 126, 0.6);
+  white-space: nowrap;
+}
+
+.melting {
+  position: absolute;
+  bottom: -0.3em;
+  width: 3.5em;
+  height: 0.6em;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(225, 182, 126, 0.8) 0%,
+    rgba(225, 182, 126, 0) 70%
+  );
+  border-radius: 50%;
+  filter: blur(0.05em);
+  opacity: 0.8;
+  transform: scaleX(1.2);
+}
+
+@keyframes flicker {
+  0%,
+  100% {
+    transform: translateX(-50%) scale(1);
+    opacity: 1;
+  }
+  25% {
+    transform: translateX(-53%) scale(1.05, 0.9);
+    opacity: 0.9;
+  }
+  50% {
+    transform: translateX(-47%) scale(0.95, 1.1);
+    opacity: 1;
+  }
+  75% {
+    transform: translateX(-51%) scale(1.05, 0.9);
+    opacity: 0.9;
+  }
+}
+
+/* Add a subtle glow animation to the candle */
+@keyframes glow {
+  0%,
+  100% {
+    box-shadow: 0 0 15px rgba(225, 182, 126, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(255, 182, 126, 0.8);
+  }
+}
+
+/* Background glow effect for the ritual atmosphere */
+.ritualCircle {
+  position: absolute;
+  width: 150%;
+  height: 1em;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(225, 182, 126, 0.4) 0%,
+    rgba(225, 182, 126, 0) 70%
+  );
+  border-radius: 50%;
+  bottom: -1em;
+  filter: blur(0.1em);
+  z-index: -1;
+  animation: pulseGlow 3s ease-in-out infinite alternate;
+}
+
+@keyframes pulseGlow {
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.1);
+  }
 }
 
 /* Keep the rest of the coin animation styles as is */
@@ -364,4 +514,103 @@
     background-color: hsla(var(--hue), 90%, 10%, 0.5);
     transform: scale(1);
   }
+}
+
+/* Add these new styles for the numerical progress element */
+
+.numericalProgress {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  margin: 0.5em 0;
+  position: relative;
+}
+
+.numericalValue {
+  font-family: "UnifrakturCook", "UnifrakturCook-Bold", serif;
+  font-size: 3em;
+  color: #e1b67e;
+  text-shadow: 0 0 10px rgba(225, 182, 126, 0.4),
+    0 0 20px rgba(225, 182, 126, 0.2);
+  line-height: 1;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.percentSymbol {
+  font-family: "UnifrakturCook", "UnifrakturCook-Bold", serif;
+  font-size: 1.5em;
+  color: #e1b67e;
+  opacity: 0.7;
+  margin-left: 0.2em;
+  text-shadow: 0 0 8px rgba(225, 182, 126, 0.3);
+}
+
+.lineProgress {
+  width: 10em;
+  height: 0.15em;
+  background-color: rgba(225, 182, 126, 0.2);
+  border-radius: 0.075em;
+  overflow: hidden;
+  margin-top: 0.5em;
+  box-shadow: 0 0 5px rgba(225, 182, 126, 0.2), inset 0 0 3px rgba(0, 0, 0, 0.5);
+  position: relative;
+}
+
+.lineProgressFill {
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    rgba(225, 182, 126, 0.6) 0%,
+    rgba(225, 182, 126, 1) 50%,
+    rgba(225, 182, 126, 0.6) 100%
+  );
+  border-radius: 0.075em;
+  box-shadow: 0 0 8px rgba(225, 182, 126, 0.6);
+  transition: width 0.3s ease-out;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Add a subtle glow effect to the progress line */
+.lineProgressFill::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -50%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.2) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(300%);
+  }
+}
+
+/* Optional: Add this if you want the number to pulse subtly */
+@keyframes numberPulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.9;
+  }
+}
+
+.numericalValue {
+  animation: numberPulse 2s ease-in-out infinite;
 }

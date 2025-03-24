@@ -958,10 +958,6 @@ const SidePanel = ({
             MCP v1.0
           </Text>
         </Flex>
-        <h4 className="thelma1" style={{ fontSize: "2rem" }}>
-          The <br />
-          Moon Room
-        </h4>
       </Box>
 
       {/* Add Stake Modal */}

@@ -13,7 +13,6 @@ import {
   Environment,
   useTexture,
   Plane,
-  Stats,
 } from "@react-three/drei";
 import * as THREE from "three";
 import { useFirestoreResults } from "../../utilities/useFirestoreResults";
@@ -34,7 +33,6 @@ import {
 } from "firebase/firestore";
 import { db } from "../../utilities/firebaseClient";
 import { gsap } from "gsap";
-import FloatingCandleViewer from "./CandleInteraction";
 
 // Configure draco loader for useGLTF
 useGLTF.preload("/altar88.glb");
@@ -114,7 +112,39 @@ function Model({
   const [topBurners, setTopBurners] = useState([]);
   const [recentUsers, setRecentUsers] = useState([]);
 
-  const [debugMode, setDebugMode] = useState(false);
+  // Add this at the top of your component to create a texture cache
+  const textureCache = useRef(new Map());
+
+  // Add this at the top of your component to enable memory tracking
+  useEffect(() => {
+    const checkMemoryUsage = () => {
+      // Report memory usage if available in the browser
+      if (window.performance && window.performance.memory) {
+        console.log("Memory usage:", {
+          total:
+            Math.round(
+              window.performance.memory.totalJSHeapSize / (1024 * 1024)
+            ) + "MB",
+          used:
+            Math.round(
+              window.performance.memory.usedJSHeapSize / (1024 * 1024)
+            ) + "MB",
+          limit:
+            Math.round(
+              window.performance.memory.jsHeapSizeLimit / (1024 * 1024)
+            ) + "MB",
+        });
+      }
+
+      // Check texture cache size
+      console.log(`Texture cache size: ${textureCache.current.size} textures`);
+    };
+
+    // Check memory every 5 seconds
+    const memoryTimer = setInterval(checkMemoryUsage, 5000);
+
+    return () => clearInterval(memoryTimer);
+  }, []);
 
   const handleFloorClick = useCallback(
     (event) => {
@@ -618,35 +648,82 @@ function Model({
 
     const textureLoader = new THREE.TextureLoader();
 
-    textureLoader.load(
-      user.image,
-      (texture) => {
+    // Create a low-resolution texture loader helper
+    const loadLowResTexture = (url, onLoad) => {
+      // Check cache first
+      if (textureCache.current.has(url)) {
+        console.log("Using cached texture for:", url);
+        onLoad(textureCache.current.get(url));
+        return;
+      }
+
+      // Create a canvas to resize the image
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+
+      // Set target dimensions - small size for candle labels
+      const targetWidth = 128; // Reduced resolution (adjust based on your needs)
+      const targetHeight = 128; // Maintain aspect ratio if needed
+
+      // Load the image first
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+
+      img.onload = () => {
+        // Resize using canvas
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
+
+        // Draw resized image on canvas
+        ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+
+        // Create texture from canvas
+        const texture = new THREE.CanvasTexture(canvas);
         texture.encoding = THREE.sRGBEncoding;
         texture.flipY = false;
         texture.needsUpdate = true;
 
-        // Apply to all found labels
-        labels.forEach((label) => {
-          if (label.material) {
-            // Dispose of any existing materials/textures
-            if (label.material.map) {
-              label.material.map.dispose();
-            }
-            label.material.dispose();
+        // Apply compression settings
+        texture.generateMipmaps = false;
+        texture.minFilter = THREE.LinearFilter;
+        texture.magFilter = THREE.LinearFilter;
 
-            // Create new material with the texture
-            label.material = new THREE.MeshStandardMaterial({
-              map: texture,
-              transparent: true,
-              side: THREE.DoubleSide,
-            });
-            label.material.needsUpdate = true;
+        // Store in cache
+        textureCache.current.set(url, texture);
+
+        // Call onLoad with the optimized texture
+        onLoad(texture);
+
+        // Clean up
+        // In a production environment, consider using a texture cache
+        // to avoid recreating textures for the same images
+      };
+
+      img.onerror = (error) => console.warn("🚨 Image load error:", error);
+      img.src = url;
+    };
+
+    // Use our low-res loader instead of direct loading
+    loadLowResTexture(user.image, (texture) => {
+      // Apply to all found labels
+      labels.forEach((label) => {
+        if (label.material) {
+          // Dispose of any existing materials/textures
+          if (label.material.map) {
+            label.material.map.dispose();
           }
-        });
-      },
-      undefined,
-      (error) => console.warn("🚨 Texture load error:", error)
-    );
+          label.material.dispose();
+
+          // Create new material with the texture
+          label.material = new THREE.MeshStandardMaterial({
+            map: texture,
+            transparent: true,
+            side: THREE.DoubleSide,
+          });
+          label.material.needsUpdate = true;
+        }
+      });
+    });
   };
 
   // Then modify the useEffect where we handle the candle assignments
@@ -845,73 +922,15 @@ function Model({
     [camera, modelRef, handleFloorClick, onCandleClick]
   );
 
-  // Add this function to analyze your scene
-  const analyzeScene = (scene) => {
-    let triangles = 0;
-    let geometries = 0;
-    let materials = new Set();
-    let textures = new Set();
-
-    scene.traverse((object) => {
-      if (object.isMesh) {
-        const geometry = object.geometry;
-        const material = object.material;
-
-        // Count triangles
-        if (geometry.index !== null) {
-          triangles += geometry.index.count / 3;
-        } else {
-          triangles += geometry.attributes.position.count / 3;
-        }
-
-        // Count geometries
-        geometries++;
-
-        // Track unique materials
-        if (Array.isArray(material)) {
-          material.forEach((mat) => materials.add(mat));
-        } else {
-          materials.add(material);
-        }
-
-        // Track textures
-        if (material.map) textures.add(material.map);
-        if (material.normalMap) textures.add(material.normalMap);
-        if (material.specularMap) textures.add(material.specularMap);
-        if (material.emissiveMap) textures.add(material.emissiveMap);
-      }
-    });
-
-    console.log("Scene Analysis:", {
-      triangles,
-      geometries,
-      uniqueMaterials: materials.size,
-      uniqueTextures: textures.size,
-      objects: scene.children.length,
-      totalObjects: (() => {
-        let count = 0;
-        scene.traverse(() => count++);
-        return count;
-      })(),
-    });
-  };
-
-  // Use it in your Model component
+  // Then add a cleanup effect to your component:
   useEffect(() => {
-    if (gltf.scene) {
-      analyzeScene(gltf.scene);
-    }
-  }, [gltf.scene]);
-
-  useEffect(() => {
-    const handleKeyPress = (event) => {
-      if (event.key === "d") {
-        setDebugMode((prev) => !prev);
-      }
+    return () => {
+      // Clean up texture cache on unmount
+      textureCache.current.forEach((texture) => {
+        texture.dispose();
+      });
+      textureCache.current.clear();
     };
-
-    window.addEventListener("keydown", handleKeyPress);
-    return () => window.removeEventListener("keydown", handleKeyPress);
   }, []);
 
   return (
@@ -926,13 +945,6 @@ function Model({
       />
       <primitive ref={candleModelRef} object={new THREE.Group()} />
       <DarkClouds />
-      {debugMode && (
-        <group>
-          <gridHelper />
-          <axesHelper scale={[5, 5, 5]} />
-          <Stats />
-        </group>
-      )}
     </>
   );
 }

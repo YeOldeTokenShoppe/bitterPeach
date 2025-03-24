@@ -1,5 +1,5 @@
-import React, { useRef, useEffect, useCallback } from "react";
-import { Canvas, useThree, useFrame } from "@react-three/fiber";
+import React, { useRef, useEffect } from "react";
+import { Canvas, useThree } from "@react-three/fiber";
 import { useGLTF, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 
@@ -109,93 +109,12 @@ function FloatingCandleViewer({ isVisible, onClose, userData }) {
 }
 
 function SceneContent({ userData }) {
-  console.log("SceneContent received full userData:", userData);
-
-  const { scene, animations } = useGLTF("/singleCandleAnimatedFlame1.glb");
+  const { scene, animations } = useGLTF("/singleCandleAnimatedFlame.glb");
   const candleRef = useRef();
   const controlsRef = useRef();
   const spotlightRef = useRef();
   const flamePointLightRef = useRef();
   const mixerRef = useRef(null);
-
-  // Add this to debug scene contents when it loads
-  useEffect(() => {
-    if (scene) {
-      console.log(
-        "Scene contents:",
-        scene.children.map((child) => ({
-          name: child.name,
-          type: child.type,
-          children: child.children?.map((c) => c.name),
-        }))
-      );
-    }
-  }, [scene]);
-
-  useEffect(() => {
-    if (!scene || !userData) return;
-
-    // Find Label2 for the image
-    let label2 = null;
-    scene.traverse((child) => {
-      if (child.name === "Label2") {
-        // Exact match
-        label2 = child;
-        console.log("Found Label2:", child);
-      }
-    });
-
-    if (!label2) {
-      console.warn("Label2 not found in scene");
-      return;
-    }
-
-    // Get the image URL
-    const imageUrl = userData.image;
-    console.log("Attempting to use image URL:", imageUrl);
-
-    if (imageUrl) {
-      const textureLoader = new THREE.TextureLoader();
-      textureLoader.load(
-        imageUrl,
-        (texture) => {
-          console.log("✅ Texture loaded successfully");
-          texture.encoding = THREE.sRGBEncoding;
-          texture.flipY = false;
-          texture.needsUpdate = true;
-
-          const material = new THREE.MeshStandardMaterial({
-            map: texture,
-            transparent: true,
-            side: THREE.DoubleSide,
-            emissive: new THREE.Color(0xffffff),
-            emissiveIntensity: 0.5,
-            emissiveMap: texture,
-            metalness: 0.3,
-            roughness: 0.2,
-          });
-
-          if (label2.material) {
-            if (label2.material.map) {
-              label2.material.map.dispose();
-            }
-            label2.material.dispose();
-          }
-
-          label2.material = material;
-          label2.material.needsUpdate = true;
-          label2.visible = true;
-
-          console.log("✅ Material applied to Label2");
-        },
-        undefined,
-        (error) =>
-          console.error("🚨 Error loading texture:", error, "URL:", imageUrl)
-      );
-    } else {
-      console.warn("No image URL provided in userData");
-    }
-  }, [scene, userData]);
 
   const applyUserImageToLabel = (scene, imageUrl) => {
     if (!scene || !imageUrl) return;
@@ -211,37 +130,89 @@ function SceneContent({ userData }) {
     if (labelMesh) {
       const textureLoader = new THREE.TextureLoader();
 
-      textureLoader.load(
-        imageUrl,
-        (texture) => {
-          const material = new THREE.MeshStandardMaterial({
-            map: texture,
-            transparent: true,
-            side: THREE.DoubleSide,
-            emissive: new THREE.Color(0xffffff),
-            emissiveIntensity: 0.5,
-            emissiveMap: texture,
-            metalness: 0.3,
-            roughness: 0.2,
-          });
+      // For the closeup viewer, we can use a higher resolution but still apply
+      // some optimization techniques to prevent excessive memory usage
+      const loadOptimizedTexture = (url, onLoad) => {
+        // Create a canvas for image processing
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
 
-          texture.encoding = THREE.sRGBEncoding;
-          texture.flipY = false;
-          texture.needsUpdate = true;
+        // Higher resolution for detail view - 512px is a good balance
+        const targetWidth = 512; // Higher resolution for close-up
+        const targetHeight = 512;
 
-          if (labelMesh.material) {
-            if (labelMesh.material.map) {
-              labelMesh.material.map.dispose();
-            }
-            labelMesh.material.dispose();
+        // Load the image
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+
+        img.onload = () => {
+          // Calculate aspect ratio to maintain proportions
+          const aspectRatio = img.width / img.height;
+          let drawWidth = targetWidth;
+          let drawHeight = targetHeight;
+
+          // Adjust dimensions to maintain aspect ratio
+          if (aspectRatio > 1) {
+            // Landscape image
+            drawHeight = targetWidth / aspectRatio;
+          } else {
+            // Portrait or square image
+            drawWidth = targetHeight * aspectRatio;
           }
 
-          labelMesh.material = material;
-          labelMesh.material.needsUpdate = true;
-        },
-        undefined,
-        (error) => console.error("Error loading texture:", error)
-      );
+          // Resize using canvas
+          canvas.width = targetWidth;
+          canvas.height = targetHeight;
+
+          // Center the image on the canvas
+          const offsetX = (targetWidth - drawWidth) / 2;
+          const offsetY = (targetHeight - drawHeight) / 2;
+
+          // Draw with proper centering
+          ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
+
+          // Create texture from canvas
+          const texture = new THREE.CanvasTexture(canvas);
+          texture.encoding = THREE.sRGBEncoding;
+          texture.flipY = false;
+
+          // For the detail view, we DO want mipmaps for smooth viewing at different distances
+          texture.generateMipmaps = true;
+          texture.anisotropy = 4; // Medium anisotropy for better quality without excessive memory
+          texture.needsUpdate = true;
+
+          // Call the callback with the optimized texture
+          onLoad(texture);
+        };
+
+        img.onerror = (error) =>
+          console.warn("🚨 Detail view image load error:", error);
+        img.src = url;
+      };
+
+      // Use our optimized loader for the closeup view
+      loadOptimizedTexture(imageUrl, (texture) => {
+        const material = new THREE.MeshStandardMaterial({
+          map: texture,
+          transparent: true,
+          side: THREE.DoubleSide,
+          emissive: new THREE.Color(0xffffff),
+          emissiveIntensity: 0.5,
+          emissiveMap: texture,
+          metalness: 0.3,
+          roughness: 0.2,
+        });
+
+        if (labelMesh.material) {
+          if (labelMesh.material.map) {
+            labelMesh.material.map.dispose();
+          }
+          labelMesh.material.dispose();
+        }
+
+        labelMesh.material = material;
+        labelMesh.material.needsUpdate = true;
+      });
     }
   };
 
@@ -453,17 +424,8 @@ function SceneContent({ userData }) {
       controlsRef.current.update();
     }
 
-    // Log the userData at the start of the effect
-    console.log("useEffect triggered with userData:", userData);
-
-    // Make sure we're getting the image URL
-    const imageUrl = userData.image || userData.imageUrl;
-    console.log("Image URL to be used:", imageUrl);
-
-    if (imageUrl) {
-      applyUserImageToLabel(scene, imageUrl);
-    } else {
-      console.warn("No image URL found in userData");
+    if (userData?.image) {
+      applyUserImageToLabel(scene, userData.image);
     }
 
     applyDynamicTextToLabel(scene, userData);
@@ -614,6 +576,6 @@ function SceneContent({ userData }) {
   );
 }
 
-useGLTF.preload("/singleCandleAnimatedFlame1.glb");
+useGLTF.preload("/singleCandleAnimatedFlame.glb");
 
 export default FloatingCandleViewer;

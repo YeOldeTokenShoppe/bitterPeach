@@ -373,28 +373,47 @@ const MusicPlayer = ({ isVisible, onClose, autoPlay = true }) => {
     ? "fa-solid fa-pause"
     : "fa-solid fa-play";
 
+  // Toggle play/pause when the component is clicked
+  const handleClick = () => {
+    playPause();
+  };
+
   return (
-    <div className="music-player">
-      {!trackUrl ? (
-        <div style={{ textAlign: "center", padding: "20px" }}>
-          Loading audio file...
-        </div>
-      ) : (
-        <div id="app-cover">
-          <div id="player">
-            <div id="album-art" className={`${isPlaying ? "rotate" : ""}`}>
-              <img
-                src="/virginRecords.jpg"
-                className="active"
-                alt="Album Art"
-              />
+    <div
+      className="music-player"
+      onClick={handleClick}
+      style={{ cursor: "pointer" }}
+    >
+      <div id="app-cover">
+        <div id="player">
+          <div id="album-art" className={`${isPlaying ? "rotate" : ""}`}>
+            <img src="/virginRecords.jpg" className="active" alt="Album Art" />
+            {/* Simple text-based overlay indicator */}
+            <div
+              style={{
+                position: "absolute",
+                bottom: "0",
+                left: "50%",
+                transform: "translateX(-50%)",
+                width: "3rem",
+                height: "3rem",
+                borderRadius: "50%",
+                // backgroundColor: "rgba(0,0,0,0.7)",
+                fontSize: "1.5rem",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "white",
+
+                fontWeight: "bold",
+                zIndex: 1000,
+              }}
+            >
+              {isPlaying ? "❚❚" : "▶"}
             </div>
           </div>
         </div>
-      )}
-      {/* <div className="text-xs text-gray-400 mt-2 text-center">
-        Playing in {networkQuality} quality
-      </div> */}
+      </div>
     </div>
   );
 };
