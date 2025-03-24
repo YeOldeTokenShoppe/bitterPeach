@@ -16,7 +16,7 @@ GLTFLoader.prototype.setDRACOLoader(dracoLoader);
 
 function GothicScene({
   scale = 0.3,
-  modelRef = useRef(),
+  modelRef,
   rotation = [0, 0, 0],
   setIsModelLoaded,
   lightIntensity = 1.2,
@@ -62,6 +62,11 @@ function GothicScene({
     },
   ],
 }) {
+  // Create a default ref if one isn't provided
+  const internalModelRef = useRef();
+  // Use the provided ref or fall back to the internal one
+  const actualModelRef = modelRef || internalModelRef;
+
   const [modelUrl, setModelUrl] = useState("/mainGothic4.glb"); // Default fallback
   const { progress } = useProgress(); // Track loading progress
   const gltf = useGLTF(modelUrl, true); // Enable caching
@@ -120,19 +125,19 @@ function GothicScene({
 
   // Compute bounding box and center the model
   useEffect(() => {
-    if (!modelRef.current) return;
+    if (!actualModelRef.current) return;
 
-    boundingBoxRef.current.setFromObject(modelRef.current);
+    boundingBoxRef.current.setFromObject(actualModelRef.current);
     const center = new THREE.Vector3();
     boundingBoxRef.current.getCenter(center);
-    modelRef.current.position.sub(center);
+    actualModelRef.current.position.sub(center);
 
     // Log model dimensions for debugging
     const size = new THREE.Vector3();
     boundingBoxRef.current.getSize(size);
     console.log("Gothic model dimensions:", size);
     console.log("Gothic model center:", center);
-  }, [gltf.scene]);
+  }, [gltf.scene, actualModelRef]);
 
   // Add lights
   useEffect(() => {
@@ -196,7 +201,7 @@ function GothicScene({
   return (
     <>
       <primitive
-        ref={modelRef}
+        ref={actualModelRef}
         object={gltf.scene}
         scale={[scale, scale, scale]}
         rotation={rotation}

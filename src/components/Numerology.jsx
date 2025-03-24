@@ -161,8 +161,6 @@ const useFetchPriceChange = (tokenSymbol, contractAddress) => {
   return priceChange;
 };
 
-
-
 const Numerology = ({ setNumerologyLoaded }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [dexdata, setDexdata] = useState({});
@@ -804,7 +802,9 @@ const Numerology = ({ setNumerologyLoaded }) => {
             </Box>
           </Flex>
         </Box>
-
+      ) : (
+        <p>Loading...</p>
+      )}
     </>
   );
 };

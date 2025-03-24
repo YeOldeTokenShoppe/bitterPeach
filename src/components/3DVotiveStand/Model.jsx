@@ -422,7 +422,7 @@ function Model({
     boundingBoxRef.current.getCenter(center);
     modelRef.current.position.sub(center);
     setModelCenter(center);
-  }, [gltf.scene]);
+  }, [gltf.scene, modelRef, setModelCenter]);
 
   // Modify the lighting setup to ensure proper values
   useEffect(() => {
@@ -925,11 +925,14 @@ function Model({
   // Then add a cleanup effect to your component:
   useEffect(() => {
     return () => {
-      // Clean up texture cache on unmount
-      textureCache.current.forEach((texture) => {
-        texture.dispose();
-      });
-      textureCache.current.clear();
+      // Fix the ref cleanup
+      const currentTextureCache = textureCache.current;
+      if (currentTextureCache) {
+        currentTextureCache.forEach((texture) => {
+          texture.dispose();
+        });
+        currentTextureCache.clear();
+      }
     };
   }, []);
 
