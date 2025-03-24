@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "DISABLE_ESLINT_PLUGIN=true next build",
     "start": "next start",
     "lint": "next lint"
   },
@@ -12,8 +12,7 @@
     "@chakra-ui/icons": "^2.1.1",
     "@chakra-ui/next-js": "^2.2.0",
     "@chakra-ui/react": "^2.8.2",
-    "@clerk/nextjs": "^6.6.0",
-    "@clerk/themes": "^2.1.50",
+    "@clerk/nextjs": "^6.12.8",
     "@emotion/react": "^11.13.5",
     "@emotion/styled": "^11.13.5",
     "@ffmpeg/ffmpeg": "^0.12.15",
@@ -23,7 +22,6 @@
     "@react-three/postprocessing": "^2.19.1",
     "@react-three/rapier": "^1.5.0",
     "@types/three": "^0.170.0",
-    "autoprefixer": "^10.4.20",
     "axios": "^1.7.8",
     "cannon-es": "^0.20.0",
     "class-variance-authority": "^0.7.1",
@@ -38,17 +36,15 @@
     "lucide-react": "^0.468.0",
     "maath": "^0.10.8",
     "matter-js": "^0.20.0",
-    "next": "^15.1.7",
+    "next": "^15.2.3",
     "next-themes": "^0.4.4",
     "pako": "^2.1.0",
-    "postcss": "^8.4.49",
     "postprocessing": "^6.36.7",
     "raw-loader": "^4.0.2",
     "react": "^18",
     "react-bootstrap": "^2.10.6",
     "react-burger-menu": "^3.1.0",
     "react-dom": "^18",
-    "react-draggable": "^4.4.6",
     "react-easy-crop": "^5.2.0",
     "react-error-boundary": "^5.0.0",
     "react-fast-marquee": "^1.6.5",
@@ -61,7 +57,7 @@
     "styled-components": "^6.1.13",
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
-    "thirdweb": "^5.61.6",
+    "thirdweb": "^5.93.3",
     "three": "^0.171.0",
     "wavesurfer.js": "^7.9.1",
     "wouter": "^3.6.0"
@@ -70,14 +66,20 @@
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
-    "autoprefixer": "^10.4.20",
-    "eslint": "^9.21.0",
-    "eslint-config-next": "^15.2.0",
+    "autoprefixer": "^10.4.21",
+    "eslint": "^8.57.0",
+    "eslint-config-next": "^14.2.6",
     "lil-gui": "^0.20.0",
-    "postcss": "^8.4.14",
+    "postcss": "^8.5.3",
     "r3f-perf": "^7.2.3",
     "string-replace-loader": "^3.1.0",
-    "tailwindcss": "^3.4.15",
+    "tailwindcss": "^3.4.17",
     "typescript": "^5"
+  },
+  "eslintConfig": {
+    "rules": {
+      "react-hooks/exhaustive-deps": "warn",
+      "no-unused-vars": "warn"
+    }
   }
 }

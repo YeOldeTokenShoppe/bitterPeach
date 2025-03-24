@@ -13,6 +13,7 @@ import {
   Environment,
   useTexture,
   Plane,
+  Stats,
 } from "@react-three/drei";
 import * as THREE from "three";
 import { useFirestoreResults } from "../../utilities/useFirestoreResults";
@@ -33,9 +34,10 @@ import {
 } from "firebase/firestore";
 import { db } from "../../utilities/firebaseClient";
 import { gsap } from "gsap";
+import FloatingCandleViewer from "./CandleInteraction";
 
 // Configure draco loader for useGLTF
-useGLTF.preload("/altar80.glb");
+useGLTF.preload("/altar88.glb");
 const dracoLoader = new DRACOLoader();
 dracoLoader.setDecoderPath("/draco/");
 // Set up GLTFLoader to use Draco compression
@@ -43,6 +45,8 @@ GLTFLoader.prototype.setDRACOLoader(dracoLoader);
 
 // Default profile image to use when user has no image
 const DEFAULT_PROFILE_IMAGE = "/defaultAvatar.png";
+const DEFAULT_VVV_IMAGE = "/vvv.jpg";
+const DEFAULT_CLOWN_IMAGE = "/vsClown.jpg";
 
 function Model({
   scale,
@@ -64,9 +68,10 @@ function Model({
 
   monsterMode,
   cameraControlsRef,
+  onCandleClick,
 }) {
   // STATE VARIABLES - consolidated in one place
-  const [modelUrl, setModelUrl] = useState("/altar80.glb");
+  const [modelUrl, setModelUrl] = useState("/altar88.glb");
   const { progress } = useProgress();
   const gltf = useGLTF(modelUrl, true);
   const { camera, scene } = useThree();
@@ -101,6 +106,15 @@ function Model({
 
   // Load candle model
   const candle = useGLTF("/XCandle1.glb");
+
+  // Add these to your existing state variables
+  const [showFloatingViewer, setShowFloatingViewer] = useState(false);
+
+  // Add these state variables to store the sorted users
+  const [topBurners, setTopBurners] = useState([]);
+  const [recentUsers, setRecentUsers] = useState([]);
+
+  const [debugMode, setDebugMode] = useState(false);
 
   const handleFloorClick = useCallback(
     (event) => {
@@ -591,6 +605,315 @@ function Model({
     });
   }, [is80sMode, gltf]);
 
+  // Add this function near your other helper functions
+  const applyUserImageToLabel = (candle, user) => {
+    if (!user?.image) return;
+
+    // Find both labels
+    const labels = candle.children.filter(
+      (child) => child.name.includes("Label1") || child.name.includes("Label2")
+    );
+
+    if (labels.length === 0) return;
+
+    const textureLoader = new THREE.TextureLoader();
+
+    textureLoader.load(
+      user.image,
+      (texture) => {
+        texture.encoding = THREE.sRGBEncoding;
+        texture.flipY = false;
+        texture.needsUpdate = true;
+
+        // Apply to all found labels
+        labels.forEach((label) => {
+          if (label.material) {
+            // Dispose of any existing materials/textures
+            if (label.material.map) {
+              label.material.map.dispose();
+            }
+            label.material.dispose();
+
+            // Create new material with the texture
+            label.material = new THREE.MeshStandardMaterial({
+              map: texture,
+              transparent: true,
+              side: THREE.DoubleSide,
+            });
+            label.material.needsUpdate = true;
+          }
+        });
+      },
+      undefined,
+      (error) => console.warn("🚨 Texture load error:", error)
+    );
+  };
+
+  // Then modify the useEffect where we handle the candle assignments
+  useEffect(() => {
+    if (!results || !gltf.scene) return;
+
+    console.log("Raw results from Firestore:", results);
+
+    // Create default users for when we don't have enough results
+    const createDefaultUser = (index) => ({
+      userName: `Default User ${index}`,
+      id: `default-${index}`,
+      burnedAmount: 0,
+      createdAt: new Date(),
+      image: index % 2 === 0 ? DEFAULT_VVV_IMAGE : DEFAULT_CLOWN_IMAGE,
+    });
+
+    // Sort and prepare the arrays
+    const sortedByBurnedAmount = [...(results || [])].sort(
+      (a, b) => b.burnedAmount - a.burnedAmount
+    );
+
+    const sortedByCreatedAt = [...(results || [])].sort((a, b) => {
+      const getDate = (timestamp) => {
+        if (!timestamp) return new Date(0);
+        if (timestamp.toDate) return timestamp.toDate();
+        if (timestamp instanceof Date) return timestamp;
+        if (typeof timestamp === "number") return new Date(timestamp);
+        if (typeof timestamp === "string") return new Date(timestamp);
+        return new Date(0);
+      };
+
+      const dateA = getDate(a.createdAt);
+      const dateB = getDate(b.createdAt);
+      return dateB - dateA;
+    });
+
+    // Get top 4 burners, fill with defaults if needed
+    let topBurnersArray = sortedByBurnedAmount.slice(0, 4);
+    while (topBurnersArray.length < 4) {
+      topBurnersArray.push(createDefaultUser(topBurnersArray.length));
+    }
+
+    // Get next 4 most recent users, excluding those already in topBurners
+    let recentUsersArray = sortedByCreatedAt
+      .filter(
+        (user) => !topBurnersArray.some((topUser) => topUser.id === user.id)
+      )
+      .slice(0, 4);
+
+    // Fill remaining slots with default users
+    while (recentUsersArray.length < 4) {
+      recentUsersArray.push(createDefaultUser(recentUsersArray.length + 4));
+    }
+
+    // Set the state variables
+    setTopBurners(topBurnersArray);
+    setRecentUsers(recentUsersArray);
+
+    // Apply the users to candles
+    topBurnersArray.forEach((user, index) => {
+      const candleName = `VCANDLE${String(index + 1).padStart(3, "0")}`;
+      const candle = gltf.scene.getObjectByName(candleName);
+      if (candle) {
+        console.log(`Applying user ${user.userName} to ${candleName}`, user);
+
+        candle.userData = {
+          ...candle.userData,
+          hasUser: true,
+          userName: user.userName,
+          userId: user.id,
+          burnedAmount: user.burnedAmount,
+          image: user.image,
+          message: user.message,
+          createdAt: user.createdAt,
+        };
+
+        // Apply the image to the candle's labels
+        applyUserImageToLabel(candle, user);
+      }
+    });
+
+    recentUsersArray.forEach((user, index) => {
+      const candleName = `VCANDLE${String(index + 5).padStart(3, "0")}`;
+      const candle = gltf.scene.getObjectByName(candleName);
+      if (candle) {
+        console.log(`Applying user ${user.userName} to ${candleName}`, user);
+
+        candle.userData = {
+          ...candle.userData,
+          hasUser: true,
+          userName: user.userName,
+          userId: user.id,
+          createdAt: user.createdAt,
+          image: user.image,
+          message: user.message,
+          burnedAmount: user.burnedAmount,
+        };
+
+        // Apply the image to the candle's labels
+        applyUserImageToLabel(candle, user);
+      }
+    });
+  }, [results, gltf.scene]);
+
+  // Add this effect near the other effects
+  useEffect(() => {
+    if (!gltf.scene) return;
+
+    // Debug all VCANDLEs and their labels
+    for (let i = 1; i <= 8; i++) {
+      const candleName = `VCANDLE${String(i).padStart(3, "0")}`;
+      const candle = gltf.scene.getObjectByName(candleName);
+
+      if (candle) {
+        console.log(`Initial state of ${candleName}:`, {
+          position: candle.position,
+          visible: candle.visible,
+          children: candle.children.map((child) => ({
+            name: child.name,
+            type: child.type,
+            visible: child.visible,
+            hasMaterial: !!child.material,
+            materialType: child.material?.type,
+          })),
+        });
+      }
+    }
+  }, [gltf.scene]);
+
+  // Modify the handleCandleClick function
+  const handleCandleClick = useCallback(
+    (event) => {
+      event.stopPropagation();
+
+      // Skip if it's a floor click
+      if (
+        event.object.name === "Floor" ||
+        event.object.name === "Floor2.002" ||
+        event.object.name.includes("Floor2")
+      ) {
+        handleFloorClick(event);
+        return;
+      }
+
+      const mouse = new THREE.Vector2(
+        (event.nativeEvent.offsetX / event.nativeEvent.target.clientWidth) * 2 -
+          1,
+        -(event.nativeEvent.offsetY / event.nativeEvent.target.clientHeight) *
+          2 +
+          1
+      );
+
+      const raycaster = new THREE.Raycaster();
+      raycaster.setFromCamera(mouse, camera);
+
+      // Find all VCANDLE objects and their children
+      const intersectableObjects = [];
+      if (modelRef.current) {
+        modelRef.current.traverse((object) => {
+          if (object.name.startsWith("VCANDLE")) {
+            intersectableObjects.push(object);
+            // Also include children for better click detection
+            object.children.forEach((child) => {
+              if (
+                child.name.includes("Label1") ||
+                child.name.includes("wax") ||
+                child.name.includes("glass")
+              ) {
+                intersectableObjects.push(child);
+              }
+            });
+          }
+        });
+      }
+
+      const intersects = raycaster.intersectObjects(intersectableObjects, true);
+      if (intersects.length > 0) {
+        let candleParent = intersects[0].object;
+        while (candleParent && !candleParent.name.startsWith("VCANDLE")) {
+          candleParent = candleParent.parent;
+        }
+
+        if (candleParent && candleParent.userData.hasUser) {
+          console.log("VCANDLE clicked:", candleParent.name);
+
+          // Call the onCandleClick prop with the candle data
+          onCandleClick({
+            ...candleParent.userData,
+            candleId: candleParent.name,
+            candleTimestamp: Date.now(),
+          });
+        }
+      }
+    },
+    [camera, modelRef, handleFloorClick, onCandleClick]
+  );
+
+  // Add this function to analyze your scene
+  const analyzeScene = (scene) => {
+    let triangles = 0;
+    let geometries = 0;
+    let materials = new Set();
+    let textures = new Set();
+
+    scene.traverse((object) => {
+      if (object.isMesh) {
+        const geometry = object.geometry;
+        const material = object.material;
+
+        // Count triangles
+        if (geometry.index !== null) {
+          triangles += geometry.index.count / 3;
+        } else {
+          triangles += geometry.attributes.position.count / 3;
+        }
+
+        // Count geometries
+        geometries++;
+
+        // Track unique materials
+        if (Array.isArray(material)) {
+          material.forEach((mat) => materials.add(mat));
+        } else {
+          materials.add(material);
+        }
+
+        // Track textures
+        if (material.map) textures.add(material.map);
+        if (material.normalMap) textures.add(material.normalMap);
+        if (material.specularMap) textures.add(material.specularMap);
+        if (material.emissiveMap) textures.add(material.emissiveMap);
+      }
+    });
+
+    console.log("Scene Analysis:", {
+      triangles,
+      geometries,
+      uniqueMaterials: materials.size,
+      uniqueTextures: textures.size,
+      objects: scene.children.length,
+      totalObjects: (() => {
+        let count = 0;
+        scene.traverse(() => count++);
+        return count;
+      })(),
+    });
+  };
+
+  // Use it in your Model component
+  useEffect(() => {
+    if (gltf.scene) {
+      analyzeScene(gltf.scene);
+    }
+  }, [gltf.scene]);
+
+  useEffect(() => {
+    const handleKeyPress = (event) => {
+      if (event.key === "d") {
+        setDebugMode((prev) => !prev);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyPress);
+    return () => window.removeEventListener("keydown", handleKeyPress);
+  }, []);
+
   return (
     <>
       <primitive
@@ -599,26 +922,23 @@ function Model({
         scale={[scale, scale, scale]}
         position={[0, -20, 0]}
         rotation={rotation}
-        onClick={(event) => {
-          // Check if we clicked on a floor object
-          if (
-            event.object.name === "Floor" ||
-            event.object.name === "Floor2.002" ||
-            event.object.name.includes("Floor2")
-          ) {
-            handleFloorClick(event);
-          }
-        }}
+        onClick={handleCandleClick}
       />
-      <primitive ref={candleModelRef} object={new THREE.Group()} />{" "}
-      {/* Placeholder for candle model */}
+      <primitive ref={candleModelRef} object={new THREE.Group()} />
       <DarkClouds />
+      {debugMode && (
+        <group>
+          <gridHelper />
+          <axesHelper scale={[5, 5, 5]} />
+          <Stats />
+        </group>
+      )}
     </>
   );
 }
 
 // Preload both models
-useGLTF.preload("/altar80.glb");
+useGLTF.preload("/altar88.glb");
 useGLTF.preload("/XCandle1.glb");
 
 export default Model;

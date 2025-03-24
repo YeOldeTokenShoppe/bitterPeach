@@ -9,6 +9,7 @@ import {
   FormControl,
   FormLabel,
   Grid,
+  Select,
 } from "@chakra-ui/react";
 import AnimatedRadioButtons from "./3DVotiveStand/CyberButtons";
 import Communion3 from "./Communion3";
@@ -35,6 +36,8 @@ import { baseSepolia, ethereum } from "thirdweb/chains";
 import { PayEmbed } from "thirdweb/react";
 import { client } from "../utilities/client";
 import { Stake } from "./3DVotiveStand/Stake";
+import dynamic from "next/dynamic";
+import Image from "next/image";
 
 const SidePanel = ({
   onButtonClick,
@@ -97,6 +100,11 @@ const SidePanel = ({
 
   // Update panel width based on screen size and orientation
   const [panelWidth, setPanelWidth] = useState("25%");
+
+  // Add state for video call functionality
+  const [activeCall, setActiveCall] = useState(false);
+  const [currentStation, setCurrentStation] = useState("LUNAR BASE ALPHA");
+  const [mounted, setMounted] = useState(false);
 
   // Detect touch devices
   useEffect(() => {
@@ -405,6 +413,16 @@ const SidePanel = ({
     toggleMonsterMode(); // Toggle monster mode
   };
 
+  // Toggle video call
+  const toggleCall = () => {
+    setActiveCall(!activeCall);
+  };
+
+  // Add useEffect for client-side rendering
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   return (
     <>
       {/* Always visible toggle button for touch devices */}
@@ -483,6 +501,10 @@ const SidePanel = ({
             transform: "translateX(100%)",
             transition: "transform 0.4s ease-out",
           },
+          "@keyframes fadeIn": {
+            "0%": { opacity: 0 },
+            "100%": { opacity: 0.4 },
+          },
         }}
       >
         {/* Mission Control Header */}
@@ -504,6 +526,216 @@ const SidePanel = ({
           <Text fontSize="xs" color="blue.400" fontFamily="mono">
             LUNAR OPERATIONS
           </Text>
+        </Box>
+
+        {/* Add Video Call Screen */}
+        <Box
+          mb="4"
+          bg="black"
+          rounded="md"
+          border="2px"
+          borderColor="gray.700"
+          overflow="hidden"
+        >
+          <Flex
+            bg="gray.800"
+            fontSize="xs"
+            fontFamily="mono"
+            p="1"
+            justify="space-between"
+            align="center"
+            borderBottom="1px"
+            borderColor="gray.700"
+          >
+            <Text>COMM LINK: {currentStation}</Text>
+            <Box
+              h="2"
+              w="2"
+              rounded="full"
+              bg={activeCall ? "red.500" : "gray.600"}
+              animation={activeCall ? "pulse 2s infinite" : "none"}
+            />
+          </Flex>
+
+          <Box h="32" position="relative">
+            {mounted && (
+              <>
+                {activeCall ? (
+                  <>
+                    <Flex
+                      position="absolute"
+                      inset="0"
+                      align="center"
+                      justify="center"
+                    >
+                      {/* Placeholder for station feed - could be replaced with actual feed */}
+                      <Box
+                        w="100%"
+                        h="100%"
+                        position="relative"
+                        overflow="hidden"
+                      >
+                        {/* This would be where you'd put a real video feed */}
+                        <Box
+                          w="100%"
+                          h="100%"
+                          bg="gray.800"
+                          opacity="0.6"
+                          display="flex"
+                          alignItems="center"
+                          justifyContent="center"
+                          fontSize="xs"
+                          color="gray.500"
+                          animation="fadeIn 0.5s ease-in"
+                        >
+                          STATION VIEW
+                        </Box>
+                      </Box>
+                    </Flex>
+                    <Box
+                      position="absolute"
+                      bottom="2"
+                      right="2"
+                      bg="gray.900"
+                      border="1px"
+                      borderColor="blue.500"
+                      p="1"
+                      rounded="sm"
+                    >
+                      {/* Placeholder for user feed */}
+                      <Box
+                        w="40px"
+                        h="30px"
+                        bg="gray.700"
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="center"
+                        fontSize="8px"
+                        color="gray.500"
+                      >
+                        YOU
+                      </Box>
+                    </Box>
+                    <Box
+                      position="absolute"
+                      top="0"
+                      left="0"
+                      w="full"
+                      h="full"
+                      bgGradient="linear(to-b, transparent, black)"
+                      opacity="0.4"
+                    />
+                    <Text
+                      position="absolute"
+                      bottom="2"
+                      left="2"
+                      color="green.500"
+                      fontSize="xs"
+                      fontFamily="mono"
+                      animation="pulse 2s infinite"
+                    >
+                      LIVE
+                    </Text>
+                  </>
+                ) : (
+                  <Flex
+                    h="full"
+                    align="center"
+                    justify="center"
+                    bg="gray.900"
+                    position="relative"
+                    overflow="hidden"
+                  >
+                    {/* Static noise video */}
+                    <Box
+                      as="video"
+                      position="absolute"
+                      top="0"
+                      left="0"
+                      width="100%"
+                      height="100%"
+                      objectFit="cover"
+                      opacity="0.4"
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
+                      src="/deadAir.mp4"
+                      animation="fadeIn 0.5s ease-in"
+                    />
+                    <Text
+                      color="gray.600"
+                      fontSize="sm"
+                      fontFamily="mono"
+                      zIndex="1"
+                    >
+                      NO SIGNAL
+                    </Text>
+                    <Box
+                      position="absolute"
+                      top="0"
+                      left="0"
+                      w="full"
+                      h="full"
+                      zIndex="1"
+                    >
+                      <Box
+                        w="full"
+                        h="1px"
+                        bg="gray.800"
+                        position="absolute"
+                        top="50%"
+                        left="0"
+                      />
+                      <Box
+                        h="full"
+                        w="1px"
+                        bg="gray.800"
+                        position="absolute"
+                        left="50%"
+                        top="0"
+                      />
+                    </Box>
+                  </Flex>
+                )}
+              </>
+            )}
+          </Box>
+
+          <Flex bg="gray.800" p="1" justify="space-between">
+            <Button
+              fontSize="xs"
+              fontFamily="mono"
+              px="2"
+              py="1"
+              rounded="md"
+              bg={activeCall ? "red.700" : "green.700"}
+              color="white"
+              _hover={{ bg: activeCall ? "red.600" : "green.600" }}
+              onClick={toggleCall}
+              size="xs"
+            >
+              {activeCall ? "END CALL" : "CONNECT"}
+            </Button>
+            <Select
+              bg="gray.900"
+              color="blue.300"
+              fontSize="xs"
+              fontFamily="mono"
+              borderColor="gray.700"
+              rounded="md"
+              value={currentStation}
+              onChange={(e) => setCurrentStation(e.target.value)}
+              isDisabled={activeCall}
+              size="xs"
+              width="auto"
+            >
+              <option>LUNAR BASE ALPHA</option>
+              <option>MARS OUTPOST</option>
+              <option>ORBITAL STATION</option>
+              <option>EARTH HQ</option>
+            </Select>
+          </Flex>
         </Box>
 
         {/* Button Grid */}
@@ -600,7 +832,8 @@ const SidePanel = ({
               fontSize="sm"
               color={is80sMode ? "pink.300" : "gray.400"}
             >
-              80&apos;S MODE
+              {/* 80&apos;S MODE */}
+              BTTF
             </Text>
             <Switch
               isChecked={is80sMode}
@@ -653,6 +886,8 @@ const SidePanel = ({
           color="green.500"
           fontSize="sm"
           overflow="hidden"
+          minH="180px"
+          maxH="200px"
         >
           <Text
             textAlign="center"
@@ -711,7 +946,9 @@ const SidePanel = ({
               h="3"
               rounded="full"
               mr="2"
-              bg={systemPower ? "green.500" : "red.500"}
+              bg={
+                activeCall || is80sMode || monsterMode ? "green.500" : "red.500"
+              }
             />
             <Text fontSize="xs" fontFamily="mono">
               STATUS
@@ -721,6 +958,10 @@ const SidePanel = ({
             MCP v1.0
           </Text>
         </Flex>
+        <h4 className="thelma1" style={{ fontSize: "2rem" }}>
+          The <br />
+          Moon Room
+        </h4>
       </Box>
 
       {/* Add Stake Modal */}

@@ -11,14 +11,14 @@ import "../../styles/wallpaper.css";
 import "../../styles/sg.css";
 import "../../styles/fireButton.css";
 import "../../styles/sparkle.css";
-// musicPlayer.css has been moved to globals.css
+import "../../styles/MusicPlayer.module.css";
 import "../../styles/coin.css";
 import "../../styles/NeonSign.css";
 import "../../styles/ScenePage.css";
-import type { AppProps } from "next/app";
-import { ThirdwebProvider } from "../utilities/thirdweb";
-import { ChakraProvider, extendTheme } from "@chakra-ui/react";
-import { ThemeProvider, useTheme } from "next-themes";
+import { ThirdwebProvider } from "thirdweb/react";
+import { sepolia } from "thirdweb/chains";
+import { ChakraProvider } from "@chakra-ui/react";
+import { ThemeProvider } from "next-themes";
 import { defaultTheme, galleryTheme, sceneTheme } from "../utilities/theme";
 import Head from "next/head";
 import { useRouter } from "next/router";
@@ -26,35 +26,18 @@ import Header from "../components/Header";
 import Header2 from "../components/Header2";
 import Header3 from "../components/Header3";
 import styles from "../../styles/MusicPlayer.module.css";
-import { Theme } from "@chakra-ui/react";
-import { ClerkProvider } from "@clerk/nextjs";
-import { shadesOfPurple } from "@clerk/themes";
 import { useEffect } from "react";
-
-type MyAppProps = AppProps & {
-  Component: AppProps["Component"] & {
-    theme?: string; // Add the `theme` property
-  };
-};
-
-function MyApp({ Component, pageProps }: MyAppProps) {
-  const router = useRouter();
-
+import { ClerkProvider } from "@clerk/nextjs";
+function MyApp({ Component, pageProps }) {
   useEffect(() => {
     // Ensure theme is forced to "dark"
     const html = document.documentElement;
     html.setAttribute("data-theme", "dark");
     html.style.colorScheme = "dark";
-
-    // Only set the default background color here if we're not on gallery or rocket page
-    const path = window.location.pathname;
-    if (path !== "/gallery" && path !== "/rocket") {
-      html.style.backgroundColor = "#1b1724";
-    } else {
-      html.style.backgroundColor = "#000000"; // Black for gallery and rocket
-    }
+    html.style.backgroundColor = "";
     // html.style.color = "white";
-  }, [router.pathname]); // Add router.pathname as dependency to re-run when route changes
+  }, []);
+  const router = useRouter();
 
   const isGalleryPage = router.pathname === "/gallery";
   const isIndexPage = router.pathname === "/";
@@ -81,8 +64,12 @@ function MyApp({ Component, pageProps }: MyAppProps) {
 
   return (
     <>
+      {/* Temporarily comment out Clerk to get the build passing */}
       <ClerkProvider>
-        <ThirdwebProvider>
+        <ThirdwebProvider
+          clientId={process.env.NEXT_PUBLIC_THIRDWEB_CLIENT_ID || ""}
+          activeChain={sepolia}
+        >
           <ChakraProvider theme={special}>
             <Head>
               {" "}
@@ -93,14 +80,13 @@ function MyApp({ Component, pageProps }: MyAppProps) {
                 isScenePage ? "scene-page" : ""
               }`.trim()} // Dynamically add class names
               style={{
-                backgroundColor:
-                  isGalleryPage || isRocketPage
-                    ? "#000000"
-                    : isScenePage
-                    ? "#0d0d0d"
-                    : "#1b1724", // Set explicit background colors here
-                width: "100%",
-                margin: "0",
+                backgroundColor: isGalleryPage
+                  ? ""
+                  : isScenePage
+                  ? "#0d0d0d"
+                  : "transparent",
+                width: isGalleryPage || isScenePage ? "100%" : "auto",
+                margin: isGalleryPage || isScenePage ? "0" : "auto",
                 paddingTop: "0", // Removed padding since header now scrolls with the page
               }}
             >

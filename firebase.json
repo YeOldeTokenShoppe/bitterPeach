@@ -23,8 +23,9 @@
     "source": ".",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "frameworksBackend": {
-      "region": "us-west1"
+      "region": "us-central1"
     },
+    "cleanUrls": true,
     "headers": [
       {
         "source": "**/*.@(js|css|png|jpg|jpeg|svg|webp|woff2|woff|ttf|ico)",

@@ -71,9 +71,9 @@ const MoonScene = ({
     controls.panSpeed = 0.5; // Optional: adjust pan speed for smoother control
 
     // Use modelCenter if provided, or a default target
-    const targetPosition = modelCenter || new THREE.Vector3(0, 10, 0);
+    const targetPosition = modelCenter || new THREE.Vector3(0, 5, 0);
 
-    camera.position.set(0, 0, 40);
+    camera.position.set(0, 0, 50);
     controls.target.copy(targetPosition);
 
     camera.fov = 35;
@@ -93,7 +93,7 @@ const MoonScene = ({
     // This can help override any other code that might be setting the camera position
     const timer = setTimeout(() => {
       if (camera && controlsRef.current) {
-        const targetPosition = modelCenter || new THREE.Vector3(0, 10, 0);
+        const targetPosition = modelCenter || new THREE.Vector3(0, 5, 0);
 
         // Very dramatic position for testing
         camera.position.set(0, 0, 80);

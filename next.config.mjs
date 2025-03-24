@@ -10,9 +10,6 @@ const nextConfig = {
       },
     ],
   },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   webpack: (config, { isServer, dev }) => {
     // Enable source maps in production
     if (!dev && !isServer) {

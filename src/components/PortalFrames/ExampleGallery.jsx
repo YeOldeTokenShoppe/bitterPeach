@@ -1,12 +1,13 @@
-import { Gltf } from "@react-three/drei";
+"use client";
+
 import dynamic from "next/dynamic";
 import CenteredModel from "./CenteredModel";
-import ClientOnly from "../ClientOnly";
+import PortalGallery from "./PortalGallery";
 
-// Dynamically import the entire gallery with SSR disabled
-const DynamicPortalGallery = dynamic(() => import("./PortalGallery"), {
-  ssr: false,
-});
+const Gltf = dynamic(
+  () => import("@react-three/drei").then((mod) => mod.Gltf),
+  { ssr: false }
+);
 
 function ExampleGallery() {
   // Define the frames with their properties

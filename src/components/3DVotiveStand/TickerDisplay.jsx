@@ -12,7 +12,7 @@ const TickerDisplay = ({ modelRef, ...props }) => {
   const [trendingData, setTrendingData] = useState([]);
   const [previousData, setPreviousData] = useState([]);
   const fetchTimeRef = useRef(Date.now());
-  const gltf = useGLTF("/altar8.glb");
+  const gltf = useGLTF("/altar88.glb");
   const scene = gltf.scene;
   const baseRadius = 30.25; // Store the base radius as a constant
   const lastModelScale = useRef(1); // Track the last known model scale

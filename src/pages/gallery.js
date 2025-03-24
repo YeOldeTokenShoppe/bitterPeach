@@ -263,7 +263,7 @@ export default function GalleryPage() {
                   <MusicPlayer2
                     isVisible={showSpotify}
                     onClose={() => setShowSpotify(false)}
-                    autoPlay={false}
+                    autoPlay={true}
                   />
                 )}
               </Suspense>

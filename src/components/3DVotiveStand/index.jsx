@@ -52,7 +52,7 @@ function ThreeDVotiveStand({
   onZoom,
   isInMarkerView,
   isMobileView,
-  onScreenClick,
+
   setShowSpotify,
   isModalOpen,
   setIsModalOpen,
@@ -386,132 +386,118 @@ function ThreeDVotiveStand({
   // Add a state to control the confetti effect independently
   const [showNeonConfetti, setShowNeonConfetti] = useState(false);
 
+  const handleCandleClick = useCallback((candleData) => {
+    console.log("Candle clicked:", candleData);
+    setSelectedCandleData(candleData);
+    setShowFloatingViewer(true);
+  }, []);
+
   return (
-    <>
-      <div
-        className="votiveContainer"
-        style={{
-          position: "relative",
-          top: 0,
-          margin: "auto",
-          height: "100vh",
-          width: "100%",
-          maxWidth: "1400px",
-          pointerEvents: "auto",
-          overflow: "hidden",
+    <div style={{ width: "100%", height: "100%" }}>
+      <Canvas
+        dpr={currentDpr} // Using dynamic DPI based on device and network
+        performance={{ min: 0.5 }} // Allow ThreeJS to reduce quality for performance
+        // camera={{
+        //   fov: 45,
+        //   position: [0, -10, 70], // ✅ Use the copied values from CameraGUI
+        //   near: 0.1,
+        //   far: 350,
+        // }}
+        onCreated={({ gl, camera }) => {
+          cameraRef.current = camera;
+          rendererRef.current = gl;
+
+          // Explicitly set pixel ratio on the renderer
+          gl.setPixelRatio(currentDpr); // Use the current DPI setting from state
+
+          // Additional renderer settings for consistency
+          gl.outputColorSpace = THREE.SRGBColorSpace;
+          gl.toneMapping = THREE.ACESFilmicToneMapping;
+          gl.toneMappingExposure = 1;
         }}
       >
-        <Canvas
-          dpr={currentDpr} // Using dynamic DPI based on device and network
-          performance={{ min: 0.5 }} // Allow ThreeJS to reduce quality for performance
-          // camera={{
-          //   fov: 45,
-          //   position: [0, -10, 70], // ✅ Use the copied values from CameraGUI
-          //   near: 0.1,
-          //   far: 350,
-          // }}
-          onCreated={({ gl, camera }) => {
-            cameraRef.current = camera;
-            rendererRef.current = gl;
+        {/* Manually controlling DPI now, so AdaptiveDpr is disabled */}
+        <AdaptiveDpr pixelated />
+        <AdaptiveEvents />
+        <BakeShadows />
+        {/* <FlyInEffect
+          cameraRef={cameraRef}
+          controlsRef={controlsRef}
+          duration={4}
+        /> */}
+        {/* <TourCamera points={pointsOfInterest} /> */}
+        <Perf position="top-left" showGraph={true} chart={true} />
 
-            // Explicitly set pixel ratio on the renderer
-            gl.setPixelRatio(currentDpr); // Use the current DPI setting from state
+        <Model
+          scale={modelScale}
+          rotation={[0, 0, 0]}
+          modelRef={modelRef}
+          showFloatingViewer={showFloatingViewer}
+          setShowFloatingViewer={setShowFloatingViewer}
+          onCandleClick={handleCandleClick}
+          setModelCenter={setModelCenter}
+          isModalOpen={isModalOpen}
+          setIsModalOpen={setIsModalOpen}
+          setIsModelLoaded={setIsModelLoaded}
+          onLightPositionChange={handleLightPositionChange}
+          lightIntensity={lightIntensity}
+          skyColor={skyColor}
+          groundColor={groundColor}
+          showLightHelper={showLightHelper}
+          is80sMode={is80sMode}
+          showSpotify={showSpotify}
+          monsterMode={monsterMode}
+        />
 
-            // Additional renderer settings for consistency
-            gl.outputColorSpace = THREE.SRGBColorSpace;
-            gl.toneMapping = THREE.ACESFilmicToneMapping;
-            gl.toneMappingExposure = 1;
+        {/* Remove the conditional rendering - don't tie to is80sMode */}
+        {/* Only render if explicitly enabled later */}
+        {showNeonConfetti && <NeonConfetti isActive={true} />}
+
+        <Suspense fallback={null}>
+          <MoonScene modelRef={modelRef} onSpawnReady={onSpawnReady} />
+        </Suspense>
+
+        {/* Conditionally render HolographicStatue or RocketModel based on monsterMode */}
+        <Suspense fallback={null}>
+          {!monsterMode ? (
+            <HolographicStatue />
+          ) : (
+            // Render RocketModel directly without Suspense since it's no longer lazy loaded
+            <RocketModel
+              updateAmbientLightDimming={updateAmbientLightDimming}
+              userData={userData}
+              is80sMode={is80sMode}
+            />
+          )}
+        </Suspense>
+        <Suspense fallback={null}>
+          <TickerDisplay modelRef={modelRef} />
+        </Suspense>
+        <Suspense fallback={null}>
+          <PostProcessingEffects is80sMode={is80sMode} />
+        </Suspense>
+
+        {/* Add Wireframe Terrain */}
+        {/* <Suspense fallback={null}>
+            <WireframeTerrain is80sMode={is80sMode} />
+          </Suspense> */}
+
+        {/* <TickerDisplay /> */}
+      </Canvas>
+
+      {/* FloatingCandleViewer goes here, outside the Canvas */}
+      {showFloatingViewer && selectedCandleData && (
+        <FloatingCandleViewer
+          key={`candle-viewer-${selectedCandleData.candleId}-${selectedCandleData.candleTimestamp}`}
+          isVisible={showFloatingViewer}
+          userData={selectedCandleData}
+          onClose={() => {
+            setShowFloatingViewer(false);
+            setSelectedCandleData(null);
           }}
-        >
-          {/* Manually controlling DPI now, so AdaptiveDpr is disabled */}
-          <AdaptiveDpr pixelated />
-          <AdaptiveEvents />
-          <BakeShadows />
-          {/* <FlyInEffect
-            cameraRef={cameraRef}
-            controlsRef={controlsRef}
-            duration={4}
-          /> */}
-          {/* <TourCamera points={pointsOfInterest} /> */}
-          <Perf position="top-left" showGraph={true} chart={true} />
-
-          <Model
-            scale={modelScale}
-            rotation={[0, 0, 0]}
-            modelRef={modelRef}
-            showFloatingViewer={showFloatingViewer}
-            setShowFloatingViewer={setShowFloatingViewer}
-            onCandleSelect={(data) => {
-              setSelectedCandleData(data);
-              setShowFloatingViewer(true);
-            }}
-            setModelCenter={setModelCenter}
-            isModalOpen={isModalOpen}
-            setIsModalOpen={setIsModalOpen}
-            setIsModelLoaded={setIsModelLoaded}
-            onLightPositionChange={handleLightPositionChange}
-            lightIntensity={lightIntensity}
-            skyColor={skyColor}
-            groundColor={groundColor}
-            showLightHelper={showLightHelper}
-            is80sMode={is80sMode}
-            showSpotify={showSpotify}
-            monsterMode={monsterMode}
-          />
-
-          {/* Remove the conditional rendering - don't tie to is80sMode */}
-          {/* Only render if explicitly enabled later */}
-          {showNeonConfetti && <NeonConfetti isActive={true} />}
-
-          <Suspense fallback={null}>
-            <MoonScene modelRef={modelRef} onSpawnReady={onSpawnReady} />
-          </Suspense>
-
-          {/* Conditionally render HolographicStatue or RocketModel based on monsterMode */}
-          <Suspense fallback={null}>
-            {!monsterMode ? (
-              <HolographicStatue />
-            ) : (
-              // Render RocketModel directly without Suspense since it's no longer lazy loaded
-              <RocketModel
-                updateAmbientLightDimming={updateAmbientLightDimming}
-                userData={userData}
-                is80sMode={is80sMode}
-              />
-            )}
-          </Suspense>
-          <Suspense fallback={null}>
-            <TickerDisplay modelRef={modelRef} />
-          </Suspense>
-          <Suspense fallback={null}>
-            <PostProcessingEffects is80sMode={is80sMode} />
-          </Suspense>
-
-          {/* Add Wireframe Terrain */}
-          {/* <Suspense fallback={null}>
-              <WireframeTerrain is80sMode={is80sMode} />
-            </Suspense> */}
-
-          {/* <TickerDisplay /> */}
-        </Canvas>
-
-        {/* Add placement button */}
-
-        {showFloatingViewer && selectedCandleData && (
-          <FloatingCandleViewer
-            key={`candle-viewer-${selectedCandleData.candleId || ""}-${
-              selectedCandleData.candleTimestamp || Date.now()
-            }`}
-            isVisible={showFloatingViewer}
-            userData={selectedCandleData}
-            onClose={() => {
-              setShowFloatingViewer(false);
-              setSelectedCandleData(null);
-            }}
-          />
-        )}
-      </div>
-    </>
+        />
+      )}
+    </div>
   );
 }
 
