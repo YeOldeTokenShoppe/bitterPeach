@@ -28,15 +28,8 @@ import Header3 from "../components/Header3";
 import styles from "../../styles/MusicPlayer.module.css";
 import { useEffect } from "react";
 import { ClerkProvider } from "@clerk/nextjs";
+
 function MyApp({ Component, pageProps }) {
-  useEffect(() => {
-    // Ensure theme is forced to "dark"
-    const html = document.documentElement;
-    html.setAttribute("data-theme", "dark");
-    html.style.colorScheme = "dark";
-    html.style.backgroundColor = "";
-    // html.style.color = "white";
-  }, []);
   const router = useRouter();
 
   const isGalleryPage = router.pathname === "/gallery";
@@ -45,6 +38,44 @@ function MyApp({ Component, pageProps }) {
   const isCommunionPage = router.pathname === "/communion";
   const isScenePage = router.pathname === "/scene";
   const isRocketPage = router.pathname === "/rocket";
+
+  useEffect(() => {
+    // Ensure theme is forced to "dark"
+    const html = document.documentElement;
+    html.setAttribute("data-theme", "dark");
+    html.style.colorScheme = "dark";
+
+    // Add appropriate class to the body
+    document.body.classList.remove("gallery-page", "scene-page", "rocket-page");
+
+    if (isGalleryPage) {
+      document.body.classList.add("gallery-page");
+    } else if (isScenePage) {
+      document.body.classList.add("scene-page");
+    } else if (isRocketPage) {
+      document.body.classList.add("rocket-page");
+    }
+  }, [isGalleryPage, isScenePage, isRocketPage, router.pathname]);
+
+  // Set specific background colors for special pages
+  useEffect(() => {
+    const body = document.body;
+
+    if (isGalleryPage) {
+      body.style.backgroundColor = ""; // Gallery uses its own background
+    } else if (isScenePage) {
+      body.style.backgroundColor = "#0d0d0d";
+    } else if (isRocketPage) {
+      body.style.backgroundColor = ""; // Assuming rocket has its own background
+    } else {
+      body.style.backgroundColor = "#1b1724"; // Default for most pages
+    }
+
+    return () => {
+      // Cleanup function to reset background when component unmounts
+      body.style.backgroundColor = "";
+    };
+  }, [isGalleryPage, isScenePage, isRocketPage, router.pathname]);
 
   // Dynamically choose the theme
   const special = isGalleryPage
@@ -80,11 +111,6 @@ function MyApp({ Component, pageProps }) {
                 isScenePage ? "scene-page" : ""
               }`.trim()} // Dynamically add class names
               style={{
-                backgroundColor: isGalleryPage
-                  ? ""
-                  : isScenePage
-                  ? "#0d0d0d"
-                  : "transparent",
                 width: isGalleryPage || isScenePage ? "100%" : "auto",
                 margin: isGalleryPage || isScenePage ? "0" : "auto",
                 paddingTop: "0", // Removed padding since header now scrolls with the page

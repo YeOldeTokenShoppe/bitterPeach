@@ -688,7 +688,7 @@ const Numerology = ({ setNumerologyLoaded }) => {
                     </div>
                   </Card>
                 </div>
-                <div>
+                <div className="eighth">
                   <Card className="numbers-card" style={cardStyle2}>
                     <Confetti>
                       <div

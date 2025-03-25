@@ -766,3 +766,16 @@
   transform: skew(-15deg);
   width: 0;
 }
+
+/* Add this new rule */
+.carousel-sign {
+  position: absolute;
+  z-index: 9999;
+  transform: translateX(-50%) scale(0.5);
+  top: -6rem;
+  left: 50%;
+  width: auto;
+  max-width: none;
+  max-height: none;
+  pointer-events: none;
+}

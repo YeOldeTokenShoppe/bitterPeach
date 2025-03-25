@@ -515,14 +515,16 @@ const SidePanel = ({
           borderColor="blue.500"
           pb="2"
         >
-          <Text
-            fontSize="xl"
-            fontFamily="mono"
-            letterSpacing="wider"
-            color="blue.100"
-          >
-            MISSION CONTROL
-          </Text>
+          <Flex align="center" justify="center" mb="1">
+            <Text
+              fontSize="xl"
+              fontFamily="mono"
+              letterSpacing="wider"
+              color="blue.100"
+            >
+              MISSION CONTROL
+            </Text>
+          </Flex>
           <Text fontSize="xs" color="blue.400" fontFamily="mono">
             LUNAR OPERATIONS
           </Text>
@@ -954,6 +956,13 @@ const SidePanel = ({
               STATUS
             </Text>
           </Flex>
+          <Image
+            src="/favicon.svg"
+            width={24}
+            height={24}
+            alt="Mission Logo"
+            mr="2"
+          />
           <Text fontSize="xs" fontFamily="mono" color="gray.500">
             MCP v1.0
           </Text>

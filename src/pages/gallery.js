@@ -43,8 +43,8 @@ const ClientOnlyMusicPlayer = ({
     <div
       style={{
         position: "absolute",
-        bottom: isMobileView ? "60px" : "3rem",
-        left: isMobileView ? "20%" : "0",
+        bottom: isMobileView ? "60px" : "6rem",
+        left: isMobileView ? "20%" : "2rem",
         transform: isMobileView
           ? "translate(-50%, 0) scale(0.5)"
           : "scale(0.6)",

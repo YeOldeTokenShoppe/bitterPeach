@@ -509,6 +509,18 @@ body {
   background: #1b1724;
 }
 
+body.gallery-page {
+  background-color: transparent;
+}
+
+body.scene-page {
+  background-color: #0d0d0d;
+}
+
+body.rocket-page {
+  background-color: transparent;
+}
+
 /* Typography */
 
 /* html {
@@ -1836,6 +1848,18 @@ html {
 
 body {
   background: #1b1724;
+}
+
+body.gallery-page {
+  background-color: transparent;
+}
+
+body.scene-page {
+  background-color: #0d0d0d;
+}
+
+body.rocket-page {
+  background-color: transparent;
 }
 
 /* Typography */
@@ -3576,17 +3600,17 @@ div.css-161tt0w {
     grid-template-rows: repeat(12, 1fr);
     grid-template-areas:
       "first"
-      "first"
+      "first" /* first takes 2 rows */
       "second"
       "third"
       "fourth"
       "fifth"
       "sixth"
       "seventh"
+      "seventh" /* seventh takes 2 rows */
       "eighth"
-      /* "eighth" */
       "ninth"
-      "ninth";
+      "ninth"; /* ninth takes 2 rows */
   }
 }
 
@@ -5595,8 +5619,21 @@ html {
 }
 
 body {
-  background-color: #0d0d0d !important;
+  background-color: #1b1724;
 }
+
+body.gallery-page {
+  background-color: transparent;
+}
+
+body.scene-page {
+  background-color: #0d0d0d;
+}
+
+body.rocket-page {
+  background-color: transparent;
+}
+
 @font-face {
   font-family: "icomoon";
   /* src: url("https://raw.githubusercontent.com/abxlfazl/music-player-widget/main/src/assets/icomoon/fonts/icomoon.eot?u8ckod"); */

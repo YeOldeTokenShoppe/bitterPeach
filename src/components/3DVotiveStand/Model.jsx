@@ -115,6 +115,14 @@ function Model({
   // Add this at the top of your component to create a texture cache
   const textureCache = useRef(new Map());
 
+  // First, get the renderer at the component level
+  const { gl: renderer } = useThree();
+
+  // Add this near your other state variables
+  const [flickeringMaterials, setFlickeringMaterials] = useState(new Map());
+  const flickerIntensity = useRef(0.5); // Controls how much the flame flickers
+  const flickerSpeed = useRef(1.5); // Controls how fast the flame flickers
+
   // Add this at the top of your component to enable memory tracking
   useEffect(() => {
     const checkMemoryUsage = () => {
@@ -146,6 +154,50 @@ function Model({
     return () => clearInterval(memoryTimer);
   }, []);
 
+  // Add this function to optimize texture loading without changing geometry
+  const loadOptimizedTexture = (url, onLoad) => {
+    // Check cache first
+    if (textureCache.current.has(url)) {
+      onLoad(textureCache.current.get(url));
+      return;
+    }
+
+    // Use the existing texture loader
+    textureLoader.current.load(
+      url,
+      (texture) => {
+        // Apply optimizations that don't affect appearance
+        texture.generateMipmaps = true; // Keep mipmaps for quality
+        texture.anisotropy = 4; // Good quality without excess memory
+
+        // Store in cache
+        textureCache.current.set(url, texture);
+
+        // Return the optimized texture
+        onLoad(texture);
+      },
+      undefined,
+      (error) => console.warn("Texture loading error:", error)
+    );
+  };
+
+  // Add a better cleanup function for textures
+  useEffect(() => {
+    return () => {
+      // Dispose textures properly to prevent memory leaks
+      const currentCache = textureCache.current;
+      if (currentCache && currentCache.size > 0) {
+        currentCache.forEach((texture) => {
+          texture.dispose();
+        });
+        currentCache.clear();
+        console.log("Texture cache cleared");
+      }
+    };
+  }, []);
+
+  // Modify your handleFloorClick for better candle placement
+  // while preserving your existing logic
   const handleFloorClick = useCallback(
     (event) => {
       event.stopPropagation();
@@ -167,10 +219,11 @@ function Model({
         return;
       }
 
-      // Handle placement based on floor type
+      // KEEP YOUR EXISTING FLOOR TYPE HANDLING
       if (
         floorObject.name === "Floor2.002" ||
-        floorObject.name.includes("Floor2")
+        floorObject.name.includes("Floor2") ||
+        floorObject.name.includes("goldCircuit")
       ) {
         // Use raycasting to find exact height for tiered floor
         const raycaster = new THREE.Raycaster();
@@ -183,7 +236,9 @@ function Model({
         gltf.scene.traverse((obj) => {
           if (
             obj.isMesh &&
-            (obj.name === "Floor2.002" || obj.name.includes("Floor2"))
+            (obj.name === "Floor2.002" ||
+              obj.name.includes("Floor2") ||
+              obj.name.includes("goldCircuit"))
           ) {
             floors.push(obj);
           }
@@ -205,7 +260,7 @@ function Model({
           newCandle.position.copy(point);
         }
       } else {
-        // Standard floor placement
+        // Standard floor placement - keep your original logic
         point.y += 0.05;
         newCandle.position.copy(point);
       }
@@ -231,7 +286,7 @@ function Model({
       // Increment the candle counter
       setCandleCount((prev) => prev + 1);
 
-      // Log the remaining candle count
+      // Enhanced feedback about remaining candles
       console.log(
         `Added candle #${candleCount + 1}. ${
           maxFloorCandles - (candleCount + 1)
@@ -635,92 +690,79 @@ function Model({
     });
   }, [is80sMode, gltf]);
 
-  // Add this function near your other helper functions
+  // Modify your applyUserImageToLabel function
   const applyUserImageToLabel = (candle, user) => {
     if (!user?.image) return;
 
-    // Find both labels
-    const labels = candle.children.filter(
-      (child) => child.name.includes("Label1") || child.name.includes("Label2")
+    // Find both labels, but keep them in separate arrays
+    const label1Objects = candle.children.filter((child) =>
+      child.name.includes("Label1")
     );
 
-    if (labels.length === 0) return;
+    const label2Objects = candle.children.filter(
+      (child) => child.name.includes("Label2") && !child.name.includes("Label1")
+    );
 
-    const textureLoader = new THREE.TextureLoader();
+    if (label1Objects.length === 0 && label2Objects.length === 0) return;
 
-    // Create a low-resolution texture loader helper
-    const loadLowResTexture = (url, onLoad) => {
-      // Check cache first
-      if (textureCache.current.has(url)) {
-        console.log("Using cached texture for:", url);
-        onLoad(textureCache.current.get(url));
-        return;
-      }
-
-      // Create a canvas to resize the image
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
-
-      // Set target dimensions - small size for candle labels
-      const targetWidth = 128; // Reduced resolution (adjust based on your needs)
-      const targetHeight = 128; // Maintain aspect ratio if needed
-
-      // Load the image first
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-
-      img.onload = () => {
-        // Resize using canvas
-        canvas.width = targetWidth;
-        canvas.height = targetHeight;
-
-        // Draw resized image on canvas
-        ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
-
-        // Create texture from canvas
-        const texture = new THREE.CanvasTexture(canvas);
-        texture.encoding = THREE.sRGBEncoding;
-        texture.flipY = false;
-        texture.needsUpdate = true;
-
-        // Apply compression settings
-        texture.generateMipmaps = false;
-        texture.minFilter = THREE.LinearFilter;
-        texture.magFilter = THREE.LinearFilter;
-
-        // Store in cache
-        textureCache.current.set(url, texture);
-
-        // Call onLoad with the optimized texture
-        onLoad(texture);
-
-        // Clean up
-        // In a production environment, consider using a texture cache
-        // to avoid recreating textures for the same images
-      };
-
-      img.onerror = (error) => console.warn("🚨 Image load error:", error);
-      img.src = url;
-    };
-
-    // Use our low-res loader instead of direct loading
-    loadLowResTexture(user.image, (texture) => {
-      // Apply to all found labels
-      labels.forEach((label) => {
+    // Use our optimized texture loader instead of direct loading
+    loadOptimizedTexture(user.image, (texture) => {
+      // Apply to Label1 objects (flipped on both X and Y axes)
+      label1Objects.forEach((label) => {
         if (label.material) {
-          // Dispose of any existing materials/textures
+          // Properly dispose of existing materials/textures
           if (label.material.map) {
             label.material.map.dispose();
           }
           label.material.dispose();
 
-          // Create new material with the texture
+          // Clone the texture for this specific label to avoid affecting other uses
+          const flippedTexture = texture.clone();
+
+          // Set rotation center to middle of texture
+          flippedTexture.center.set(0.5, 0.5);
+
+          // Rotate by 180 degrees
+          flippedTexture.rotation = 0;
+
+          // To flip on Y axis, we invert the repeat.y value
+          flippedTexture.repeat.set(1, -1);
+
+          // Ensure wrapping is set correctly for the flipped texture
+          flippedTexture.wrapS = THREE.RepeatWrapping;
+          flippedTexture.wrapT = THREE.RepeatWrapping;
+
+          flippedTexture.needsUpdate = true;
+
+          // Create new material with the flipped texture
+          label.material = new THREE.MeshStandardMaterial({
+            map: flippedTexture,
+            transparent: true,
+            side: THREE.DoubleSide,
+          });
+          label.material.needsUpdate = true;
+
+          console.log(`Applied fully flipped texture to ${label.name}`);
+        }
+      });
+
+      // Apply to Label2 objects (normal orientation)
+      label2Objects.forEach((label) => {
+        if (label.material) {
+          if (label.material.map) {
+            label.material.map.dispose();
+          }
+          label.material.dispose();
+
+          // Use the original texture without flipping
           label.material = new THREE.MeshStandardMaterial({
             map: texture,
             transparent: true,
             side: THREE.DoubleSide,
           });
           label.material.needsUpdate = true;
+
+          console.log(`Applied normal texture to ${label.name}`);
         }
       });
     });
@@ -863,7 +905,8 @@ function Model({
       if (
         event.object.name === "Floor" ||
         event.object.name === "Floor2.002" ||
-        event.object.name.includes("Floor2")
+        event.object.name.includes("Floor2") ||
+        event.object.name.includes("goldCircuit")
       ) {
         handleFloorClick(event);
         return;
@@ -922,19 +965,201 @@ function Model({
     [camera, modelRef, handleFloorClick, onCandleClick]
   );
 
-  // Then add a cleanup effect to your component:
+  // Add this effect for simple performance monitoring
   useEffect(() => {
-    return () => {
-      // Fix the ref cleanup
-      const currentTextureCache = textureCache.current;
-      if (currentTextureCache) {
-        currentTextureCache.forEach((texture) => {
-          texture.dispose();
+    const checkPerformance = () => {
+      // Only check texture cache size which is safer
+      console.log(
+        `Performance check: Texture cache size: ${
+          textureCache.current ? textureCache.current.size : 0
+        } textures`
+      );
+
+      // Count total objects in scene for a rough performance metric
+      let meshCount = 0;
+      let totalVertices = 0;
+
+      if (scene) {
+        scene.traverse((object) => {
+          if (object.isMesh) {
+            meshCount++;
+            if (
+              object.geometry &&
+              object.geometry.attributes &&
+              object.geometry.attributes.position
+            ) {
+              totalVertices += object.geometry.attributes.position.count;
+            }
+          }
         });
-        currentTextureCache.clear();
+
+        console.log(
+          `Scene contains approximately ${meshCount} meshes with roughly ${totalVertices} vertices`
+        );
       }
     };
-  }, []);
+
+    // Check every 10 seconds
+    const perfTimer = setInterval(checkPerformance, 10000);
+
+    return () => clearInterval(perfTimer);
+  }, [scene]);
+
+  // Add this function to set up flickering for candle flames
+  const setupFlameFlickering = useCallback(() => {
+    // Only set up flickering if we haven't already
+    if (flickeringMaterials.size > 0) return;
+
+    // Find all candle flames in the scene
+    if (!gltf || !gltf.scene) return;
+
+    const newFlickeringMaterials = new Map();
+
+    // Look for all objects with "flame" in their name
+    gltf.scene.traverse((object) => {
+      if (
+        object.isMesh &&
+        (object.name.includes("flame") ||
+          object.name.includes("Flame") ||
+          object.name.includes("fire") ||
+          object.name.includes("Fire"))
+      ) {
+        console.log(`Setting up flickering for flame: ${object.name}`);
+
+        // Store original material settings
+        if (object.material) {
+          // Clone the material to avoid affecting other objects
+          const flameMaterial = object.material.clone();
+
+          // Make sure the material has emission for glow effect
+          flameMaterial.emissive = new THREE.Color(0xffaa44); // Warm flame color
+          flameMaterial.emissiveIntensity = 1.0;
+
+          // Store base values for animation
+          const baseData = {
+            originalEmissiveIntensity: flameMaterial.emissiveIntensity,
+            originalScale: object.scale.clone(),
+            // Random offset so flames don't all flicker in sync
+            randomOffset: Math.random() * 1000,
+            // Generate random values for each flame
+            flickerRange: 0.3 + Math.random() * 0.4, // How much it flickers (30-70%)
+          };
+
+          // Apply the material to the object
+          object.material = flameMaterial;
+
+          // Store in our Map for animation updates
+          newFlickeringMaterials.set(object.id, {
+            object,
+            material: flameMaterial,
+            baseData,
+          });
+        }
+      }
+    });
+
+    // Also look for manually placed candles
+    scene.traverse((object) => {
+      if (object.userData && object.userData.isCandle) {
+        // Find flame objects in the placed candles
+        object.traverse((child) => {
+          if (
+            child.isMesh &&
+            (child.name.includes("flame") ||
+              child.name.includes("Flame") ||
+              child.name.includes("fire") ||
+              child.name.includes("Fire"))
+          ) {
+            console.log(
+              `Setting up flickering for placed candle flame: ${child.name}`
+            );
+
+            if (child.material) {
+              // Clone the material
+              const flameMaterial = child.material.clone();
+
+              // Enhance emission
+              flameMaterial.emissive = new THREE.Color(0xffaa44);
+              flameMaterial.emissiveIntensity = 1.0;
+
+              // Store base values
+              const baseData = {
+                originalEmissiveIntensity: flameMaterial.emissiveIntensity,
+                originalScale: child.scale.clone(),
+                randomOffset: Math.random() * 1000,
+                flickerRange: 0.3 + Math.random() * 0.4,
+              };
+
+              // Apply material
+              child.material = flameMaterial;
+
+              // Store for animation
+              newFlickeringMaterials.set(child.id, {
+                object: child,
+                material: flameMaterial,
+                baseData,
+              });
+            }
+          }
+        });
+      }
+    });
+
+    // Update state with all the materials we've set up for flickering
+    setFlickeringMaterials(newFlickeringMaterials);
+
+    console.log(
+      `Set up flickering for ${newFlickeringMaterials.size} flame objects`
+    );
+  }, [gltf, scene, flickeringMaterials]);
+
+  // Call the setup function when the model is loaded
+  useEffect(() => {
+    if (gltf && gltf.scene && progress === 100) {
+      setupFlameFlickering();
+    }
+  }, [gltf, progress, setupFlameFlickering]);
+
+  // Add flame flickering animation using useFrame
+  useFrame((state, delta) => {
+    const time = state.clock.getElapsedTime();
+
+    // Update each flickering flame
+    flickeringMaterials.forEach(({ object, material, baseData }) => {
+      if (!object || !material) return;
+
+      // Calculate flicker value using perlin noise or simplex noise
+      // Here we use a simple sine wave with random offsets for simplicity
+      const flicker =
+        Math.sin((time + baseData.randomOffset) * flickerSpeed.current) *
+        baseData.flickerRange *
+        flickerIntensity.current;
+
+      // Apply to emission intensity
+      const newIntensity = baseData.originalEmissiveIntensity * (1 + flicker);
+      material.emissiveIntensity = Math.max(0.3, newIntensity);
+
+      // Optionally also animate the scale for more dramatic effect
+      const scaleFlicker = 1 + flicker * 0.1; // Subtle scale change
+      object.scale.set(
+        baseData.originalScale.x * scaleFlicker,
+        baseData.originalScale.y * (scaleFlicker + 0.05), // Y scale varies a bit more
+        baseData.originalScale.z * scaleFlicker
+      );
+    });
+  });
+
+  // Add an effect to update flame flickering for newly placed candles
+  useEffect(() => {
+    if (candleCount > 0) {
+      // Short delay to ensure the candle is fully added to the scene
+      const timer = setTimeout(() => {
+        setupFlameFlickering();
+      }, 100);
+
+      return () => clearTimeout(timer);
+    }
+  }, [candleCount, setupFlameFlickering]);
 
   return (
     <>

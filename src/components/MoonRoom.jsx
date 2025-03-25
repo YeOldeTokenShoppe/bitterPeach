@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Canvas, useFrame, useLoader } from "@react-three/fiber";
 import { OrbitControls, useGLTF } from "@react-three/drei";
 import Ammo from "ammo.js";
 import styles from "./MoonRoom.module.css";
@@ -114,6 +114,42 @@ const MoonRoom = () => {
   const tmpTrans = useRef(new Ammo.btTransform());
   const sceneRef = useRef(new THREE.Scene());
 
+  // Use useLoader from react-three-fiber to properly load textures with error handling
+  const [lunarTexture, setLunarTexture] = useState(null);
+  const [envMap, setEnvMap] = useState(null);
+  const [texturesLoaded, setTexturesLoaded] = useState(false);
+
+  useEffect(() => {
+    // Load lunar texture
+    const textureLoader = new THREE.TextureLoader();
+    textureLoader.load(
+      "/textures/lunar.jpg",
+      (texture) => {
+        setLunarTexture(texture);
+        console.log("Lunar texture loaded successfully");
+
+        // Load environment map after lunar texture loads
+        const cubeTextureLoader = new THREE.CubeTextureLoader();
+        cubeTextureLoader.setPath("/textures/env/").load(
+          ["px.jpg", "nx.jpg", "py.jpg", "ny.jpg", "pz.jpg", "nz.jpg"],
+          (envTexture) => {
+            setEnvMap(envTexture);
+            setTexturesLoaded(true);
+            console.log("Environment map loaded successfully");
+          },
+          undefined,
+          (error) => {
+            console.error("Error loading environment map:", error);
+          }
+        );
+      },
+      undefined, // Progress callback (optional)
+      (error) => {
+        console.error("Error loading lunar texture:", error);
+      }
+    );
+  }, []);
+
   const addPhysicsMesh = (mesh, shape, mass, physicsWorld) => {
     const transform = new Ammo.btTransform();
     transform.setIdentity();
@@ -171,7 +207,7 @@ const MoonRoom = () => {
     };
   }, []);
 
-  if (!physicsWorld) return null; // Wait for physicsWorld initialization
+  if (!physicsWorld || !texturesLoaded) return null; // Wait for both physics and textures
 
   return (
     <div className={styles.moonRoom}>
@@ -187,10 +223,8 @@ const MoonRoom = () => {
           scene={sceneRef.current}
           physicsWorld={physicsWorld}
           addPhysicsMesh={addPhysicsMesh}
-          lunarTexture={new THREE.TextureLoader().load("/textures/lunar.jpg")}
-          envMap={new THREE.CubeTextureLoader()
-            .setPath("/textures/env/")
-            .load(["px.jpg", "nx.jpg", "py.jpg", "ny.jpg", "pz.jpg", "nz.jpg"])}
+          lunarTexture={lunarTexture}
+          envMap={envMap}
         />
         <Floor
           scene={sceneRef.current}

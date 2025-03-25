@@ -1076,8 +1076,24 @@ const Carousel = ({ images, setCarouselLoaded }) => {
         alignItems: "center",
         justifyContent: "center",
         textAlign: "center",
+        position: "relative",
       }}
     >
+      <img
+        src="/carouselSign.png"
+        alt="sign"
+        style={{
+          transform: "translateX(-50%) scale(0.5)",
+          top: "-6rem",
+          position: "absolute",
+          left: "50%",
+          width: "auto",
+          maxWidth: "none",
+          maxHeight: "none",
+          zIndex: 9999,
+          pointerEvents: "none",
+        }}
+      />
       <div className="carousel-container">
         <main>
           <div

@@ -303,7 +303,6 @@ export default function CommunionPage() {
             visibility: isLoading ? "hidden" : "visible",
           }}
         >
-          <Image src="/carouselSign.png" alt="sign" style={imgStyle} />
           <Carousel
             setCarouselLoaded={setCarouselLoaded}
             images={[
