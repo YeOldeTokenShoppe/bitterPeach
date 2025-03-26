@@ -379,16 +379,17 @@ const MusicPlayer = ({ isVisible, onClose, autoPlay = true }) => {
   };
 
   return (
-    <div
-      className="music-player"
-      onClick={handleClick}
-      style={{ cursor: "pointer" }}
-    >
+    <div className="music-player">
       <div id="app-cover">
         <div id="player">
-          <div id="album-art" className={`${isPlaying ? "rotate" : ""}`}>
+          <div
+            id="album-art"
+            className={`${isPlaying ? "rotate" : ""}`}
+            onClick={handleClick}
+            style={{ cursor: "pointer", position: "relative" }}
+          >
             <img src="/virginRecords.jpg" className="active" alt="Album Art" />
-            {/* Simple text-based overlay indicator */}
+
             <div
               style={{
                 position: "absolute",
@@ -398,13 +399,11 @@ const MusicPlayer = ({ isVisible, onClose, autoPlay = true }) => {
                 width: "3rem",
                 height: "3rem",
                 borderRadius: "50%",
-                // backgroundColor: "rgba(0,0,0,0.7)",
                 fontSize: "1.5rem",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 color: "white",
-
                 fontWeight: "bold",
                 zIndex: 1000,
               }}

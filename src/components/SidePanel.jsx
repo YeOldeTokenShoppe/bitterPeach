@@ -106,6 +106,15 @@ const SidePanel = ({
   const [currentStation, setCurrentStation] = useState("LUNAR BASE ALPHA");
   const [mounted, setMounted] = useState(false);
 
+  // Add this new state for tracking video loading
+  const [greetingsVideoLoaded, setGreetingsVideoLoaded] = useState(false);
+
+  // Add state for tracking connection sequence
+  const [connectionPhase, setConnectionPhase] = useState(0); // 0=not started, 1=static, 2=connecting, 3=stabilizing, 4=connected
+
+  // Add a ref for the video element
+  const greetingsVideoRef = useRef(null);
+
   // Detect touch devices
   useEffect(() => {
     const isTouchCapable =
@@ -413,14 +422,60 @@ const SidePanel = ({
     toggleMonsterMode(); // Toggle monster mode
   };
 
-  // Toggle video call
+  // Toggle video call with connection sequence
   const toggleCall = () => {
-    setActiveCall(!activeCall);
+    if (!activeCall) {
+      // Start connection sequence
+      setActiveCall(true);
+      setGreetingsVideoLoaded(false);
+      setConnectionPhase(1);
+
+      // Simulate connection phases with timeouts
+      setTimeout(() => setConnectionPhase(2), 1200); // Static to connecting
+      setTimeout(() => setConnectionPhase(3), 3000); // Connecting to stabilizing
+      setTimeout(() => {
+        setConnectionPhase(4); // Stabilizing to connected
+
+        // Unmute the video once connection is fully established
+        if (greetingsVideoRef.current) {
+          greetingsVideoRef.current.muted = false;
+
+          // Ensure video starts from beginning if it already started playing silently
+          if (greetingsVideoRef.current.currentTime > 0) {
+            greetingsVideoRef.current.currentTime = 0;
+          }
+
+          // Ensure the video is playing
+          greetingsVideoRef.current.play().catch((err) => {
+            console.warn("Could not play video after unmuting:", err);
+          });
+        }
+      }, 4500);
+    } else {
+      // End call immediately
+      setActiveCall(false);
+      setConnectionPhase(0);
+
+      // Reset video if it exists
+      if (greetingsVideoRef.current) {
+        greetingsVideoRef.current.muted = true;
+        greetingsVideoRef.current.pause();
+      }
+    }
   };
 
   // Add useEffect for client-side rendering
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  // Clean up any playing video when component unmounts
+  useEffect(() => {
+    return () => {
+      if (greetingsVideoRef.current) {
+        greetingsVideoRef.current.pause();
+      }
+    };
   }, []);
 
   return (
@@ -570,30 +625,259 @@ const SidePanel = ({
                       align="center"
                       justify="center"
                     >
-                      {/* Placeholder for station feed - could be replaced with actual feed */}
+                      {/* Main video container with effects */}
                       <Box
                         w="100%"
                         h="100%"
                         position="relative"
                         overflow="hidden"
                       >
-                        {/* This would be where you'd put a real video feed */}
+                        {/* Static video overlay - varies opacity based on connection phase */}
                         <Box
-                          w="100%"
-                          h="100%"
-                          bg="gray.800"
-                          opacity="0.6"
-                          display="flex"
-                          alignItems="center"
-                          justifyContent="center"
-                          fontSize="xs"
-                          color="gray.500"
-                          animation="fadeIn 0.5s ease-in"
-                        >
-                          STATION VIEW
-                        </Box>
+                          as="video"
+                          position="absolute"
+                          top="0"
+                          left="0"
+                          width="100%"
+                          height="100%"
+                          objectFit="cover"
+                          src="/deadAir.mp4"
+                          autoPlay
+                          muted
+                          loop
+                          zIndex="2"
+                          opacity={
+                            connectionPhase < 4
+                              ? connectionPhase === 1
+                                ? 0.9
+                                : connectionPhase === 2
+                                ? 0.6
+                                : connectionPhase === 3
+                                ? 0.3
+                                : 0
+                              : 0
+                          }
+                          transition="opacity 0.8s ease"
+                        />
+
+                        {/* Actual greetings video - initially muted and referenced */}
+                        <Box
+                          as="video"
+                          ref={greetingsVideoRef}
+                          position="absolute"
+                          top="0"
+                          left="0"
+                          width="100%"
+                          height="100%"
+                          objectFit="cover"
+                          src="/greetings.mp4"
+                          autoPlay
+                          muted
+                          onLoadedData={() => setGreetingsVideoLoaded(true)}
+                          zIndex="1"
+                          sx={{
+                            filter:
+                              connectionPhase < 4
+                                ? connectionPhase === 1
+                                  ? "brightness(0.4) contrast(1.5) hue-rotate(10deg)"
+                                  : connectionPhase === 2
+                                  ? "brightness(0.6) contrast(1.3) hue-rotate(5deg)"
+                                  : connectionPhase === 3
+                                  ? "brightness(0.8) contrast(1.1)"
+                                  : "none"
+                                : "none",
+                            animation:
+                              connectionPhase < 4
+                                ? connectionPhase === 1
+                                  ? "glitch 0.3s infinite"
+                                  : connectionPhase === 2
+                                  ? "glitch 0.6s infinite"
+                                  : connectionPhase === 3
+                                  ? "glitch 1.2s infinite"
+                                  : "none"
+                                : "none",
+                            transition: "filter 0.5s ease",
+                            "@keyframes glitch": {
+                              "0%": { transform: "translate(0)" },
+                              "20%": { transform: "translate(-2px, 2px)" },
+                              "40%": { transform: "translate(-2px, -2px)" },
+                              "60%": { transform: "translate(2px, 2px)" },
+                              "80%": { transform: "translate(2px, -2px)" },
+                              "100%": { transform: "translate(0)" },
+                            },
+                          }}
+                        />
+
+                        {/* Scanlines overlay */}
+                        <Box
+                          position="absolute"
+                          top="0"
+                          left="0"
+                          width="100%"
+                          height="100%"
+                          zIndex="3"
+                          opacity={
+                            connectionPhase < 4
+                              ? connectionPhase === 1
+                                ? 0.8
+                                : connectionPhase === 2
+                                ? 0.6
+                                : connectionPhase === 3
+                                ? 0.3
+                                : 0
+                              : 0
+                          }
+                          transition="opacity 0.8s ease"
+                          sx={{
+                            background:
+                              "linear-gradient(to bottom, rgba(0,0,0,0) 50%, rgba(0,0,0,0.25) 50%)",
+                            backgroundSize: "100% 4px",
+                            pointerEvents: "none",
+                          }}
+                        />
+
+                        {/* Connection status text - changes with phases */}
+                        {connectionPhase < 4 && (
+                          <Flex
+                            position="absolute"
+                            bottom="2"
+                            left="2"
+                            zIndex="4"
+                            align="center"
+                            bg="rgba(0,0,0,0.6)"
+                            px="2"
+                            py="1"
+                            borderRadius="md"
+                            color={
+                              connectionPhase === 1
+                                ? "red.400"
+                                : connectionPhase === 2
+                                ? "yellow.400"
+                                : "green.400"
+                            }
+                            fontSize="xs"
+                            fontFamily="mono"
+                            fontWeight="bold"
+                          >
+                            <Box
+                              h="2"
+                              w="2"
+                              rounded="full"
+                              bg={
+                                connectionPhase === 1
+                                  ? "red.500"
+                                  : connectionPhase === 2
+                                  ? "yellow.500"
+                                  : "green.500"
+                              }
+                              mr="2"
+                              animation="pulse 1s infinite"
+                            />
+                            {connectionPhase === 1
+                              ? "SIGNAL ACQUISITION..."
+                              : connectionPhase === 2
+                              ? "STABILIZING SIGNAL..."
+                              : connectionPhase === 3
+                              ? "ENHANCING CLARITY..."
+                              : "CONNECTED"}
+                          </Flex>
+                        )}
+
+                        {/* Intermittent signal loss effect */}
+                        {connectionPhase === 2 && (
+                          <Box
+                            position="absolute"
+                            top="0"
+                            left="0"
+                            width="100%"
+                            height="100%"
+                            zIndex="5"
+                            bg="black"
+                            opacity="0"
+                            animation="signalLoss 3s infinite"
+                            sx={{
+                              "@keyframes signalLoss": {
+                                "0%": { opacity: 0 },
+                                "5%": { opacity: 0.8 },
+                                "7%": { opacity: 0 },
+                                "30%": { opacity: 0 },
+                                "32%": { opacity: 0.6 },
+                                "33%": { opacity: 0 },
+                                "80%": { opacity: 0 },
+                                "82%": { opacity: 0.7 },
+                                "83%": { opacity: 0 },
+                                "100%": { opacity: 0 },
+                              },
+                            }}
+                          />
+                        )}
+
+                        {/* Color distortion effect */}
+                        <Box
+                          position="absolute"
+                          top="0"
+                          left="0"
+                          width="100%"
+                          height="100%"
+                          zIndex="3"
+                          opacity={connectionPhase < 3 ? 0.15 : 0}
+                          transition="opacity 0.8s ease"
+                          mixBlendMode="color"
+                          bg="red.500"
+                          animation={
+                            connectionPhase < 3
+                              ? "colorShift 4s infinite"
+                              : "none"
+                          }
+                          sx={{
+                            "@keyframes colorShift": {
+                              "0%": { backgroundColor: "red.500" },
+                              "33%": { backgroundColor: "blue.500" },
+                              "66%": { backgroundColor: "green.500" },
+                              "100%": { backgroundColor: "red.500" },
+                            },
+                          }}
+                        />
+
+                        {/* Add a visual audio indicator when connection is established */}
+                        {connectionPhase === 4 && (
+                          <Box
+                            position="absolute"
+                            top="2"
+                            right="2"
+                            zIndex="10"
+                            px="2"
+                            py="1"
+                            borderRadius="md"
+                            bg="rgba(0,0,0,0.6)"
+                            color="green.400"
+                            fontSize="xs"
+                            fontFamily="mono"
+                            display="flex"
+                            alignItems="center"
+                          >
+                            <Box
+                              as="span"
+                              mr="1"
+                              animation="audioWave 1.5s infinite"
+                              display="inline-block"
+                              sx={{
+                                "@keyframes audioWave": {
+                                  "0%": { opacity: 0.4 },
+                                  "50%": { opacity: 1 },
+                                  "100%": { opacity: 0.4 },
+                                },
+                              }}
+                            >
+                              🔊
+                            </Box>
+                            AUDIO
+                          </Box>
+                        )}
                       </Box>
                     </Flex>
+
+                    {/* User camera placeholder - updated to show Clerk avatar if available */}
                     <Box
                       position="absolute"
                       bottom="2"
@@ -603,8 +887,8 @@ const SidePanel = ({
                       borderColor="blue.500"
                       p="1"
                       rounded="sm"
+                      zIndex="10"
                     >
-                      {/* Placeholder for user feed */}
                       <Box
                         w="40px"
                         h="30px"
@@ -614,30 +898,79 @@ const SidePanel = ({
                         justifyContent="center"
                         fontSize="8px"
                         color="gray.500"
+                        position="relative"
+                        overflow="hidden"
                       >
-                        YOU
+                        {isSignedIn && user?.imageUrl ? (
+                          <Image
+                            src={user.imageUrl}
+                            alt="User"
+                            width={40}
+                            height={30}
+                            objectFit="cover"
+                            style={{
+                              position: "absolute",
+                              top: 0,
+                              left: 0,
+                              width: "100%",
+                              height: "100%",
+                            }}
+                          />
+                        ) : (
+                          <>
+                            <Box
+                              as="span"
+                              fontSize="24px"
+                              position="relative"
+                              top="-1px"
+                            >
+                              😊
+                            </Box>
+                          </>
+                        )}
+
+                        {/* Overlay frame to give it a webcam look */}
+                        <Box
+                          position="absolute"
+                          top="0"
+                          left="0"
+                          right="0"
+                          bottom="0"
+                          border="1px solid rgba(0,30,60,0.3)"
+                          boxShadow="inset 0 0 5px rgba(0,0,0,0.5)"
+                          pointerEvents="none"
+                          zIndex="1"
+                        />
+
+                        {/* Small red recording indicator */}
+                        <Box
+                          position="absolute"
+                          top="1px"
+                          right="1px"
+                          width="3px"
+                          height="3px"
+                          borderRadius="full"
+                          bg="red.500"
+                          zIndex="2"
+                        />
                       </Box>
                     </Box>
-                    <Box
-                      position="absolute"
-                      top="0"
-                      left="0"
-                      w="full"
-                      h="full"
-                      bgGradient="linear(to-b, transparent, black)"
-                      opacity="0.4"
-                    />
-                    <Text
-                      position="absolute"
-                      bottom="2"
-                      left="2"
-                      color="green.500"
-                      fontSize="xs"
-                      fontFamily="mono"
-                      animation="pulse 2s infinite"
-                    >
-                      LIVE
-                    </Text>
+
+                    {/* Only show LIVE indicator when fully connected */}
+                    {connectionPhase === 4 && (
+                      <Text
+                        position="absolute"
+                        bottom="2"
+                        left="2"
+                        color="green.500"
+                        fontSize="xs"
+                        fontFamily="mono"
+                        animation="pulse 2s infinite"
+                        zIndex="10"
+                      >
+                        LIVE
+                      </Text>
+                    )}
                   </>
                 ) : (
                   <Flex

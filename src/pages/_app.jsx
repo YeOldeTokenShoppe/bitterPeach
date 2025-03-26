@@ -87,8 +87,6 @@ function MyApp({ Component, pageProps }) {
   let HeaderComponent = null;
   if (isGalleryPage) {
     HeaderComponent = Header3;
-  } else if (isNumerologyPage) {
-    HeaderComponent = Header2;
   } else if (!(isIndexPage || isScenePage || isRocketPage)) {
     HeaderComponent = Header;
   }

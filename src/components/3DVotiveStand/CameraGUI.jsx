@@ -1,9 +1,24 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import GUI from "lil-gui";
 import * as THREE from "three";
 
 function CameraGUI({ cameraRef, controlsRef }) {
+  const [isVisible, setIsVisible] = useState(false);
+
   useEffect(() => {
+    const handleKeyPress = (event) => {
+      // Toggle GUI when pressing 'g'
+      if (event.key.toLowerCase() === "g") {
+        setIsVisible((prev) => !prev);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyPress);
+    return () => window.removeEventListener("keydown", handleKeyPress);
+  }, []);
+
+  useEffect(() => {
+    if (!isVisible) return;
     if (!cameraRef.current || !controlsRef.current) {
       console.log("CameraGUI: Camera or Controls NOT found", {
         camera: cameraRef.current,
@@ -67,7 +82,7 @@ function CameraGUI({ cameraRef, controlsRef }) {
       console.log("CameraGUI: Destroying GUI");
       gui.destroy();
     };
-  }, [cameraRef, controlsRef]);
+  }, [cameraRef, controlsRef, isVisible]);
 
   return null;
 }

@@ -40,6 +40,8 @@ import CameraGUI from "./CameraGUI";
 import HolographicStatue from "./HolographicStatue";
 import PostProcessingEffects from "./PostProcessingEffects";
 import NeonConfetti from "./NeonConfetti";
+import StarField from "./StarField";
+import StarrySky from "./StarrySky";
 
 const scene = new THREE.Scene();
 
@@ -395,38 +397,37 @@ function ThreeDVotiveStand({
   return (
     <div style={{ width: "100%", height: "100%" }}>
       <Canvas
-        dpr={currentDpr} // Using dynamic DPI based on device and network
-        performance={{ min: 0.5 }} // Allow ThreeJS to reduce quality for performance
-        // camera={{
-        //   fov: 45,
-        //   position: [0, -10, 70], // ✅ Use the copied values from CameraGUI
-        //   near: 0.1,
-        //   far: 350,
-        // }}
+        dpr={currentDpr}
+        performance={{ min: 0.5 }}
+        camera={{
+          fov: 45,
+          position: [0, -10, 70],
+          near: 1,
+          far: 1000,
+        }}
         onCreated={({ gl, camera }) => {
           cameraRef.current = camera;
           rendererRef.current = gl;
 
+          // Clear background to a very dark color
+          gl.setClearColor(new THREE.Color("#040406"), 1);
+
           // Explicitly set pixel ratio on the renderer
-          gl.setPixelRatio(currentDpr); // Use the current DPI setting from state
+          gl.setPixelRatio(currentDpr);
 
           // Additional renderer settings for consistency
           gl.outputColorSpace = THREE.SRGBColorSpace;
           gl.toneMapping = THREE.ACESFilmicToneMapping;
           gl.toneMappingExposure = 1;
+
+          // Set logarithmic depth buffer for better depth precision
+          gl.logarithmicDepthBuffer = true;
         }}
       >
-        {/* Manually controlling DPI now, so AdaptiveDpr is disabled */}
         <AdaptiveDpr pixelated />
         <AdaptiveEvents />
         <BakeShadows />
-        {/* <FlyInEffect
-          cameraRef={cameraRef}
-          controlsRef={controlsRef}
-          duration={4}
-        /> */}
-        {/* <TourCamera points={pointsOfInterest} /> */}
-        <Perf position="top-left" showGraph={true} chart={true} />
+        {/* <Perf position="top-left" showGraph={true} chart={true} /> */}
 
         <Model
           scale={modelScale}
@@ -483,6 +484,11 @@ function ThreeDVotiveStand({
           </Suspense> */}
 
         {/* <TickerDisplay /> */}
+
+        {/* Render the stars last */}
+        <Suspense fallback={null}>
+          <StarField is80sMode={is80sMode} />
+        </Suspense>
       </Canvas>
 
       {/* FloatingCandleViewer goes here, outside the Canvas */}

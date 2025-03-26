@@ -1,79 +1,82 @@
-import { useEffect, useRef } from "react";
-import gsap from "gsap";
+import { useEffect } from "react";
 import * as THREE from "three";
+import { gsap } from "gsap";
 
-function FlyInEffect({ cameraRef, controlsRef, duration = 4 }) {
-  const animationCompleted = useRef(false);
-
+const FlyInEffect = ({ cameraRef, controlsRef, duration = 6 }) => {
   useEffect(() => {
-    if (
-      !cameraRef?.current ||
-      !controlsRef?.current ||
-      animationCompleted.current
-    )
-      return;
+    if (!cameraRef.current) return; // wait until camera is available
 
     const camera = cameraRef.current;
-    const controls = controlsRef.current;
-    animationCompleted.current = true;
+    // Get the current target from OrbitControls (fallback to (0,0,0) if not available)
+    const target =
+      controlsRef.current && controlsRef.current.target
+        ? controlsRef.current.target.clone()
+        : new THREE.Vector3(0, 0, 0);
 
-    // Store original target and position for reference
-    const targetPosition = new THREE.Vector3();
-    controls.target.clone(targetPosition);
-    const finalCameraPosition = new THREE.Vector3().copy(camera.position);
+    // Final camera position (predefined via setCameraSettings) is already in place.
+    const finalPos = camera.position.clone();
 
-    // Disable controls during animation
-    controls.enabled = false;
+    // Determine the vector from the target to the final camera position.
+    const finalVector = new THREE.Vector3().subVectors(finalPos, target);
+    const finalDistance = finalVector.length();
+    const finalAngle = Math.atan2(finalVector.z, finalVector.x);
 
-    // Initial setup - start from above the scene
-    const startDistance = 100;
-    camera.position.set(0, startDistance, 0);
+    // Define parameters for a combined orbit and zoom effect:
+    // - Start with a significantly farther distance (e.g., 4.5 times the final distance)
+    // - Start with an angle offset such that we can perform an extra full rotation (2π) over the duration
+    // - Start at a higher Y to give a dramatic descent effect.
+    const startDistance = finalDistance * 4.5;
+    // Starting angle is offset from finalAngle – here we add an extra 180° offset as base.
+    const startAngle = finalAngle + THREE.MathUtils.degToRad(180);
+    const startY = finalPos.y + 20; // Starting height offset
 
-    // Create a temporary target that will move toward the final target
-    const tempTarget = new THREE.Vector3(0, 0, 0);
-    controls.target.copy(tempTarget);
+    // Compute starting position.
+    const startX = target.x + startDistance * Math.cos(startAngle);
+    const startZ = target.z + startDistance * Math.sin(startAngle);
+    const startPos = new THREE.Vector3(startX, startY, startZ);
 
-    // Create a timeline for sequential animations
-    const tl = gsap.timeline({
-      onComplete: () => {
-        // Re-enable controls after animation
-        controls.enabled = true;
-      },
-    });
+    // Set the camera immediately to the starting position.
+    camera.position.copy(startPos);
+    camera.lookAt(target);
+    if (controlsRef.current) {
+      controlsRef.current.target.copy(target);
+      controlsRef.current.update();
+    }
 
-    // Animate camera position
-    tl.to(camera.position, {
-      x: finalCameraPosition.x,
-      y: finalCameraPosition.y,
-      z: finalCameraPosition.z,
-      duration: duration * 0.8,
+    // Create a dummy object with properties to tween.
+    const dummy = { angle: startAngle, distance: startDistance, y: startY };
+
+    // Animate all three properties simultaneously.
+    gsap.to(dummy, {
+      angle: finalAngle + Math.PI * 2, // add a full rotation (2π) then settle to finalAngle
+      distance: finalDistance,
+      y: finalPos.y,
+      duration: duration,
       ease: "power2.inOut",
-    });
+      onUpdate: () => {
+        const currentX = target.x + dummy.distance * Math.cos(dummy.angle);
+        const currentZ = target.z + dummy.distance * Math.sin(dummy.angle);
 
-    // Simultaneously animate the orbit controls target
-    tl.to(
-      tempTarget,
-      {
-        x: targetPosition.x,
-        y: targetPosition.y,
-        z: targetPosition.z,
-        duration: duration * 0.8,
-        ease: "power2.inOut",
-        onUpdate: () => {
-          controls.target.copy(tempTarget);
-          controls.update();
-        },
+        camera.position.set(currentX, dummy.y, currentZ);
+        camera.lookAt(target);
+        if (controlsRef.current) {
+          controlsRef.current.target.copy(target);
+          controlsRef.current.update();
+        }
       },
-      "<"
-    ); // Start at same time as previous animation
-
-    return () => {
-      // Clean up animations if component unmounts during animation
-      tl.kill();
-    };
+      onComplete: () => {
+        // Ensure the camera exactly reaches the predefined final position.
+        camera.position.copy(finalPos);
+        camera.lookAt(target);
+        if (controlsRef.current) {
+          controlsRef.current.target.copy(target);
+          controlsRef.current.update();
+        }
+      },
+    });
   }, [cameraRef, controlsRef, duration]);
 
-  return null;
-}
+  return null; // This component doesn't render any JSX
+};
 
 export default FlyInEffect;

@@ -193,17 +193,17 @@ export default function GalleryPage() {
     console.log("Gallery page showSpotify state:", showSpotify);
   }, [showSpotify]);
 
-  // Add a useEffect to monitor showSpotify state changes
-  useEffect(() => {
-    console.log("Gallery.js: showSpotify changed to:", showSpotify);
+  // // Add a useEffect to monitor showSpotify state changes
+  // useEffect(() => {
+  //   console.log("Gallery.js: showSpotify changed to:", showSpotify);
 
-    // Ensure music players are mounted/unmounted correctly when showSpotify changes
-    if (showSpotify) {
-      console.log("Music player should be visible");
-    } else {
-      console.log("Music player should be hidden");
-    }
-  }, [showSpotify]);
+  //   // Ensure music players are mounted/unmounted correctly when showSpotify changes
+  //   if (showSpotify) {
+  //     console.log("Music player should be visible");
+  //   } else {
+  //     console.log("Music player should be hidden");
+  //   }
+  // }, [showSpotify]);
 
   return (
     <div

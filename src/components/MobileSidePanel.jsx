@@ -150,8 +150,8 @@ const MobileSidePanel = ({
       {/* Mission Control FAB */}
       <Button
         position="fixed"
-        bottom="15px"
-        right="15px"
+        bottom="1.5rem"
+        right="1.5rem"
         width="50px"
         height="50px"
         borderRadius="full"

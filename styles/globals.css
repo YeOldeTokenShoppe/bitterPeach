@@ -4626,10 +4626,12 @@ body {
   border-radius: 15px 15px 0 0;
   transition: 0.3s ease top;
   z-index: 1;
+  opacity: 0;
 }
 
 #player-track.active {
   top: -92px;
+  opacity: 0;
 }
 
 #album-name {
@@ -5615,7 +5617,7 @@ body.gold-modal-open {
 
 /* Prevent white flash on page load */
 html {
-  background-color: #0d0d0d !important;
+  background-color: #1b1724 !important;
 }
 
 body {

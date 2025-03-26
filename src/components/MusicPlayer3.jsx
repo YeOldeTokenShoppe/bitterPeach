@@ -368,128 +368,114 @@ const MusicPlayer = ({ isVisible, onClose, autoPlay = true }) => {
 
   return (
     <div className="music-player">
-      {!trackUrl ? (
-        <div style={{ textAlign: "center", padding: "20px" }}>
-          Loading audio file...
-        </div>
-      ) : (
-        <div id="app-cover">
-          <div
-            style={closeButtonStyle}
-            onClick={handleClose}
-            className="hover:bg-black/50"
-            title="Close player"
-          >
-            <i className="fa-solid fa-times text-white text-xl">X</i>
-          </div>
-
-          <div id="player">
-            <div id="player-track" className={isPlaying ? "active" : ""}>
-              <div id="album-name">{albums[currentTrackIndex]}</div>
-              <div id="track-name">{trackNames[currentTrackIndex]}</div>
-              <div id="track-time">
-                <div id="current-time">{currentTime}</div>
-                <div id="track-length">{duration}</div>
-              </div>
-              <div id="s-area" onClick={handleSeek}>
-                <div id="seek-bar" style={{ width: `${playProgress}%` }}></div>
-              </div>
+      <div id="app-cover">
+        <div id="player">
+          <div id="player-track" className={isPlaying ? "active" : ""}>
+            <div id="album-name">{albums[currentTrackIndex]}</div>
+            <div id="track-name">{trackNames[currentTrackIndex]}</div>
+            <div id="track-time">
+              <div id="current-time">{currentTime}</div>
+              <div id="track-length">{duration}</div>
             </div>
-            <div id="player-content">
-              <div id="album-art" className={`${isPlaying ? "rotate" : ""}`}>
-                <img
-                  src="/virginRecords.jpg"
-                  className="active"
-                  alt="Album Art"
-                />
+            <div id="s-area" onClick={handleSeek}>
+              <div id="seek-bar" style={{ width: `${playProgress}%` }}></div>
+            </div>
+          </div>
+          <div id="player-content">
+            <div id="album-art" className={`${isPlaying ? "rotate" : ""}`}>
+              <img
+                src="/virginRecords.jpg"
+                className="active"
+                alt="Album Art"
+              />
+            </div>
+            <div id="player-controls">
+              <div className="control" onClick={() => changeTrack(-1)}>
+                <div className="button" id="play-previous">
+                  <i className="fa-solid fa-backward"></i>
+                </div>
               </div>
-              <div id="player-controls">
-                <div className="control" onClick={() => changeTrack(-1)}>
-                  <div className="button" id="play-previous">
-                    <i className="fa-solid fa-backward"></i>
-                  </div>
+              <div className="control" onClick={playPause}>
+                <div className="button" id="play-pause-button">
+                  <i className={playPauseIconClass}></i>
                 </div>
-                <div className="control" onClick={playPause}>
-                  <div className="button" id="play-pause-button">
-                    <i className={playPauseIconClass}></i>
-                  </div>
+              </div>
+              <div className="control" onClick={() => changeTrack(1)}>
+                <div className="button" id="play-next">
+                  <i className="fa-solid fa-forward"></i>
                 </div>
-                <div className="control" onClick={() => changeTrack(1)}>
-                  <div className="button" id="play-next">
-                    <i className="fa-solid fa-forward"></i>
-                  </div>
-                </div>
-                <div className="control">
-                  <div
-                    className="button"
-                    id="shuffle-button"
-                    onClick={(e) => {
-                      toggleShuffle();
-                    }}
-                  >
-                    {/* <i
+              </div>
+              <div className="control">
+                <div
+                  className="button"
+                  id="shuffle-button"
+                  onClick={(e) => {
+                    toggleShuffle();
+                  }}
+                >
+                  {/* <i
                       className={`fa-solid fa-random ${
                         isShuffled ? "text-green-400" : "text-white"
                       }`}
                     ></i> */}
-                  </div>
                 </div>
-                <div className="control">
-                  <div
-                    className="volume-control"
-                    style={{ display: "flex", alignItems: "center" }}
-                  >
-                    <i
-                      className={`fa-solid ${
-                        volume === 0 ? "fa-volume-mute" : "fa-volume-up"
-                      }`}
-                      style={{
-                        marginRight: "8px",
-                        cursor: "pointer",
-                        position: "absolute",
-                        bottom: "25px",
-                        left: "50%",
-                      }}
-                      onClick={() =>
-                        handleVolumeChange({
-                          target: { value: volume === 0 ? 0.15 : 0 },
-                        })
-                      }
-                    />
-                    <input
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.01"
-                      value={volume}
-                      onChange={handleVolumeChange}
-                      style={{
-                        position: "absolute",
-                        bottom: "10px",
-                        left: "60%",
-                        width: "60px",
-                        height: "4px",
-                        WebkitAppearance: "none",
-                        background: `linear-gradient(to right, #fff ${
-                          volume * 100
-                        }%, #4a4a4a ${volume * 100}%)`,
-                        borderRadius: "2px",
-                        cursor: "pointer",
-                      }}
-                    />
-                  </div>
-                </div>
+              </div>
+              <div className="control">
                 <div
-                  id="current-track-info"
-                  style={{ textAlign: "center", marginTop: "2.5rem" }}
+                  className="volume-control"
+                  style={{ display: "flex", alignItems: "center" }}
                 >
-                  {trackNames[currentTrackIndex]}
+                  <i
+                    className={`fa-solid ${
+                      volume === 0 ? "fa-volume-mute" : "fa-volume-up"
+                    }`}
+                    style={{
+                      marginRight: "8px",
+                      cursor: "pointer",
+                      position: "absolute",
+                      bottom: "25px",
+                      left: "50%",
+                    }}
+                    onClick={() =>
+                      handleVolumeChange({
+                        target: { value: volume === 0 ? 0.15 : 0 },
+                      })
+                    }
+                  />
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={volume}
+                    onChange={handleVolumeChange}
+                    style={{
+                      position: "absolute",
+                      bottom: "10px",
+                      left: "60%",
+                      width: "60px",
+                      height: "4px",
+                      WebkitAppearance: "none",
+                      background: `linear-gradient(to right, #fff ${
+                        volume * 100
+                      }%, #4a4a4a ${volume * 100}%)`,
+                      borderRadius: "2px",
+                      cursor: "pointer",
+                    }}
+                  />
                 </div>
+              </div>
+              <div
+                id="current-track-info"
+                style={{ textAlign: "center", marginTop: "2.5rem" }}
+              >
+                {trackNames[currentTrackIndex]}
               </div>
             </div>
           </div>
         </div>
-      )}
+      </div>
+
       {/* <div className="text-xs text-gray-400 mt-2 text-center">80's Mode</div> */}
     </div>
   );

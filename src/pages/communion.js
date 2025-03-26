@@ -356,7 +356,7 @@ export default function CommunionPage() {
         </div>
       </div>
 
-      <Box
+      {/* <Box
         display="flex"
         flexDirection={{ base: "column", md: "row" }} // Column on small screens, row on larger screens
         alignItems="center"
@@ -379,16 +379,16 @@ export default function CommunionPage() {
           position="relative"
           marginTop="1rem"
           zIndex={-1} // Adjust z-index if needed
-        >
-          {/* <Bouncer onDoorClick={onOpen} disableBlockingBehavior={false} />
+        > */}
+      {/* <Bouncer onDoorClick={onOpen} disableBlockingBehavior={false} />
 
 
           <MoonRoomModal isOpen={isOpen} onClose={onClose} /> */}
-          <GoldCards setGoldCardsLoaded={setGoldCardsLoaded} />
+      {/* <GoldCards setGoldCardsLoaded={setGoldCardsLoaded} />
         </Box>
-      </Box>
+      </Box> */}
 
-      <Box
+      {/* <Box
         style={{
           position: "relative",
           left: "40%",
@@ -409,7 +409,7 @@ export default function CommunionPage() {
           allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
           loading="lazy"
         ></iframe>
-      </Box>
+      </Box> */}
       <div
         style={{
           position: "relative",
