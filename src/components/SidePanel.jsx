@@ -51,6 +51,8 @@ const SidePanel = ({
   const [isTouchDevice, setIsTouchDevice] = useState(false);
   const [showPayEmbed, setShowPayEmbed] = useState(false); // Add this state
   const [showStake, setShowStake] = useState(false); // Add this state
+  const [sitepalLoaded, setSitepalLoaded] = useState(false); // New state for Sitepal
+  const sitepalContainerRef = useRef(null); // New ref for Sitepal container
   const panelRef = useRef(null);
   const hotzoneSize = 20; // Size in pixels for the hotzone
 
@@ -67,6 +69,7 @@ const SidePanel = ({
   // Letter scramble effect variables
   const [activeInterval, setActiveInterval] = useState(null);
   const isHovering = useRef(false);
+  const inputRef = useRef(null);
 
   const wallets = [
     inAppWallet({
@@ -112,8 +115,14 @@ const SidePanel = ({
   // Add state for tracking connection sequence
   const [connectionPhase, setConnectionPhase] = useState(0); // 0=not started, 1=static, 2=connecting, 3=stabilizing, 4=connected
 
-  // Add a ref for the video element
-  const greetingsVideoRef = useRef(null);
+  // Add a new state to track if we're in a browser environment
+  const [isBrowser, setIsBrowser] = useState(false);
+
+  // Add a new state to track SitePal loading progress
+  const [sitepalLoadingStage, setSitepalLoadingStage] = useState(0); // 0=not started, 1=loading, 2=ready
+
+  // Add a new state to track the mute state of the SitePal agent
+  const [isMuted, setIsMuted] = useState(true);
 
   // Detect touch devices
   useEffect(() => {
@@ -125,28 +134,30 @@ const SidePanel = ({
   }, []);
 
   // Handle first click to close panel and mark user interaction
+  // Replace the problematic useEffect with this improved version
   useEffect(() => {
-    const handleFirstClick = (e) => {
+    // Only set up click handler if panel is visible
+    if (!isTextBoxVisible) return;
+
+    const handleOutsideClick = (e) => {
       // Don't close if clicking inside the panel
-      if (panelRef.current?.contains(e.target)) {
+      if (panelRef.current && panelRef.current.contains(e.target)) {
         return;
       }
 
+      // Only close panel and mark user interaction if clicking outside
       setIsTextBoxVisible(false);
       setHasUserInteracted(true);
     };
 
-    // Add click listener if panel is visible
-    if (isTextBoxVisible) {
-      document.addEventListener("click", handleFirstClick);
-    }
+    // Add click listener to document
+    document.addEventListener("click", handleOutsideClick);
 
+    // Clean up listener when component unmounts or dependencies change
     return () => {
-      document.removeEventListener("click", handleFirstClick);
+      document.removeEventListener("click", handleOutsideClick);
     };
-  }, [isTextBoxVisible]); // Add isTextBoxVisible to dependencies
-
-  // Handle mouse movement for panel visibility after first interaction
+  }, [isTextBoxVisible]); // Re-run effect when panel visibility changes
   useEffect(() => {
     if (isTouchDevice) return;
 
@@ -422,61 +433,710 @@ const SidePanel = ({
     toggleMonsterMode(); // Toggle monster mode
   };
 
-  // Toggle video call with connection sequence
-  const toggleCall = () => {
+  // Updated toggle call function that works with SitePal's elements
+  // Update the toggleCall function to ensure event propagation is stopped
+  const toggleCall = (e) => {
+    // Always stop propagation when the button is clicked
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
     if (!activeCall) {
-      // Start connection sequence
-      setActiveCall(true);
-      setGreetingsVideoLoaded(false);
-      setConnectionPhase(1);
+      // Request microphone permissions immediately when connecting
+      navigator.mediaDevices
+        .getUserMedia({ audio: true })
+        .then((stream) => {
+          // Stop the stream immediately - we just needed the permission
+          stream.getTracks().forEach((track) => track.stop());
 
-      // Simulate connection phases with timeouts
-      setTimeout(() => setConnectionPhase(2), 1200); // Static to connecting
-      setTimeout(() => setConnectionPhase(3), 3000); // Connecting to stabilizing
-      setTimeout(() => {
-        setConnectionPhase(4); // Stabilizing to connected
+          // Start connection sequence after permissions granted
+          setActiveCall(true);
+          setConnectionPhase(1);
+          setIsMuted(true);
+          setSitepalLoadingStage(1);
 
-        // Unmute the video once connection is fully established
-        if (greetingsVideoRef.current) {
-          greetingsVideoRef.current.muted = false;
+          setTimeout(() => setConnectionPhase(2), 1200);
+          setTimeout(() => setConnectionPhase(3), 3000);
+          setTimeout(() => {
+            setConnectionPhase(4);
+            // Pre-initialize SitePal's audio system
+            simulateUserInteraction();
+          }, 4500);
+        })
+        .catch((err) => {
+          console.error("Microphone permission error:", err);
+          alert("Please allow microphone access to chat with the avatar");
+        });
+    } else if (activeCall && connectionPhase === 4 && isMuted) {
+      // Now when unmuting, we can proceed directly since permissions are already granted
+      console.log("Setting muted state to false");
+      setIsMuted(false);
 
-          // Ensure video starts from beginning if it already started playing silently
-          if (greetingsVideoRef.current.currentTime > 0) {
-            greetingsVideoRef.current.currentTime = 0;
-          }
+      // Ensure SitePal is properly activated
+      simulateUserInteraction();
 
-          // Ensure the video is playing
-          greetingsVideoRef.current.play().catch((err) => {
-            console.warn("Could not play video after unmuting:", err);
-          });
-        }
-      }, 4500);
+      // Create the floating button if needed
+      if (!window.initialUnmuteAttempted) {
+        window.initialUnmuteAttempted = true;
+        // ... rest of the floating button code ...
+      }
     } else {
-      // End call immediately
+      // End call
       setActiveCall(false);
       setConnectionPhase(0);
-
-      // Reset video if it exists
-      if (greetingsVideoRef.current) {
-        greetingsVideoRef.current.muted = true;
-        greetingsVideoRef.current.pause();
-      }
+      setSitepalLoadingStage(0);
+      setSitepalLoaded(false);
+      setIsMuted(true);
     }
   };
 
+  // Update the call button to ensure it stops propagation
+  <Button
+    fontSize="xs"
+    fontFamily="mono"
+    px="2"
+    py="1"
+    rounded="md"
+    bg={
+      !activeCall
+        ? "green.700"
+        : isMuted && connectionPhase === 4
+        ? "yellow.700"
+        : "red.700"
+    }
+    color="white"
+    _hover={{
+      bg: !activeCall
+        ? "green.600"
+        : isMuted && connectionPhase === 4
+        ? "yellow.600"
+        : "red.600",
+    }}
+    onClick={(e) => {
+      e.stopPropagation(); // Make sure click doesn't bubble up
+      toggleCall(e);
+    }}
+    size="xs"
+    position="relative"
+  >
+    {!activeCall
+      ? "CONNECT"
+      : isMuted && connectionPhase === 4
+      ? "UN-MUTE"
+      : "END CALL"}
+  </Button>;
+
+  // Also update the microphone button that appears when connected
+  {
+    connectionPhase === 4 && (
+      <Button
+        position="absolute"
+        bottom="2"
+        right="2"
+        size="xs"
+        colorScheme="green"
+        borderRadius="full"
+        width="40px"
+        height="40px"
+        opacity="0.7"
+        _hover={{ opacity: "1" }}
+        zIndex="1999" // Just below the SitePal container
+        onClick={(e) => {
+          e.stopPropagation(); // Make sure click doesn't bubble up
+          toggleCall(e);
+        }}
+      >
+        🎤
+      </Button>
+    );
+  }
   // Add useEffect for client-side rendering
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Clean up any playing video when component unmounts
+  // Update the useEffect for initialization
   useEffect(() => {
-    return () => {
-      if (greetingsVideoRef.current) {
-        greetingsVideoRef.current.pause();
-      }
-    };
+    // First check if we're in a browser environment
+    setIsBrowser(typeof window !== "undefined");
   }, []);
+
+  useEffect(() => {
+    if (
+      isBrowser &&
+      mounted &&
+      activeCall &&
+      sitepalContainerRef.current &&
+      connectionPhase === 4
+    ) {
+      console.log("Initializing SitePal with direct DOM manipulation");
+
+      // Clear container first
+      sitepalContainerRef.current.innerHTML = "";
+
+      // Create the required div element
+      const aiPlayerDiv = document.createElement("div");
+      aiPlayerDiv.id = "vhss_aiPlayer";
+      sitepalContainerRef.current.appendChild(aiPlayerDiv);
+
+      // Load the SitePal embed function
+      const script = document.createElement("script");
+      script.src = "//vhss-d.oddcast.com/ai_embed_functions_v1.php";
+      script.async = true;
+      script.onload = function () {
+        try {
+          // Add a hook to intercept SitePal's initialization
+          window.AI_vhost_original = window.AI_vhost_embed;
+          window.AI_vhost_embed = function (...args) {
+            console.log("SitePal embed function called with args:", args);
+
+            // Call the original function
+            window.AI_vhost_original(...args);
+
+            // After SitePal loads, add our own hooks
+            setTimeout(() => {
+              // Find all SitePal functions and log them
+              for (const key in window) {
+                if (
+                  typeof window[key] === "function" &&
+                  (key.includes("vhss") ||
+                    key.includes("AI") ||
+                    key.includes("VHOST"))
+                ) {
+                  console.log("Found SitePal function:", key);
+                }
+              }
+
+              // Create our own global controls
+              window.startSitePalListening = function () {
+                return simulateUserInteraction();
+              };
+            }, 2000);
+          };
+
+          // Call the SitePal embed function with the right parameters
+          window.AI_vhost_embed(800, 600, 9157686, 244, 0, 0);
+
+          // Create a direct overlay for SitePal
+          setTimeout(() => {
+            const container = document.getElementById("vhssPreEmbedContainer");
+            if (container) {
+              // Position the container correctly
+              container.style.position = "absolute";
+              container.style.top = "0";
+              container.style.left = "0";
+              container.style.width = "100%";
+              container.style.height = "100%";
+              container.style.background = "transparent";
+              container.style.zIndex = "2000";
+
+              // Create a global click handler that will watch for clicks on our unmute button
+              window.addEventListener("unmuteSitepal", function () {
+                console.log(
+                  "Unmute event detected, searching for SitePal elements"
+                );
+
+                // Try multiple methods to click the SitePal listening button
+
+                // Method 1: Find and click buttons directly in the main document
+                const tryDirectClick = () => {
+                  const elements = [
+                    document.querySelector(".ai-listening-button"),
+                    document.querySelector(".vhss-ai-button"),
+                    document.querySelector(".vhss-aiplayer-aiform-mic"),
+                    document.querySelector("#vhss-aiplayer-status"),
+                    // Try finding elements by title
+                    document.querySelector(
+                      '[title="Click to start listening"]'
+                    ),
+                    document.querySelector('[title*="listen"]'),
+                    // Try CSS selectors that might match
+                    document.querySelector('img[src*="btn_listening"]'),
+                  ];
+
+                  for (const el of elements) {
+                    if (el) {
+                      console.log("Found element, clicking:", el);
+                      el.click();
+                      return true;
+                    }
+                  }
+                  return false;
+                };
+
+                // Method 2: Search within all iframes
+                const tryFrameClick = () => {
+                  const iframes = document.querySelectorAll("iframe");
+                  for (const iframe of iframes) {
+                    try {
+                      const iframeDoc =
+                        iframe.contentDocument || iframe.contentWindow.document;
+                      const elements = [
+                        iframeDoc.querySelector(".ai-listening-button"),
+                        iframeDoc.querySelector(".vhss-ai-button"),
+                        iframeDoc.querySelector(".vhss-aiplayer-aiform-mic"),
+                        iframeDoc.querySelector("#vhss-aiplayer-status"),
+                        iframeDoc.querySelector(
+                          '[title="Click to start listening"]'
+                        ),
+                        iframeDoc.querySelector('img[src*="btn_listening"]'),
+                      ];
+
+                      for (const el of elements) {
+                        if (el) {
+                          console.log("Found element in iframe, clicking:", el);
+                          el.click();
+                          return true;
+                        }
+                      }
+
+                      // If specific elements not found, try clicking anywhere that might be relevant
+                      const allImgs = iframeDoc.querySelectorAll("img");
+                      for (const img of allImgs) {
+                        if (
+                          img.src &&
+                          img.src.toLowerCase().includes("listen")
+                        ) {
+                          console.log("Found potential listening image:", img);
+                          img.click();
+                          return true;
+                        }
+                      }
+                    } catch (e) {
+                      console.log(
+                        "Could not access iframe due to cross-origin restrictions"
+                      );
+                    }
+                  }
+                  return false;
+                };
+
+                // Method 3: Create a click interceptor overlay
+                const createClickInterceptor = () => {
+                  // Find the SitePal container
+                  const container = document.getElementById(
+                    "vhssPreEmbedContainer"
+                  );
+                  if (!container) return false;
+
+                  // Create a transparent overlay that will display for 1 second
+                  const overlay = document.createElement("div");
+                  overlay.style.position = "absolute";
+                  overlay.style.left = "0";
+                  overlay.style.top = "0";
+                  overlay.style.width = "100%";
+                  overlay.style.height = "100%";
+                  overlay.style.backgroundColor = "rgba(255,0,0,0.1)";
+                  overlay.style.zIndex = "9999";
+                  overlay.style.cursor = "pointer";
+
+                  // Add it to the document
+                  container.appendChild(overlay);
+
+                  // Create an array of potential click positions
+                  const positions = [
+                    { x: 50, y: 50 }, // Center
+                    { x: 80, y: 20 }, // Top right
+                    { x: 20, y: 20 }, // Top left
+                    { x: 80, y: 80 }, // Bottom right
+                    { x: 20, y: 80 }, // Bottom left
+                  ];
+
+                  // Click at each position
+                  positions.forEach((pos, index) => {
+                    setTimeout(() => {
+                      const clickX = container.offsetWidth * (pos.x / 100);
+                      const clickY = container.offsetHeight * (pos.y / 100);
+
+                      // Create and dispatch a click event
+                      const clickEvent = new MouseEvent("click", {
+                        bubbles: true,
+                        cancelable: true,
+                        view: window,
+                        clientX: container.offsetLeft + clickX,
+                        clientY: container.offsetTop + clickY,
+                      });
+
+                      // Dispatch the event directly on the container
+                      container.dispatchEvent(clickEvent);
+
+                      console.log(`Clicked at position: ${pos.x}%, ${pos.y}%`);
+
+                      // Change overlay color briefly to show where clicked
+                      overlay.style.backgroundColor = "rgba(0,255,0,0.2)";
+                      setTimeout(() => {
+                        overlay.style.backgroundColor = "rgba(255,0,0,0.1)";
+                      }, 100);
+
+                      // Remove overlay after last click
+                      if (index === positions.length - 1) {
+                        setTimeout(() => {
+                          overlay.remove();
+                        }, 200);
+                      }
+                    }, index * 200);
+                  });
+
+                  return true;
+                };
+
+                // Try direct click first
+                if (!tryDirectClick()) {
+                  // If that fails, try iframe approach
+                  if (!tryFrameClick()) {
+                    // As a last resort, try click interceptor
+                    createClickInterceptor();
+                  }
+                }
+              });
+
+              setSitepalLoaded(true);
+            }
+          }, 1000);
+        } catch (e) {
+          console.error("Error initializing SitePal:", e);
+        }
+      };
+
+      document.body.appendChild(script);
+
+      return () => {
+        // Cleanup
+        if (!activeCall) {
+          if (sitepalContainerRef.current) {
+            sitepalContainerRef.current.innerHTML = "";
+          }
+
+          const container = document.getElementById("vhssPreEmbedContainer");
+          if (container) container.remove();
+
+          document
+            .querySelectorAll('script[src*="oddcast.com"]')
+            .forEach((s) => s.remove());
+
+          setSitepalLoaded(false);
+        }
+      };
+    }
+  }, [isBrowser, mounted, activeCall, connectionPhase]);
+
+  // Add a separate effect to trigger loading when connection phase is complete
+  useEffect(() => {
+    if (
+      connectionPhase === 4 &&
+      activeCall &&
+      typeof window.loadSitePal === "function"
+    ) {
+      // When connection effects are complete, load the SitePal scene
+      setTimeout(() => {
+        try {
+          window.loadSitePal();
+          setSitepalLoaded(true);
+        } catch (e) {
+          console.error("Error loading SitePal:", e);
+          setSitepalLoaded(true); // Still mark as loaded to avoid hanging
+        }
+      }, 500);
+    }
+  }, [connectionPhase, activeCall]);
+
+  // Add a new effect to set up the SitePal button integration
+  useEffect(() => {
+    if (connectionPhase === 4 && activeCall && isMuted) {
+      // When SitePal is loaded and active, establish the connection between our UI and SitePal
+      const setupSitePalButtonIntegration = () => {
+        try {
+          // Find the SitePal listening button
+          const sitePalButton = document.querySelector(".vhss-ai-button");
+
+          if (sitePalButton) {
+            console.log("Found SitePal button, setting up integration");
+
+            // Create a MutationObserver to watch for changes to the SitePal interface
+            const observer = new MutationObserver((mutations) => {
+              for (const mutation of mutations) {
+                if (
+                  mutation.type === "attributes" ||
+                  mutation.type === "childList"
+                ) {
+                  // Check if any of the SitePal images have been displayed
+                  const activeListeningButton = document.querySelector(
+                    '.ai-active-listening-button[style*="display: block"]'
+                  );
+                  if (activeListeningButton) {
+                    console.log("SitePal is actively listening");
+                    setIsMuted(false);
+                  }
+
+                  // Check if the not-listening button is shown again
+                  const notListeningButton = document.querySelector(
+                    '.ai-not-listening-button[style*="display: block"]'
+                  );
+                  if (notListeningButton) {
+                    console.log("SitePal stopped listening");
+                    setIsMuted(true);
+                  }
+                }
+              }
+            });
+
+            // Start observing the SitePal button
+            observer.observe(sitePalButton, {
+              attributes: true,
+              childList: true,
+              subtree: true,
+            });
+
+            // Store the observer for cleanup
+            window.sitePalObserver = observer;
+
+            // Also hook into our proxy button
+            const proxyButton = document.querySelector(".vhss-ai-button-proxy");
+            if (proxyButton) {
+              // Replace the click handler with one that directly triggers the SitePal button
+              proxyButton.addEventListener("click", (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+
+                // Forward the click to the actual SitePal button
+                sitePalButton.click();
+
+                return false;
+              });
+            }
+          }
+        } catch (error) {
+          console.error("Error setting up SitePal button integration:", error);
+        }
+      };
+
+      // Attempt to set up integration immediately
+      setupSitePalButtonIntegration();
+
+      // Also set up a retry mechanism since SitePal loads asynchronously
+      const integrationInterval = setInterval(() => {
+        const sitePalButton = document.querySelector(".vhss-ai-button");
+        if (sitePalButton) {
+          setupSitePalButtonIntegration();
+          clearInterval(integrationInterval);
+        }
+      }, 500);
+
+      // Clean up interval if component unmounts
+      return () => {
+        clearInterval(integrationInterval);
+        if (window.sitePalObserver) {
+          window.sitePalObserver.disconnect();
+          delete window.sitePalObserver;
+        }
+      };
+    }
+  }, [connectionPhase, activeCall, isMuted]);
+
+  // Add this function at the top level of your component
+  const simulateUserInteraction = () => {
+    console.log("Attempting to simulate user interaction with SitePal...");
+
+    // Track whether we've found the button
+    let buttonFound = false;
+
+    // 1. Try to access the SitePal via the iframe directly with keyboard events
+    const iframes = document.querySelectorAll("iframe");
+    iframes.forEach((iframe) => {
+      try {
+        // Try to send a key event to the iframe
+        console.log("Sending keyboard events to iframe...");
+
+        // Send a Tab key to try to focus on any interactive elements
+        const keyEvent = new KeyboardEvent("keydown", {
+          key: "Tab",
+          code: "Tab",
+          keyCode: 9,
+          which: 9,
+          bubbles: true,
+          cancelable: true,
+        });
+
+        if (iframe.contentDocument) {
+          iframe.contentDocument.dispatchEvent(keyEvent);
+
+          // Then try to send a Space key to activate whatever got focused
+          setTimeout(() => {
+            const spaceEvent = new KeyboardEvent("keydown", {
+              key: " ",
+              code: "Space",
+              keyCode: 32,
+              which: 32,
+              bubbles: true,
+              cancelable: true,
+            });
+            iframe.contentDocument.dispatchEvent(spaceEvent);
+          }, 100);
+        }
+      } catch (e) {
+        console.log("Could not access iframe:", e);
+      }
+    });
+
+    // 2. Try to find and click any element with specific text content related to listening
+    const allElements = document.querySelectorAll("*");
+    for (const el of allElements) {
+      if (
+        el.textContent &&
+        (el.textContent.includes("listen") ||
+          el.textContent.includes("Listen") ||
+          el.textContent.includes("mic") ||
+          el.textContent.includes("Mic"))
+      ) {
+        console.log("Found element with listening text:", el);
+        el.click();
+        buttonFound = true;
+      }
+    }
+
+    // 3. Inject a direct click handler for SitePal
+    const injectClickHandler = () => {
+      // Try to find the container
+      const container =
+        document.getElementById("vhssPreEmbedContainer") ||
+        document.querySelector('[id*="vhss"]') ||
+        document.querySelector(".vhss_main_container");
+
+      if (container) {
+        console.log("Found SitePal container, injecting direct click handler");
+
+        // Create a fullscreen clickable overlay
+        const overlay = document.createElement("div");
+        overlay.style.position = "absolute";
+        overlay.style.top = "0";
+        overlay.style.left = "0";
+        overlay.style.width = "100%";
+        overlay.style.height = "100%";
+        overlay.style.zIndex = "9999";
+        overlay.style.cursor = "pointer";
+        overlay.style.backgroundColor = "rgba(0,0,0,0.1)";
+
+        // Set a click handler that specifically calls SitePal functions
+        overlay.addEventListener("click", function (e) {
+          console.log(
+            "Overlay clicked, attempting to access SitePal functions"
+          );
+
+          try {
+            // Try to directly call known SitePal functions
+            if (window.AI_callAI) {
+              console.log("Calling AI_callAI function");
+              window.AI_callAI();
+              buttonFound = true;
+            } else if (window.vhsshtml5_clickListenButton) {
+              console.log("Calling vhsshtml5_clickListenButton function");
+              window.vhsshtml5_clickListenButton();
+              buttonFound = true;
+            } else {
+              // Look for any SitePal function that might help
+              for (const key in window) {
+                if (
+                  typeof window[key] === "function" &&
+                  (key.includes("listen") ||
+                    key.includes("Listen") ||
+                    key.includes("AI") ||
+                    key.includes("vhss"))
+                ) {
+                  console.log("Found potential SitePal function:", key);
+                  try {
+                    window[key]();
+                    buttonFound = true;
+                  } catch (err) {
+                    console.log(`Error calling ${key}:`, err);
+                  }
+                }
+              }
+            }
+          } catch (err) {
+            console.log("Error accessing SitePal functions:", err);
+          }
+
+          // Remove the overlay after click
+          overlay.remove();
+        });
+
+        container.appendChild(overlay);
+
+        // Auto-click after a short delay
+        setTimeout(() => {
+          overlay.click();
+        }, 500);
+
+        return true;
+      }
+
+      return false;
+    };
+
+    if (!buttonFound) {
+      injectClickHandler();
+    }
+
+    // 4. As a last resort, try to find and modify SitePal internal state directly
+    setTimeout(() => {
+      if (!buttonFound) {
+        console.log("Attempting to directly modify SitePal internal state...");
+
+        // Look for any global variables that might control the listen state
+        for (const key in window) {
+          if (
+            key.includes("vhss") ||
+            key.includes("AI") ||
+            key.includes("VHOST")
+          ) {
+            console.log("Found SitePal global:", key, window[key]);
+          }
+        }
+
+        // Try to click on areas where the button might be
+        const clickOnCoordinates = (element, x, y) => {
+          if (!element) return;
+
+          const rect = element.getBoundingClientRect();
+          const clickX = rect.left + rect.width * (x / 100);
+          const clickY = rect.top + rect.height * (y / 100);
+
+          const clickEvent = new MouseEvent("click", {
+            bubbles: true,
+            cancelable: true,
+            view: window,
+            clientX: clickX,
+            clientY: clickY,
+          });
+
+          element.dispatchEvent(clickEvent);
+          console.log(`Clicked at ${x}%,${y}% of element:`, element);
+        };
+
+        // Click on various parts of the container
+        const containers = [
+          document.getElementById("vhssPreEmbedContainer"),
+          document.querySelector(".vhss_main_container"),
+          document.querySelector('[id*="vhss"]'),
+          ...document.querySelectorAll("iframe"),
+        ];
+
+        for (const container of containers) {
+          if (container) {
+            // Try clicking center and all corners
+            clickOnCoordinates(container, 50, 50); // Center
+            clickOnCoordinates(container, 20, 20); // Top left
+            clickOnCoordinates(container, 80, 20); // Top right
+            clickOnCoordinates(container, 20, 80); // Bottom left
+            clickOnCoordinates(container, 80, 80); // Bottom right
+          }
+        }
+      }
+    }, 1000);
+
+    return buttonFound;
+  };
 
   return (
     <>
@@ -559,6 +1219,51 @@ const SidePanel = ({
           "@keyframes fadeIn": {
             "0%": { opacity: 0 },
             "100%": { opacity: 0.4 },
+          },
+          "& #vhssPreEmbedContainer": {
+            position: "absolute !important",
+            top: "0 !important",
+            left: "0 !important",
+            width: "100% !important",
+            height: "100% !important",
+            transform: "scale(1) !important",
+            transformOrigin: "center center !important",
+            background: "transparent !important",
+            pointerEvents: "auto !important",
+            zIndex: "5 !important",
+
+            "& iframe": {
+              width: "100%",
+              height: "100%",
+              border: "none",
+              background: "transparent",
+              zIndex: "5",
+            },
+          },
+          // SitePal integration styles
+          ".vhss-aiplayer-aiform-mic": {
+            opacity: "1 !important",
+            position: "fixed !important",
+            top: "-1000px !important",
+            left: "-1000px !important",
+            width: "1px !important",
+            height: "1px !important",
+            overflow: "hidden !important",
+            pointerEvents: "none !important",
+            zIndex: "-1 !important",
+          },
+
+          // When our button is clicked, forward the click to SitePal's button
+          ".vhss-ai-button-proxy": {
+            cursor: "pointer",
+            position: "relative",
+          },
+
+          // Make SitePal button accessible but invisible
+          ".vhss-ai-button": {
+            opacity: "1 !important",
+            cursor: "pointer !important",
+            zIndex: "3000 !important",
           },
         }}
       >
@@ -660,21 +1365,16 @@ const SidePanel = ({
                           transition="opacity 0.8s ease"
                         />
 
-                        {/* Actual greetings video - initially muted and referenced */}
+                        {/* Replace the old video with Sitepal integration */}
                         <Box
-                          as="video"
-                          ref={greetingsVideoRef}
                           position="absolute"
                           top="0"
                           left="0"
                           width="100%"
                           height="100%"
                           objectFit="cover"
-                          src="/greetings.mp4"
-                          autoPlay
-                          muted
-                          onLoadedData={() => setGreetingsVideoLoaded(true)}
                           zIndex="1"
+                          ref={sitepalContainerRef}
                           sx={{
                             filter:
                               connectionPhase < 4
@@ -704,6 +1404,12 @@ const SidePanel = ({
                               "60%": { transform: "translate(2px, 2px)" },
                               "80%": { transform: "translate(2px, -2px)" },
                               "100%": { transform: "translate(0)" },
+                            },
+                            "& iframe": {
+                              width: "100%",
+                              height: "100%",
+                              border: "none",
+                              overflow: "hidden",
                             },
                           }}
                         />
@@ -876,7 +1582,24 @@ const SidePanel = ({
                         )}
                       </Box>
                     </Flex>
-
+                    {connectionPhase === 4 && (
+                      <Button
+                        position="absolute"
+                        bottom="2"
+                        right="2"
+                        size="xs"
+                        colorScheme="green"
+                        borderRadius="full"
+                        width="40px"
+                        height="40px"
+                        opacity="0.7"
+                        _hover={{ opacity: "1" }}
+                        zIndex="1999" // Just below the SitePal container
+                        onClick={toggleCall}
+                      >
+                        🎤
+                      </Button>
+                    )}
                     {/* User camera placeholder - updated to show Clerk avatar if available */}
                     <Box
                       position="absolute"
@@ -1044,13 +1767,30 @@ const SidePanel = ({
               px="2"
               py="1"
               rounded="md"
-              bg={activeCall ? "red.700" : "green.700"}
+              bg={
+                !activeCall
+                  ? "green.700"
+                  : isMuted && connectionPhase === 4
+                  ? "yellow.700"
+                  : "red.700"
+              }
               color="white"
-              _hover={{ bg: activeCall ? "red.600" : "green.600" }}
+              _hover={{
+                bg: !activeCall
+                  ? "green.600"
+                  : isMuted && connectionPhase === 4
+                  ? "yellow.600"
+                  : "red.600",
+              }}
               onClick={toggleCall}
               size="xs"
+              position="relative"
             >
-              {activeCall ? "END CALL" : "CONNECT"}
+              {!activeCall
+                ? "CONNECT"
+                : isMuted && connectionPhase === 4
+                ? "UN-MUTE"
+                : "END CALL"}
             </Button>
             <Select
               bg="gray.900"

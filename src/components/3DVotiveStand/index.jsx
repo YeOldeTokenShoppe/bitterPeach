@@ -18,6 +18,7 @@ import * as THREE from "three";
 import gsap from "gsap";
 import Model from "./Model";
 import RocketModel from "./RocketModel";
+import ConstellationModel from "./ConstellationModel";
 
 // import { DEFAULT_CAMERA, getCameraSettings } from "./defaultCamera";
 // In your Canvas component
@@ -41,7 +42,6 @@ import HolographicStatue from "./HolographicStatue";
 import PostProcessingEffects from "./PostProcessingEffects";
 import NeonConfetti from "./NeonConfetti";
 import StarField from "./StarField";
-import StarrySky from "./StarrySky";
 
 const scene = new THREE.Scene();
 
@@ -429,6 +429,14 @@ function ThreeDVotiveStand({
         <BakeShadows />
         {/* <Perf position="top-left" showGraph={true} chart={true} /> */}
 
+        <Suspense fallback={null}>
+          <StarField is80sMode={is80sMode} />
+        </Suspense>
+        {/* 
+        <Suspense fallback={null}>
+          <ConstellationModel is80sMode={is80sMode} />
+        </Suspense> */}
+
         <Model
           scale={modelScale}
           rotation={[0, 0, 0]}
@@ -487,7 +495,7 @@ function ThreeDVotiveStand({
 
         {/* Render the stars last */}
         <Suspense fallback={null}>
-          <StarField is80sMode={is80sMode} />
+          {/* <StarField is80sMode={is80sMode} /> */}
         </Suspense>
       </Canvas>
 

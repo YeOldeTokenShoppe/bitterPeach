@@ -1,7 +1,6 @@
 import React, { useRef, useEffect, useState } from "react";
 import * as THREE from "three";
 import { useFrame, useThree } from "@react-three/fiber";
-import { useTexture } from "@react-three/drei";
 
 // Create stars distributed on a sphere far from the camera
 const getRandomParticlePos = (particleCount, radius = 200) => {
@@ -23,12 +22,6 @@ const StarField = ({ count1 = 350, count2 = 1500, is80sMode = false }) => {
   const smallStars = useRef();
   const largeStars = useRef();
   const { camera, scene, gl } = useThree();
-
-  // Load the star textures
-  const textures = useTexture({
-    star1: "https://raw.githubusercontent.com/Kuntal-Das/textures/main/sp1.png",
-    star2: "https://raw.githubusercontent.com/Kuntal-Das/textures/main/sp2.png",
-  });
 
   // Create the geometry on component mount
   const [geometry1] = useState(() => {
@@ -53,28 +46,26 @@ const StarField = ({ count1 = 350, count2 = 1500, is80sMode = false }) => {
   const starMaterial1 = useRef(
     new THREE.PointsMaterial({
       size: 0.4,
-      map: textures.star1,
       transparent: true,
       opacity: 0.8,
       sizeAttenuation: true,
       color: is80sMode ? new THREE.Color(0x88ccff) : new THREE.Color(0xffffff),
-      depthWrite: false, // Don't write to depth buffer
-      depthTest: true, // But do test against it
-      blending: THREE.AdditiveBlending, // Makes stars glow
+      depthWrite: false,
+      depthTest: true,
+      blending: THREE.AdditiveBlending,
     })
   );
 
   const starMaterial2 = useRef(
     new THREE.PointsMaterial({
       size: 0.6,
-      map: textures.star2,
       transparent: true,
       opacity: 0.7,
       sizeAttenuation: true,
       color: is80sMode ? new THREE.Color(0xff88ff) : new THREE.Color(0xffffff),
-      depthWrite: false, // Don't write to depth buffer
-      depthTest: true, // But do test against it
-      blending: THREE.AdditiveBlending, // Makes stars glow
+      depthWrite: false,
+      depthTest: true,
+      blending: THREE.AdditiveBlending,
     })
   );
 

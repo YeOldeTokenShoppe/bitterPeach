@@ -1,6 +1,14 @@
 /* Remove Google Fonts import since the font is locally installed */
 /* @import url("https://fonts.googleapis.com/css2?family=UnifrakturCook:wght@700&display=swap"); */
 
+@font-face {
+  font-family: "UnifrakturCook";
+  src: url("./UnifrakturCook-Bold.ttf") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 .loaderRoot {
   --hue: 163;
   --hue2: 43;
@@ -69,7 +77,15 @@
   letter-spacing: 2px;
   text-shadow: 0 0 8px rgba(225, 182, 126, 0.6);
   margin-bottom: 0.2em;
-  font-family: "UnifrakturCook", "UnifrakturCook-Bold", serif; /* Use local font with fallbacks */
+  font-family: "UnifrakturCook", "Palatino", serif; /* Add similar-looking fallback */
+  visibility: hidden; /* Hide until font loads */
+  animation: revealWhenFontLoads 0.1s ease 0.1s forwards;
+}
+
+@keyframes revealWhenFontLoads {
+  to {
+    visibility: visible;
+  }
 }
 
 .percentageText {

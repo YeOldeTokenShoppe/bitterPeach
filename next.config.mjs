@@ -19,6 +19,7 @@ const nextConfig = {
         pathname: "/**",
       },
     ],
+    domains: ["img.clerk.com", "images.clerk.dev"],
   },
   webpack: (config, { isServer, dev }) => {
     // Enable source maps in production

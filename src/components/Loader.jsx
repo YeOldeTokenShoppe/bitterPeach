@@ -4,6 +4,7 @@ import styles from "../../styles/Loader.module.css"; // Scoped styles for the lo
 function Loader({ progress }) {
   // Use provided progress or create internal state for simulated progress
   const [loadingPercentage, setLoadingPercentage] = useState(progress || 0);
+  const [fontLoaded, setFontLoaded] = useState(false);
 
   // If no progress prop is provided, simulate loading progress
   useEffect(() => {
@@ -30,8 +31,22 @@ function Loader({ progress }) {
     }
   }, [progress]);
 
+  useEffect(() => {
+    // Add font loading detection
+    if ("fonts" in document) {
+      document.fonts.ready.then(() => {
+        setFontLoaded(true);
+      });
+    } else {
+      // Fallback for browsers that don't support font loading API
+      setTimeout(() => setFontLoaded(true), 300);
+    }
+  }, []);
+
   return (
-    <div className={styles.loaderRoot}>
+    <div
+      className={`${styles.loaderRoot} ${fontLoaded ? styles.fontLoaded : ""}`}
+    >
       <div className={styles.loaderWrapper}>
         <div className={styles.loaderContainer}>
           {/* Coin animation */}

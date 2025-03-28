@@ -4,7 +4,7 @@ import {
   getRecommendedAudioQuality,
   isMeteredConnection,
 } from "../utils/networkUtils";
-import styles from "../../styles/MusicPlayer.module.css";
+// import styles from "../../styles/MusicPlayer.module.css";
 import { storage } from "../utilities/firebaseClient"; // Import Firebase storage
 import { ref, getDownloadURL } from "firebase/storage"; // Import Firebase storage functions
 
