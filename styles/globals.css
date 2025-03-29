@@ -3830,7 +3830,7 @@ div.css-161tt0w {
   color: #8e662b;
   text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 15px #8e662b, 0 0 20px turquoise,
     0 0 25px turquoise, 2px 2px 3px rgba(0, 0, 0, 0.5);
-  font-size: 4rem; /* default to 4rem for small screens */
+  font-size: 2rem; /* default to 4rem for small screens */
   font-weight: 900;
   line-height: 0.8;
   transform: rotate(-8deg) skew(-15deg);
@@ -6086,4 +6086,8 @@ body {
   position: relative !important;
   top: 3rem !important;
   left: 16rem !important;
+}
+
+#vhss-aiplayer-aiformlogs {
+  opacity: 0 !important;
 }

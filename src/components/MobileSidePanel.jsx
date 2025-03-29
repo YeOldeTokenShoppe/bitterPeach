@@ -43,15 +43,285 @@ const MobileSidePanel = ({
   const [currentPath, setCurrentPath] = useState(router.asPath);
   const [emoji, setEmoji] = useState("😇");
   const [mounted, setMounted] = useState(false);
+  const sitepalContainerRef = useRef(null);
+  const microphoneStreamRef = useRef(null);
 
   // Add state for video call functionality
   const [activeCall, setActiveCall] = useState(false);
   const [currentStation, setCurrentStation] = useState("LUNAR BASE ALPHA");
+  const [connectionPhase, setConnectionPhase] = useState(0);
+  const [sitepalLoadingStage, setSitepalLoadingStage] = useState(0);
+  const [isMuted, setIsMuted] = useState(true);
+  const [sitepalLoaded, setSitepalLoaded] = useState(false);
+  const [isBrowser, setIsBrowser] = useState(false);
 
-  // Toggle video call
-  const toggleCall = () => {
-    setActiveCall(!activeCall);
+  // Toggle video call with Sitepal integration
+  const toggleCall = (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
+    if (!activeCall) {
+      navigator.mediaDevices
+        .getUserMedia({ audio: true })
+        .then((stream) => {
+          microphoneStreamRef.current = stream;
+          setActiveCall(true);
+          setConnectionPhase(1);
+          setIsMuted(true);
+          setSitepalLoadingStage(1);
+
+          setTimeout(() => setConnectionPhase(2), 1200);
+          setTimeout(() => setConnectionPhase(3), 3000);
+          setTimeout(() => {
+            setConnectionPhase(4);
+            setSitepalLoadingStage(2);
+            // Load SitePal scene when ready
+            if (window.loadSitePal) {
+              window.loadSitePal();
+            }
+          }, 4500);
+        })
+        .catch((err) => {
+          console.error("Microphone permission error:", err);
+          alert("Please allow microphone access to chat with the avatar");
+        });
+    } else {
+      setActiveCall(false);
+      setConnectionPhase(0);
+      setSitepalLoadingStage(0);
+      setSitepalLoaded(false);
+      setIsMuted(true);
+
+      // Clean up microphone and SitePal
+      if (microphoneStreamRef.current) {
+        microphoneStreamRef.current.getTracks().forEach((track) => {
+          track.stop();
+        });
+        microphoneStreamRef.current = null;
+      }
+
+      // Additional cleanup
+      document.querySelectorAll("video, audio").forEach((el) => {
+        if (el.srcObject) {
+          el.srcObject.getTracks().forEach((track) => track.stop());
+          el.srcObject = null;
+        }
+      });
+
+      cleanupMemory();
+    }
   };
+
+  // Add enhanced cleanupMemory function
+  const cleanupMemory = () => {
+    // Clear any large objects from memory
+    if (window.vhssPreEmbedContainer) {
+      window.vhssPreEmbedContainer = null;
+    }
+
+    // Clear any event listeners
+    const container = document.getElementById("vhssPreEmbedContainer");
+    if (container) {
+      const clone = container.cloneNode(false);
+      if (container.parentNode) {
+        container.parentNode.replaceChild(clone, container);
+      }
+    }
+
+    // Clear any cached resources
+    if (window.vhsshtml5_resourceCache) {
+      window.vhsshtml5_resourceCache = {};
+    }
+
+    // Clear any unused audio contexts
+    if (window.vhsshtml5_audioContext) {
+      window.vhsshtml5_audioContext.close();
+      window.vhsshtml5_audioContext = null;
+    }
+
+    // Clear any large arrays or objects
+    if (window.vhsshtml5_audioData) {
+      window.vhsshtml5_audioData = null;
+    }
+
+    // Clear any video elements
+    document.querySelectorAll("video").forEach((video) => {
+      video.pause();
+      video.src = "";
+      video.load();
+    });
+
+    // Clear any audio elements
+    document.querySelectorAll("audio").forEach((audio) => {
+      audio.pause();
+      audio.src = "";
+      audio.load();
+    });
+
+    // Remove any unused iframes
+    document.querySelectorAll("iframe").forEach((iframe) => {
+      if (iframe.src.includes("oddcast.com")) {
+        iframe.src = "about:blank";
+        iframe.remove();
+      }
+    });
+
+    // Clear any large data URLs from memory
+    document.querySelectorAll('img[src^="data:"]').forEach((img) => {
+      img.src = "";
+    });
+
+    // Clear any WebGL contexts
+    const canvas = document.querySelector("canvas");
+    if (canvas) {
+      const gl = canvas.getContext("webgl") || canvas.getContext("webgl2");
+      if (gl) {
+        gl.getExtension("WEBGL_lose_context")?.loseContext();
+      }
+    }
+
+    // Force garbage collection if possible
+    if (window.gc) {
+      window.gc();
+    }
+  };
+
+  // Update useEffect for initialization
+  useEffect(() => {
+    setMounted(true);
+    setIsBrowser(typeof window !== "undefined");
+  }, []);
+
+  // Modify the SitePal initialization
+  useEffect(() => {
+    if (isBrowser && mounted && activeCall && sitepalContainerRef.current) {
+      const script = document.createElement("script");
+      script.textContent = `
+        (function() {
+          var script = document.createElement('script');
+          script.src = '//vhss-d.oddcast.com/ai_embed_functions_v1.php';
+          script.onload = function() {
+            try {
+              // Enhanced memory optimization settings
+              window.vhssAIConfig = {
+                preventAutoLoad: true,
+                sceneId: 1,
+                width: 800,
+                height: 600,
+                optimizeMemory: true,
+                clearResourcesOnUnload: true,
+                maxTextureSize: 1024,
+                lowQualityMode: true,
+                disableAntialiasing: true,
+                aggressiveCleanup: true
+              };
+
+              // Initialize but don't load scene yet
+              AI_vhost_embed(800, 600, 9157686, 244, 0, 0);
+              
+              // Enhanced load function with memory management
+              window.loadSitePal = function() {
+                try {
+                  var sitepalContainer = document.getElementById("vhssPreEmbedContainer");
+                  if (!sitepalContainer) {
+                    return setTimeout(window.loadSitePal, 500);
+                  }
+
+                  // Clean up before loading new scene
+                  cleanupMemory();
+
+                  // Style the container
+                  sitepalContainer.style.position = "absolute";
+                  sitepalContainer.style.top = "0";
+                  sitepalContainer.style.left = "0";
+                  sitepalContainer.style.width = "100%";
+                  sitepalContainer.style.height = "100%";
+                  sitepalContainer.style.zIndex = "100";
+                  sitepalContainer.style.pointerEvents = "auto";
+                  sitepalContainer.style.background = "transparent";
+                  
+                  // Load scene only if not already loaded
+                  if (window.vhsshtml5_loadScene && !window.sceneLoaded) {
+                    window.sceneLoaded = true;
+                    window.vhsshtml5_loadScene(1);
+                  }
+
+                  // Schedule periodic cleanup
+                  setInterval(cleanupMemory, 60000);
+                } catch(e) {
+                  console.error('Error loading SitePal scene:', e);
+                  cleanupMemory();
+                }
+              };
+            } catch(e) {
+              console.error('Error initializing SitePal:', e);
+              cleanupMemory();
+            }
+          };
+          document.body.appendChild(script);
+        })();
+      `;
+      document.body.appendChild(script);
+
+      return () => {
+        cleanupMemory();
+        script.remove();
+      };
+    }
+  }, [isBrowser, mounted, activeCall]);
+
+  // Add more aggressive cleanup on unmount
+  useEffect(() => {
+    return () => {
+      cleanupMemory();
+
+      // Additional cleanup
+      if (sitepalContainerRef.current) {
+        while (sitepalContainerRef.current.firstChild) {
+          sitepalContainerRef.current.removeChild(
+            sitepalContainerRef.current.firstChild
+          );
+        }
+      }
+
+      // Remove all SitePal-related scripts
+      document.querySelectorAll("script").forEach((script) => {
+        if (
+          script.src.includes("oddcast.com") ||
+          script.textContent.includes("AI_vhost_embed")
+        ) {
+          script.remove();
+        }
+      });
+
+      // Clear all intervals
+      const highestId = window.setInterval(() => {}, 0);
+      for (let i = 0; i < highestId; i++) {
+        window.clearInterval(i);
+      }
+    };
+  }, []);
+
+  // Add useEffect to trigger loading when connection phase is complete
+  useEffect(() => {
+    if (
+      connectionPhase === 4 &&
+      activeCall &&
+      typeof window.loadSitePal === "function"
+    ) {
+      setTimeout(() => {
+        try {
+          window.loadSitePal();
+          setSitepalLoaded(true);
+        } catch (e) {
+          console.error("Error loading SitePal:", e);
+          setSitepalLoaded(true); // Still mark as loaded to avoid hanging
+        }
+      }, 500);
+    }
+  }, [connectionPhase, activeCall]);
 
   const leaderboardData = [
     { name: "Armstrong", score: 1969 },
@@ -138,11 +408,6 @@ const MobileSidePanel = ({
     }, 3000);
 
     return () => clearInterval(emojiInterval);
-  }, []);
-
-  // Add useEffect for client-side rendering
-  useEffect(() => {
-    setMounted(true);
   }, []);
 
   return (
@@ -265,28 +530,44 @@ const MobileSidePanel = ({
                             align="center"
                             justify="center"
                           >
-                            {/* Placeholder for station feed */}
+                            {/* SitePal container */}
                             <Box
+                              ref={sitepalContainerRef}
                               w="100%"
                               h="100%"
                               position="relative"
                               overflow="hidden"
-                            >
-                              <Box
-                                w="100%"
-                                h="100%"
-                                bg="gray.800"
-                                opacity="0.6"
-                                display="flex"
-                                alignItems="center"
-                                justifyContent="center"
-                                fontSize="xs"
-                                color="gray.500"
-                                animation="fadeIn 0.5s ease-in"
-                              >
-                                STATION VIEW
-                              </Box>
-                            </Box>
+                              opacity={connectionPhase === 4 ? 1 : 0}
+                              transition="opacity 0.5s ease"
+                            />
+
+                            {/* Static overlay - varies opacity based on connection phase */}
+                            <Box
+                              as="video"
+                              position="absolute"
+                              top="0"
+                              left="0"
+                              width="100%"
+                              height="100%"
+                              objectFit="cover"
+                              src="/deadAir.mp4"
+                              autoPlay
+                              muted
+                              loop
+                              zIndex="2"
+                              opacity={
+                                connectionPhase < 4
+                                  ? connectionPhase === 1
+                                    ? 0.9
+                                    : connectionPhase === 2
+                                    ? 0.6
+                                    : connectionPhase === 3
+                                    ? 0.3
+                                    : 0
+                                  : 0
+                              }
+                              transition="opacity 0.8s ease"
+                            />
                           </Flex>
                           <Box
                             position="absolute"
@@ -329,7 +610,7 @@ const MobileSidePanel = ({
                             fontFamily="mono"
                             animation="pulse 2s infinite"
                           >
-                            LIVE
+                            {connectionPhase < 4 ? "CONNECTING..." : "LIVE"}
                           </Text>
                         </>
                       ) : (
@@ -409,6 +690,7 @@ const MobileSidePanel = ({
                     _hover={{ bg: activeCall ? "red.600" : "green.600" }}
                     onClick={toggleCall}
                     size="xs"
+                    isDisabled={connectionPhase > 0 && connectionPhase < 4}
                   >
                     {activeCall ? "END CALL" : "CONNECT"}
                   </Button>
@@ -444,15 +726,38 @@ const MobileSidePanel = ({
                   fontFamily="mono"
                   boxShadow="md"
                   border="2px solid"
-                  borderColor="red.500"
+                  borderColor={monsterMode ? "cyan.500" : "red.500"}
                   flexDirection="column"
-                  onClick={() => onButtonClick("LAUNCH")}
+                  onClick={handleMonsterModeToggle}
                   size="sm"
+                  _before={{
+                    content: '""',
+                    position: "absolute",
+                    top: "-2px",
+                    right: "-2px",
+                    bottom: "-2px",
+                    left: "-2px",
+                    borderRadius: "lg",
+                    background: monsterMode
+                      ? "linear-gradient(45deg, #00ffff, #00ccff)"
+                      : "none",
+                    opacity: "0.5",
+                    zIndex: "-1",
+                  }}
                 >
-                  <Text fontSize="xs" mb="1">
-                    INITIATE
+                  <Text
+                    fontSize="xs"
+                    mb="1"
+                    color={monsterMode ? "cyan.100" : "white"}
+                  >
+                    {monsterMode ? "DISENGAGE" : "INITIATE"}
                   </Text>
-                  <Text fontWeight="bold">LAUNCH</Text>
+                  <Text
+                    fontWeight="bold"
+                    color={monsterMode ? "cyan.100" : "white"}
+                  >
+                    {monsterMode ? "MISSION" : "LAUNCH"}
+                  </Text>
                 </Button>
 
                 <Button

@@ -1,0 +1,5 @@
+    // Add more dramatic size variation for each star
+    // Weighted distribution to favor smaller stars with occasional larger ones
+    const rand = Math.random();
+    const sizeMultiplier = rand < 0.85 ? rand * 0.7 + 0.1 : rand * 2 + 0.5;
+    sizes[i / 3] = sizeMultiplier; // More dramatic size range 

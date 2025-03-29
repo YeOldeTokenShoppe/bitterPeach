@@ -428,10 +428,10 @@ function ThreeDVotiveStand({
         <AdaptiveEvents />
         <BakeShadows />
         {/* <Perf position="top-left" showGraph={true} chart={true} /> */}
-
+        {/* 
         <Suspense fallback={null}>
           <StarField is80sMode={is80sMode} />
-        </Suspense>
+        </Suspense> */}
         {/* 
         <Suspense fallback={null}>
           <ConstellationModel is80sMode={is80sMode} />

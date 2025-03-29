@@ -61,14 +61,14 @@ const MusicPlayer = ({ isVisible, onClose, autoPlay = true }) => {
     };
   }, []); // Empty dependency array = run once
 
-  useEffect(() => {
-    console.log(
-      "Shuffle state effect triggered. isShuffled:",
-      isShuffled,
-      "Queue:",
-      shuffledQueue
-    );
-  }, [isShuffled, shuffledQueue]);
+  // useEffect(() => {
+  //   console.log(
+  //     "Shuffle state effect triggered. isShuffled:",
+  //     isShuffled,
+  //     "Queue:",
+  //     shuffledQueue
+  //   );
+  // }, [isShuffled, shuffledQueue]);
   const getRandomTrackIndex = () => {
     return Math.floor(Math.random() * trackNames.length);
   };
@@ -78,50 +78,36 @@ const MusicPlayer = ({ isVisible, onClose, autoPlay = true }) => {
   );
   // Create shuffled queue when shuffle is toggled
   useEffect(() => {
-    console.log("Shuffle state changed:", isShuffled);
     if (isShuffled) {
       const allTracks = [...Array(trackNames.length).keys()];
       const shuffled = allTracks
         .filter((index) => index !== currentTrackIndex)
         .sort(() => Math.random() - 0.5);
-      console.log("New shuffle queue:", [currentTrackIndex, ...shuffled]);
+
       setShuffledQueue([currentTrackIndex, ...shuffled]);
     } else {
-      console.log("Clearing shuffle queue");
       setShuffledQueue([]); // Clear queue when shuffle is disabled
     }
   }, [isShuffled, currentTrackIndex, trackNames.length]); // Add all dependencies
 
   const getNextTrackIndex = (direction) => {
-    console.log(
-      "Getting next track. Shuffle:",
-      isShuffled,
-      "Direction:",
-      direction,
-      "Current Queue:",
-      shuffledQueue
-    );
-
     if (!isShuffled) {
       const nextIndex =
         (currentTrackIndex + direction + trackNames.length) % trackNames.length;
-      console.log("Sequential playback, next index:", nextIndex);
+
       return nextIndex;
     }
 
     if (shuffledQueue.length === 0) {
-      console.log("Empty shuffle queue, creating new one");
       const allTracks = [...Array(trackNames.length).keys()];
       const newQueue = allTracks
         .filter((index) => index !== currentTrackIndex)
         .sort(() => Math.random() - 0.5);
       setShuffledQueue([currentTrackIndex, ...newQueue]);
-      console.log("New queue created:", [currentTrackIndex, ...newQueue]);
       return newQueue[0];
     }
 
     const currentQueueIndex = shuffledQueue.indexOf(currentTrackIndex);
-    console.log("Current position in shuffle queue:", currentQueueIndex);
 
     let nextQueueIndex;
     if (direction === 1) {
@@ -131,10 +117,6 @@ const MusicPlayer = ({ isVisible, onClose, autoPlay = true }) => {
         (currentQueueIndex - 1 + shuffledQueue.length) % shuffledQueue.length;
     }
 
-    console.log(
-      "Next track from shuffle queue:",
-      shuffledQueue[nextQueueIndex]
-    );
     return shuffledQueue[nextQueueIndex];
   };
   const updateProgress = () => {
@@ -161,10 +143,6 @@ const MusicPlayer = ({ isVisible, onClose, autoPlay = true }) => {
 
   useEffect(() => {
     if (isVisible && audioRef.current && autoPlay) {
-      console.log(
-        "MusicPlayer is now visible, attempting auto-play at volume:",
-        volume
-      );
       // Set volume before playing
       audioRef.current.volume = volume;
 
@@ -172,10 +150,6 @@ const MusicPlayer = ({ isVisible, onClose, autoPlay = true }) => {
       audioRef.current
         .play()
         .then(() => {
-          console.log(
-            "Auto-play successful at volume:",
-            audioRef.current.volume
-          );
           setIsPlaying(true);
         })
         .catch((error) => {
@@ -184,7 +158,6 @@ const MusicPlayer = ({ isVisible, onClose, autoPlay = true }) => {
           setIsPlaying(false);
         });
     } else if (!isVisible && audioRef.current && isPlaying) {
-      console.log("MusicPlayer is no longer visible, pausing playback");
       audioRef.current.pause();
       setIsPlaying(false);
     }
@@ -192,18 +165,15 @@ const MusicPlayer = ({ isVisible, onClose, autoPlay = true }) => {
 
   const handleVolumeChange = (e) => {
     const newVolume = parseFloat(e.target.value);
-    console.log("Volume slider changed to:", newVolume);
+
     setVolume(newVolume);
     if (audioRef.current) {
       audioRef.current.volume = newVolume;
-      console.log("Current audio volume:", audioRef.current.volume);
     }
   };
 
   const toggleShuffle = () => {
-    console.log("toggleShuffle called, current state:", isShuffled);
     const newShuffleState = !isShuffled;
-    console.log("Setting shuffle to:", newShuffleState);
 
     if (newShuffleState) {
       // Create new shuffle queue
@@ -212,10 +182,9 @@ const MusicPlayer = ({ isVisible, onClose, autoPlay = true }) => {
         .filter((index) => index !== currentTrackIndex)
         .sort(() => Math.random() - 0.5);
       const newQueue = [currentTrackIndex, ...shuffled];
-      console.log("New shuffle queue:", newQueue);
+
       setShuffledQueue(newQueue);
     } else {
-      console.log("Clearing shuffle queue");
       setShuffledQueue([]);
     }
 
@@ -259,7 +228,6 @@ const MusicPlayer = ({ isVisible, onClose, autoPlay = true }) => {
     const firebaseAudioUrl =
       "https://firebasestorage.googleapis.com/v0/b/hailmary-3ff6c.firebasestorage.app/o/audio%2F320k%2Frocket-man---steven-drozd.m4a?alt=media&token=03a93b83-7077-4090-aff9-58b1ddabb6f8";
 
-    console.log("Setting audio URL:", firebaseAudioUrl);
     setTrackUrl(firebaseAudioUrl);
   }, []);
 
@@ -276,7 +244,6 @@ const MusicPlayer = ({ isVisible, onClose, autoPlay = true }) => {
     audio.volume = volume;
     audio.src = trackUrl;
 
-    console.log(`Loading audio from URL: ${trackUrl}`);
     audioRef.current = audio;
 
     const handlePlay = () => setIsPlaying(true);
@@ -324,16 +291,10 @@ const MusicPlayer = ({ isVisible, onClose, autoPlay = true }) => {
   // Handle play/pause state changes
   useEffect(() => {
     if (audioRef.current) {
-      console.log("Play state changed, isPlaying:", isPlaying);
       if (isPlaying) {
         audioRef.current
           .play()
-          .then(() => {
-            console.log(
-              "Successfully started playback, volume:",
-              audioRef.current.volume
-            );
-          })
+          .then(() => {})
           .catch((error) => console.error("Error playing:", error));
       } else {
         audioRef.current.pause();
@@ -344,7 +305,6 @@ const MusicPlayer = ({ isVisible, onClose, autoPlay = true }) => {
   // Handle volume changes
   useEffect(() => {
     if (audioRef.current) {
-      console.log("Setting volume to:", volume);
       audioRef.current.volume = volume;
     }
   }, [volume]);
