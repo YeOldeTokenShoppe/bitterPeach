@@ -124,35 +124,35 @@ function Model({
   const flickerSpeed = useRef(1.5); // Controls how fast the flame flickers
 
   // Add this at the top of your component to enable memory tracking
-  useEffect(() => {
-    const checkMemoryUsage = () => {
-      // Report memory usage if available in the browser
-      if (window.performance && window.performance.memory) {
-        console.log("Memory usage:", {
-          total:
-            Math.round(
-              window.performance.memory.totalJSHeapSize / (1024 * 1024)
-            ) + "MB",
-          used:
-            Math.round(
-              window.performance.memory.usedJSHeapSize / (1024 * 1024)
-            ) + "MB",
-          limit:
-            Math.round(
-              window.performance.memory.jsHeapSizeLimit / (1024 * 1024)
-            ) + "MB",
-        });
-      }
+  // useEffect(() => {
+  //   const checkMemoryUsage = () => {
+  //     // Report memory usage if available in the browser
+  //     if (window.performance && window.performance.memory) {
+  //       console.log("Memory usage:", {
+  //         total:
+  //           Math.round(
+  //             window.performance.memory.totalJSHeapSize / (1024 * 1024)
+  //           ) + "MB",
+  //         used:
+  //           Math.round(
+  //             window.performance.memory.usedJSHeapSize / (1024 * 1024)
+  //           ) + "MB",
+  //         limit:
+  //           Math.round(
+  //             window.performance.memory.jsHeapSizeLimit / (1024 * 1024)
+  //           ) + "MB",
+  //       });
+  //     }
 
-      // // Check texture cache size
-      // console.log(`Texture cache size: ${textureCache.current.size} textures`);
-    };
+  //     // // Check texture cache size
+  //     // console.log(`Texture cache size: ${textureCache.current.size} textures`);
+  //   };
 
-    // Check memory every 5 seconds
-    const memoryTimer = setInterval(checkMemoryUsage, 5000);
+  //   // Check memory every 5 seconds
+  //   const memoryTimer = setInterval(checkMemoryUsage, 5000);
 
-    return () => clearInterval(memoryTimer);
-  }, []);
+  //   return () => clearInterval(memoryTimer);
+  // }, []);
 
   // Add this function to optimize texture loading without changing geometry
   const loadOptimizedTexture = (url, onLoad) => {
@@ -201,11 +201,11 @@ function Model({
     (event) => {
       event.stopPropagation();
 
-      // Check if we've reached the candle limit
-      if (candleCount >= maxFloorCandles) {
-        console.log(`Maximum candles reached (${maxFloorCandles})`);
-        return;
-      }
+      // // Check if we've reached the candle limit
+      // if (candleCount >= maxFloorCandles) {
+      //   console.log(`Maximum candles reached (${maxFloorCandles})`);
+      //   return;
+      // }
 
       // Get the intersection point
       const point = event.point.clone();
@@ -213,10 +213,10 @@ function Model({
 
       // Create a deep clone of the original candle model
       const newCandle = candle.scene.clone();
-      if (!newCandle) {
-        console.error("Failed to clone candle model");
-        return;
-      }
+      // if (!newCandle) {
+      //   console.error("Failed to clone candle model");
+      //   return;
+      // }
 
       // IMPROVED FLOOR PLACEMENT LOGIC
       // Always use raycasting for more accurate placement regardless of floor type
@@ -272,19 +272,17 @@ function Model({
             // This would align the candle to non-flat surfaces
             // Only implement if you have sloped surfaces
             // For now just log it
-            console.log("Placed on non-flat surface:", floorNormal);
+            // console.log("Placed on non-flat surface:", floorNormal);
           }
         } else {
           // Fallback if no valid hit
           point.y += 0.05;
           newCandle.position.copy(point);
-          console.log("No valid floor hit, using fallback position");
         }
       } else {
         // Complete fallback for no hits at all
         point.y += 0.05;
         newCandle.position.copy(point);
-        console.log("No floor intersection found, using direct click point");
       }
 
       // Add random rotation for visual interest
@@ -327,13 +325,6 @@ function Model({
 
       // Increment the candle counter
       setCandleCount((prev) => prev + 1);
-
-      // Enhanced feedback about remaining candles
-      console.log(
-        `Added candle #${candleCount + 1}. ${
-          maxFloorCandles - (candleCount + 1)
-        } remaining.`
-      );
     },
     [candle, candleCount, gltf, scene, maxFloorCandles]
   );
@@ -882,20 +873,6 @@ function Model({
     for (let i = 1; i <= 8; i++) {
       const candleName = `VCANDLE${String(i).padStart(3, "0")}`;
       const candle = gltf.scene.getObjectByName(candleName);
-
-      if (candle) {
-        console.log(`Initial state of ${candleName}:`, {
-          position: candle.position,
-          visible: candle.visible,
-          children: candle.children.map((child) => ({
-            name: child.name,
-            type: child.type,
-            visible: child.visible,
-            hasMaterial: !!child.material,
-            materialType: child.material?.type,
-          })),
-        });
-      }
     }
   }, [gltf.scene]);
 
@@ -1182,12 +1159,6 @@ function Model({
               bottom: bottom,
               floorY: bottom, // Consider this the "floor" Y position
             };
-
-            console.log(
-              `Candle initialized: original height=${height.toFixed(
-                2
-              )}, original bottom at Y=${bottom.toFixed(2)}`
-            );
           }
 
           // ALTERNATIVE APPROACH: Instead of trying to calculate offsets,
@@ -1229,15 +1200,6 @@ function Model({
           ) {
             // Recalculate after position adjustment to verify fix
             const verifyBbox = new THREE.Box3().setFromObject(child);
-
-            console.log(`Candle melting: ${Math.floor(
-              child.userData.meltingProgress * 100
-            )}%
-          scale=${newYScale.toFixed(2)}
-          originalBottom=${floorY.toFixed(2)}
-          currentBottom=${currentBottom.toFixed(2)}
-          bottomDrift=${bottomDrift.toFixed(4)}
-          adjustedBottom=${verifyBbox.min.y.toFixed(4)}`);
           }
         }
 
@@ -1253,9 +1215,6 @@ function Model({
 
               // When completely faded, remove from scene
               if (part.material.opacity <= 0.05) {
-                console.log(
-                  `Candle ${child.userData.candleId} fully melted, removing`
-                );
                 scene.remove(child);
                 // Update candle count
                 setCandleCount((prev) => Math.max(0, prev - 1));
@@ -1323,8 +1282,6 @@ function Model({
 
           // If candle is more than 0.1 units above floor, fix it
           if (currentY - floorY > 0.1) {
-            console.log(`Fixed floating candle: ${child.userData.candleId}`);
-
             // Set to proper floor height with small offset
             child.position.y = floorY + 0.02;
           }
@@ -1362,8 +1319,6 @@ function Model({
   // Add this effect to specifically target transparent materials and z-fighting issues
   useEffect(() => {
     if (!gltf || !gltf.scene) return;
-
-    console.log("Applying deep depth fixes to altar88.glb");
 
     // Force depth settings on all model materials with higher priority
     gltf.scene.traverse((object) => {

@@ -1,5 +1,14 @@
 @import url("https://fonts.cdnfonts.com/css/poppins");
 
+/* Reset default margins and padding */
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  overflow-x: hidden;
+}
+
 .carousel-container {
   font-family: "Poppins", sans-serif;
   color: #333;
@@ -769,7 +778,7 @@
 
 /* Add this new rule */
 .carousel-sign {
-  position: absolute;
+  position: fixed;
   z-index: 9999;
   transform: translateX(-50%) scale(0.5);
   top: -6rem;
@@ -778,4 +787,6 @@
   max-width: none;
   max-height: none;
   pointer-events: none;
+  isolation: isolate;
+  will-change: transform;
 }

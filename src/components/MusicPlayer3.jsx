@@ -22,6 +22,7 @@ const MusicPlayer = ({ isVisible, onClose, autoPlay = true }) => {
     "For Those About To Rock - AC/DC",
     "Good Life - Paradise",
     "99 Luftballons - Nena",
+    "Sweet Dreams - Eurythmics",
   ];
 
   const trackNames = [
@@ -30,6 +31,7 @@ const MusicPlayer = ({ isVisible, onClose, autoPlay = true }) => {
     "For Those About To Rock - AC/DC",
     "Good Life - Inner City",
     "99 Luftballoons - Nena",
+    "Sweet Dreams - Eurythmics",
   ];
 
   // Map of file paths in Firebase Storage
@@ -39,6 +41,7 @@ const MusicPlayer = ({ isVisible, onClose, autoPlay = true }) => {
     "audio/320k/for-those-about-to-rock-ac-dc.m4a",
     "audio/320k/good-life-inner-city.m4a",
     "audio/320k/99-luftballoons-nena.m4a",
+    "audio/320k/sweet-dreams-eurythmics.m4a",
   ];
 
   // Fallback local paths
@@ -48,6 +51,7 @@ const MusicPlayer = ({ isVisible, onClose, autoPlay = true }) => {
     "ForThoseAboutToRock.m4a",
     "goodLife.m4a",
     "99 Luftballoons Nena.m4a",
+    "sweetDreams Eurythmics.m4a",
   ];
 
   useEffect(() => {}, [isShuffled, shuffledQueue]);
@@ -65,10 +69,9 @@ const MusicPlayer = ({ isVisible, onClose, autoPlay = true }) => {
       const shuffled = allTracks
         .filter((index) => index !== currentTrackIndex)
         .sort(() => Math.random() - 0.5);
-      console.log("New shuffle queue:", [currentTrackIndex, ...shuffled]);
+
       setShuffledQueue([currentTrackIndex, ...shuffled]);
     } else {
-      console.log("Clearing shuffle queue");
       setShuffledQueue([]); // Clear queue when shuffle is disabled
     }
   }, [isShuffled, currentTrackIndex, trackUrls.length]); // Add all dependencies
@@ -138,7 +141,6 @@ const MusicPlayer = ({ isVisible, onClose, autoPlay = true }) => {
           setIsPlaying(true);
         })
         .catch((error) => {
-          console.error("Auto-play failed:", error);
           // Set isPlaying to false if auto-play fails
           setIsPlaying(false);
         });
@@ -177,24 +179,15 @@ const MusicPlayer = ({ isVisible, onClose, autoPlay = true }) => {
   };
 
   const changeTrack = (direction) => {
-    console.log("Changing track. Current audio state:", {
-      ref: audioRef.current,
-      isPlaying,
-      currentTrackIndex,
-    });
-
     // If there's an existing audio, ensure it's stopped
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.src = "";
-      console.log("Paused previous audio");
     }
 
     const newIndex = getNextTrackIndex(direction);
     setCurrentTrackIndex(newIndex);
     setIsPlaying(true);
-
-    console.log("Changed to track index:", newIndex);
   };
   const closeButtonStyle = {
     position: "absolute",
@@ -277,21 +270,17 @@ const MusicPlayer = ({ isVisible, onClose, autoPlay = true }) => {
           !trackStoragePaths ||
           currentTrackIndex >= trackStoragePaths.length
         ) {
-          console.error("Invalid storage path:", {
-            trackStoragePaths,
-            currentTrackIndex,
-          });
           // Fallback to local URL
           setTrackUrl(trackUrls[currentTrackIndex]);
           return;
         }
 
         // Get track from Firebase Storage
-        console.log(`Loading track ${currentTrackIndex} from Firebase Storage`);
+
         const storageRef = ref(storage, trackStoragePaths[currentTrackIndex]);
 
         const downloadUrl = await getDownloadURL(storageRef);
-        console.log("Got download URL:", downloadUrl);
+
         setTrackUrl(downloadUrl);
       } catch (error) {
         console.error("Error getting track from Firebase:", error);
@@ -316,7 +305,6 @@ const MusicPlayer = ({ isVisible, onClose, autoPlay = true }) => {
     audio.volume = volume;
     audio.src = trackUrl;
 
-    console.log(`Loading audio from URL: ${trackUrl}`);
     audioRef.current = audio;
 
     const handlePlay = () => setIsPlaying(true);

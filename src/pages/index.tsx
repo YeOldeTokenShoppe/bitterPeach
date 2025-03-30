@@ -133,14 +133,18 @@ export default function Page() {
         style={{
           opacity: isLoading ? 0 : 1,
           transition: "opacity 0.5s ease-in",
+          width: "100vw",
+          minHeight: "100vh",
+          overflow: "hidden",
+          position: "relative",
         }}
       >
         <div
           style={{
-            maxWidth: "1400px",
             width: "100%",
-            margin: "auto",
-            position: "absolute",
+            margin: "0",
+            padding: "0",
+            position: "relative",
           }}
         >
           <WordPressSlider
@@ -151,9 +155,10 @@ export default function Page() {
           href="/home"
           style={{
             textDecoration: "none",
-            position: "absolute",
+            position: "fixed",
             top: "2rem",
             right: "2rem",
+            zIndex: 9999,
           }}
         >
           <RotatingBadge setBadgeLoaded={setBadgeLoaded} />

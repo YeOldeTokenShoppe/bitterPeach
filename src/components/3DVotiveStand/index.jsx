@@ -41,7 +41,6 @@ import HolographicStatue from "./HolographicStatue";
 import PostProcessingEffects from "./PostProcessingEffects";
 import NeonConfetti from "./NeonConfetti";
 import StarField from "./StarField";
-import StarrySky from "./StarrySky";
 
 const scene = new THREE.Scene();
 
@@ -127,7 +126,31 @@ function ThreeDVotiveStand({
   const [lightIntensity, setLightIntensity] = useState(1.2);
   const [skyColor, setSkyColor] = useState("#7300ff"); // Sky color in hex format for inputs
   const [groundColor, setGroundColor] = useState("#ff0000"); // Ground color in hex format for inputs
+  window.pauseThreeJSRendering = function () {
+    // Store the current animation state
+    if (window.threeJSAnimationId) {
+      window.cancelAnimationFrame(window.threeJSAnimationId);
+      window.threeJSPaused = true;
+    }
+  };
 
+  window.resumeThreeJSRendering = function () {
+    // Only resume if we were previously rendering
+    if (window.threeJSPaused) {
+      window.threeJSPaused = false;
+      // Re-start your animation loop
+      animate(); // Or whatever your three.js animation function is called
+    }
+  };
+
+  // In your three.js animation loop, track the animation ID
+  function animate() {
+    // Store animation ID globally so it can be canceled if needed
+    window.threeJSAnimationId = requestAnimationFrame(animate);
+
+    // Your regular three.js rendering code
+    renderer.render(scene, camera);
+  }
   // Define lighting presets
   const lightingPresets = {
     default: {

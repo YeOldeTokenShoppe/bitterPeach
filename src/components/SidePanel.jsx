@@ -51,6 +51,8 @@ const SidePanel = ({
   const [isTouchDevice, setIsTouchDevice] = useState(false);
   const [showPayEmbed, setShowPayEmbed] = useState(false); // Add this state
   const [showStake, setShowStake] = useState(false); // Add this state
+  const [sitepalLoaded, setSitepalLoaded] = useState(false); // New state for Sitepal
+  const sitepalContainerRef = useRef(null); // New ref for Sitepal container
   const panelRef = useRef(null);
   const hotzoneSize = 20; // Size in pixels for the hotzone
 
@@ -67,6 +69,7 @@ const SidePanel = ({
   // Letter scramble effect variables
   const [activeInterval, setActiveInterval] = useState(null);
   const isHovering = useRef(false);
+  const inputRef = useRef(null);
 
   const wallets = [
     inAppWallet({
@@ -112,8 +115,20 @@ const SidePanel = ({
   // Add state for tracking connection sequence
   const [connectionPhase, setConnectionPhase] = useState(0); // 0=not started, 1=static, 2=connecting, 3=stabilizing, 4=connected
 
-  // Add a ref for the video element
-  const greetingsVideoRef = useRef(null);
+  // Add a new state to track if we're in a browser environment
+  const [isBrowser, setIsBrowser] = useState(false);
+
+  // Add a new state to track SitePal loading progress
+  const [sitepalLoadingStage, setSitepalLoadingStage] = useState(0); // 0=not started, 1=loading, 2=ready
+
+  // Add a new state to track the mute state of the SitePal agent
+  const [isMuted, setIsMuted] = useState(true);
+
+  // Add state to track if the iframe content has loaded
+  const [isIframeLoaded, setIsIframeLoaded] = useState(false);
+
+  // First, add a new ref to store the active microphone stream
+  const microphoneStreamRef = useRef(null);
 
   // Detect touch devices
   useEffect(() => {
@@ -125,28 +140,30 @@ const SidePanel = ({
   }, []);
 
   // Handle first click to close panel and mark user interaction
+  // Replace the problematic useEffect with this improved version
   useEffect(() => {
-    const handleFirstClick = (e) => {
+    // Only set up click handler if panel is visible
+    if (!isTextBoxVisible) return;
+
+    const handleOutsideClick = (e) => {
       // Don't close if clicking inside the panel
-      if (panelRef.current?.contains(e.target)) {
+      if (panelRef.current && panelRef.current.contains(e.target)) {
         return;
       }
 
+      // Only close panel and mark user interaction if clicking outside
       setIsTextBoxVisible(false);
       setHasUserInteracted(true);
     };
 
-    // Add click listener if panel is visible
-    if (isTextBoxVisible) {
-      document.addEventListener("click", handleFirstClick);
-    }
+    // Add click listener to document
+    document.addEventListener("click", handleOutsideClick);
 
+    // Clean up listener when component unmounts or dependencies change
     return () => {
-      document.removeEventListener("click", handleFirstClick);
+      document.removeEventListener("click", handleOutsideClick);
     };
-  }, [isTextBoxVisible]); // Add isTextBoxVisible to dependencies
-
-  // Handle mouse movement for panel visibility after first interaction
+  }, [isTextBoxVisible]); // Re-run effect when panel visibility changes
   useEffect(() => {
     if (isTouchDevice) return;
 
@@ -422,58 +439,218 @@ const SidePanel = ({
     toggleMonsterMode(); // Toggle monster mode
   };
 
-  // Toggle video call with connection sequence
-  const toggleCall = () => {
-    if (!activeCall) {
-      // Start connection sequence
-      setActiveCall(true);
-      setGreetingsVideoLoaded(false);
-      setConnectionPhase(1);
-
-      // Simulate connection phases with timeouts
-      setTimeout(() => setConnectionPhase(2), 1200); // Static to connecting
-      setTimeout(() => setConnectionPhase(3), 3000); // Connecting to stabilizing
-      setTimeout(() => {
-        setConnectionPhase(4); // Stabilizing to connected
-
-        // Unmute the video once connection is fully established
-        if (greetingsVideoRef.current) {
-          greetingsVideoRef.current.muted = false;
-
-          // Ensure video starts from beginning if it already started playing silently
-          if (greetingsVideoRef.current.currentTime > 0) {
-            greetingsVideoRef.current.currentTime = 0;
-          }
-
-          // Ensure the video is playing
-          greetingsVideoRef.current.play().catch((err) => {
-            console.warn("Could not play video after unmuting:", err);
-          });
-        }
-      }, 4500);
-    } else {
-      // End call immediately
-      setActiveCall(false);
-      setConnectionPhase(0);
-
-      // Reset video if it exists
-      if (greetingsVideoRef.current) {
-        greetingsVideoRef.current.muted = true;
-        greetingsVideoRef.current.pause();
-      }
-    }
-  };
+  // Add this function at the top of your component to temporarily block WebGL during
+  // Reference to the SitePal iframe
+  const sitepalIframeRef = useRef(null);
 
   // Add useEffect for client-side rendering
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Clean up any playing video when component unmounts
+  // Update the useEffect for initialization
+  useEffect(() => {
+    // First check if we're in a browser environment
+    setIsBrowser(typeof window !== "undefined");
+  }, []);
+
+  // Replace the fullMicCleanup function with a simpler version for iframe approach
+  const fullMicCleanup = () => {
+    // Clean up microphone tracks if any
+    if (microphoneStreamRef.current) {
+      console.log("Stopping microphone tracks...");
+      microphoneStreamRef.current.getTracks().forEach((track) => {
+        track.stop();
+      });
+      microphoneStreamRef.current = null;
+    }
+
+    // Reset the iframe
+    if (sitepalIframeRef.current) {
+      sitepalIframeRef.current.src = "about:blank";
+    }
+  };
+  useEffect(() => {
+    const handleMessage = (event) => {
+      if (!event.data || !event.data.type) return;
+
+      console.log("Message from SitePal iframe:", event.data);
+
+      switch (event.data.type) {
+        case "SITEPAL_READY":
+          console.log("SitePal is ready");
+          setIsIframeLoaded(true);
+          break;
+
+        case "SITEPAL_STATE_CHANGE":
+          console.log("SitePal state changed:", event.data.isListening);
+          setIsMuted(!event.data.isListening);
+          break;
+
+        case "SITEPAL_ERROR":
+          console.error("SitePal error:", event.data.error);
+          break;
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, []);
+
+  // Add this function to send messages to the iframe
+  const sendMessageToIframe = (message) => {
+    if (sitepalIframeRef.current) {
+      try {
+        sitepalIframeRef.current.contentWindow.postMessage(message, "*");
+      } catch (error) {
+        console.error("Error sending message to iframe:", error);
+      }
+    }
+  };
+
+  // Update the useEffect cleanup to be simpler
   useEffect(() => {
     return () => {
-      if (greetingsVideoRef.current) {
-        greetingsVideoRef.current.pause();
+      // Component cleanup
+      fullMicCleanup();
+    };
+  }, []);
+
+  const toggleCall = (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
+    setIsTextBoxVisible(true);
+    setHasUserInteracted(true);
+
+    if (!activeCall) {
+      // Starting a new call
+      navigator.mediaDevices
+        .getUserMedia({ audio: true })
+        .then((stream) => {
+          microphoneStreamRef.current = stream;
+          setActiveCall(true);
+          setConnectionPhase(1);
+          setIsMuted(true);
+
+          // Progress through connection phases with timeouts
+          setTimeout(() => setConnectionPhase(2), 1200);
+          setTimeout(() => setConnectionPhase(3), 3000);
+          setTimeout(() => {
+            setConnectionPhase(4);
+            setSitepalLoadingStage(2);
+            setSitepalLoaded(true);
+          }, 4500);
+        })
+        .catch((err) => {
+          console.error("Microphone permission error:", err);
+          alert("Please allow microphone access to chat with the avatar");
+        });
+    } else if (activeCall && connectionPhase === 4 && isMuted) {
+      // Unmute - Send a message to the iframe to click the button
+      try {
+        const iframe = sitepalIframeRef.current;
+        // Check if iframe and its contentWindow are accessible
+        if (iframe && iframe.contentWindow) {
+          console.log("Sending 'triggerListenClick' message to iframe...");
+          iframe.contentWindow.postMessage(
+            "triggerListenClick",
+            window.location.origin
+          );
+          setIsMuted(false); // Update parent component state optimistically
+          console.log("'triggerListenClick' message sent.");
+        } else {
+          console.error(
+            "Cannot access iframe contentWindow. Check same-origin policy or if iframe exists."
+          );
+        }
+      } catch (error) {
+        console.error(
+          "Error sending 'triggerListenClick' message to iframe:",
+          error
+        );
+      }
+    } else {
+      // End call - clean up and reset everything
+      setActiveCall(false);
+      setConnectionPhase(0);
+      setSitepalLoadingStage(0);
+      setSitepalLoaded(false);
+      setIsMuted(true);
+
+      // Clean up microphone if needed
+      if (microphoneStreamRef.current) {
+        microphoneStreamRef.current.getTracks().forEach((track) => {
+          track.stop();
+        });
+        microphoneStreamRef.current = null;
+      }
+
+      // Reset iframe
+      if (sitepalIframeRef.current) {
+        sitepalIframeRef.current.src = "about:blank";
+        setTimeout(() => {
+          if (sitepalIframeRef.current) {
+            sitepalIframeRef.current.src = "/sitepal/index.html";
+          }
+        }, 100);
+      }
+    }
+  };
+
+  // Add this useEffect to set up message listener for communication with the iframe
+  useEffect(() => {
+    const handleMessage = (event) => {
+      // Validate the origin if needed for security
+      // if (event.origin !== 'your-site-origin') return;
+
+      try {
+        const data = event.data;
+
+        // Handle messages from the SitePal iframe
+        if (data.type === "SITEPAL_STATE_CHANGE") {
+          // Update our UI based on SitePal state
+          if (data.isListening === true) {
+            setIsMuted(false);
+            console.log("SitePal started listening");
+          } else if (data.isListening === false) {
+            setIsMuted(true);
+            console.log("SitePal stopped listening");
+          }
+        } else if (data.type === "SITEPAL_READY") {
+          console.log("SitePal is ready");
+          setIsIframeLoaded(true);
+        } else if (data.type === "SITEPAL_ERROR") {
+          console.error("SitePal error:", data.error);
+        }
+      } catch (error) {
+        console.error("Error handling message from iframe:", error);
+      }
+    };
+
+    // Add the event listener
+    window.addEventListener("message", handleMessage);
+
+    // Clean up
+    return () => {
+      window.removeEventListener("message", handleMessage);
+    };
+  }, []);
+
+  // Clean up on component unmount
+  useEffect(() => {
+    return () => {
+      // Clear any timeouts
+      if (window.sitepalTimeouts) {
+        window.sitepalTimeouts.forEach((timeout) => clearTimeout(timeout));
+        window.sitepalTimeouts = null;
+      }
+
+      // Reset iframe
+      if (sitepalIframeRef.current) {
+        sitepalIframeRef.current.src = "about:blank";
       }
     };
   }, []);
@@ -560,6 +737,30 @@ const SidePanel = ({
             "0%": { opacity: 0 },
             "100%": { opacity: 0.4 },
           },
+          "& #vhssPreEmbedContainer": {
+            position: "absolute !important",
+            top: "0 !important",
+            left: "0 !important",
+            width: "100% !important",
+            height: "100% !important",
+            background: "transparent !important",
+            pointerEvents: "auto !important",
+            zIndex: "5 !important",
+            transform: "none !important",
+            "& iframe": {
+              width: "100%",
+              height: "100%",
+              border: "none",
+              overflow: "hidden",
+            },
+          },
+          "& #vhss_aiPlayer": {
+            width: "100% !important",
+            height: "100% !important",
+            maxWidth: "none !important",
+            maxHeight: "none !important",
+            transform: "none !important",
+          },
         }}
       >
         {/* Mission Control Header */}
@@ -581,7 +782,7 @@ const SidePanel = ({
             </Text>
           </Flex>
           <Text fontSize="xs" color="blue.400" fontFamily="mono">
-            LUNAR OPERATIONS
+            TO INFIN80 AND BEYOND
           </Text>
         </Box>
 
@@ -660,56 +861,43 @@ const SidePanel = ({
                           transition="opacity 0.8s ease"
                         />
 
-                        {/* Actual greetings video - initially muted and referenced */}
+                        {/* Replace the old video with Sitepal integration */}
                         <Box
-                          as="video"
-                          ref={greetingsVideoRef}
                           position="absolute"
                           top="0"
                           left="0"
                           width="100%"
                           height="100%"
                           objectFit="cover"
-                          src="/greetings.mp4"
-                          autoPlay
-                          muted
-                          onLoadedData={() => setGreetingsVideoLoaded(true)}
                           zIndex="1"
-                          sx={{
-                            filter:
-                              connectionPhase < 4
-                                ? connectionPhase === 1
-                                  ? "brightness(0.4) contrast(1.5) hue-rotate(10deg)"
-                                  : connectionPhase === 2
-                                  ? "brightness(0.6) contrast(1.3) hue-rotate(5deg)"
-                                  : connectionPhase === 3
-                                  ? "brightness(0.8) contrast(1.1)"
-                                  : "none"
-                                : "none",
-                            animation:
-                              connectionPhase < 4
-                                ? connectionPhase === 1
-                                  ? "glitch 0.3s infinite"
-                                  : connectionPhase === 2
-                                  ? "glitch 0.6s infinite"
-                                  : connectionPhase === 3
-                                  ? "glitch 1.2s infinite"
-                                  : "none"
-                                : "none",
-                            transition: "filter 0.5s ease",
-                            "@keyframes glitch": {
-                              "0%": { transform: "translate(0)" },
-                              "20%": { transform: "translate(-2px, 2px)" },
-                              "40%": { transform: "translate(-2px, -2px)" },
-                              "60%": { transform: "translate(2px, 2px)" },
-                              "80%": { transform: "translate(2px, -2px)" },
-                              "100%": { transform: "translate(0)" },
-                            },
-                          }}
-                        />
+                          ref={sitepalContainerRef}
+                        >
+                          {activeCall && (
+                            <iframe
+                              ref={sitepalIframeRef}
+                              src="/sitepal/index.html"
+                              width="100%"
+                              height="100%"
+                              frameBorder="0"
+                              marginHeight="0"
+                              marginWidth="0"
+                              scrolling="no"
+                              allowFullScreen
+                              allow="microphone"
+                              title="SitePal Avatar"
+                              style={{
+                                width: "100%",
+                                height: "100%",
+                                border: "none",
+                                overflow: "hidden",
+                                background: "transparent",
+                              }}
+                            />
+                          )}
+                        </Box>
 
-                        {/* Scanlines overlay */}
-                        <Box
+                        {/* Scanlines overlay - Temporarily hide */}
+                        {/* <Box
                           position="absolute"
                           top="0"
                           left="0"
@@ -734,9 +922,9 @@ const SidePanel = ({
                             backgroundSize: "100% 4px",
                             pointerEvents: "none",
                           }}
-                        />
+                        /> */}
 
-                        {/* Connection status text - changes with phases */}
+                        {/* Connection status text - Temporarily hide */}
                         {connectionPhase < 4 && (
                           <Flex
                             position="absolute"
@@ -783,8 +971,8 @@ const SidePanel = ({
                           </Flex>
                         )}
 
-                        {/* Intermittent signal loss effect */}
-                        {connectionPhase === 2 && (
+                        {/* Intermittent signal loss effect - Temporarily hide */}
+                        {/* {connectionPhase === 2 && (
                           <Box
                             position="absolute"
                             top="0"
@@ -810,10 +998,10 @@ const SidePanel = ({
                               },
                             }}
                           />
-                        )}
+                        )} */}
 
-                        {/* Color distortion effect */}
-                        <Box
+                        {/* Color distortion effect - Temporarily hide */}
+                        {/* <Box
                           position="absolute"
                           top="0"
                           left="0"
@@ -837,7 +1025,7 @@ const SidePanel = ({
                               "100%": { backgroundColor: "red.500" },
                             },
                           }}
-                        />
+                        /> */}
 
                         {/* Add a visual audio indicator when connection is established */}
                         {connectionPhase === 4 && (
@@ -1044,13 +1232,47 @@ const SidePanel = ({
               px="2"
               py="1"
               rounded="md"
-              bg={activeCall ? "red.700" : "green.700"}
+              bg={
+                !activeCall
+                  ? "green.700"
+                  : isMuted && connectionPhase === 4
+                  ? "yellow.700"
+                  : "red.700"
+              }
               color="white"
-              _hover={{ bg: activeCall ? "red.600" : "green.600" }}
-              onClick={toggleCall}
+              _hover={{
+                bg: !activeCall
+                  ? "green.600"
+                  : isMuted && connectionPhase === 4
+                  ? "yellow.600"
+                  : "red.600",
+              }}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                toggleCall(e);
+                // Force panel to stay open
+                setIsTextBoxVisible(true);
+              }}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
               size="xs"
+              position="relative"
+              pointerEvents="auto"
+              zIndex="5001"
+              sx={{
+                "&:hover, &:focus, &:active": {
+                  transform: "none",
+                },
+              }}
             >
-              {activeCall ? "END CALL" : "CONNECT"}
+              {!activeCall
+                ? "CONNECT"
+                : isMuted && connectionPhase === 4
+                ? "UN-MUTE"
+                : "END CALL"}
             </Button>
             <Select
               bg="gray.900"
@@ -1086,7 +1308,7 @@ const SidePanel = ({
             border="2px solid"
             borderColor="red.500"
             flexDirection="column"
-            onClick={() => onButtonClick("LAUNCH")}
+            onClick={handleMonsterModeToggle}
           >
             <Text fontSize="xs" mb="1">
               INITIATE
@@ -1167,8 +1389,7 @@ const SidePanel = ({
               fontSize="sm"
               color={is80sMode ? "pink.300" : "gray.400"}
             >
-              {/* 80&apos;S MODE */}
-              BTTF
+              80s Mode
             </Text>
             <Switch
               isChecked={is80sMode}
@@ -1300,6 +1521,13 @@ const SidePanel = ({
             MCP v1.0
           </Text>
         </Flex>
+        {/* <Box mt="10">
+          <h5 className="thelma1" style={{ fontSize: "1" }}>
+            To Infin80
+            <br />
+            and Beyond
+          </h5>
+        </Box> */}
       </Box>
 
       {/* Add Stake Modal */}

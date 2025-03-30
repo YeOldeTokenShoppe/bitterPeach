@@ -6087,3 +6087,7 @@ body {
   top: 3rem !important;
   left: 16rem !important;
 }
+#vhss-aiplayer-aiformlogs {
+  display: none !important;
+  opacity: 0 !important;
+}
