@@ -83,10 +83,6 @@ const BurnGalleryClient = dynamic(() => import("../components/BurnGallery"), {
 
 export default function GalleryPage() {
   const [isLoading, setIsLoading] = useState(true);
-  const [componentsLoaded, setComponentsLoaded] = useState({
-    burnGallery: false,
-    threeDScene: false,
-  });
   // Initialize showSpotify based on screen size
   const [showSpotify, setShowSpotify] = useState(false); // Start with false for SSR
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -142,22 +138,6 @@ export default function GalleryPage() {
     setShowSpotify(false);
   };
 
-  // Add loading state management
-  useEffect(() => {
-    if (componentsLoaded.burnGallery && componentsLoaded.threeDScene) {
-      // console.log("All components loaded, setting loading to false");
-      setIsLoading(false);
-    }
-  }, [componentsLoaded]);
-
-  const handleComponentLoad = (component, status) => {
-    // console.log(`Setting ${component} loaded status to:`, status);
-    setComponentsLoaded((prev) => ({
-      ...prev,
-      [component]: status,
-    }));
-  };
-
   useEffect(() => {
     // Delay mounting the heavy component until needed
     setShouldRenderGallery(true);
@@ -168,42 +148,10 @@ export default function GalleryPage() {
     };
   }, []);
 
-  // Add this to identify memory issues
-  useEffect(() => {
-    if (process.env.NODE_ENV === "development") {
-      const memoryUsage = performance.memory
-        ? `${Math.round(performance.memory.usedJSHeapSize / 1048576)}MB`
-        : "Not available";
-      console.log(`Memory usage: ${memoryUsage}`);
-
-      // Log at intervals to track memory growth
-      const intervalId = setInterval(() => {
-        const updatedMemory = performance.memory
-          ? `${Math.round(performance.memory.usedJSHeapSize / 1048576)}MB`
-          : "Not available";
-        console.log(`Memory usage (updated): ${updatedMemory}`);
-      }, 10000);
-
-      return () => clearInterval(intervalId);
-    }
-  }, []);
-
   // Add debugging
   useEffect(() => {
     console.log("Gallery page showSpotify state:", showSpotify);
   }, [showSpotify]);
-
-  // // Add a useEffect to monitor showSpotify state changes
-  // useEffect(() => {
-  //   console.log("Gallery.js: showSpotify changed to:", showSpotify);
-
-  //   // Ensure music players are mounted/unmounted correctly when showSpotify changes
-  //   if (showSpotify) {
-  //     console.log("Music player should be visible");
-  //   } else {
-  //     console.log("Music player should be hidden");
-  //   }
-  // }, [showSpotify]);
 
   return (
     <div
@@ -236,12 +184,8 @@ export default function GalleryPage() {
       >
         {shouldRenderGallery && (
           <BurnGalleryClient
-            setComponentLoaded={(status) =>
-              handleComponentLoad("burnGallery", status)
-            }
-            setThreeDSceneLoaded={(status) =>
-              handleComponentLoad("threeDScene", status)
-            }
+            setComponentLoaded={() => {}} // No-op since we're not using this anymore
+            setThreeDSceneLoaded={() => setIsLoading(false)} // Directly control loading state
             setShowSpotify={setShowSpotify}
             showSpotify={showSpotify}
             isModalOpen={isModalOpen}

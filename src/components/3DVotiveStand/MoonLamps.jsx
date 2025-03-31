@@ -20,6 +20,8 @@ const MoonScene = ({
   const ammoRef = useRef(null);
   const moonTextureRef = useRef(null);
   const isPhysicsInitialized = useRef(false);
+  const [textureLoaded, setTextureLoaded] = useState(false);
+  const [textureError, setTextureError] = useState(false);
 
   const maxProjectiles = 50; // Increased from 20 to 50 for more projectiles
   const projectileLifespan = 60000; // Increased to 60 seconds (1 minute) for much longer visibility
@@ -157,16 +159,68 @@ const MoonScene = ({
     }
   }, [modelCenter]);
 
+  // Add texture loading state effect
   useEffect(() => {
     const textureLoader = new TextureLoader();
-    textureLoader.load("/lunar_color.jpg", (lunarTexture) => {
-      lunarTexture.anisotropy = 16;
-      moonTextureRef.current = lunarTexture;
 
-      // Ambient Light Setup
-      // const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-      // scene.add(ambientLight);
-    });
+    // Create a promise-based texture loader
+    const loadTexture = () => {
+      return new Promise((resolve, reject) => {
+        textureLoader.load(
+          "/lunar_color.jpg",
+          (texture) => {
+            texture.anisotropy = 16;
+            texture.encoding = THREE.sRGBEncoding;
+            texture.needsUpdate = true;
+            resolve(texture);
+          },
+          undefined,
+          (error) => {
+            console.error("Failed to load lunar texture:", error);
+            reject(error);
+          }
+        );
+      });
+    };
+
+    // Try to load texture with retries
+    const attemptTextureLoad = async (retries = 3) => {
+      for (let i = 0; i < retries; i++) {
+        try {
+          const texture = await loadTexture();
+          moonTextureRef.current = texture;
+          setTextureLoaded(true);
+          setTextureError(false);
+          console.log("Moon texture loaded successfully");
+          return;
+        } catch (error) {
+          console.warn(
+            `Texture load attempt ${i + 1} failed, ${
+              retries - i - 1
+            } retries remaining`
+          );
+          if (i === retries - 1) {
+            setTextureError(true);
+            // Create a fallback texture
+            const fallbackTexture = new THREE.Texture();
+            fallbackTexture.needsUpdate = true;
+            moonTextureRef.current = fallbackTexture;
+          } else {
+            // Wait before retrying
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+          }
+        }
+      }
+    };
+
+    attemptTextureLoad();
+
+    return () => {
+      // Cleanup texture on unmount
+      if (moonTextureRef.current) {
+        moonTextureRef.current.dispose();
+      }
+    };
   }, []);
 
   const initPhysics = async () => {
@@ -462,7 +516,12 @@ const MoonScene = ({
   };
   // Improved moon spawning with more accurate physics
   const spawnMoon = () => {
-    if (!ammoRef.current || !physicsRef.current.world) return;
+    if (
+      !ammoRef.current ||
+      !physicsRef.current.world ||
+      !moonTextureRef.current
+    )
+      return;
     const AmmoLib = ammoRef.current;
 
     // Constrain spawn positions to within the room
@@ -481,16 +540,30 @@ const MoonScene = ({
     const moonSize = 2.5;
     const moonGeometry = new THREE.SphereGeometry(moonSize, 30, 30);
 
-    // Create base material with texture
-    const texture = moonTextureRef.current;
+    // Create base material with texture and fallback
     const moonMaterial = new THREE.MeshPhongMaterial({
       color: new THREE.Color("#faf0e6"),
-      map: texture,
-      lightMap: texture,
-      lightMapIntensity: 3, // Reduced from 6 to 3
-      envMapIntensity: 0.3, // Add low environment map intensity
-      reflectivity: 0.3, // Reduce reflectivity
+      map: moonTextureRef.current,
+      lightMap: moonTextureRef.current,
+      lightMapIntensity: textureError ? 1 : 3, // Reduce intensity if using fallback
+      envMapIntensity: 0.3,
+      reflectivity: 0.3,
+      // Add normal mapping for better detail even without texture
+      bumpScale: textureError ? 0.02 : 0,
     });
+
+    // If texture failed, add some vertex displacement for visual interest
+    if (textureError) {
+      const vertices = moonGeometry.attributes.position.array;
+      for (let i = 0; i < vertices.length; i += 3) {
+        const offset = (Math.random() - 0.5) * 0.1;
+        vertices[i] += offset;
+        vertices[i + 1] += offset;
+        vertices[i + 2] += offset;
+      }
+      moonGeometry.attributes.position.needsUpdate = true;
+      moonGeometry.computeVertexNormals();
+    }
 
     // Create moon mesh
     const moon = new THREE.Mesh(moonGeometry, moonMaterial);

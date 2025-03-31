@@ -20,10 +20,37 @@ const nextConfig = {
       },
     ],
   },
-  webpack: (config, { isServer, dev }) => {
-    // Enable source maps in production
+  webpack: (config, { dev, isServer }) => {
+    // Disable source maps in production
     if (!dev && !isServer) {
-      config.devtool = "source-map";
+      config.devtool = false;
+
+      // Enable tree shaking
+      config.optimization = {
+        ...config.optimization,
+        usedExports: true,
+        minimize: true,
+        splitChunks: {
+          chunks: "all",
+          minSize: 20000,
+          maxSize: 244000,
+          minChunks: 1,
+          maxAsyncRequests: 30,
+          maxInitialRequests: 30,
+          cacheGroups: {
+            defaultVendors: {
+              test: /[\\/]node_modules[\\/]/,
+              priority: -10,
+              reuseExistingChunk: true,
+            },
+            default: {
+              minChunks: 2,
+              priority: -20,
+              reuseExistingChunk: true,
+            },
+          },
+        },
+      };
     }
 
     // Add support for .glsl, .vs, and .fs files
@@ -60,4 +87,4 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+module.exports = nextConfig;

@@ -123,37 +123,6 @@ function Model({
   const flickerIntensity = useRef(0.5); // Controls how much the flame flickers
   const flickerSpeed = useRef(1.5); // Controls how fast the flame flickers
 
-  // Add this at the top of your component to enable memory tracking
-  // useEffect(() => {
-  //   const checkMemoryUsage = () => {
-  //     // Report memory usage if available in the browser
-  //     if (window.performance && window.performance.memory) {
-  //       console.log("Memory usage:", {
-  //         total:
-  //           Math.round(
-  //             window.performance.memory.totalJSHeapSize / (1024 * 1024)
-  //           ) + "MB",
-  //         used:
-  //           Math.round(
-  //             window.performance.memory.usedJSHeapSize / (1024 * 1024)
-  //           ) + "MB",
-  //         limit:
-  //           Math.round(
-  //             window.performance.memory.jsHeapSizeLimit / (1024 * 1024)
-  //           ) + "MB",
-  //       });
-  //     }
-
-  //     // // Check texture cache size
-  //     // console.log(`Texture cache size: ${textureCache.current.size} textures`);
-  //   };
-
-  //   // Check memory every 5 seconds
-  //   const memoryTimer = setInterval(checkMemoryUsage, 5000);
-
-  //   return () => clearInterval(memoryTimer);
-  // }, []);
-
   // Add this function to optimize texture loading without changing geometry
   const loadOptimizedTexture = (url, onLoad) => {
     // Check cache first
@@ -1101,42 +1070,13 @@ function Model({
 
   // Add flame flickering animation using useFrame
   useFrame((state, delta) => {
-    const time = state.clock.getElapsedTime();
+    // Create a temporary Box3 for candle melting updates
+    const tempBox = new THREE.Box3();
 
-    // Update each flickering flame
-    flickeringMaterials.forEach(({ object, material, baseData }) => {
-      if (!object || !material) return;
-
-      // Calculate flicker value using perlin noise or simplex noise
-      // Here we use a simple sine wave with random offsets for simplicity
-      const flicker =
-        Math.sin((time + baseData.randomOffset) * flickerSpeed.current) *
-        baseData.flickerRange *
-        flickerIntensity.current;
-
-      // Apply to emission intensity
-      const newIntensity = baseData.originalEmissiveIntensity * (1 + flicker);
-      material.emissiveIntensity = Math.max(0.3, newIntensity);
-
-      // Optionally also animate the scale for more dramatic effect
-      const scaleFlicker = 1 + flicker * 0.1; // Subtle scale change
-      object.scale.set(
-        baseData.originalScale.x * scaleFlicker,
-        baseData.originalScale.y * (scaleFlicker + 0.05), // Y scale varies a bit more
-        baseData.originalScale.z * scaleFlicker
-      );
-    });
-
-    // Handle candle melting
-    // Replace the candle melting section in useFrame with this code
-    // Handle candle melting
+    // Handle candle melting using tempBox
     scene.traverse((child) => {
-      // Check if this is a candle object that should be melting
       if (child.userData?.isCandle && child.userData?.isMelting) {
-        // Update melting progress based on time and melting rate
         child.userData.meltingProgress += delta * child.userData.meltingRate;
-
-        // Calculate the percentage remaining (0.2 = 20% minimum height)
         const MIN_SCALE = 0.2;
         const percentageRemaining = Math.max(
           1 - child.userData.meltingProgress,
@@ -1144,66 +1084,33 @@ function Model({
         );
 
         if (child.userData.originalScale?.y) {
-          // Initialize original values if not already stored
           if (!child.userData.originalValues) {
-            // Get the bounding box to find the actual dimensions
-            const bbox = new THREE.Box3().setFromObject(child);
-            const height = bbox.max.y - bbox.min.y;
-            const bottom = bbox.min.y;
-
-            // Store all values we need for reference
+            tempBox.setFromObject(child);
+            const height = tempBox.max.y - tempBox.min.y;
+            const bottom = tempBox.min.y;
             child.userData.originalValues = {
               position: child.position.clone(),
               scale: child.scale.clone(),
               height: height,
               bottom: bottom,
-              floorY: bottom, // Consider this the "floor" Y position
+              floorY: bottom,
             };
           }
-
-          // ALTERNATIVE APPROACH: Instead of trying to calculate offsets,
-          // directly modify the local matrix to scale from the bottom
-
-          // First, apply scale to the candle
           const originalYScale = child.userData.originalScale.y;
           const newYScale = originalYScale * percentageRemaining;
-
-          // Set scale (keep X and Z the same)
           child.scale.set(
             child.userData.originalScale.x,
             newYScale,
             child.userData.originalScale.z
           );
 
-          // IMPORTANT: After scaling, recalculate the bounding box to find new bottom
-          const currentBbox = new THREE.Box3().setFromObject(child);
-          const currentBottom = currentBbox.min.y;
-
-          // Calculate how much the bottom moved from its original position
+          tempBox.setFromObject(child);
+          const currentBottom = tempBox.min.y;
           const floorY = child.userData.originalValues.floorY;
           const bottomDrift = currentBottom - floorY;
-
-          // Move the entire candle to counteract any drift
-          // If bottom is above floor (positive drift), move down
-          // If bottom is below floor (negative drift), move up
           child.position.y -= bottomDrift;
-
-          // Debug logging every 10% of progress
-          if (
-            Math.floor(child.userData.meltingProgress * 100) % 10 === 0 &&
-            Math.floor(child.userData.meltingProgress * 100) >
-              Math.floor(
-                (child.userData.meltingProgress -
-                  delta * child.userData.meltingRate) *
-                  100
-              )
-          ) {
-            // Recalculate after position adjustment to verify fix
-            const verifyBbox = new THREE.Box3().setFromObject(child);
-          }
         }
 
-        // Handle fadeout of almost melted candles
         if (percentageRemaining <= MIN_SCALE + 0.05) {
           child.traverse((part) => {
             if (part.material && part.material.opacity !== undefined) {
@@ -1212,11 +1119,8 @@ function Model({
                 0,
                 (MIN_SCALE + 0.1 - percentageRemaining) * 10
               );
-
-              // When completely faded, remove from scene
               if (part.material.opacity <= 0.05) {
                 scene.remove(child);
-                // Update candle count
                 setCandleCount((prev) => Math.max(0, prev - 1));
               }
             }

@@ -39,7 +39,7 @@ import MoonScene from "./MoonLamps";
 import CameraGUI from "./CameraGUI";
 import HolographicStatue from "./HolographicStatue";
 import PostProcessingEffects from "./PostProcessingEffects";
-import NeonConfetti from "./NeonConfetti";
+
 import StarField from "./StarField";
 
 const scene = new THREE.Scene();
@@ -48,21 +48,17 @@ const scene = new THREE.Scene();
 
 function ThreeDVotiveStand({
   setIsLoading,
-  onCameraMove,
-  onResetView,
-  onZoom,
   isInMarkerView,
   isMobileView,
-
   setShowSpotify,
   isModalOpen,
   setIsModalOpen,
   onSpawnReady,
   is80sMode,
   showSpotify,
-
   monsterMode,
   userData,
+  setIsStatueLoaded,
 }) {
   const [showFloatingViewer, setShowFloatingViewer] = useState(false);
   const [selectedCandleData, setSelectedCandleData] = useState(null);
@@ -126,6 +122,7 @@ function ThreeDVotiveStand({
   const [lightIntensity, setLightIntensity] = useState(1.2);
   const [skyColor, setSkyColor] = useState("#7300ff"); // Sky color in hex format for inputs
   const [groundColor, setGroundColor] = useState("#ff0000"); // Ground color in hex format for inputs
+
   window.pauseThreeJSRendering = function () {
     // Store the current animation state
     if (window.threeJSAnimationId) {
@@ -298,20 +295,6 @@ function ThreeDVotiveStand({
     };
   }, []);
 
-  // Detect device type and network conditions to set appropriate DPI
-  useEffect(() => {
-    // Always use DPI of 1 for consistent performance
-    setCurrentDpr(1);
-    setNetworkType("forced-standard");
-  }, []);
-
-  // Update renderer when DPI changes
-  useEffect(() => {
-    if (rendererRef.current) {
-      rendererRef.current.setPixelRatio(currentDpr);
-    }
-  }, [currentDpr]);
-
   // Add a keyboard listener to toggle debug overlay with 'D' key
 
   // Add refs for spotlight and target
@@ -409,7 +392,6 @@ function ThreeDVotiveStand({
   // }, [modelScale]);
 
   // Add a state to control the confetti effect independently
-  const [showNeonConfetti, setShowNeonConfetti] = useState(false);
 
   const handleCandleClick = useCallback((candleData) => {
     console.log("Candle clicked:", candleData);
@@ -447,7 +429,7 @@ function ThreeDVotiveStand({
           gl.logarithmicDepthBuffer = true;
         }}
       >
-        <AdaptiveDpr pixelated />
+        {/* {!isMobile && <AdaptiveDpr pixelated />} */}
         <AdaptiveEvents />
         <BakeShadows />
         {/* <Perf position="top-left" showGraph={true} chart={true} /> */}
@@ -475,7 +457,6 @@ function ThreeDVotiveStand({
 
         {/* Remove the conditional rendering - don't tie to is80sMode */}
         {/* Only render if explicitly enabled later */}
-        {showNeonConfetti && <NeonConfetti isActive={true} />}
 
         <Suspense fallback={null}>
           <MoonScene modelRef={modelRef} onSpawnReady={onSpawnReady} />
@@ -484,7 +465,7 @@ function ThreeDVotiveStand({
         {/* Conditionally render HolographicStatue or RocketModel based on monsterMode */}
         <Suspense fallback={null}>
           {!monsterMode ? (
-            <HolographicStatue />
+            <HolographicStatue onLoad={() => setIsStatueLoaded(true)} />
           ) : (
             // Render RocketModel directly without Suspense since it's no longer lazy loaded
             <RocketModel
@@ -500,13 +481,6 @@ function ThreeDVotiveStand({
         <Suspense fallback={null}>
           <PostProcessingEffects is80sMode={is80sMode} />
         </Suspense>
-
-        {/* Add Wireframe Terrain */}
-        {/* <Suspense fallback={null}>
-            <WireframeTerrain is80sMode={is80sMode} />
-          </Suspense> */}
-
-        {/* <TickerDisplay /> */}
 
         {/* Render the stars last */}
         <Suspense fallback={null}>

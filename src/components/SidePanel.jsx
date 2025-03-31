@@ -442,7 +442,34 @@ const SidePanel = ({
   // Add this function at the top of your component to temporarily block WebGL during
   // Reference to the SitePal iframe
   const sitepalIframeRef = useRef(null);
+  // In both SidePanel.jsx and MobileSidePanel.jsx, add this effect:
+  useEffect(() => {
+    if (sitepalIframeRef.current) {
+      const checkIframeSize = () => {
+        const iframe = sitepalIframeRef.current;
+        if (iframe) {
+          const rect = iframe.getBoundingClientRect();
+          console.log("Iframe dimensions:", {
+            width: rect.width,
+            height: rect.height,
+            top: rect.top,
+            left: rect.left,
+          });
 
+          // Ensure iframe has proper dimensions
+          if (rect.width === 0 || rect.height === 0) {
+            console.warn("Iframe has zero dimensions, attempting to fix...");
+            iframe.style.width = "100%";
+            iframe.style.height = "100%";
+          }
+        }
+      };
+
+      // Check size initially and after a short delay
+      checkIframeSize();
+      setTimeout(checkIframeSize, 1000);
+    }
+  }, []);
   // Add useEffect for client-side rendering
   useEffect(() => {
     setMounted(true);
@@ -709,10 +736,10 @@ const SidePanel = ({
         width={panelWidth}
         height="100%"
         bg="gray.900"
-        color="blue.300"
+        color="#c48901"
         p="1rem"
         borderLeft="2px solid"
-        borderColor="blue.500"
+        borderColor="#c48901"
         boxShadow="lg"
         zIndex="5000"
         className={isTextBoxVisible ? "panel-visible" : "panel-hidden"}
@@ -768,7 +795,7 @@ const SidePanel = ({
           textAlign="center"
           mb="4"
           borderBottom="2px solid"
-          borderColor="blue.500"
+          borderColor="#c48901"
           pb="2"
         >
           <Flex align="center" justify="center" mb="1">
@@ -1072,7 +1099,7 @@ const SidePanel = ({
                       right="2"
                       bg="gray.900"
                       border="1px"
-                      borderColor="blue.500"
+                      borderColor="#c48901"
                       p="1"
                       rounded="sm"
                       zIndex="10"
@@ -1276,7 +1303,7 @@ const SidePanel = ({
             </Button>
             <Select
               bg="gray.900"
-              color="blue.300"
+              color="#c48901"
               fontSize="xs"
               fontFamily="mono"
               borderColor="gray.700"
@@ -1389,7 +1416,7 @@ const SidePanel = ({
               fontSize="sm"
               color={is80sMode ? "pink.300" : "gray.400"}
             >
-              80s Mode
+              80s MODE
             </Text>
             <Switch
               isChecked={is80sMode}

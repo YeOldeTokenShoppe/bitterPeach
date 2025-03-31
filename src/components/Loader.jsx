@@ -58,7 +58,7 @@ function Loader({ progress }) {
 
           {/* Simple elegant loading display */}
           <div className={styles.loadingInfo}>
-            <div className={styles.loadingMessage}>Loading...</div>
+            {/* <div className={styles.loadingMessage}>Loading...</div> */}
 
             {/* Elegant numerical progress indicator */}
             <div className={styles.numericalProgress}>
@@ -67,12 +67,12 @@ function Loader({ progress }) {
             </div>
 
             {/* Simple line progress indicator */}
-            <div className={styles.lineProgress}>
+            {/* <div className={styles.lineProgress}>
               <div
                 className={styles.lineProgressFill}
                 style={{ width: `${loadingPercentage}%` }}
               ></div>
-            </div>
+            </div> */}
           </div>
         </div>
       </div>

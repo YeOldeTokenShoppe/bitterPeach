@@ -92,11 +92,7 @@ function BurnGallery({
   toggle80sMode,
 }) {
   useEffect(() => {
-    const loadContent = async () => {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      setComponentLoaded(true);
-    };
-    loadContent();
+    setComponentLoaded(true);
   }, [setComponentLoaded]);
 
   const router = useRouter();
@@ -130,6 +126,7 @@ function BurnGallery({
   const [modelRef, setModelRef] = useState(null);
   const [modelCenter, setModelCenter] = useState(new THREE.Vector3());
   const [isModelLoaded, setIsModelLoaded] = useState(false);
+  const [isStatueLoaded, setIsStatueLoaded] = useState(false);
   const [monsterMode, setMonsterMode] = useState(false);
   const [clerkUserData, setClerkUserData] = useState(null);
 
@@ -233,17 +230,6 @@ function BurnGallery({
     setCurrentView("main");
   };
 
-  // Use useCallback for event handlers
-  const handleComponentLoad = useCallback(
-    (component, status) => {
-      setThreeDSceneLoaded((prev) => ({
-        ...prev,
-        [component]: status,
-      }));
-    },
-    [setThreeDSceneLoaded]
-  );
-
   // Add toggleMonsterMode function
   const toggleMonsterMode = () => {
     setMonsterMode((prev) => !prev);
@@ -275,6 +261,13 @@ function BurnGallery({
     }
   }, [is80sMode, setShowSpotify]);
 
+  // Update the loading state when both model and statue are loaded
+  useEffect(() => {
+    if (isModelLoaded && (!monsterMode ? isStatueLoaded : true)) {
+      setThreeDSceneLoaded(true);
+    }
+  }, [isModelLoaded, isStatueLoaded, monsterMode, setThreeDSceneLoaded]);
+
   return (
     <>
       <Box
@@ -294,16 +287,18 @@ function BurnGallery({
           <GridItem colSpan={1} height="100%" overflow="hidden">
             {currentView === "main" ? (
               <MemoizedThreeDVotiveStand
-                setIsLoading={setThreeDSceneLoaded}
+                setIsLoading={setIsModelLoaded}
+                isInMarkerView={isInMarkerView}
                 isMobileView={isMobileView}
                 setShowSpotify={setShowSpotify}
+                showSpotify={showSpotify}
                 isModalOpen={isModalOpen}
                 setIsModalOpen={setIsModalOpen}
                 onSpawnReady={setSpawnFunction}
                 is80sMode={is80sMode}
-                showSpotify={showSpotify}
                 monsterMode={monsterMode}
                 userData={clerkUserData}
+                setIsStatueLoaded={setIsStatueLoaded}
               />
             ) : null}
           </GridItem>

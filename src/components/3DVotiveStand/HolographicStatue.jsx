@@ -4,12 +4,13 @@ import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader";
 import * as THREE from "three";
 import { useFrame, useThree } from "@react-three/fiber";
 
-function HolographicStatue() {
+function HolographicStatue({ onLoad }) {
   const statueRef = useRef();
   const groupRef = useRef();
   const { scene } = useThree();
   const initialY = useRef(0);
   const mixerRef = useRef();
+  const hasLoadedRef = useRef(false);
 
   // Use useMemo to prevent recreating the loader on every render
   const loader = useMemo(() => {
@@ -111,7 +112,14 @@ function HolographicStatue() {
   }
 
   useEffect(() => {
+    // Only load if we haven't already
+    if (hasLoadedRef.current) return;
+
+    let isCurrentInstance = true; // Flag to track if this effect instance is current
+
     loader.load("/CyberpunkMary.glb", (gltf) => {
+      if (!isCurrentInstance) return; // Don't proceed if this effect is stale
+
       const statue = gltf.scene;
 
       // Create and store the animation mixer
@@ -131,9 +139,10 @@ function HolographicStatue() {
 
       // Create an anchor group with initial position
       const anchorGroup = new THREE.Group();
-      const basePosition = [0.3, 5.5, -1.2]; // Store base position
+      const basePosition = [0, 4.5, -1.2];
       anchorGroup.position.set(...basePosition);
-      initialY.current = basePosition[1]; // Set initialY to match the base y-position
+      initialY.current = basePosition[1];
+
       // Create a rotation group
       const rotationGroup = new THREE.Group();
 
@@ -154,7 +163,7 @@ function HolographicStatue() {
       const center = box.getCenter(new THREE.Vector3());
       statue.position.sub(center);
 
-      // Your existing material application code
+      // Apply materials
       const goldHolographicMaterial = new THREE.ShaderMaterial({
         uniforms: {
           uTime: { value: 0 },
@@ -163,7 +172,7 @@ function HolographicStatue() {
         vertexShader: holographicMaterial.vertexShader,
         fragmentShader: holographicMaterial.fragmentShader,
         transparent: true,
-        blending: THREE.NormalBlending, // 🟢 Try Normal Blending instead of Additive
+        blending: THREE.NormalBlending,
         depthWrite: true,
         depthTest: true,
         side: THREE.DoubleSide,
@@ -171,46 +180,81 @@ function HolographicStatue() {
 
       statue.traverse((child) => {
         if (child.isMesh) {
-          const meshName = child.name.toLowerCase(); // Ensure consistent matching
+          const meshName = child.name.toLowerCase();
 
           if (
             meshName.includes("halotext1") ||
             meshName.includes("halotext2")
           ) {
-            // ✅ Apply double-sided material
             child.material = new THREE.MeshStandardMaterial({
-              color: child.material.color, // Retains Blender's original color
-              emissive: child.material.color, // Makes it glow with the same color
-              emissiveIntensity: 3.0, // Adjust glow strength
-              metalness: 0.8, // Keeps a metallic shine
-              roughness: 0.2, // Ensures slight reflection for a clean cyberpunk look
-              side: THREE.DoubleSide, // ✅ Makes it visible from all angles
+              color: child.material.color,
+              emissive: child.material.color,
+              emissiveIntensity: 3.0,
+              metalness: 0.8,
+              roughness: 0.2,
+              side: THREE.DoubleSide,
               transparent: true,
               depthWrite: true,
               depthTest: true,
             });
-
-            return; // ✅ Skip holographic effect for the halo text
+          } else {
+            child.material = holographicMaterial;
           }
-
-          // ✅ Apply holographic effect to everything else
-          child.material = holographicMaterial;
         }
       });
 
-      // Add the anchor group to the scene instead of the statue directly
+      // Add the anchor group to the scene
       scene.add(anchorGroup);
+      hasLoadedRef.current = true;
+
+      // Notify parent that statue is loaded and ready
+      if (onLoad) {
+        onLoad();
+      }
     });
 
+    // Cleanup function
     return () => {
+      isCurrentInstance = false; // Mark this effect instance as stale
+
+      // Stop all animations
       if (mixerRef.current) {
         mixerRef.current.stopAllAction();
+        mixerRef.current = null;
       }
+
+      // Remove the statue from scene and dispose of resources
       if (groupRef.current?.anchor) {
+        // Traverse and dispose of all materials and geometries
+        groupRef.current.anchor.traverse((child) => {
+          if (child.isMesh) {
+            if (child.geometry) {
+              child.geometry.dispose();
+            }
+            if (child.material) {
+              if (Array.isArray(child.material)) {
+                child.material.forEach((material) => material.dispose());
+              } else {
+                child.material.dispose();
+              }
+            }
+          }
+        });
+
+        // Remove from scene
         scene.remove(groupRef.current.anchor);
+        groupRef.current = null;
       }
+
+      // Clear statue reference
+      if (statueRef.current) {
+        statueRef.current = null;
+      }
+
+      // Reset loaded flag
+      hasLoadedRef.current = false;
     };
-  }, [scene, holographicMaterial, loader]);
+  }, [scene, holographicMaterial, loader, onLoad]);
 
   useFrame((state, delta) => {
     // Update the animation mixer

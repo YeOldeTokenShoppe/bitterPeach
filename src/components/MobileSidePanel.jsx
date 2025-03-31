@@ -246,6 +246,35 @@ const MobileSidePanel = ({
     };
   }, []);
 
+  // In both SidePanel.jsx and MobileSidePanel.jsx, add this effect:
+  useEffect(() => {
+    if (sitepalIframeRef.current) {
+      const checkIframeSize = () => {
+        const iframe = sitepalIframeRef.current;
+        if (iframe) {
+          const rect = iframe.getBoundingClientRect();
+          console.log("Iframe dimensions:", {
+            width: rect.width,
+            height: rect.height,
+            top: rect.top,
+            left: rect.left,
+          });
+
+          // Ensure iframe has proper dimensions
+          if (rect.width === 0 || rect.height === 0) {
+            console.warn("Iframe has zero dimensions, attempting to fix...");
+            iframe.style.width = "100%";
+            iframe.style.height = "100%";
+          }
+        }
+      };
+
+      // Check size initially and after a short delay
+      checkIframeSize();
+      setTimeout(checkIframeSize, 1000);
+    }
+  }, []);
+
   const leaderboardData = [
     { name: "Armstrong", score: 1969 },
     { name: "Aldrin", score: 1930 },
@@ -390,9 +419,9 @@ const MobileSidePanel = ({
         height="50px"
         borderRadius="full"
         backgroundColor="rgba(0, 0, 0, 0.8)"
-        color="blue.300"
+        color="#c48901"
         border="2px solid"
-        borderColor="blue.500"
+        borderColor="#c48901"
         boxShadow="0 0 10px rgba(0, 123, 255, 0.3)"
         zIndex="1000"
         onClick={onOpen}
@@ -417,9 +446,9 @@ const MobileSidePanel = ({
         <DrawerContent
           backgroundColor="gray.900"
           borderTopRadius="20px"
-          maxHeight="85vh"
+          maxHeight="65vh"
           borderTop="2px solid"
-          borderColor="blue.500"
+          borderColor="#c48901"
           boxShadow="0 -5px 15px rgba(0, 123, 255, 0.2)"
           sx={{
             "@keyframes fadeIn": {
@@ -429,7 +458,7 @@ const MobileSidePanel = ({
           }}
         >
           <DrawerCloseButton
-            color="blue.300"
+            color="#c48901"
             size="lg"
             top="8px"
             right="8px"
@@ -438,7 +467,7 @@ const MobileSidePanel = ({
           {/* Mission Control Header */}
           <DrawerHeader
             borderBottom="2px solid"
-            borderColor="blue.500"
+            borderColor="#c48901"
             pb="2"
             textAlign="center"
           >
@@ -451,7 +480,7 @@ const MobileSidePanel = ({
               MISSION CONTROL
             </Text>
             <Text fontSize="xs" color="blue.400" fontFamily="mono">
-              LUNAR OPERATIONS
+              TO INFIN80 AND BEYOND
             </Text>
           </DrawerHeader>
 
@@ -627,7 +656,7 @@ const MobileSidePanel = ({
                           right="2"
                           bg="gray.900"
                           border="1px"
-                          borderColor="blue.500"
+                          borderColor="#c48901"
                           p="1"
                           rounded="sm"
                           zIndex="10"
@@ -793,7 +822,7 @@ const MobileSidePanel = ({
                 </Button>
                 <Select
                   bg="gray.900"
-                  color="blue.300"
+                  color="#c48901"
                   fontSize="xs"
                   fontFamily="mono"
                   borderColor="gray.700"
@@ -912,7 +941,7 @@ const MobileSidePanel = ({
                     fontSize="xs"
                     color={is80sMode ? "pink.300" : "gray.400"}
                   >
-                    80s Mode
+                    80s MODE
                   </Text>
                   <Switch
                     isChecked={is80sMode}
@@ -1054,7 +1083,7 @@ const MobileSidePanel = ({
             </Flex>
 
             {/* Compact Leaderboard */}
-            <Box
+            {/* <Box
               bg="black"
               rounded="md"
               border="2px"
@@ -1093,7 +1122,7 @@ const MobileSidePanel = ({
                   </Flex>
                 ))}
               </Box>
-            </Box>
+            </Box> */}
 
             {/* Status Footer */}
             <Flex width="100%" justify="space-between" mt="1">
@@ -1113,6 +1142,13 @@ const MobileSidePanel = ({
                   STATUS
                 </Text>
               </Flex>
+              <Image
+                src="/favicon.svg"
+                width={24}
+                height={24}
+                alt="Mission Logo"
+                mr="2"
+              />
               <Text fontSize="2xs" fontFamily="mono" color="gray.500">
                 MCP v1.0
               </Text>
