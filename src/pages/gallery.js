@@ -57,21 +57,16 @@ const ClientOnlyMusicPlayer = ({
         cursor: "move",
       }}
     >
-      <Suspense fallback={<div>Loading music player...</div>}>
-        {is80sMode ? (
-          <MusicPlayer3
-            isVisible={showSpotify}
-            onClose={() => setShowSpotify(false)}
-            autoPlay={true}
-          />
-        ) : (
+      {/* Only render Spotify (MusicPlayer2) now. Visibility controlled by showSpotify prop */}
+      {!is80sMode && (
+        <Suspense fallback={<div>Loading music player...</div>}>
           <MusicPlayer2
-            isVisible={showSpotify}
+            isVisible={showSpotify} // Visibility still controlled by showSpotify
             onClose={() => setShowSpotify(false)}
             autoPlay={false}
           />
-        )}
-      </Suspense>
+        </Suspense>
+      )}
     </div>
   );
 };
@@ -82,6 +77,7 @@ const BurnGalleryClient = dynamic(() => import("../components/BurnGallery"), {
 });
 
 export default function GalleryPage() {
+  const [loadingProgress, setLoadingProgress] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   // Initialize showSpotify based on screen size
   const [showSpotify, setShowSpotify] = useState(false); // Start with false for SSR
@@ -89,6 +85,8 @@ export default function GalleryPage() {
   const [is80sMode, setIs80sMode] = useState(false);
   const [shouldRenderGallery, setShouldRenderGallery] = useState(false);
   const [isMobileView, setIsMobileView] = useState(false);
+  const [componentLoaded, setComponentLoaded] = useState(false);
+  const [threeDSceneLoaded, setThreeDSceneLoaded] = useState(false);
 
   // Move the window check to useEffect
   useEffect(() => {
@@ -118,10 +116,10 @@ export default function GalleryPage() {
     const newMode = !is80sMode;
     setIs80sMode(newMode);
 
-    // Always show music player when 80s mode is turned on
-    if (newMode) {
-      setShowSpotify(true);
-    }
+    // // Always show music player when 80s mode is turned on -> REMOVED, iframe handles 80s music
+    // if (newMode) {
+    //   setShowSpotify(true);
+    // }
     // Don't hide the player when turning 80s mode off
 
     console.log(
@@ -137,6 +135,30 @@ export default function GalleryPage() {
     // Always hide Spotify when closing the music player
     setShowSpotify(false);
   };
+
+  // Update loading progress based on component and 3D scene loading states
+  useEffect(() => {
+    if (componentLoaded && threeDSceneLoaded) {
+      // Both components are loaded, set progress to 100%
+      setLoadingProgress(100);
+
+      // Add a small delay before hiding the loader to ensure smooth transition
+      const timer = setTimeout(() => {
+        setIsLoading(false);
+      }, 500);
+
+      return () => clearTimeout(timer);
+    } else if (componentLoaded) {
+      // Component is loaded but 3D scene is still loading
+      setLoadingProgress(50);
+    } else if (threeDSceneLoaded) {
+      // 3D scene is loaded but component is still loading
+      setLoadingProgress(30);
+    } else {
+      // Neither is loaded yet
+      setLoadingProgress(10);
+    }
+  }, [componentLoaded, threeDSceneLoaded]);
 
   useEffect(() => {
     // Delay mounting the heavy component until needed
@@ -170,8 +192,8 @@ export default function GalleryPage() {
         overflow: "auto",
       }}
     >
-      {/* Loader */}
-      {isLoading && <Loader />}
+      {/* Loader with progress */}
+      {isLoading && <Loader progress={loadingProgress} />}
 
       {/* Main content */}
       <div
@@ -184,8 +206,8 @@ export default function GalleryPage() {
       >
         {shouldRenderGallery && (
           <BurnGalleryClient
-            setComponentLoaded={() => {}} // No-op since we're not using this anymore
-            setThreeDSceneLoaded={() => setIsLoading(false)} // Directly control loading state
+            setComponentLoaded={setComponentLoaded}
+            setThreeDSceneLoaded={setThreeDSceneLoaded}
             setShowSpotify={setShowSpotify}
             showSpotify={showSpotify}
             isModalOpen={isModalOpen}

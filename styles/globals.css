@@ -1211,6 +1211,7 @@ ul.icons li .icon:hover:active {
   height: 4em;
   left: 5% !important;
   top: 3rem;
+  z-index: 0 !important;
 }
 
 .bm-burger-bars {
@@ -2397,7 +2398,7 @@ ul.icons li .icon:hover:active {
   height: 6rem;
   object-fit: contain;
   position: absolute;
-  z-index: -1;
+  z-index: 1;
 }
 
 #header #logo {
@@ -2406,7 +2407,7 @@ ul.icons li .icon:hover:active {
   position: absolute;
   text-align: center;
   text-decoration: none;
-  z-index: 911; /* Increase as needed */
+  z-index: 911 !important; /* Increase as needed */
   left: 50%;
   top: 0; /* Add this line */
   transform: translateX(-50%);
@@ -2478,7 +2479,7 @@ ul.icons li .icon:hover:active {
   height: 3rem;
   left: 3rem;
   top: 3rem;
-  z-index: 99;
+  /* z-index: 1; */
 }
 
 .bm-burger-bars {

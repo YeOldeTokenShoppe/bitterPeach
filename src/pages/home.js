@@ -25,7 +25,7 @@ export default function Home() {
       // For example:
       // "/logo.png",
 
-      "/3D_spotify.png",
+      "/3d_spotify.png",
       "/3D_tiktok.png",
       "/3d_discord.png",
       "/3d_X.png",

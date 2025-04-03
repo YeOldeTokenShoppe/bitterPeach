@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "DISABLE_ESLINT_PLUGIN=true next build",
     "start": "next start",
+    "serve": "npx serve@latest out",
     "lint": "next lint"
   },
   "dependencies": {

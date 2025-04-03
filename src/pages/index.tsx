@@ -11,18 +11,10 @@ export default function Page() {
   const [wordPressSliderLoaded, setWordPressSliderLoaded] = useState(false);
   const [badgeLoaded, setBadgeLoaded] = useState(false);
   const [allImagesLoaded, setAllImagesLoaded] = useState(false);
-
-  // Calculate loading progress based on component loading states
-  const loadingProgress = useMemo(() => {
-    let progress = 0;
-
-    // Each component contributes to the total loading progress
-    if (wordPressSliderLoaded) progress += 40; // WordPress slider is 40% of loading
-    if (badgeLoaded) progress += 30; // Badge is 30% of loading
-    if (allImagesLoaded) progress += 30; // Images are 30% of loading
-
-    return Math.min(99, Math.round(progress)); // Cap at 99% until fully loaded
-  }, [wordPressSliderLoaded, badgeLoaded, allImagesLoaded]);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [loadingStage, setLoadingStage] = useState("initializing");
+  const [showContent, setShowContent] = useState(false);
+  const [contentOpacity, setContentOpacity] = useState(0);
 
   // List of critical images to preload for the index page
   const criticalImages = [
@@ -31,6 +23,50 @@ export default function Page() {
     "/nuhart1.svg", // Badge image
     // Add any other critical images
   ];
+
+  // Simulate loading progress for the WordPress iframe
+  useEffect(() => {
+    if (!wordPressSliderLoaded) {
+      // Start with a small initial progress
+      setLoadingProgress(5);
+      setLoadingStage("connecting to wordpress");
+
+      // Simulate gradual progress while waiting for the iframe
+      const progressInterval = setInterval(() => {
+        setLoadingProgress((prev) => {
+          // Slow down as it approaches the expected completion
+          const increment = prev < 30 ? 2 : prev < 60 ? 1 : 0.5;
+          return Math.min(prev + increment, 70);
+        });
+      }, 200);
+
+      return () => clearInterval(progressInterval);
+    }
+  }, [wordPressSliderLoaded]);
+
+  // Update loading progress based on component states
+  useEffect(() => {
+    if (wordPressSliderLoaded) {
+      setLoadingProgress((prev) => Math.max(prev, 70));
+      setLoadingStage("wordpress loaded");
+    }
+
+    if (badgeLoaded) {
+      setLoadingProgress((prev) => Math.max(prev, 85));
+      setLoadingStage("badge loaded");
+    }
+
+    if (allImagesLoaded) {
+      setLoadingProgress((prev) => Math.max(prev, 95));
+      setLoadingStage("images loaded");
+    }
+
+    // When all components are loaded, set to 100%
+    if (wordPressSliderLoaded && badgeLoaded && allImagesLoaded) {
+      setLoadingProgress(100);
+      setLoadingStage("complete");
+    }
+  }, [wordPressSliderLoaded, badgeLoaded, allImagesLoaded]);
 
   // Preload all critical images
   useEffect(() => {
@@ -45,15 +81,7 @@ export default function Page() {
 
     const preloadImage = (src: string) => {
       return new Promise((resolve) => {
-        // Use window.Image instead of Image to avoid conflict
-        const img = typeof window !== "undefined" ? new window.Image() : null;
-
-        if (!img) {
-          console.warn("Window not available, skipping image preload");
-          resolve(false);
-          return;
-        }
-
+        const img = new Image();
         img.onload = () => {
           loadedCount++;
           console.log(`Loaded image ${loadedCount}/${totalImages}: ${src}`);
@@ -86,23 +114,56 @@ export default function Page() {
       if (isLoading) {
         console.warn("⚠️ Loading timed out, forcing page to show");
         setIsLoading(false);
+        setShowContent(true);
+
+        // Fade in content after a short delay
+        setTimeout(() => {
+          setContentOpacity(1);
+        }, 100);
       }
-    }, 12000); // 12 second maximum wait time
+    }, 15000); // 15 second maximum wait time
 
     return () => clearTimeout(timeoutId);
   }, [isLoading]);
 
-  // Only hide loader when all components are loaded
+  // Handle transition from loading to content
   useEffect(() => {
     if (wordPressSliderLoaded && allImagesLoaded && badgeLoaded) {
       console.log("✅ All components and images loaded, showing index page");
 
+      // First show the content container (but keep it invisible)
+      setShowContent(true);
+
       // Add a small delay for smoother transition
       setTimeout(() => {
+        // Hide the loader
         setIsLoading(false);
+
+        // After loader is hidden, fade in the content
+        setTimeout(() => {
+          setContentOpacity(1);
+        }, 500);
+      }, 500);
+    } else if (loadingProgress >= 95) {
+      // If we're at 95% or higher, we can show the page even if not everything is loaded
+      console.log(
+        "⚠️ Showing page at high progress but not all components loaded"
+      );
+
+      // First show the content container (but keep it invisible)
+      setShowContent(true);
+
+      setTimeout(() => {
+        // Hide the loader
+        setIsLoading(false);
+
+        // After loader is hidden, fade in the content
+        setTimeout(() => {
+          setContentOpacity(1);
+        }, 500);
       }, 500);
     }
-  }, [wordPressSliderLoaded, allImagesLoaded, badgeLoaded]);
+  }, [wordPressSliderLoaded, allImagesLoaded, badgeLoaded, loadingProgress]);
 
   return (
     <div>
@@ -116,6 +177,7 @@ export default function Page() {
             right: 0,
             bottom: 0,
             display: "flex",
+            flexDirection: "column",
             justifyContent: "center",
             alignItems: "center",
             backgroundColor: "#1b1724",
@@ -125,45 +187,65 @@ export default function Page() {
           }}
         >
           <Loader progress={loadingProgress} />
+          <div
+            style={{
+              color: "#e1b67e",
+              marginTop: "20px",
+              fontSize: "14px",
+              textAlign: "center",
+              maxWidth: "80%",
+            }}
+          >
+            {loadingStage === "initializing" && "Initializing..."}
+            {loadingStage === "connecting to wordpress" &&
+              "Connecting to WordPress..."}
+            {loadingStage === "wordpress loaded" &&
+              "WordPress content loaded..."}
+            {loadingStage === "badge loaded" && "Badge loaded..."}
+            {loadingStage === "images loaded" && "Images loaded..."}
+            {loadingStage === "complete" && "Loading complete!"}
+          </div>
         </div>
       )}
 
       {/* Main Content */}
-      <div
-        style={{
-          opacity: isLoading ? 0 : 1,
-          transition: "opacity 0.5s ease-in",
-          width: "100vw",
-          minHeight: "100vh",
-          overflow: "hidden",
-          position: "relative",
-        }}
-      >
+      {showContent && (
         <div
           style={{
-            width: "100%",
-            margin: "0",
-            padding: "0",
+            opacity: contentOpacity,
+            transition: "opacity 0.8s ease-in",
+            width: "100vw",
+            minHeight: "100vh",
+            overflow: "hidden",
             position: "relative",
           }}
         >
-          <WordPressSlider
-            setWordPressSliderLoaded={setWordPressSliderLoaded}
-          />
+          <div
+            style={{
+              width: "100%",
+              margin: "0",
+              padding: "0",
+              position: "relative",
+            }}
+          >
+            <WordPressSlider
+              setWordPressSliderLoaded={setWordPressSliderLoaded}
+            />
+          </div>
+          <Link
+            href="/home"
+            style={{
+              textDecoration: "none",
+              position: "fixed",
+              top: "2rem",
+              right: "2rem",
+              zIndex: 9999,
+            }}
+          >
+            <RotatingBadge setBadgeLoaded={setBadgeLoaded} />
+          </Link>
         </div>
-        <Link
-          href="/home"
-          style={{
-            textDecoration: "none",
-            position: "fixed",
-            top: "2rem",
-            right: "2rem",
-            zIndex: 9999,
-          }}
-        >
-          <RotatingBadge setBadgeLoaded={setBadgeLoaded} />
-        </Link>
-      </div>
+      )}
     </div>
   );
 }

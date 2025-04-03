@@ -317,7 +317,10 @@ function Header() {
           //   zIndex: "100",
           // }}
         >
-          <header id="header" style={{ position: "relative", width: "100%" }}>
+          <header
+            id="header"
+            style={{ position: "relative", width: "100%", zindex: "0" }}
+          >
             <div className="menu-icon" onClick={toggleMenu}></div>
             <div className="menu-wrapper">
               <Link href="/home" className="menu-item">
@@ -329,7 +332,7 @@ function Header() {
                       width="10rem"
                       height="10rem"
                       alt="Logo"
-                      style={{ zIndex: "1" }}
+                      style={{ zIndex: "3" }}
                     />
                     <RotatingBadge2 />
                   </div>
@@ -397,9 +400,9 @@ function Header() {
                     onClick={() => setMenuOpen(false)}
                     onMouseEnter={handleMouseEnter}
                     onMouseLeave={handleMouseLeave}
-                    data-value="Gangster's Paradise"
+                    data-value="Secret Soci80"
                   >
-                    Gangster&apos;s Paradise
+                    Secret Soci80
                   </Link>
                   {/* </div> */}
                 </Menu>

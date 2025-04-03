@@ -261,7 +261,7 @@ const NavBar = () => {
     },
     {
       date: "05",
-      title: "Gangster's Paradise",
+      title: "Secret Soci80",
       emoji: "🎠",
       link: "./communion",
     },

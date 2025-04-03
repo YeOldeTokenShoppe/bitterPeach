@@ -103,13 +103,13 @@ function HolographicStatue({ onLoad }) {
     });
   };
 
-  const object3 = scene.getObjectByName("Object_3");
+  // const object3 = scene.getObjectByName("Object_3");
 
-  if (object3) {
-    const worldPosition = new THREE.Vector3();
-    object3.getWorldPosition(worldPosition);
-    // console.log("World Position:", worldPosition);
-  }
+  // if (object3) {
+  //   const worldPosition = new THREE.Vector3();
+  //   object3.getWorldPosition(worldPosition);
+  //   // console.log("World Position:", worldPosition);
+  // }
 
   useEffect(() => {
     // Only load if we haven't already
@@ -139,7 +139,7 @@ function HolographicStatue({ onLoad }) {
 
       // Create an anchor group with initial position
       const anchorGroup = new THREE.Group();
-      const basePosition = [0, 4.5, -1.2];
+      const basePosition = [-0.5, 5.0, -0.9];
       anchorGroup.position.set(...basePosition);
       initialY.current = basePosition[1];
 

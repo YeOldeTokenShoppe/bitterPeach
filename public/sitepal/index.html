@@ -14,20 +14,19 @@
         width: 100%;
         height: 100%;
       }
-      /* Hide the original SitePal mic/status controls */
+
       .vhss-aiplayer-aiform-mic {
         display: none !important;
       }
-      /* Hide the SitePal dialog/log text boxes */
+
       #vhss-aiplayer-aiformlogs {
         display: none !important;
-        opacity: 0 !important; /* Add opacity just in case display is overridden */
+        opacity: 0 !important;
       }
     </style>
   </head>
   <body>
     <div id="vhss_aiPlayer"></div>
-
     <script
       type="text/javascript"
       src="//vhss-d.oddcast.com/ai_embed_functions_v1.php"
@@ -36,21 +35,18 @@
       window.addEventListener("load", function () {
         try {
           console.log("SitePal iframe loaded, initializing...");
-
-          // Add iOS-specific audio context initialization
+          // iOS-specific audio context initialization
           let audioContext;
           try {
             const AudioContext =
               window.AudioContext || window.webkitAudioContext;
             if (AudioContext) {
               audioContext = new AudioContext();
-
               // Create a silent audio buffer to ensure audio context is active
               const buffer = audioContext.createBuffer(1, 1, 22050);
               const source = audioContext.createBufferSource();
               source.buffer = buffer;
               source.connect(audioContext.destination);
-
               // Resume audio context immediately
               audioContext
                 .resume()
@@ -60,7 +56,6 @@
                 .catch((e) => {
                   console.log("Failed to resume audio context:", e);
                 });
-
               console.log(
                 "Audio context initialized with sample rate:",
                 audioContext.sampleRate
@@ -69,16 +64,13 @@
           } catch (e) {
             console.log("Audio context initialization failed:", e);
           }
-
-          // Add a check to ensure the AI_vhost_embed function exists
+          // Check that the AI_vhost_embed function exists
           if (typeof AI_vhost_embed === "undefined") {
             throw new Error("AI_vhost_embed function not found");
           }
-
           // Initialize SitePal with explicit parameters
           AI_vhost_embed(800, 600, 9157686, 244, 1, 1);
           console.log("SitePal initialized successfully");
-
           // Notify parent of ready state
           window.parent.postMessage(
             {
@@ -88,16 +80,13 @@
               sampleRate: audioContext ? audioContext.sampleRate : null,
               state: audioContext ? audioContext.state : null,
             },
-            "*"
+            ""
           );
-
           // Enhanced message listener with iOS-specific handling
           window.addEventListener("message", function (event) {
             console.log("SitePal received message:", event.data);
-
             if (event.data === "triggerListenClick") {
               console.log("Attempting to trigger listen click...");
-
               // Ensure audio context is running
               if (audioContext && audioContext.state === "suspended") {
                 audioContext
@@ -109,87 +98,47 @@
                     console.log("Failed to resume audio context for click:", e);
                   });
               }
-
-              // Try multiple possible element IDs
+              // Try multiple possible element IDs on the page
               const possibleIds = [
                 "vhss-aiplayer-mic-p3",
                 "vhss-aiplayer-mic",
                 "vhss-aiplayer-aiform-mic",
               ];
-
               const findAndClickElement = (id) => {
                 const element = document.getElementById(id);
                 if (element) {
-                  console.log(`Found element with ID: ${id}`);
-
-                  // Create and dispatch a more complete click event
+                  console.log("Found element with ID: ${id}");
                   const clickEvent = new MouseEvent("click", {
                     view: window,
                     bubbles: true,
                     cancelable: true,
                     clientX: 0,
                     clientY: 0,
-                    screenX: 0,
-                    screenY: 0,
                   });
-
-                  // Try multiple event types with proper coordinates
+                  // Dispatch different types of events to increase chances
                   element.dispatchEvent(
-                    new MouseEvent("mousedown", {
-                      bubbles: true,
-                      clientX: 0,
-                      clientY: 0,
-                      screenX: 0,
-                      screenY: 0,
-                    })
+                    new MouseEvent("mousedown", { bubbles: true })
                   );
-
                   element.dispatchEvent(clickEvent);
-
                   element.dispatchEvent(
-                    new MouseEvent("mouseup", {
-                      bubbles: true,
-                      clientX: 0,
-                      clientY: 0,
-                      screenX: 0,
-                      screenY: 0,
-                    })
+                    new MouseEvent("mouseup", { bubbles: true })
                   );
-
-                  // Try touch events with proper coordinates
                   element.dispatchEvent(
-                    new TouchEvent("touchstart", {
-                      bubbles: true,
-                      touches: [
-                        { clientX: 0, clientY: 0, screenX: 0, screenY: 0 },
-                      ],
-                    })
+                    new Event("touchstart", { bubbles: true, cancelable: true })
                   );
-
                   element.dispatchEvent(
-                    new TouchEvent("touchend", {
-                      bubbles: true,
-                      touches: [
-                        { clientX: 0, clientY: 0, screenX: 0, screenY: 0 },
-                      ],
-                    })
+                    new Event("touchend", { bubbles: true, cancelable: true })
                   );
-
-                  // Finally try the native click
                   element.click();
-
                   return true;
                 }
                 return false;
               };
-
-              // Try each possible ID with a small delay between attempts
               for (let i = 0; i < possibleIds.length; i++) {
                 const id = possibleIds[i];
                 setTimeout(() => {
                   if (findAndClickElement(id)) {
-                    console.log(`Successfully clicked element: ${id}`);
-                    // Add a small delay before sending the state change
+                    console.log("Successfully clicked element: ${id}");
                     setTimeout(() => {
                       window.parent.postMessage(
                         {
@@ -203,7 +152,7 @@
                             ? audioContext.sampleRate
                             : null,
                         },
-                        "*"
+                        ""
                       );
                     }, 100);
                   }
@@ -211,6 +160,7 @@
               }
             }
           });
+          // (Any overlay logic previously added has been removed.)
         } catch (e) {
           console.error("Error in SitePal initialization:", e);
           window.parent.postMessage(
@@ -218,30 +168,10 @@
               type: "SITEPAL_ERROR",
               error: e.toString(),
             },
-            "*"
+            ""
           );
         }
       });
-
-      const checkSitePalInitialization = () => {
-        if (!sitepalIframeRef.current) {
-          console.error("SitePal iframe not found");
-          return false;
-        }
-
-        try {
-          // Try to access the iframe's contentWindow
-          const iframeWindow = sitepalIframeRef.current.contentWindow;
-          if (!iframeWindow) {
-            console.error("Cannot access iframe contentWindow");
-            return false;
-          }
-          return true;
-        } catch (error) {
-          console.error("Error checking SitePal initialization:", error);
-          return false;
-        }
-      };
     </script>
   </body>
 </html>

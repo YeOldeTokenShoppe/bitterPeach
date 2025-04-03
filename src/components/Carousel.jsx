@@ -46,6 +46,8 @@ import { Theme } from "emoji-picker-react";
 import { EmojiStyle } from "emoji-picker-react";
 const Carousel = ({ images, setCarouselLoaded }) => {
   const [loadedImages, setLoadedImages] = useState(new Set());
+  const [visibleImagesLoaded, setVisibleImagesLoaded] = useState(false);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
 
   const { isSignedIn, user, isLoaded } = useUser();
   const { openSignIn } = useClerk();
@@ -78,7 +80,15 @@ const Carousel = ({ images, setCarouselLoaded }) => {
       // Check if all images are loaded
       if (newSet.size === images.length) {
         console.log("✅ All images loaded successfully");
-        setCarouselLoaded(true);
+        setInitialLoadComplete(true);
+
+        // Add a small delay to ensure images are actually visible
+        setTimeout(() => {
+          setVisibleImagesLoaded(true);
+          if (setCarouselLoaded) {
+            setCarouselLoaded(true);
+          }
+        }, 500);
       }
 
       return newSet;
@@ -95,6 +105,7 @@ const Carousel = ({ images, setCarouselLoaded }) => {
 
     const preloadImages = async () => {
       try {
+        console.log(`🔄 Preloading ${images.length} carousel images...`);
         const imageLoadPromises = images.map((image) => {
           return new Promise((resolve, reject) => {
             const img = new window.Image(); // Use window.Image explicitly
@@ -111,9 +122,14 @@ const Carousel = ({ images, setCarouselLoaded }) => {
         });
 
         await Promise.all(imageLoadPromises);
+        console.log("✅ All carousel images preloaded");
       } catch (error) {
         console.error("Error preloading images:", error);
-        setCarouselLoaded(true);
+        setInitialLoadComplete(true);
+        setVisibleImagesLoaded(true);
+        if (setCarouselLoaded) {
+          setCarouselLoaded(true);
+        }
       }
     };
 
@@ -1079,21 +1095,6 @@ const Carousel = ({ images, setCarouselLoaded }) => {
         position: "relative",
       }}
     >
-      <img
-        src="/carouselSign.png"
-        alt="sign"
-        style={{
-          transform: "translateX(-50%) scale(0.5)",
-          top: "-6rem",
-          position: "absolute",
-          left: "50%",
-          width: "auto",
-          maxWidth: "none",
-          maxHeight: "none",
-          zIndex: 9999,
-          pointerEvents: "none",
-        }}
-      />
       <div className="carousel-container">
         <main>
           <div

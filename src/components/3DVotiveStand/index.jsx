@@ -119,7 +119,7 @@ function ThreeDVotiveStand({
   // Light helper state
   const [showLightHelper, setShowLightHelper] = useState(false);
   const [lightPosition, setLightPosition] = useState({ x: 32, y: 33, z: 89 });
-  const [lightIntensity, setLightIntensity] = useState(1.2);
+  const [lightIntensity, setLightIntensity] = useState(1);
   const [skyColor, setSkyColor] = useState("#7300ff"); // Sky color in hex format for inputs
   const [groundColor, setGroundColor] = useState("#ff0000"); // Ground color in hex format for inputs
 

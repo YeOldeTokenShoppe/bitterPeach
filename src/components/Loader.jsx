@@ -67,12 +67,12 @@ function Loader({ progress }) {
             </div>
 
             {/* Simple line progress indicator */}
-            {/* <div className={styles.lineProgress}>
+            <div className={styles.lineProgress}>
               <div
                 className={styles.lineProgressFill}
                 style={{ width: `${loadingPercentage}%` }}
               ></div>
-            </div> */}
+            </div>
           </div>
         </div>
       </div>

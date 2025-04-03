@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>80s Wireframe Background Test</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100vh;
+        width: 100vw;
+        overflow: hidden;
+        background-color: #000;
+        color: #fff;
+        font-family: monospace;
+      }
+
+      .container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 10;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+      }
+
+      .controls {
+        position: fixed;
+        top: 10px;
+        left: 10px;
+        z-index: 20;
+        background: rgba(0, 0, 0, 0.7);
+        padding: 10px;
+        border: 1px solid #ff00ff;
+        pointer-events: auto;
+      }
+
+      button {
+        background-color: #222;
+        color: #ff00ff;
+        border: 1px solid #ff00ff;
+        padding: 5px 10px;
+        cursor: pointer;
+        font-family: monospace;
+        margin-top: 10px;
+      }
+
+      /* Wireframe Background */
+      .wireframe-background {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: 1;
+        overflow: hidden;
+        pointer-events: none;
+        opacity: 1;
+        perspective: 1000px;
+        transform-style: preserve-3d;
+        background: linear-gradient(
+          0deg,
+          #ff008c 0%,
+          #d309e1 30%,
+          #9c1aff 60%,
+          #7700ff 100%
+        );
+      }
+
+      .wireframe-sun {
+        position: absolute;
+        width: 200px;
+        height: 200px;
+        border-radius: 50%;
+        background: linear-gradient(0deg, #ff0055 0%, #ff0066 100%);
+        box-shadow: 0 0 80px #ff0066;
+        bottom: 35%;
+        left: 50%;
+        transform: translateX(-50%);
+        animation: sun-pulse 4s infinite ease-in-out;
+      }
+
+      @keyframes sun-pulse {
+        0% {
+          box-shadow: 0 0 60px #ff0066;
+        }
+        50% {
+          box-shadow: 0 0 100px #ff0066;
+        }
+        100% {
+          box-shadow: 0 0 60px #ff0066;
+        }
+      }
+
+      .wireframe-grid {
+        position: absolute;
+        bottom: 0;
+        left: -50%;
+        right: -50%;
+        height: 60%;
+        transform: rotateX(65deg);
+        transform-origin: bottom;
+        background-image: linear-gradient(
+            90deg,
+            rgba(255, 0, 255, 0.8) 1px,
+            transparent 1px
+          ),
+          linear-gradient(rgba(255, 0, 255, 0.8) 1px, transparent 1px);
+        background-size: 60px 60px;
+        animation: grid-move 15s linear infinite;
+      }
+
+      @keyframes grid-move {
+        0% {
+          background-position: 0 0;
+        }
+        100% {
+          background-position: 60px 60px;
+        }
+      }
+
+      .wireframe-mountains {
+        position: absolute;
+        bottom: 20%;
+        left: 0;
+        right: 0;
+        height: 20%;
+        overflow: hidden;
+      }
+
+      .wireframe-mountains::before {
+        content: "";
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 100%;
+        background: transparent;
+        border-bottom: 2px solid #ff00ff;
+        clip-path: polygon(
+          0% 100%,
+          5% 70%,
+          10% 85%,
+          15% 65%,
+          25% 90%,
+          35% 70%,
+          45% 85%,
+          50% 60%,
+          55% 85%,
+          65% 75%,
+          75% 90%,
+          85% 70%,
+          95% 85%,
+          100% 100%
+        );
+      }
+
+      .wireframe-mountains::after {
+        content: "";
+        position: absolute;
+        bottom: 0;
+        left: -10%;
+        right: -10%;
+        height: 60%;
+        background: transparent;
+        border-bottom: 2px solid #00ffff;
+        clip-path: polygon(
+          0% 100%,
+          10% 80%,
+          20% 95%,
+          30% 75%,
+          40% 90%,
+          50% 70%,
+          60% 85%,
+          70% 75%,
+          80% 90%,
+          90% 80%,
+          100% 100%
+        );
+      }
+
+      /* Palm tree wireframe style */
+      .palm-tree {
+        position: absolute;
+        bottom: 20%;
+        width: 6px;
+        height: 120px;
+        background: transparent;
+        border-left: 2px solid #ff00ff;
+        z-index: 5;
+      }
+
+      /* Palm fronds - all constructed with borders for wireframe look */
+      .palm-tree::before,
+      .palm-tree::after {
+        background: transparent;
+      }
+
+      .palm-tree::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 60px;
+        height: 30px;
+        border-top: 2px solid #ff00ff;
+        border-radius: 50%;
+        transform: rotate(-30deg);
+      }
+
+      .palm-tree::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: -60px;
+        width: 60px;
+        height: 30px;
+        border-top: 2px solid #ff00ff;
+        border-radius: 50%;
+        transform: rotate(30deg);
+      }
+
+      .palm-tree-left {
+        left: 20%;
+        height: 150px;
+      }
+
+      .palm-tree-left::before {
+        height: 40px;
+        transform: rotate(-20deg);
+      }
+
+      .palm-tree-left::after {
+        height: 40px;
+        width: 70px;
+        transform: rotate(20deg);
+      }
+
+      .palm-tree-right {
+        right: 20%;
+        height: 130px;
+      }
+
+      /* Add more fronds to palm trees */
+      .palm-tree-left::before,
+      .palm-tree-right::before {
+        box-shadow: 0 10px 0 -2px transparent, 0 10px 0 0 #ff00ff,
+          0 20px 0 -2px transparent, 0 20px 0 0 #ff00ff;
+      }
+
+      .palm-tree-left::after,
+      .palm-tree-right::after {
+        box-shadow: 0 10px 0 -2px transparent, 0 10px 0 0 #ff00ff,
+          0 20px 0 -2px transparent, 0 20px 0 0 #ff00ff;
+      }
+
+      /* Car animation */
+      @keyframes car-drive {
+        0% {
+          transform: translateX(-200%);
+        }
+        100% {
+          transform: translateX(300%);
+        }
+      }
+
+      .wireframe-car {
+        position: absolute;
+        bottom: 20%;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 80px;
+        height: 30px;
+        background: transparent;
+        border: 2px solid #00ffff;
+        z-index: 5;
+        animation: car-drive 15s infinite linear;
+      }
+
+      .wireframe-car::before {
+        content: "";
+        position: absolute;
+        top: -15px;
+        left: 15px;
+        width: 50px;
+        height: 15px;
+        background: transparent;
+        border: 2px solid #00ffff;
+        border-bottom: none;
+      }
+
+      .wireframe-car::after {
+        content: "";
+        position: absolute;
+        bottom: -5px;
+        left: 15px;
+        width: 15px;
+        height: 5px;
+        background: transparent;
+        border: 2px solid #00ffff;
+        box-shadow: 30px 0 0 -2px transparent, 30px 0 0 0 #00ffff;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wireframe-background">
+      <div class="wireframe-sun"></div>
+      <div class="wireframe-grid"></div>
+      <div class="wireframe-mountains"></div>
+      <div class="palm-tree palm-tree-left"></div>
+      <div class="palm-tree palm-tree-right"></div>
+      <div class="wireframe-car"></div>
+    </div>
+
+    <div class="container">
+      <h1>Classic 80s Wireframe Background</h1>
+    </div>
+
+    <div class="controls">
+      <label
+        >Opacity:
+        <input type="range" id="opacity" min="0" max="1" step="0.1" value="1"
+      /></label>
+      <br />
+      <button id="toggle">Toggle Background</button>
+    </div>
+
+    <script>
+      const opacitySlider = document.getElementById("opacity");
+      const toggleButton = document.getElementById("toggle");
+      const wireframeBackground = document.querySelector(
+        ".wireframe-background"
+      );
+
+      opacitySlider.addEventListener("input", () => {
+        wireframeBackground.style.opacity = opacitySlider.value;
+      });
+
+      toggleButton.addEventListener("click", () => {
+        if (wireframeBackground.style.display === "none") {
+          wireframeBackground.style.display = "block";
+          wireframeBackground.style.opacity = opacitySlider.value;
+        } else {
+          wireframeBackground.style.display = "none";
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -9,12 +9,14 @@
     "logs": "firebase functions:log"
   },
   "engines": {
-    "node": "18"
+    "node": "20"
   },
   "main": "index.js",
   "dependencies": {
     "firebase-admin": "^12.6.0",
-    "firebase-functions": "^6.0.1"
+    "firebase-functions": "^6.3.2",
+    "node-fetch": "^2.6.9",
+    "svix": "^1.15.0"
   },
   "devDependencies": {
     "firebase-functions-test": "^3.1.0"

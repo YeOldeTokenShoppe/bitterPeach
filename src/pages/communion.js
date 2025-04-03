@@ -17,19 +17,11 @@ export default function CommunionPage() {
   const [communionLoaded, setCommunionLoaded] = useState(false);
   const [goldCardsLoaded, setGoldCardsLoaded] = useState(false);
   const [allImagesLoaded, setAllImagesLoaded] = useState(false);
-
-  // Calculate loading progress based on component loading states
-  const loadingProgress = useMemo(() => {
-    let progress = 0;
-
-    // Each component contributes to the total loading progress
-    if (carouselLoaded) progress += 25; // Carousel is 25% of loading
-    if (communionLoaded) progress += 25; // Communion is 25% of loading
-    if (goldCardsLoaded) progress += 25; // GoldCards is 25% of loading
-    if (allImagesLoaded) progress += 25; // Images are 25% of loading
-
-    return Math.min(99, Math.round(progress)); // Cap at 99% until fully loaded
-  }, [carouselLoaded, communionLoaded, goldCardsLoaded, allImagesLoaded]);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [loadingStage, setLoadingStage] = useState("initializing");
+  const [showContent, setShowContent] = useState(false);
+  const [contentOpacity, setContentOpacity] = useState(0);
+  const [imagesLoaded, setImagesLoaded] = useState([]);
 
   // List of all critical images that need to be preloaded
   const criticalImages = useMemo(
@@ -55,10 +47,70 @@ export default function CommunionPage() {
     []
   );
 
+  // Calculate loading progress
+  useEffect(() => {
+    let progress = 0;
+    let stageProgress = 0;
+
+    // Base progress for each stage
+    const stageWeights = {
+      initializing: 0.1, // 0-10%
+      "loading carousel": 0.3, // 10-40%
+      "loading images": 0.4, // 40-80%
+      finalizing: 0.1, // 80-90%
+      complete: 0.1, // 90-100%
+    };
+
+    // Calculate progress based on current stage
+    switch (loadingStage) {
+      case "initializing":
+        stageProgress = 0.1;
+        break;
+      case "loading carousel":
+        stageProgress = 0.3;
+        break;
+      case "loading images":
+        // Add progress based on loaded images
+        const loadedImages = imagesLoaded.length;
+        const totalImages = criticalImages.length;
+        stageProgress = 0.3 + 0.4 * (loadedImages / totalImages);
+        break;
+      case "finalizing":
+        stageProgress = 0.8;
+        break;
+      case "complete":
+        stageProgress = 0.9;
+        break;
+    }
+
+    // Add small random increments to make progress more dynamic
+    const randomIncrement = Math.random() * 0.01;
+    progress = Math.min(stageProgress + randomIncrement, 0.99);
+
+    setLoadingProgress(Math.floor(progress * 100));
+  }, [loadingStage, imagesLoaded, criticalImages]);
+
+  // Update loading stage based on component states
+  useEffect(() => {
+    if (!carouselLoaded) {
+      setLoadingStage("loading carousel");
+    } else if (!allImagesLoaded) {
+      setLoadingStage("loading images");
+    } else if (loadingProgress < 100) {
+      setLoadingStage("finalizing");
+    } else {
+      setLoadingStage("complete");
+    }
+  }, [carouselLoaded, allImagesLoaded, loadingProgress]);
+
   // Preload all critical images
   useEffect(() => {
     let loadedCount = 0;
     const totalImages = criticalImages.length;
+
+    console.log(
+      `🔄 Preloading ${totalImages} critical images for communion page...`
+    );
 
     const preloadImage = (src) => {
       return new Promise((resolve) => {
@@ -72,10 +124,12 @@ export default function CommunionPage() {
 
         img.onload = () => {
           loadedCount++;
-
+          console.log(`✅ Loaded image ${loadedCount}/${totalImages}: ${src}`);
+          setImagesLoaded((prev) => [...prev, src]);
           resolve(true);
         };
         img.onerror = () => {
+          console.error(`❌ Failed to load image: ${src}`);
           loadedCount++;
           resolve(false);
         };
@@ -85,27 +139,35 @@ export default function CommunionPage() {
 
     Promise.all(criticalImages.map(preloadImage))
       .then(() => {
+        console.log("✅ All critical images preloaded for communion page");
         setAllImagesLoaded(true);
       })
       .catch((err) => {
+        console.error("Error preloading images:", err);
         // Still set as loaded after timeout to prevent hanging
         setTimeout(() => setAllImagesLoaded(true), 3000);
       });
   }, [criticalImages]);
 
+  // Force loader to hide after timeout
   useEffect(() => {
-    // Force loader to hide after 10 seconds
     const timeoutId = setTimeout(() => {
       if (isLoading) {
         console.warn("⚠️ Loading timed out, forcing page to show");
         setIsLoading(false);
+        setShowContent(true);
+
+        // Fade in content after a short delay
+        setTimeout(() => {
+          setContentOpacity(1);
+        }, 100);
       }
-    }, 10000); // Increased to 10 seconds to give more time for loading
+    }, 15000); // 15 second maximum wait time
 
     return () => clearTimeout(timeoutId);
   }, [isLoading]);
 
-  // Only hide loader when all components are loaded
+  // Handle transition from loading to content
   useEffect(() => {
     if (
       carouselLoaded &&
@@ -113,9 +175,49 @@ export default function CommunionPage() {
       communionLoaded &&
       goldCardsLoaded
     ) {
-      setIsLoading(false);
+      console.log(
+        "✅ All components and images loaded, showing communion page"
+      );
+
+      // First show the content container (but keep it invisible)
+      setShowContent(true);
+
+      // Add a small delay for smoother transition
+      setTimeout(() => {
+        // Hide the loader
+        setIsLoading(false);
+
+        // After loader is hidden, fade in the content
+        setTimeout(() => {
+          setContentOpacity(1);
+        }, 500);
+      }, 500);
+    } else if (loadingProgress >= 95) {
+      // If we're at 95% or higher, we can show the page even if not everything is loaded
+      console.log(
+        "⚠️ Showing page at high progress but not all components loaded"
+      );
+
+      // First show the content container (but keep it invisible)
+      setShowContent(true);
+
+      setTimeout(() => {
+        // Hide the loader
+        setIsLoading(false);
+
+        // After loader is hidden, fade in the content
+        setTimeout(() => {
+          setContentOpacity(1);
+        }, 500);
+      }, 500);
     }
-  }, [carouselLoaded, allImagesLoaded, communionLoaded, goldCardsLoaded]);
+  }, [
+    carouselLoaded,
+    allImagesLoaded,
+    communionLoaded,
+    goldCardsLoaded,
+    loadingProgress,
+  ]);
 
   const [isLargeScreen, setIsLargeScreen] = useState(false);
   const canvasRef = useRef(null);
@@ -158,6 +260,9 @@ export default function CommunionPage() {
       };
 
   useEffect(() => {
+    // Only run this effect when showContent is true and the canvas exists
+    if (!showContent || !canvasRef.current) return;
+
     const c = canvasRef.current;
     const ctx = c.getContext("2d");
     let cw = (c.width = window.innerWidth);
@@ -263,166 +368,11 @@ export default function CommunionPage() {
       window.removeEventListener("resize", update);
       window.removeEventListener("pointerup", update);
     };
-  }, []);
+  }, [showContent]); // Add showContent as a dependency
 
   return (
     <>
-      {isLoading && <Loader progress={loadingProgress} />}
-      <canvas
-        ref={canvasRef}
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          width: "100%",
-          // height: "42%",
-        }}
-      ></canvas>
-      <div
-        style={{
-          position: "relative",
-          marginBottom: "1rem",
-          transform: "scale(.8)",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          zIndex: 10,
-        }}
-      >
-        {/* Container wrapping the Carousel and the sign */}
-        <div
-          style={{
-            position: "relative",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            zIndex: 9998,
-            opacity: isLoading ? 0 : 1,
-            transition: "opacity 0.5s ease-in-out",
-            visibility: isLoading ? "hidden" : "visible",
-          }}
-        >
-          <Carousel
-            setCarouselLoaded={setCarouselLoaded}
-            images={[
-              { src: "seaMonster.png", title: "Sea Monster" },
-              { src: "bull.png", title: "Bull" },
-              { src: "bear.png", title: "Bear" },
-              { src: "gator.png", title: "G8r" },
-              { src: "chupa.png", title: "Chupacabra" },
-              { src: "snowman.png", title: "Yeti" },
-              { src: "unicorn.png", title: "Unicorn" },
-              { src: "jackalope.png", title: "Jackalope" },
-              { src: "liger.png", title: "Liger" },
-              { src: "dire.png", title: "Dire Wolf" },
-              { src: "warthog.png", title: "Warthog" },
-              { src: "mothmanRide.png", title: "Mothman" },
-            ]}
-            logos={[
-              {
-                logo: "/3d_spotify.png",
-                title: "Threads",
-                link: "https://www.threads.net",
-              },
-              {
-                logo: "/telegram.svg",
-                title: "Telegram",
-                link: "https://t.me",
-              },
-              { logo: "/x_.svg", title: "X", link: "https://x.com" },
-              {
-                logo: "/threads_.png",
-                title: "Threads",
-                link: "https://www.threads.net",
-              },
-              {
-                logo: "/instagram_.png",
-                title: "Instagram",
-                link: "https://www.instagram.com",
-              },
-              // {
-              //   logo: "/facebook_.png",
-              //   title: "Facebook",
-              //   link: "https://www.facebook.com",
-              // },
-              {
-                logo: "/discord.svg",
-                title: "Discord",
-                link: "https://discord.com",
-              },
-            ]}
-          />
-        </div>
-      </div>
-
-      {/* <Box
-        display="flex"
-        flexDirection={{ base: "column", md: "row" }} // Column on small screens, row on larger screens
-        alignItems="center"
-        justifyContent="center"
-        marginBottom="2rem"
-        position="relative"
-        marginTop="1rem"
-        gap={4}
-        zIndex={1} // Adjust z-index if needed
-      >
-        <Box
-          display="flex"
-          alignItems="center"
-          width="30rem"
-          // border="3px solid goldenrod"
-          // paddingTop="3rem"
-          borderRadius="10px"
-          justifyContent="center"
-          // marginBottom="2rem"
-          position="relative"
-          marginTop="1rem"
-          zIndex={-1} // Adjust z-index if needed
-        > */}
-      {/* <Bouncer onDoorClick={onOpen} disableBlockingBehavior={false} />
-
-
-          <MoonRoomModal isOpen={isOpen} onClose={onClose} /> */}
-      {/* <GoldCards setGoldCardsLoaded={setGoldCardsLoaded} />
-        </Box>
-      </Box> */}
-
-      {/* <Box
-        style={{
-          position: "relative",
-          left: "40%",
-          align: "center",
-          justifyContent: "center",
-          border: "3px solid goldenrod",
-          borderRadius: "10px",
-          width: "20%",
-          alignContent: "center",
-        }}
-      >
-        <iframe
-          src="https://open.spotify.com/embed/playlist/5wWiiVDG0Q83zVitjPf6fj?utm_source=generator&theme=0"
-          width="100%"
-          height="152"
-          frameBorder="0"
-          allowfullscreen=""
-          allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-          loading="lazy"
-        ></iframe>
-      </Box> */}
-      <div
-        style={{
-          position: "relative",
-          marginBottom: "2rem",
-          marginTop: "3rem",
-        }}
-      >
-        <NavBar />
-      </div>
-      {/* </div> */}
-      <Footer setCommunionLoaded={setCommunionLoaded} />
-
-      {/* Loader on top */}
+      {/* Loader */}
       {isLoading && (
         <div
           style={{
@@ -431,10 +381,167 @@ export default function CommunionPage() {
             left: 0,
             right: 0,
             bottom: 0,
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            alignItems: "center",
+            backgroundColor: "#1b1724",
             zIndex: 50,
+            transition: "opacity 0.5s ease-out",
+            opacity: isLoading ? 1 : 0,
           }}
         >
           <Loader progress={loadingProgress} />
+          <div
+            style={{
+              color: "#e1b67e",
+              marginTop: "20px",
+              fontSize: "14px",
+              textAlign: "center",
+              maxWidth: "80%",
+            }}
+          >
+            {loadingStage === "initializing" && "Initializing..."}
+            {loadingStage === "loading carousel" && "Loading carousel..."}
+            {loadingStage === "loading images" && "Loading images..."}
+            {loadingStage === "finalizing" && "Finalizing..."}
+            {loadingStage === "complete" && "Loading complete!"}
+          </div>
+        </div>
+      )}
+
+      {/* Main Content */}
+      {showContent && (
+        <div
+          style={{
+            opacity: contentOpacity,
+            transition: "opacity 0.8s ease-in",
+            width: "100vw",
+            minHeight: "100vh",
+            overflow: "hidden",
+            position: "relative",
+          }}
+        >
+          <canvas
+            ref={canvasRef}
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              zIndex: 0,
+            }}
+          ></canvas>
+          <div
+            style={{
+              position: "relative",
+              marginBottom: "1rem",
+              transform: "scale(.8)",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 2,
+            }}
+          >
+            {/* Container wrapping the Carousel and the sign */}
+            <div
+              style={{
+                position: "relative",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                zIndex: 2,
+              }}
+            >
+              <Carousel
+                setCarouselLoaded={setCarouselLoaded}
+                images={[
+                  { src: "seaMonster.png", title: "Sea Monster" },
+                  { src: "bull.png", title: "Bull" },
+                  { src: "bear.png", title: "Bear" },
+                  { src: "gator.png", title: "G8r" },
+                  { src: "chupa.png", title: "Chupacabra" },
+                  { src: "snowman.png", title: "Yeti" },
+                  { src: "unicorn.png", title: "Unicorn" },
+                  { src: "jackalope.png", title: "Jackalope" },
+                  { src: "liger.png", title: "Liger" },
+                  { src: "dire.png", title: "Dire Wolf" },
+                  { src: "warthog.png", title: "Warthog" },
+                  { src: "mothmanRide.png", title: "Mothman" },
+                ]}
+                logos={[
+                  {
+                    logo: "/3d_spotify.png",
+                    title: "Threads",
+                    link: "https://www.threads.net",
+                  },
+                  {
+                    logo: "/telegram.svg",
+                    title: "Telegram",
+                    link: "https://t.me",
+                  },
+                  { logo: "/x_.svg", title: "X", link: "https://x.com" },
+                  {
+                    logo: "/threads_.png",
+                    title: "Threads",
+                    link: "https://www.threads.net",
+                  },
+                  {
+                    logo: "/instagram_.png",
+                    title: "Instagram",
+                    link: "https://www.instagram.com",
+                  },
+                  // {
+                  //   logo: "/facebook_.png",
+                  //   title: "Facebook",
+                  //   link: "https://www.facebook.com",
+                  // },
+                  {
+                    logo: "/discord.svg",
+                    title: "Discord",
+                    link: "https://discord.com",
+                  },
+                ]}
+              />
+            </div>
+
+            {/* Carousel sign with improved positioning and z-index */}
+            <div
+              style={{
+                position: "absolute",
+                top: "-6rem",
+                left: "50%",
+                transform: "translateX(-50%) scale(0.5)",
+                width: "auto",
+                maxWidth: "none",
+                maxHeight: "none",
+                zIndex: 9999,
+                pointerEvents: "none",
+                willChange: "transform",
+                isolation: "isolate",
+              }}
+            >
+              <img
+                src="/carouselSign.png"
+                alt="Carousel Sign"
+                style={{
+                  width: "auto",
+                  maxWidth: "none",
+                  maxHeight: "none",
+                }}
+                onLoad={() => console.log("Carousel sign loaded")}
+              />
+            </div>
+          </div>
+
+          <div style={{ marginTop: "3rem", zIndex: "100" }}>
+            <NavBar />
+          </div>
+          <div style={{ marginTop: "3rem", zIndex: "100" }}>
+            <Footer setCommunionLoaded={setCommunionLoaded} />
+          </div>
         </div>
       )}
     </>

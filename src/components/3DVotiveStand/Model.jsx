@@ -353,7 +353,11 @@ function Model({
 
     // Find Object_3 and Object_2.001 in the model
     gltf.scene.traverse((child) => {
-      if (child.name === "Object_3" || child.name === "Object_2.001") {
+      if (
+        child.name === "Object_3" ||
+        child.name === "Object_2.001" ||
+        child.name === "Earth rays_2"
+      ) {
         child.visible = !monsterMode;
       }
     });
@@ -1229,6 +1233,27 @@ function Model({
       if (object.isMesh) {
         // Set render order very high to ensure it renders after stars
         object.renderOrder = 10;
+
+        // Special handling for goldCircuit mesh
+        if (object.name === "goldCircuit") {
+          // Ensure goldCircuit renders before other objects
+          object.renderOrder = -1; // Changed to negative to ensure it's always first
+          if (object.material) {
+            const applyFixes = (material) => {
+              material.depthWrite = false; // Disable depth writing
+              material.depthTest = true; // Keep depth testing
+              material.transparent = true;
+              material.opacity = 0.9; // More transparent
+              material.blending = THREE.AdditiveBlending; // Add additive blending
+              material.needsUpdate = true;
+            };
+            if (Array.isArray(object.material)) {
+              object.material.forEach(applyFixes);
+            } else {
+              applyFixes(object.material);
+            }
+          }
+        }
 
         if (object.material) {
           const applyFixes = (material) => {

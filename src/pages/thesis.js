@@ -16,7 +16,7 @@ export default function ThesisPage() {
     () => [
       // Add your critical thesis page images here
       // For example:
-      "/3D_spotify.png",
+      "/3d_spotify.png",
       "/3D_tiktok.png",
       "/3d_discord.png",
       "/3d_X.png",

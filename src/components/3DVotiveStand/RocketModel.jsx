@@ -22,27 +22,27 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode }) {
 
   // State for light properties
   const [redLightProps, setRedLightProps] = useState({
-    intensity: 10,
+    intensity: 2,
     distance: 20,
     angle: Math.PI / 3,
     penumbra: 0.4,
-    positionY: 10,
+    positionY: 5,
     circleRadius: 3.0,
     rotationSpeed: 0.7,
     pulseSpeed: 3,
-    pulseIntensity: 5,
+    pulseIntensity: 1,
   });
 
   const [blueLightProps, setBlueLightProps] = useState({
-    intensity: 10,
+    intensity: 2,
     distance: 20,
     angle: Math.PI / 3,
     penumbra: 0.4,
-    positionY: 1,
+    positionY: 2,
     circleRadius: 3.0,
     rotationSpeed: 0.7,
     pulseSpeed: 3,
-    pulseIntensity: 5,
+    pulseIntensity: 1,
   });
 
   // State for thruster effect
@@ -59,11 +59,11 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode }) {
     opacity: 0.8,
     scale: 0.25,
     visible: true,
-    rotationX: -Math.PI / 2, // Rotate 90 degrees around X to make it upright
+    rotationX: -Math.PI / 2,
     rotationY: 0,
     rotationZ: 0,
-    emissive: "#00ffff", // Add some emission for better visibility
-    emissiveIntensity: 0.3, // Moderate emission
+    emissive: "#333333", // Changed from black to dark gray
+    emissiveIntensity: 0.1, // Slight emission
   });
 
   // State to store the avatar plane reference
@@ -75,12 +75,12 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode }) {
   // Fixed avatar plane settings (previously controlled by GUI)
   const avatarPlaneSettings = {
     visible: true,
-    rotationX: Math.PI / 2,
-    rotationY: 0,
-    rotationZ: 0,
-    offsetX: 0,
-    offsetY: -0.1,
-    offsetZ: 0.2, // Increased z-offset to prevent z-fighting
+    rotationX: 4.7,
+    rotationY: 72.3,
+    rotationZ: 47,
+    offsetX: -0.02,
+    offsetY: 0.0,
+    offsetZ: -0.0, // Increased z-offset to prevent z-fighting
     scale: 0.35,
     showOriginalMesh: false,
     followRider: true,
@@ -90,7 +90,7 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode }) {
   const rocketSettings = {
     rocketScale: 1.0,
     showLightHelpers: false,
-    ambientLightDimming: 0.3,
+    ambientLightDimming: 0.1,
   };
 
   // Update ambient light when the component mounts
@@ -122,11 +122,27 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode }) {
         opacity: materialProps.opacity || 0.8,
         emissive: materialProps.emissive
           ? new THREE.Color(materialProps.emissive)
-          : new THREE.Color(0x00ffff),
-        emissiveIntensity: materialProps.emissiveIntensity || 0.3,
+          : new THREE.Color(0x333333),
+        emissiveIntensity: materialProps.emissiveIntensity || 0.1,
         metalness: 0.2,
-        roughness: 0.5,
+        roughness: 0.6,
+        aoMapIntensity: 1.0, // Add ambient occlusion intensity
+        envMapIntensity: 0.5, // Reduce environment map intensity
+        lightMapIntensity: 0.5, // Reduce light map intensity
+        receiveShadow: true, // Enable shadow receiving
       });
+
+      // Create a simple ambient occlusion map
+      const aoMap = new THREE.TextureLoader().load(
+        "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+        (texture) => {
+          texture.wrapS = THREE.RepeatWrapping;
+          texture.wrapT = THREE.RepeatWrapping;
+          texture.repeat.set(1, 1);
+          newMaterial.aoMap = texture;
+          newMaterial.needsUpdate = true;
+        }
+      );
 
       // Store the original material if not already stored
       if (!mesh.userData.originalMaterial) {
@@ -206,13 +222,29 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode }) {
     if (riderMesh) {
       console.log("Found RIDER mesh:", riderMesh.name);
 
-      // Apply material using the safe function
-      safelyApplyMaterial(riderMesh, {
+      // Create a new material with specific properties
+      const riderMaterial = new THREE.MeshStandardMaterial({
         color: riderProps.color,
         opacity: riderProps.opacity,
-        emissive: riderProps.emissive,
-        emissiveIntensity: riderProps.emissiveIntensity,
+        emissive: new THREE.Color(0x000000), // Black emissive
+        emissiveIntensity: 0.0, // No emission
+        metalness: 0.0, // No metalness
+        roughness: 1.0, // Maximum roughness
+        envMapIntensity: 0.0, // No environment map influence
+        lightMapIntensity: 0.0, // No light map influence
+        aoMapIntensity: 1.0, // Full ambient occlusion
+        receiveShadow: true, // Enable shadow receiving
+        transparent: true,
+        depthWrite: false,
       });
+
+      // Store the original material
+      if (!riderMesh.userData.originalMaterial) {
+        riderMesh.userData.originalMaterial = riderMesh.material;
+      }
+
+      // Apply the new material
+      riderMesh.material = riderMaterial;
 
       // Check if user data exists and has an image URL
       if (userData && userData.imageUrl) {
@@ -344,6 +376,8 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode }) {
         transparent: true,
         depthTest: true, // Enable depth testing
         depthWrite: true, // Enable depth writing
+        toneMapped: true, // Enable tone mapping
+        color: new THREE.Color(0xffffff).multiplyScalar(0.5), // Reduce overall brightness by 30%
       });
 
       // Make sure texture settings are correct
@@ -606,9 +640,42 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode }) {
         // Store the model in the ref
         rocketRef.current = model;
 
+        // Special handling for Object_6
+        model.traverse((child) => {
+          if (child.name === "Object_6") {
+            // Ensure Object_6 renders after other objects
+            child.renderOrder = 999; // Very high render order
+            if (child.material) {
+              const applyFixes = (material) => {
+                material.depthWrite = true;
+                material.depthTest = true;
+                material.transparent = false;
+                material.needsUpdate = true;
+                // Ensure proper z-index
+                material.polygonOffset = true;
+                material.polygonOffsetFactor = 1;
+                material.polygonOffsetUnits = 1;
+              };
+
+              if (Array.isArray(child.material)) {
+                child.material.forEach(applyFixes);
+              } else {
+                applyFixes(child.material);
+              }
+            }
+          }
+          // Add handling for rider mesh
+          if (child.name === "rider") {
+            // Adjust position of rider mesh
+            child.position.set(0.5, -0.3, -0.2); // You can adjust these values
+            child.rotation.set(0, 0, 0); // You can adjust these values
+            child.scale.set(1, 1, 1); // You can adjust these values
+          }
+        });
+
         // Create an anchor group with initial position
         const anchorGroup = new THREE.Group();
-        const basePosition = [0.3, 5.5, -1.2]; // Same position as statue for now
+        const basePosition = [0.3, 6.8, -1.2]; // Same position as statue for now
         anchorGroup.position.set(...basePosition);
         initialY.current = basePosition[1]; // Set initialY to match the base y-position
 
@@ -701,64 +768,64 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode }) {
 
         // Create and add spotlights to the scene
         // Red spotlight - Use properties from GUI
-        const redSpotlight = new THREE.SpotLight(
-          0xff0000,
-          redLightProps.intensity,
-          redLightProps.distance,
-          redLightProps.angle,
-          redLightProps.penumbra,
-          1
-        );
-        redSpotlight.position.set(0.3, redLightProps.positionY, -1.2); // Static position
-        redLightRef.current = redSpotlight;
+        // const redSpotlight = new THREE.SpotLight(
+        //   0xff0000,
+        //   redLightProps.intensity,
+        //   redLightProps.distance,
+        //   redLightProps.angle,
+        //   redLightProps.penumbra,
+        //   1
+        // );
+        // redSpotlight.position.set(0.3, redLightProps.positionY, -1.2); // Static position
+        // redLightRef.current = redSpotlight;
 
-        // Enable shadows for red spotlight
-        redSpotlight.castShadow = true;
-        redSpotlight.shadow.mapSize.width = 1200;
-        redSpotlight.shadow.mapSize.height = 1200;
-        redSpotlight.shadow.camera.near = 0.5;
-        redSpotlight.shadow.camera.far = 30;
-        redSpotlight.shadow.bias = -0.001;
+        // // Enable shadows for red spotlight
+        // redSpotlight.castShadow = true;
+        // redSpotlight.shadow.mapSize.width = 1200;
+        // redSpotlight.shadow.mapSize.height = 1200;
+        // redSpotlight.shadow.camera.near = 0.5;
+        // redSpotlight.shadow.camera.far = 30;
+        // redSpotlight.shadow.bias = -0.001;
 
-        // Red spotlight target
-        const redTarget = new THREE.Object3D();
-        redTarget.position.set(0.3, 4, -1.2); // Target positioned at the rocket
-        redTargetRef.current = redTarget;
-        scene.add(redTarget);
-        redSpotlight.target = redTarget;
+        // // Red spotlight target
+        // const redTarget = new THREE.Object3D();
+        // redTarget.position.set(0.3, 2, -1.2); // Adjusted from 4 to be lower
+        // redTargetRef.current = redTarget;
+        // scene.add(redTarget);
+        // redSpotlight.target = redTarget;
 
-        // Add red spotlight to scene
-        scene.add(redSpotlight);
+        // // Add red spotlight to scene
+        // scene.add(redSpotlight);
 
-        // Blue spotlight - Use properties from GUI
-        const blueSpotlight = new THREE.SpotLight(
-          0x0000ff,
-          blueLightProps.intensity,
-          blueLightProps.distance,
-          blueLightProps.angle,
-          blueLightProps.penumbra,
-          1
-        );
-        blueSpotlight.position.set(0.3, blueLightProps.positionY, -1.2); // Static position
-        blueLightRef.current = blueSpotlight;
+        // // Blue spotlight - Use properties from GUI
+        // const blueSpotlight = new THREE.SpotLight(
+        //   0x0000ff,
+        //   blueLightProps.intensity,
+        //   blueLightProps.distance,
+        //   blueLightProps.angle,
+        //   blueLightProps.penumbra,
+        //   1
+        // );
+        // blueSpotlight.position.set(0.3, blueLightProps.positionY, -1.2); // Static position
+        // blueLightRef.current = blueSpotlight;
 
-        // Enable shadows for blue spotlight
-        blueSpotlight.castShadow = true;
-        blueSpotlight.shadow.mapSize.width = 1024;
-        blueSpotlight.shadow.mapSize.height = 1024;
-        blueSpotlight.shadow.camera.near = 0.5;
-        blueSpotlight.shadow.camera.far = 30;
-        blueSpotlight.shadow.bias = -0.001;
+        // // Enable shadows for blue spotlight
+        // blueSpotlight.castShadow = true;
+        // blueSpotlight.shadow.mapSize.width = 1024;
+        // blueSpotlight.shadow.mapSize.height = 1024;
+        // blueSpotlight.shadow.camera.near = 0.5;
+        // blueSpotlight.shadow.camera.far = 30;
+        // blueSpotlight.shadow.bias = -0.001;
 
-        // Blue spotlight target
-        const blueTarget = new THREE.Object3D();
-        blueTarget.position.set(0.3, 7, -1.2); // Target positioned at the rocket
-        blueTargetRef.current = blueTarget;
-        scene.add(blueTarget);
-        blueSpotlight.target = blueTarget;
+        // // Blue spotlight target
+        // const blueTarget = new THREE.Object3D();
+        // blueTarget.position.set(0.3, 5, -1.2); // Adjusted from 7 to be lower
+        // blueTargetRef.current = blueTarget;
+        // scene.add(blueTarget);
+        // blueSpotlight.target = blueTarget;
 
-        // Add blue spotlight to scene
-        scene.add(blueSpotlight);
+        // // Add blue spotlight to scene
+        // scene.add(blueSpotlight);
 
         // Add the anchor group to the scene
         scene.add(anchorGroup);
@@ -1008,6 +1075,8 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode }) {
     // Create the flame cone geometry
     const flameGeometry = new THREE.ConeGeometry(0.5, 1.5, 16);
     flameGeometry.translate(0, -0.75, 0); // Move the cone down so its top is at the origin
+    flameGeometry.depthWrite = true;
+    flameGeometry.depthTest = true;
     flameGeometry.rotateX(Math.PI); // Flip the cone to point downward
 
     // Create a shader material for the flame
