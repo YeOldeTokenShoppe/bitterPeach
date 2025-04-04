@@ -23,21 +23,23 @@
         background-color: transparent !important;
         color: #67e8f9;
         display: flex;
-        justify-content: flex-end;
-        height: 100vh;
+        justify-content: center;
+        height: 100%;
         overflow: hidden;
-        width: 280px;
+        width: 100%;
         position: relative;
       }
 
       .mission-control {
-        width: 280px;
-        height: 100vh;
+        width: 100%;
+        max-width: 450px;
+        height: 100%;
         background-image: linear-gradient(to bottom, #0f172a, #1e293b);
         display: flex;
         flex-direction: column;
         padding: 16px;
         border-left: 1px solid #0e7490;
+        border-right: 1px solid #0e7490;
         box-shadow: 0 0 15px rgba(6, 182, 212, 0.3),
           inset 0 0 10px rgba(6, 182, 212, 0.1);
         overflow-y: auto;
@@ -2265,6 +2267,52 @@
         animation: connect-pulse 1.5s infinite ease-in-out;
       }
       /* End Connect Button Pulse */
+
+      /* Remove unnecessary music visualizer and equalizer code */
+      .music-equalizer,
+      .music-bar,
+      .music-active .music-bar:nth-child(1),
+      .music-active .music-bar:nth-child(2),
+      .music-active .music-bar:nth-child(3),
+      .music-active .music-bar:nth-child(4),
+      .music-active .music-bar:nth-child(5) {
+        display: none;
+      }
+
+      /* Remove unused animation keyframes by setting to no-op */
+      @keyframes equalizer {
+        0%,
+        100% {
+          height: 4px;
+        }
+      }
+
+      @keyframes color-drift {
+        0%,
+        100% {
+          filter: none;
+        }
+      }
+
+      @keyframes music-bounce {
+        0%,
+        100% {
+          transform: none;
+        }
+      }
+
+      @keyframes visualize {
+        0%,
+        100% {
+          transform: none;
+        }
+      }
+
+      /* Remove unused typing effect styles */
+      .typing-container,
+      .typing-text {
+        display: none;
+      }
     </style>
   </head>
   <body>
@@ -2326,6 +2374,12 @@
                 src="//vhss-d.oddcast.com/ai_embed_functions_v1.php"
               ></script>
               <script type="text/javascript">
+                // Replace verbose console logging with empty operations in production
+                if (location.hostname !== "localhost") {
+                  console.log = function () {};
+                  console.debug = function () {};
+                }
+
                 // Global helper for SitePal API access
                 window.sitePalHelper = {
                   initialized: false,
@@ -4068,8 +4122,7 @@
       }
 
       function updatePowerUI() {
-        // Function not needed anymore but keeping empty shell to avoid errors
-        // from any code that might still call it
+        // Empty stub function
       }
 
       function updateEightiesUI(isActive) {

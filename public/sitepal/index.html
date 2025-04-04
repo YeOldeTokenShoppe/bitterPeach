@@ -32,9 +32,32 @@
       src="//vhss-d.oddcast.com/ai_embed_functions_v1.php"
     ></script>
     <script type="text/javascript">
+      // Global sceneLoaded flag
+      let sceneLoaded = false;
+
+      // Define the callback that SitePal will call when scene is ready
+      function vh_sceneLoaded() {
+        sceneLoaded = true;
+
+        // Prime audio playback on iOS/Safari using silent speech
+        try {
+          window.saySilent(0);
+        } catch (e) {
+          console.warn("saySilent(0) failed:", e);
+        }
+
+        // Notify parent that scene is loaded
+        window.parent.postMessage(
+          {
+            type: "SITEPAL_SCENE_LOADED",
+            status: "ready",
+          },
+          "*"
+        );
+      }
+
       window.addEventListener("load", function () {
         try {
-          console.log("SitePal iframe loaded, initializing...");
           // iOS-specific audio context initialization
           let audioContext;
           try {
@@ -48,127 +71,99 @@
               source.buffer = buffer;
               source.connect(audioContext.destination);
               // Resume audio context immediately
-              audioContext
-                .resume()
-                .then(() => {
-                  console.log("Audio context resumed successfully");
-                })
-                .catch((e) => {
-                  console.log("Failed to resume audio context:", e);
-                });
-              console.log(
-                "Audio context initialized with sample rate:",
-                audioContext.sampleRate
-              );
+              audioContext.resume().catch((e) => {});
             }
-          } catch (e) {
-            console.log("Audio context initialization failed:", e);
-          }
+          } catch (e) {}
+
           // Check that the AI_vhost_embed function exists
           if (typeof AI_vhost_embed === "undefined") {
             throw new Error("AI_vhost_embed function not found");
           }
+
           // Initialize SitePal with explicit parameters
           AI_vhost_embed(800, 600, 9157686, 244, 1, 1);
-          console.log("SitePal initialized successfully");
+
           // Notify parent of ready state
           window.parent.postMessage(
             {
               type: "SITEPAL_READY",
               status: "initialized",
               audioContext: !!audioContext,
-              sampleRate: audioContext ? audioContext.sampleRate : null,
-              state: audioContext ? audioContext.state : null,
             },
-            ""
+            "*"
           );
+
           // Enhanced message listener with iOS-specific handling
           window.addEventListener("message", function (event) {
-            console.log("SitePal received message:", event.data);
-            if (event.data === "triggerListenClick") {
-              console.log("Attempting to trigger listen click...");
-              // Ensure audio context is running
-              if (audioContext && audioContext.state === "suspended") {
-                audioContext
-                  .resume()
-                  .then(() => {
-                    console.log("Audio context resumed for click");
-                  })
-                  .catch((e) => {
-                    console.log("Failed to resume audio context for click:", e);
-                  });
-              }
-              // Try multiple possible element IDs on the page
-              const possibleIds = [
-                "vhss-aiplayer-mic-p3",
-                "vhss-aiplayer-mic",
-                "vhss-aiplayer-aiform-mic",
-              ];
-              const findAndClickElement = (id) => {
-                const element = document.getElementById(id);
-                if (element) {
-                  console.log("Found element with ID: ${id}");
-                  const clickEvent = new MouseEvent("click", {
-                    view: window,
-                    bubbles: true,
-                    cancelable: true,
-                    clientX: 0,
-                    clientY: 0,
-                  });
-                  // Dispatch different types of events to increase chances
-                  element.dispatchEvent(
-                    new MouseEvent("mousedown", { bubbles: true })
-                  );
-                  element.dispatchEvent(clickEvent);
-                  element.dispatchEvent(
-                    new MouseEvent("mouseup", { bubbles: true })
-                  );
-                  element.dispatchEvent(
-                    new Event("touchstart", { bubbles: true, cancelable: true })
-                  );
-                  element.dispatchEvent(
-                    new Event("touchend", { bubbles: true, cancelable: true })
-                  );
-                  element.click();
-                  return true;
-                }
-                return false;
-              };
-              for (let i = 0; i < possibleIds.length; i++) {
-                const id = possibleIds[i];
-                setTimeout(() => {
-                  if (findAndClickElement(id)) {
-                    console.log("Successfully clicked element: ${id}");
-                    setTimeout(() => {
-                      window.parent.postMessage(
-                        {
-                          type: "SITEPAL_STATE_CHANGE",
-                          isListening: true,
-                          elementClicked: id,
-                          audioContext: audioContext
-                            ? audioContext.state
-                            : "none",
-                          sampleRate: audioContext
-                            ? audioContext.sampleRate
-                            : null,
-                        },
-                        ""
-                      );
-                    }, 100);
+            if (!event.data || !event.data.type) return;
+
+            switch (event.data.type) {
+              case "PRIME_AUDIO_IOS":
+                // Prime audio playback on iOS/Safari using silent speech
+                try {
+                  if (typeof window.saySilent === "function" && sceneLoaded) {
+                    window.saySilent(0);
                   }
-                }, i * 100);
-              }
+                } catch (e) {}
+                break;
+
+              case "ACTIVATE_SITEPAL_MIC":
+                if (!sceneLoaded) return;
+
+                // Ensure audio context is running
+                if (audioContext && audioContext.state === "suspended") {
+                  audioContext.resume().catch(() => {});
+                }
+
+                // Try to activate the microphone
+                try {
+                  if (typeof activateMicrophone === "function") {
+                    activateMicrophone();
+                  } else {
+                    // Fallback to click simulation
+                    const micButton = document.querySelector(
+                      ".vhss-aiplayer-mic, #vhss-aiplayer-mic"
+                    );
+                    if (micButton) {
+                      micButton.click();
+                    }
+                  }
+
+                  window.parent.postMessage(
+                    {
+                      type: "SITEPAL_STATE_CHANGE",
+                      isListening: true,
+                    },
+                    "*"
+                  );
+                } catch (e) {
+                  window.parent.postMessage(
+                    {
+                      type: "SITEPAL_ERROR",
+                      error: e.toString(),
+                    },
+                    "*"
+                  );
+                }
+                break;
+
+              case "DISCONNECT_SITEPAL":
+                // Handle disconnect request
+                try {
+                  if (typeof stopListening === "function") {
+                    stopListening();
+                  }
+                } catch (e) {}
+                break;
             }
           });
-          // (Any overlay logic previously added has been removed.)
         } catch (e) {
-          console.error("Error in SitePal initialization:", e);
           window.parent.postMessage(
             {
               type: "SITEPAL_ERROR",
               error: e.toString(),
             },
-            ""
+            "*"
           );
         }
       });
