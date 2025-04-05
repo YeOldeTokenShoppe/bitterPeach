@@ -8,6 +8,8 @@ import {
   DrawerOverlay,
   useDisclosure,
   Text,
+  VStack,
+  HStack,
 } from "@chakra-ui/react";
 import { useUser } from "@clerk/nextjs";
 
@@ -18,21 +20,43 @@ const MobileSidePanel = ({
   toggleMonsterMode,
   showSpotify,
   setShowSpotify,
+  rocketModelVisible,
+  toggleRocketModel,
 }) => {
-  console.log("--- MobileSidePanel RENDERED ---", { is80sMode, showSpotify });
+  console.log("--- MobileSidePanel RENDERED ---", {
+    is80sMode,
+    showSpotify,
+    rocketModelVisible,
+  });
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [activeCall, setActiveCall] = useState(false);
   const [currentStation, setCurrentStation] = useState("LUNAR BASE ALPHA");
+  const [sitepalSceneLoaded, setSitepalSceneLoaded] = useState(false);
+  const { isLoaded, isSignedIn, user } = useUser();
+  const [iframeReady, setIframeReady] = useState(false);
+  const messageQueueRef = useRef([]);
 
   const sitepalIframeRef = useRef(null);
   const missionControlIframeRef = useRef(null);
   const [connectionPhase, setConnectionPhase] = useState(0);
   const [isMuted, setIsMuted] = useState(true);
   const microphoneStreamRef = useRef(null);
-  const [sitepalSceneLoaded, setSitepalSceneLoaded] = useState(false);
-  const { isLoaded, isSignedIn, user } = useUser();
-  const [iframeReady, setIframeReady] = useState(false);
-  const messageQueueRef = useRef([]);
+
+  // Function to toggle rocket model visibility - now uses the prop function
+  const handleRocketModelToggle = () => {
+    console.log("MobileSidePanel: Toggling rocket model");
+    toggleRocketModel();
+    // Send message to iframe
+    if (missionControlIframeRef.current) {
+      missionControlIframeRef.current.contentWindow.postMessage(
+        {
+          type: "rocketModelToggle",
+          visible: !rocketModelVisible,
+        },
+        "*"
+      );
+    }
+  };
 
   // Function to send messages to the Mission Control iframe or queue them
   const sendMessageToMissionControl = (message) => {
@@ -80,6 +104,18 @@ const MobileSidePanel = ({
       enabled: is80sMode,
     });
   }, [is80sMode]); // Re-run when is80sMode changes
+
+  // Effect to sync rocket model state with iframe
+  useEffect(() => {
+    console.log(
+      "MobileSidePanel: rocketModelVisible prop changed (queuing if needed):",
+      rocketModelVisible
+    );
+    sendMessageToMissionControl({
+      type: "SYNC_ROCKET_MODEL_STATE",
+      enabled: rocketModelVisible,
+    });
+  }, [rocketModelVisible]); // Re-run when rocketModelVisible changes
 
   // Update the message handler for events FROM iframe
   useEffect(() => {
@@ -131,6 +167,39 @@ const MobileSidePanel = ({
             );
           }
           break;
+        case "ROCKET_MODEL_TOGGLE":
+          console.log(
+            "MobileSidePanel: Handling ROCKET_MODEL_TOGGLE from iframe",
+            event.data.enabled
+          );
+          if (typeof event.data.enabled === "boolean" && toggleRocketModel) {
+            // Only toggle if the current state doesn't match the desired state
+            if (rocketModelVisible !== event.data.enabled) {
+              toggleRocketModel();
+            }
+          } else {
+            console.warn(
+              "ROCKET_MODEL_TOGGLE message received without boolean 'enabled' property or toggleRocketModel function not provided."
+            );
+          }
+          break;
+        case "LAUNCH_MODE_TOGGLE":
+          console.log("Launch mode toggle requested");
+          if (is80sMode) {
+            toggle80sMode();
+          }
+
+          if (monsterMode) {
+            // If monster mode is active, toggle it off and hide rocket
+            toggleMonsterMode();
+          } else {
+            // If monster mode is not active, turn it on and show rocket
+            toggleMonsterMode();
+            if (!rocketModelVisible) {
+              toggleRocketModel();
+            }
+          }
+          break;
         // ... rest of the cases like LAUNCH_MODE_TOGGLE, CONSTELLATION_TOGGLE etc.
         default:
         // console.log("MobileSidePanel: Unhandled message type from iframe:", event.data.type);
@@ -139,7 +208,7 @@ const MobileSidePanel = ({
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [toggle80sMode, setShowSpotify]); // Add dependencies that are called inside
+  }, [toggle80sMode, setShowSpotify, toggleRocketModel, rocketModelVisible]); // Add dependencies that are called inside
 
   // Function to toggle call status
   const toggleCall = (e) => {

@@ -129,6 +129,7 @@ function BurnGallery({
   const [isStatueLoaded, setIsStatueLoaded] = useState(false);
   const [monsterMode, setMonsterMode] = useState(false);
   const [clerkUserData, setClerkUserData] = useState(null);
+  const [rocketModelVisible, setRocketModelVisible] = useState(false);
 
   const setSpawnFunction = useCallback((func) => {
     spawnMonsterFunctionRef.current = func;
@@ -235,6 +236,21 @@ function BurnGallery({
     setMonsterMode((prev) => !prev);
   };
 
+  // Add toggleRocketModel function
+  const toggleRocketModel = () => {
+    console.log("BurnGallery: Toggling rocket model visibility");
+    setRocketModelVisible((prev) => {
+      const newValue = !prev;
+      console.log(
+        "BurnGallery: rocketModelVisible changed from",
+        prev,
+        "to",
+        newValue
+      );
+      return newValue;
+    });
+  };
+
   // Update user data when Clerk user changes
   useEffect(() => {
     if (isLoaded && isSignedIn && user) {
@@ -263,10 +279,36 @@ function BurnGallery({
 
   // Update the loading state when both model and statue are loaded
   useEffect(() => {
-    if (isModelLoaded && (!monsterMode ? isStatueLoaded : true)) {
+    console.log("BurnGallery: Loading state check", {
+      isModelLoaded,
+      isStatueLoaded,
+      monsterMode,
+      rocketModelVisible,
+    });
+
+    if (isModelLoaded && (!monsterMode ? isStatueLoaded : rocketModelVisible)) {
+      console.log("BurnGallery: Setting threeDSceneLoaded to true");
       setThreeDSceneLoaded(true);
     }
-  }, [isModelLoaded, isStatueLoaded, monsterMode, setThreeDSceneLoaded]);
+  }, [
+    isModelLoaded,
+    isStatueLoaded,
+    monsterMode,
+    rocketModelVisible,
+    setThreeDSceneLoaded,
+  ]);
+
+  // Add a fallback timer to ensure loading completes
+  useEffect(() => {
+    const fallbackTimer = setTimeout(() => {
+      console.log(
+        "BurnGallery: Fallback timer triggered, forcing threeDSceneLoaded to true"
+      );
+      setThreeDSceneLoaded(true);
+    }, 10000); // 10 second fallback
+
+    return () => clearTimeout(fallbackTimer);
+  }, [setThreeDSceneLoaded]);
 
   return (
     <>
@@ -299,6 +341,7 @@ function BurnGallery({
                 monsterMode={monsterMode}
                 userData={clerkUserData}
                 setIsStatueLoaded={setIsStatueLoaded}
+                rocketModelVisible={rocketModelVisible}
               />
             ) : null}
           </GridItem>
@@ -315,6 +358,8 @@ function BurnGallery({
               toggleMonsterMode={toggleMonsterMode}
               showSpotify={showSpotify}
               setShowSpotify={setShowSpotify}
+              rocketModelVisible={rocketModelVisible}
+              toggleRocketModel={toggleRocketModel}
             />
           ) : (
             <SidePanel
@@ -323,6 +368,9 @@ function BurnGallery({
               toggle80sMode={toggle80sMode}
               monsterMode={monsterMode}
               toggleMonsterMode={toggleMonsterMode}
+              showSpotify={showSpotify}
+              rocketModelVisible={rocketModelVisible}
+              toggleRocketModel={toggleRocketModel}
             />
           ))}
         {/* <Box

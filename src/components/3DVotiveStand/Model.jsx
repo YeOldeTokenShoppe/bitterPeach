@@ -434,6 +434,7 @@ function Model({
   // Add console logging to track progress
   useEffect(() => {
     if (progress === 100 && setIsModelLoaded) {
+      console.log("Model: Progress is 100%, setting isModelLoaded to true");
       // Add a small delay to ensure everything is rendered
       const timer = setTimeout(() => {
         setIsModelLoaded(true);
@@ -446,10 +447,12 @@ function Model({
   // Ensure the model is displayed even if candles aren't fully loaded
   useEffect(() => {
     if (progress === 100 && setIsModelLoaded) {
-      // Force isModelLoaded to true after a reasonable timeout (e.g., 10 seconds)
+      console.log("Model: Setting up force load timer");
+      // Force isModelLoaded to true after a reasonable timeout (e.g., 5 seconds)
       const forceLoadTimer = setTimeout(() => {
+        console.log("Model: Force loading after timeout");
         setIsModelLoaded(true);
-      }, 10000);
+      }, 5000); // Reduced from 10 seconds to 5 seconds
 
       return () => clearTimeout(forceLoadTimer);
     }

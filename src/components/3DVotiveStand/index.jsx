@@ -59,6 +59,7 @@ function ThreeDVotiveStand({
   monsterMode,
   userData,
   setIsStatueLoaded,
+  rocketModelVisible,
 }) {
   const [showFloatingViewer, setShowFloatingViewer] = useState(false);
   const [selectedCandleData, setSelectedCandleData] = useState(null);
@@ -255,10 +256,26 @@ function ThreeDVotiveStand({
   // Update the parent component when model is loaded (only once)
   useEffect(() => {
     if (isModelLoaded && !hasNotifiedParentRef.current) {
+      console.log("ThreeDVotiveStand: Model loaded, notifying parent");
       setIsLoading(true); // Notify BurnGallery that everything is loaded
       hasNotifiedParentRef.current = true; // Set flag to prevent further notifications
     }
   }, [isModelLoaded, setIsLoading]);
+
+  // Add a fallback timer to ensure loading completes even if there's an issue
+  useEffect(() => {
+    const fallbackTimer = setTimeout(() => {
+      if (!hasNotifiedParentRef.current) {
+        console.log(
+          "ThreeDVotiveStand: Fallback timer triggered, forcing load complete"
+        );
+        setIsLoading(true);
+        hasNotifiedParentRef.current = true;
+      }
+    }, 8000); // 8 second fallback
+
+    return () => clearTimeout(fallbackTimer);
+  }, [setIsLoading]);
 
   // Handle window resize and maintain consistent pixel ratio
   useEffect(() => {
@@ -464,15 +481,25 @@ function ThreeDVotiveStand({
 
         {/* Conditionally render HolographicStatue or RocketModel based on monsterMode */}
         <Suspense fallback={null}>
+          {console.log("ThreeDVotiveStand render:", {
+            monsterMode,
+            rocketModelVisible,
+          })}
           {!monsterMode ? (
-            <HolographicStatue onLoad={() => setIsStatueLoaded(true)} />
-          ) : (
-            // Render RocketModel directly without Suspense since it's no longer lazy loaded
-            <RocketModel
-              updateAmbientLightDimming={updateAmbientLightDimming}
-              userData={userData}
+            <HolographicStatue
+              isInMarkerView={isInMarkerView}
+              isMobileView={isMobileView}
+              setShowSpotify={setShowSpotify}
+              showSpotify={showSpotify}
+              isModalOpen={isModalOpen}
+              setIsModalOpen={setIsModalOpen}
+              onSpawnReady={onSpawnReady}
               is80sMode={is80sMode}
+              userData={userData}
+              setIsStatueLoaded={setIsStatueLoaded}
             />
+          ) : (
+            rocketModelVisible && <RocketModel is80sMode={is80sMode} />
           )}
         </Suspense>
         <Suspense fallback={null}>

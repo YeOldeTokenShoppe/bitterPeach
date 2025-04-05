@@ -2913,17 +2913,17 @@
                 });
 
                 // Add a timer to check and click the mic button when in UN-MUTE state
-                /* // Commenting out this interval as it causes ReferenceError
-                setInterval(() => {
-                  if (isCallActive && callButton.textContent === "UN-MUTE") {
-                    console.log("Checking for mic button in interval...");
-                    if (checkAndClickMicButton()) {
-                      console.log("Successfully clicked mic button");
-                      updateUIForRecording();
-                    }
-                  }
-                }, 5000);
-                */
+                // /* // Commenting out this interval as it causes ReferenceError
+                // setInterval(() => {
+                //   if (isCallActive && callButton.textContent === "UN-MUTE") {
+                //     console.log("Checking for mic button in interval...");
+                //     if (checkAndClickMicButton()) {
+                //       console.log("Successfully clicked mic button");
+                //       updateUIForRecording();
+                //     }
+                //   }
+                // }, 5000);
+                // */
               </script>
               <div id="vhss_aiPlayer"></div>
               <!-- Add placeholder elements that SitePal expects -->
@@ -2989,11 +2989,9 @@
       <div class="toggle-section">
         <div class="toggle-row mobile-inline">
           <div class="toggle-group music-group">
-            <div class="music-group-inner">
-              <span class="toggle-label">MUSIC</span>
-              <div id="music-toggle" class="toggle-switch music">
-                <div class="toggle-handle"></div>
-              </div>
+            <span class="toggle-label">MUSIC</span>
+            <div id="music-toggle" class="toggle-switch music">
+              <div class="toggle-handle"></div>
             </div>
           </div>
           <div class="toggle-group">

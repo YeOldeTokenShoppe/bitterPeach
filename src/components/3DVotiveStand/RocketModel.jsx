@@ -601,29 +601,6 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode }) {
     console.log("Avatar planes cleaned up");
   };
 
-  // Update the useEffect that handles is80sMode changes
-  useEffect(() => {
-    if (groupRef.current) {
-      console.log(`RocketModel: is80sMode changed to ${is80sMode}`);
-      groupRef.current.visible = !is80sMode;
-
-      // If switching to 80s mode, clean up the avatar plane
-      if (is80sMode) {
-        // Remove avatar plane from scene
-        const plane = avatarPlaneRef.current;
-        if (plane) {
-          scene.remove(plane);
-          if (plane.geometry) plane.geometry.dispose();
-          if (plane.material) {
-            if (plane.material.map) plane.material.map.dispose();
-            plane.material.dispose();
-          }
-          avatarPlaneRef.current = null;
-        }
-      }
-    }
-  }, [is80sMode, scene]);
-
   // Load the rocket model
   useEffect(() => {
     console.log("Loading rocket model...");
@@ -633,9 +610,9 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode }) {
         console.log("Rocket model loaded successfully");
         const model = gltf.scene;
 
-        // Set initial visibility based on is80sMode
-        model.visible = !is80sMode;
-        console.log(`Setting initial rocket visibility to ${!is80sMode}`);
+        // Always set the model to be visible, regardless of is80sMode
+        model.visible = true;
+        console.log("Setting rocket visibility to true");
 
         // Store the model in the ref
         rocketRef.current = model;
@@ -766,67 +743,6 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode }) {
           }
         }
 
-        // Create and add spotlights to the scene
-        // Red spotlight - Use properties from GUI
-        // const redSpotlight = new THREE.SpotLight(
-        //   0xff0000,
-        //   redLightProps.intensity,
-        //   redLightProps.distance,
-        //   redLightProps.angle,
-        //   redLightProps.penumbra,
-        //   1
-        // );
-        // redSpotlight.position.set(0.3, redLightProps.positionY, -1.2); // Static position
-        // redLightRef.current = redSpotlight;
-
-        // // Enable shadows for red spotlight
-        // redSpotlight.castShadow = true;
-        // redSpotlight.shadow.mapSize.width = 1200;
-        // redSpotlight.shadow.mapSize.height = 1200;
-        // redSpotlight.shadow.camera.near = 0.5;
-        // redSpotlight.shadow.camera.far = 30;
-        // redSpotlight.shadow.bias = -0.001;
-
-        // // Red spotlight target
-        // const redTarget = new THREE.Object3D();
-        // redTarget.position.set(0.3, 2, -1.2); // Adjusted from 4 to be lower
-        // redTargetRef.current = redTarget;
-        // scene.add(redTarget);
-        // redSpotlight.target = redTarget;
-
-        // // Add red spotlight to scene
-        // scene.add(redSpotlight);
-
-        // // Blue spotlight - Use properties from GUI
-        // const blueSpotlight = new THREE.SpotLight(
-        //   0x0000ff,
-        //   blueLightProps.intensity,
-        //   blueLightProps.distance,
-        //   blueLightProps.angle,
-        //   blueLightProps.penumbra,
-        //   1
-        // );
-        // blueSpotlight.position.set(0.3, blueLightProps.positionY, -1.2); // Static position
-        // blueLightRef.current = blueSpotlight;
-
-        // // Enable shadows for blue spotlight
-        // blueSpotlight.castShadow = true;
-        // blueSpotlight.shadow.mapSize.width = 1024;
-        // blueSpotlight.shadow.mapSize.height = 1024;
-        // blueSpotlight.shadow.camera.near = 0.5;
-        // blueSpotlight.shadow.camera.far = 30;
-        // blueSpotlight.shadow.bias = -0.001;
-
-        // // Blue spotlight target
-        // const blueTarget = new THREE.Object3D();
-        // blueTarget.position.set(0.3, 5, -1.2); // Adjusted from 7 to be lower
-        // blueTargetRef.current = blueTarget;
-        // scene.add(blueTarget);
-        // blueSpotlight.target = blueTarget;
-
-        // // Add blue spotlight to scene
-        // scene.add(blueSpotlight);
-
         // Add the anchor group to the scene
         scene.add(anchorGroup);
 
@@ -851,6 +767,7 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode }) {
       // Clean up animations and remove from scene
       if (mixerRef.current) {
         mixerRef.current.stopAllAction();
+        mixerRef.current.uncacheRoot(rocketRef.current);
       }
 
       // Clean up avatar texture
@@ -886,9 +803,11 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode }) {
       // Remove spotlights and targets
       if (redLightRef.current) {
         scene.remove(redLightRef.current);
+        redLightRef.current.dispose();
       }
       if (blueLightRef.current) {
         scene.remove(blueLightRef.current);
+        blueLightRef.current.dispose();
       }
       if (redTargetRef.current) {
         scene.remove(redTargetRef.current);
@@ -902,14 +821,49 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode }) {
         scene.remove(groupRef.current.anchor);
       }
 
+      // Clean up all meshes and their resources
+      if (rocketRef.current) {
+        rocketRef.current.traverse((child) => {
+          if (child.isMesh) {
+            // Clean up geometry
+            if (child.geometry) {
+              child.geometry.dispose();
+            }
+
+            // Clean up materials
+            if (child.material) {
+              if (Array.isArray(child.material)) {
+                child.material.forEach((material) => {
+                  if (material.map) material.map.dispose();
+                  material.dispose();
+                });
+              } else {
+                if (child.material.map) child.material.map.dispose();
+                child.material.dispose();
+              }
+            }
+
+            // Clean up any textures
+            if (child.texture) {
+              child.texture.dispose();
+            }
+          }
+        });
+      }
+
+      // Reset refs
+      rocketRef.current = null;
+      groupRef.current = null;
+      mixerRef.current = null;
+
       console.log("Rocket model and resources cleaned up");
     };
-  }, [scene, loader, rocketSettings.rocketScale, userData, is80sMode]);
+  }, [scene, loader, rocketSettings.rocketScale, userData]);
 
   // Animation loop
   useFrame((state, delta) => {
-    // Skip updates if the rocket is not visible
-    if (is80sMode || !groupRef.current) return;
+    // Skip updates if the rocket is not visible or if groupRef is not available
+    if (!groupRef.current) return;
 
     // Update the animation mixer
     if (mixerRef.current) {

@@ -46,6 +46,8 @@ const SidePanel = ({
   monsterMode,
   toggleMonsterMode,
   showSpotify,
+  rocketModelVisible,
+  toggleRocketModel,
 }) => {
   const [isTextBoxVisible, setIsTextBoxVisible] = useState(true);
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
@@ -127,9 +129,6 @@ const SidePanel = ({
 
   // First, add a new ref to store the active microphone stream
   const microphoneStreamRef = useRef(null);
-
-  // Add ref for MusicPlayer2
-  const musicPlayer2Ref = useRef(null);
 
   // Detect touch devices
   useEffect(() => {
@@ -555,6 +554,12 @@ const SidePanel = ({
           toggle80sMode(); // Call the function passed via props
           break;
 
+        // Add new case for rocket model toggle
+        case "TOGGLE_ROCKET_MODEL":
+          console.log("SidePanel: Received TOGGLE_ROCKET_MODEL message");
+          handleRocketModelToggle();
+          break;
+
         // Modify handling for stereo power based on mode from iframe
         /*
         case "STEREO_POWER_STATE": // Received from iframe power button
@@ -616,7 +621,17 @@ const SidePanel = ({
           if (is80sMode) {
             toggle80sMode();
           }
-          toggleMonsterMode();
+
+          if (monsterMode) {
+            // If monster mode is active, toggle it off and hide rocket
+            toggleMonsterMode();
+          } else {
+            // If monster mode is not active, turn it on and show rocket
+            toggleMonsterMode();
+            if (!rocketModelVisible) {
+              toggleRocketModel();
+            }
+          }
           break;
 
         // We might not need MUSIC_TOGGLE from iframe anymore if STEREO_POWER_STATE handles it
@@ -642,7 +657,14 @@ const SidePanel = ({
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [toggle80sMode, toggleMonsterMode, monsterMode, is80sMode]);
+  }, [
+    toggle80sMode,
+    toggleMonsterMode,
+    monsterMode,
+    is80sMode,
+    rocketModelVisible,
+    toggleRocketModel,
+  ]);
 
   // Sync all states with iframe
   useEffect(() => {
@@ -785,6 +807,26 @@ const SidePanel = ({
       }
     };
   }, []);
+
+  // Add a function to handle rocket model toggle
+  const handleRocketModelToggle = () => {
+    console.log("SidePanel: Toggling rocket model");
+    toggleRocketModel();
+
+    // Send message to iframe
+    sendMessageToIframe({
+      type: "SET_ROCKET_MODEL_VISIBLE",
+      isVisible: !rocketModelVisible,
+    });
+  };
+
+  // Add an effect to sync rocket model visibility with iframe
+  useEffect(() => {
+    sendMessageToIframe({
+      type: "SET_ROCKET_MODEL_VISIBLE",
+      isVisible: rocketModelVisible,
+    });
+  }, [rocketModelVisible]);
 
   return (
     <>
