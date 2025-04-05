@@ -856,22 +856,6 @@ const SidePanel = ({
             backgroundColor: "transparent",
           }}
           title="Mission Control Panel"
-          onLoad={(e) => {
-            // Pass Firebase config to iframe
-            const iframe = e.target;
-            iframe.contentWindow.FIREBASE_API_KEY =
-              process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
-            iframe.contentWindow.FIREBASE_AUTH_DOMAIN =
-              process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN;
-            iframe.contentWindow.FIREBASE_PROJECT_ID =
-              process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
-            iframe.contentWindow.FIREBASE_STORAGE_BUCKET =
-              process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
-            iframe.contentWindow.FIREBASE_MESSAGING_SENDER_ID =
-              process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID;
-            iframe.contentWindow.FIREBASE_APP_ID =
-              process.env.NEXT_PUBLIC_FIREBASE_APP_ID;
-          }}
         />
       </Box>
     </>

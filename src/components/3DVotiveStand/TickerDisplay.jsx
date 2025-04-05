@@ -110,8 +110,8 @@ const TickerDisplay = ({ modelRef, ...props }) => {
     };
 
     fetchTrendingCoins();
-    // Reduced interval for more frequent updates
-    const interval = setInterval(fetchTrendingCoins, 45000);
+    // Changed from 45000ms (45 seconds) to 600000ms (10 minutes)
+    const interval = setInterval(fetchTrendingCoins, 600000);
     return () => clearInterval(interval);
   }, [trendingData]);
 

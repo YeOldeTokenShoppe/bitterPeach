@@ -16,15 +16,6 @@
     <script src="https://www.gstatic.com/firebasejs/9.6.7/firebase-firestore-compat.js"></script>
 
     <style>
-      /* Ensure full height on all devices */
-      html,
-      body {
-        height: 100vh;
-        margin: 0;
-        padding: 0;
-        overflow-x: hidden;
-      }
-
       body {
         margin: 0;
         padding: 0;
@@ -33,16 +24,16 @@
         color: #67e8f9;
         display: flex;
         justify-content: center;
+        height: 100%;
+        overflow: hidden;
         width: 100%;
         position: relative;
-        min-height: 100vh; /* Minimum height to ensure it fills viewport */
-        overflow-y: auto; /* Allow vertical scrolling if needed */
       }
 
       .mission-control {
         width: 100%;
         max-width: 450px;
-        min-height: 100vh; /* Use min-height instead of fixed height */
+        height: auto; /* Allow height to adjust to content */
         background-image: linear-gradient(to bottom, #0f172a, #1e293b);
         display: flex;
         flex-direction: column;
@@ -52,44 +43,30 @@
         box-shadow: 0 0 15px rgba(6, 182, 212, 0.3),
           inset 0 0 10px rgba(6, 182, 212, 0.1);
         overflow-y: auto;
-        overflow-x: hidden; /* Hide horizontal scrollbar */
         position: relative;
         z-index: 1;
+        clip-path: inset(0 0 0 0);
+        -webkit-clip-path: inset(0 0 0 0);
         box-sizing: border-box;
       }
 
-      /* Fix panel header height */
       .panel-header {
-        min-height: 60px;
-        height: 60px;
-        max-height: 60px;
-        box-sizing: border-box;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
         text-align: center;
         margin-bottom: 16px;
         padding-bottom: 8px;
         border-bottom: 1px solid #0e7490;
       }
 
-      /* Fix panel title height */
       .panel-title {
-        height: 22px;
-        line-height: 1.2;
-        margin: 0;
-        padding: 0;
         font-size: 1.05rem;
+        line-height: 1.2;
         letter-spacing: 0.2em;
         font-weight: bold;
         color: #67e8f9;
         text-shadow: -2px 0 #ff0040, 2px 0 #00b4ff;
+        margin: 0;
         position: relative;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 100%;
+        /* animation: threedy-flicker 4s infinite; */
       }
 
       .panel-subtitle {
@@ -138,12 +115,6 @@
         position: relative;
         background: linear-gradient(45deg, #041c2c, #000);
         overflow: hidden;
-        transition: height 0.3s ease-out;
-      }
-
-      /* Collapsed state for the video display */
-      .video-display.collapsed {
-        height: 40px;
       }
 
       #vhss-aiplayer-inner * {
@@ -770,28 +741,18 @@
       }
 
       .eighties-active .panel-title {
-        height: 22px;
-        line-height: 1.5;
-        font-size: 0.8rem;
         color: #d946ef;
         text-shadow: 0 0 3px #d946ef, 0 0 6px #d946ef;
         font-family: "Press Start 2P", cursive;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 100%;
+        font-size: 0.8rem; /* Slightly smaller to match height */
+        line-height: 1.5; /* Adjusted line height */
       }
 
       .eighties-active .panel-subtitle {
-        height: 18px;
-        line-height: 1.4;
-        font-size: 0.6rem;
         color: #22d3ee;
         font-family: "Press Start 2P", cursive;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 100%;
+        font-size: 0.6rem;
+        line-height: 1.4;
       }
 
       .eighties-active .toggle-label,
@@ -799,8 +760,8 @@
       .eighties-active .button-prefix,
       .eighties-active .status-label {
         font-family: "Press Start 2P", cursive;
-        font-size: 0.6rem;
-        line-height: 1.5;
+        font-size: 0.6rem; /* Adjusted size */
+        line-height: 1.5; /* Adjusted line height */
       }
 
       .eighties-active .control-button {
@@ -843,25 +804,25 @@
 
       /* VHS glitch effect */
       /* @keyframes glitch {
-                                0% {
-                                  transform: translate(0);
-                                }
-                                20% {
-                                  transform: translate(-2px, 2px);
-                                }
-                                40% {
-                                  transform: translate(-2px, -2px);
-                                }
-                                60% {
-                                  transform: translate(2px, 2px);
-                                }
-                                80% {
-                                  transform: translate(2px, -2px);
-                                }
-                                100% {
-                                  transform: translate(0);
-                                }
-                              } */
+        0% {
+          transform: translate(0);
+        }
+        20% {
+          transform: translate(-2px, 2px);
+        }
+        40% {
+          transform: translate(-2px, -2px);
+        }
+        60% {
+          transform: translate(2px, 2px);
+        }
+        80% {
+          transform: translate(2px, -2px);
+        }
+        100% {
+          transform: translate(0);
+        }
+      } */
 
       @keyframes flicker {
         0% {
@@ -1747,446 +1708,6 @@
       .mp3-indicator {
         display: none;
       }
-
-      /* Add UN-MUTE button style */
-      .call-button.unmute {
-        color: #22d3ee;
-        border-color: #0e7490;
-        box-shadow: 0 0 10px rgba(6, 182, 212, 0.5);
-        animation: connect-pulse 1.5s infinite ease-in-out;
-      }
-
-      /* Update existing animation to pulse specifically designed for the UN-MUTE state */
-      @keyframes connect-pulse {
-        0% {
-          box-shadow: 0 0 5px rgba(6, 182, 212, 0.3),
-            0 0 8px rgba(34, 211, 238, 0.2);
-          border-color: #134e4a;
-        }
-        50% {
-          box-shadow: 0 0 10px rgba(6, 182, 212, 0.6),
-            0 0 15px rgba(34, 211, 238, 0.4);
-          border-color: #22d3ee;
-        }
-        100% {
-          box-shadow: 0 0 5px rgba(6, 182, 212, 0.3),
-            0 0 8px rgba(34, 211, 238, 0.2);
-          border-color: #134e4a;
-        }
-      }
-
-      /* 80s mode video call styles */
-      .eighties-active .video-call {
-        border: 1px solid #d946ef;
-        background-color: #020617;
-        box-shadow: 0 0 8px rgba(217, 70, 239, 0.3);
-      }
-
-      .eighties-active .video-header {
-        background-color: #0f172a;
-        border-bottom: 1px solid #d946ef;
-        font-family: "Press Start 2P", cursive;
-        font-size: 0.55rem;
-        color: #22d3ee;
-      }
-
-      .eighties-active #station-display {
-        color: #22d3ee;
-        text-shadow: 0 0 3px #22d3ee;
-        font-family: "Press Start 2P", cursive;
-        font-size: 0.55rem;
-      }
-
-      .eighties-active .video-status.active {
-        background-color: #ef4444;
-        box-shadow: 0 0 5px #ef4444;
-      }
-
-      .eighties-active .video-controls {
-        background-color: #0f172a;
-        border-top: 1px solid #d946ef;
-      }
-
-      .eighties-active .call-button {
-        font-family: "Press Start 2P", cursive;
-        font-size: 0.55rem;
-        background-color: #0f172a;
-        border: 1px solid #d946ef;
-        color: #22d3ee;
-        box-shadow: 0 0 3px rgba(217, 70, 239, 0.4);
-      }
-
-      .eighties-active .call-button.unmute {
-        border-color: #22d3ee;
-        color: #d946ef;
-        box-shadow: 0 0 8px rgba(34, 211, 238, 0.6);
-        animation: eighties-pulse 1.5s infinite alternate;
-      }
-
-      @keyframes eighties-pulse {
-        0% {
-          box-shadow: 0 0 3px rgba(217, 70, 239, 0.4);
-          border-color: #d946ef;
-        }
-        100% {
-          box-shadow: 0 0 10px rgba(34, 211, 238, 0.7);
-          border-color: #22d3ee;
-        }
-      }
-
-      .eighties-active .call-button.disconnect {
-        border-color: #ef4444;
-        color: #ef4444;
-        box-shadow: 0 0 3px rgba(239, 68, 68, 0.4);
-      }
-
-      .eighties-active .call-button:hover {
-        background-color: #2a1786;
-      }
-
-      /* Add styles for the constellations toggle */
-      .toggle-switch.constellations {
-        background-color: #1e3a8a;
-        border-color: #3b82f6;
-      }
-
-      .toggle-switch.constellations .toggle-handle {
-        background-color: #93c5fd;
-      }
-
-      .toggle-switch.constellations.active {
-        background-color: #1e40af;
-        box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
-      }
-
-      .toggle-switch.constellations.active .toggle-handle {
-        background-color: #bfdbfe;
-      }
-
-      /* Update eighties mode styles to include constellations toggle */
-      .eighties-active .toggle-switch.constellations {
-        background-color: #581c87;
-        border-color: #d946ef;
-      }
-
-      .eighties-active .toggle-switch.constellations .toggle-handle {
-        background-color: #e879f9;
-      }
-
-      .eighties-active .toggle-switch.constellations.active {
-        background-color: #6b21a8;
-        box-shadow: 0 0 15px rgba(217, 70, 239, 0.5);
-      }
-
-      .eighties-active .toggle-switch.constellations.active .toggle-handle {
-        background-color: #f0abfc;
-      }
-
-      /* Add responsive styles for small screens */
-      @media (max-width: 480px) {
-        /* Default collapsed height on mobile when inactive */
-        .video-display:not(.active) {
-          height: 40px;
-        }
-
-        /* When active, maintain original height */
-        .video-display.active {
-          height: 180px;
-        }
-
-        /* Add an indicator for the collapsed state */
-        .video-display:not(.active)::after {
-          content: "Tap to expand";
-          position: absolute;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          color: #67e8f9;
-          font-size: 0.75rem;
-          text-shadow: 0 0 5px #06b6d4;
-        }
-
-        /* Add expand/collapse indicators */
-        .video-display::before {
-          content: "▼";
-          position: absolute;
-          right: 8px;
-          top: 10px;
-          color: #67e8f9;
-          font-size: 0.7rem;
-          opacity: 0.8;
-          z-index: 20;
-          pointer-events: none;
-          transition: transform 0.3s;
-        }
-
-        .video-display.active::before {
-          transform: rotate(180deg);
-          top: 8px;
-        }
-
-        /* Add touch hint on first load */
-        .video-display:not(.touched):not(.active)::after {
-          animation: pulse 2s infinite;
-        }
-
-        /* Optimize spacing */
-        .mission-control {
-          padding: 12px 10px;
-        }
-
-        /* Reduce spacing between elements */
-        .panel-header {
-          min-height: 50px;
-          height: 50px;
-          max-height: 50px;
-          margin-bottom: 12px;
-          padding-bottom: 4px;
-        }
-
-        .video-call {
-          margin-bottom: 12px;
-        }
-
-        /* Further optimize button grid */
-        .button-grid {
-          gap: 8px;
-          margin-bottom: 12px;
-        }
-
-        /* Make buttons significantly smaller and more compact */
-        .control-button {
-          padding: 6px 4px;
-          min-height: 48px;
-        }
-
-        .button-prefix {
-          font-size: 0.65rem;
-          margin-bottom: 2px;
-        }
-
-        .button-label {
-          font-size: 0.8rem;
-        }
-
-        .button-indicator {
-          width: 24px;
-          height: 3px;
-          margin-top: 3px;
-        }
-
-        /* Make toggle sections more compact */
-        .toggle-section {
-          padding: 8px;
-          margin-bottom: 12px;
-        }
-
-        /* Style the inline toggle groups - two lines for full-size screens */
-        .toggle-row.mobile-inline {
-          display: flex;
-          flex-wrap: wrap;
-          justify-content: space-between;
-          gap: 20px;
-          margin-bottom: 0;
-        }
-
-        .toggle-group {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 45%;
-          margin-bottom: 10px;
-        }
-
-        .toggle-group:nth-child(3) {
-          width: 90%;
-          margin-bottom: 0;
-        }
-
-        .toggle-label {
-          font-size: 0.75rem;
-          margin-right: 8px;
-          white-space: nowrap;
-          text-align: center;
-        }
-
-        .toggle-switch {
-          width: 42px;
-          height: 22px;
-        }
-
-        .toggle-handle {
-          width: 18px;
-          height: 18px;
-        }
-
-        /* Mobile adjustments */
-        @media (max-width: 767px) {
-          .toggle-row.mobile-inline {
-            flex-wrap: nowrap;
-            gap: 0;
-          }
-
-          .toggle-group {
-            width: 33%;
-            margin-bottom: 0;
-          }
-
-          .toggle-group:nth-child(3) {
-            width: 33%;
-          }
-
-          .toggle-label {
-            font-size: 0.65rem;
-            margin-right: 4px;
-          }
-
-          .toggle-switch {
-            width: 36px;
-            height: 20px;
-          }
-
-          .toggle-handle {
-            width: 16px;
-            height: 16px;
-          }
-        }
-      }
-
-      /* Extra small screens */
-      @media (max-width: 360px) {
-        /* Make video even smaller when active on very small screens */
-        .video-display.active {
-          height: 150px;
-        }
-
-        /* Reduce padding further */
-        .mission-control {
-          padding: 8px 6px;
-        }
-
-        /* Make grid buttons even more compact */
-        .button-grid {
-          gap: 6px;
-        }
-
-        .control-button {
-          padding: 4px;
-          min-height: 44px;
-        }
-
-        .button-prefix {
-          font-size: 0.6rem;
-          margin-bottom: 1px;
-        }
-
-        .button-label {
-          font-size: 0.75rem;
-          letter-spacing: 0.05em;
-        }
-
-        .button-indicator {
-          width: 20px;
-          height: 2px;
-          margin-top: 2px;
-        }
-
-        /* Further reduce toggle spacing */
-        .toggle-section {
-          padding: 6px;
-          margin-bottom: 8px;
-        }
-
-        .toggle-row {
-          margin-bottom: 6px;
-        }
-
-        .toggle-label {
-          font-size: 0.75rem;
-        }
-
-        /* Even more compact toggles for very small screens */
-        .toggle-group .toggle-label {
-          font-size: 0.6rem;
-          margin-right: 2px;
-        }
-
-        .toggle-group .toggle-switch {
-          width: 30px;
-          height: 16px;
-        }
-
-        .toggle-group .toggle-handle {
-          width: 12px;
-          height: 12px;
-          top: 2px;
-        }
-
-        .toggle-group .toggle-switch.active .toggle-handle {
-          transform: translateX(14px);
-        }
-
-        /* Smaller toggle switches */
-        .toggle-switch {
-          width: 42px;
-          height: 20px;
-        }
-
-        .toggle-switch .toggle-handle {
-          width: 16px;
-          height: 16px;
-          top: 2px;
-        }
-
-        .toggle-switch.active .toggle-handle {
-          transform: translateX(20px);
-        }
-
-        /* Even smaller leaderboard */
-        .leaderboard-scrollable {
-          height: 90px;
-        }
-      }
-
-      /* Full-screen mode adjustments for toggle buttons */
-      @media (min-width: 768px) {
-        .toggle-row.mobile-inline {
-          flex-wrap: wrap;
-          justify-content: space-around;
-          padding: 10px 0;
-        }
-
-        .toggle-group {
-          width: 45%;
-          margin-bottom: 15px;
-          justify-content: center;
-        }
-
-        .toggle-group:nth-child(2) {
-          left: 0;
-          position: static;
-        }
-
-        .toggle-group:nth-child(3) {
-          width: 90%;
-          justify-content: center;
-        }
-
-        .toggle-group .toggle-label {
-          font-size: 0.75rem;
-          margin-right: 8px;
-        }
-
-        .toggle-group .toggle-switch {
-          width: 42px;
-          height: 22px;
-        }
-
-        .toggle-group .toggle-handle {
-          width: 18px;
-          height: 18px;
-        }
-      }
     </style>
   </head>
   <body>
@@ -2359,15 +1880,6 @@
                         );
                         window.sitepalSceneReady = true; // Set flag
 
-                        // Prevent double invocation
-                        if (window.sceneAlreadyLoaded) {
-                          console.log(
-                            "Scene load callback called again - ignoring subsequent calls"
-                          );
-                          return;
-                        }
-                        window.sceneAlreadyLoaded = true;
-
                         // Fade out the transmission video
                         const deadAir = document.getElementById("deadAir");
                         if (deadAir) {
@@ -2383,7 +1895,19 @@
                           }, 500); // Matches CSS transition duration
                         }
 
-                        // Prime audio playback using silent speech
+                        // Attempt microphone activation *after* scene is loaded
+                        console.log(
+                          "Scene loaded, attempting microphone activation..."
+                        );
+                        activateMicrophone();
+
+                        // Notify parent frame that SitePal is ready
+                        window.parent.postMessage(
+                          { type: "SITEPAL_READY" },
+                          "*"
+                        );
+
+                        // Prime audio playback on iOS/Safari using silent speech
                         try {
                           console.log(
                             "Priming browser with silent playback..."
@@ -2393,128 +1917,33 @@
                           console.warn("saySilent(0) failed:", e);
                         }
 
-                        // Get the call button
-                        const callButton =
-                          document.getElementById("call-button");
-                        if (!callButton) return;
-
-                        // Check if we need the three-state approach or can auto-transition
-                        if (window.needsUnmuteFlow) {
-                          // Three-state approach for iOS, Safari, mobile devices
-                          if (callButton.textContent !== "DISCONNECT") {
-                            callButton.textContent = "UN-MUTE";
-                            callButton.classList.add("unmute");
-                            callButton.classList.remove("disconnect");
-
-                            // Prevent automatic triggering by disabling/re-enabling
-                            callButton.disabled = true;
-                            setTimeout(() => {
-                              callButton.disabled = false;
-                            }, 500);
-
-                            console.log(
-                              "SitePal scene loaded, setting button to UN-MUTE state (three-state flow)"
+                        // Make the character say "Greetings" (after delay)
+                        setTimeout(() => {
+                          try {
+                            console.log("Now making AI say 'Greetings'...");
+                            // Using sayText based on docs for initial greeting
+                            sayText(
+                              "Greetings, how can I help you today?",
+                              8,
+                              1,
+                              6
                             );
+                            /* // Previous sayAI call:
+                            const response = sayAI(
+                              "Greetings", // what to send to the AI
+                              244, // voice ID
+                              1, // language ID
+                              3, // TTS engine ID
+                              "", "", // Effects
+                              "CB", // Vendor
+                              "Bif" // Bot Name
+                            );
+                            console.log("sayAI('Greetings') status:", response);
+                            */
+                          } catch (e) {
+                            console.error("Error calling sayText:", e);
                           }
-                        } else {
-                          // Auto-transition approach for desktop browsers
-                          console.log(
-                            "Auto-transition flow - activating immediately"
-                          );
-
-                          // Short delay to ensure everything is ready
-                          setTimeout(() => {
-                            // Prime audio again
-                            try {
-                              if (typeof window.saySilent === "function") {
-                                window.saySilent(0);
-                              }
-                            } catch (e) {
-                              console.warn(
-                                "Auto-activation saySilent failed:",
-                                e
-                              );
-                            }
-
-                            // Update UI to DISCONNECT state first
-                            callButton.textContent = "DISCONNECT";
-                            callButton.classList.remove("unmute");
-                            callButton.classList.add("disconnect");
-
-                            // DIRECTLY call the greeting functions, don't rely solely on activateMicrophone
-                            // Each method in its own try/catch for maximum reliability
-                            setTimeout(() => {
-                              console.log(
-                                "DIRECT GREETING ATTEMPT FOR DESKTOP"
-                              );
-
-                              // Try the most reliable method first - direct window.sayText() call
-                              try {
-                                if (typeof window.sayText === "function") {
-                                  console.log(
-                                    "Desktop direct greeting: calling window.sayText()"
-                                  );
-                                  window.sayText(
-                                    "Greetings, how can I help you today?",
-                                    8,
-                                    1,
-                                    6
-                                  );
-                                }
-                              } catch (e1) {
-                                console.error(
-                                  "Desktop direct greeting method 1 failed:",
-                                  e1
-                                );
-                              }
-
-                              // Secondary: try local sayText
-                              try {
-                                if (typeof sayText === "function") {
-                                  console.log(
-                                    "Desktop direct greeting: calling local sayText()"
-                                  );
-                                  sayText(
-                                    "Greetings, how can I help you today?",
-                                    8,
-                                    1,
-                                    6
-                                  );
-                                }
-                              } catch (e2) {
-                                console.error(
-                                  "Desktop direct greeting method 2 failed:",
-                                  e2
-                                );
-                              }
-
-                              // Also call activateMicrophone as a backup
-                              try {
-                                activateMicrophone();
-                              } catch (e3) {
-                                console.error(
-                                  "Desktop activateMicrophone call failed:",
-                                  e3
-                                );
-                              }
-
-                              // Send state change message to parent
-                              window.parent.postMessage(
-                                {
-                                  type: "SITEPAL_STATE_CHANGE",
-                                  isListening: true,
-                                },
-                                "*"
-                              );
-                            }, 300); // Short delay before direct greeting attempts
-                          }, 500);
-                        }
-
-                        // Notify parent frame that SitePal is ready
-                        window.parent.postMessage(
-                          { type: "SITEPAL_READY" },
-                          "*"
-                        );
+                        }, 200); // 200ms delay
                       };
 
                       // Set up listening status callback (remains the same)
@@ -2611,38 +2040,9 @@
                   }
                 }
 
-                // Function to handle microphone activation
+                // New function to handle microphone activation
                 function activateMicrophone() {
                   console.log("Attempting to activate microphone...");
-
-                  // Check if microphone might already be active
-                  let micAlreadyActive = false;
-
-                  // First check if SitePal API can tell us if listening is active
-                  try {
-                    if (typeof AI_vhost_api === "function") {
-                      // Some versions of the API support checking if we're already listening
-                      if (typeof AI_get_listening_status === "function") {
-                        micAlreadyActive = AI_get_listening_status();
-                        console.log(
-                          "Checked listening status via API:",
-                          micAlreadyActive
-                        );
-                      }
-                    }
-                  } catch (e) {
-                    console.warn("Error checking listening status:", e);
-                  }
-
-                  // If we're already listening, just update UI and trigger greeting
-                  if (micAlreadyActive) {
-                    console.log(
-                      "Microphone appears to be already active, skipping activation"
-                    );
-                    updateUIForRecording();
-                    triggerGreeting();
-                    return;
-                  }
 
                   // Try multiple approaches to activate the microphone
                   let success = false;
@@ -2651,24 +2051,7 @@
                   try {
                     if (typeof AI_vhost_api === "function") {
                       console.log("Using direct API call to start listening");
-                      try {
-                        AI_vhost_api("stopListening"); // First stop to avoid errors
-                        setTimeout(() => {
-                          try {
-                            AI_vhost_api("startListening");
-                          } catch (startErr) {
-                            console.warn("Error in startListening:", startErr);
-                          }
-                        }, 100);
-                      } catch (stopErr) {
-                        console.warn("Error in stopListening:", stopErr);
-                        // Try direct start if stop fails
-                        try {
-                          AI_vhost_api("startListening");
-                        } catch (e2) {
-                          console.warn("Direct start also failed:", e2);
-                        }
-                      }
+                      AI_vhost_api("startListening");
                       success = true;
                     }
                   } catch (e) {
@@ -2724,11 +2107,10 @@
                     }
                   }
 
-                  // If any method was successful, update the UI and play greeting
+                  // If any method was successful, update the UI
                   if (success) {
                     console.log("Successfully activated microphone");
                     updateUIForRecording();
-                    triggerGreeting();
                   } else {
                     console.warn(
                       "Failed to activate microphone, will retry in 1 second"
@@ -2736,115 +2118,6 @@
                     // Retry once after a delay
                     setTimeout(activateMicrophone, 1000);
                   }
-                }
-
-                // Separate function for the greeting to avoid duplicating code
-                function triggerGreeting() {
-                  console.log("Attempting to trigger greeting...");
-
-                  // Check if greeting was already played
-                  if (window.greetingPlayed) {
-                    console.log("Greeting already played, skipping");
-                    return;
-                  }
-
-                  // Set flag to prevent duplicate greetings
-                  window.greetingPlayed = true;
-
-                  // Now play the greeting that was previously in vh_sceneLoaded
-                  setTimeout(() => {
-                    let greetingSuccess = false;
-
-                    // Try multiple methods to ensure greeting works
-
-                    // Method 1: Use sayText directly
-                    try {
-                      console.log("Method 1: Calling sayText directly");
-                      if (typeof sayText === "function") {
-                        sayText(
-                          "Greetings, how can I help you today?",
-                          8,
-                          1,
-                          6
-                        );
-                        greetingSuccess = true;
-                        console.log("Method 1 successful");
-                      }
-                    } catch (e) {
-                      console.error("Method 1 failed:", e);
-                    }
-
-                    // Method 2: Use window.sayText
-                    if (!greetingSuccess) {
-                      try {
-                        console.log("Method 2: Calling window.sayText");
-                        if (typeof window.sayText === "function") {
-                          window.sayText(
-                            "Greetings, how can I help you today?",
-                            8,
-                            1,
-                            6
-                          );
-                          greetingSuccess = true;
-                          console.log("Method 2 successful");
-                        }
-                      } catch (e2) {
-                        console.error("Method 2 failed:", e2);
-                      }
-                    }
-
-                    // Method 3: Try to use AI_vhost_api
-                    if (!greetingSuccess) {
-                      try {
-                        console.log("Method 3: Using AI_vhost_api");
-                        if (typeof AI_vhost_api === "function") {
-                          AI_vhost_api(
-                            "say",
-                            "Greetings, how can I help you today?"
-                          );
-                          greetingSuccess = true;
-                          console.log("Method 3 successful");
-                        }
-                      } catch (e3) {
-                        console.error("Method 3 failed:", e3);
-                      }
-                    }
-
-                    // Method 4: Last resort - try any SitePal say function
-                    if (!greetingSuccess) {
-                      try {
-                        console.log("Method 4: Last resort attempt");
-                        // Check all possible function names
-                        const possibleFunctions = [
-                          "say",
-                          "sayText",
-                          "sayAI",
-                          "saySentence",
-                          "sayGreeting",
-                        ];
-
-                        for (const funcName of possibleFunctions) {
-                          if (typeof window[funcName] === "function") {
-                            console.log(`Found function: ${funcName}`);
-                            window[funcName](
-                              "Greetings, how can I help you today?"
-                            );
-                            greetingSuccess = true;
-                            console.log(
-                              `Method 4 successful using ${funcName}`
-                            );
-                            break;
-                          }
-                        }
-                      } catch (e4) {
-                        console.error("Method 4 failed:", e4);
-                      }
-                    }
-
-                    if (!greetingSuccess) {
-                      console.error("All greeting methods failed");
-                    }
-                  }, 300); // Short delay before greeting
                 }
 
                 // Add message listener for SitePal API calls
@@ -2987,26 +2260,10 @@
 
       <!-- Toggle Switches -->
       <div class="toggle-section">
-        <div class="toggle-row mobile-inline">
-          <div class="toggle-group music-group">
-            <div class="music-group-inner">
-              <span class="toggle-label">MUSIC</span>
-              <div id="music-toggle" class="toggle-switch music">
-                <div class="toggle-handle"></div>
-              </div>
-            </div>
-          </div>
-          <div class="toggle-group">
-            <span class="toggle-label">80s <br />MODE</span>
-            <div id="eighties-toggle" class="toggle-switch eighties">
-              <div class="toggle-handle"></div>
-            </div>
-          </div>
-          <div class="toggle-group">
-            <span class="toggle-label">STAR <br />CHART</span>
-            <div id="constellation-toggle" class="toggle-switch">
-              <div class="toggle-handle"></div>
-            </div>
+        <div class="toggle-row">
+          <span class="toggle-label">80s//MODE</span>
+          <div id="eighties-toggle" class="toggle-switch eighties">
+            <div class="toggle-handle"></div>
           </div>
         </div>
       </div>
@@ -3086,10 +2343,6 @@
       const stationSelect = document.getElementById("station-select");
       const stationDisplay = document.getElementById("station-display");
       const eightiesToggle = document.getElementById("eighties-toggle");
-      const constellationToggle = document.getElementById(
-        "constellation-toggle"
-      );
-      const musicToggle = document.getElementById("music-toggle");
       const stereoPower = document.getElementById("stereo-power");
       const stereoNext = document.getElementById("stereo-next");
       const stereoPrev = document.getElementById("stereo-prev");
@@ -3097,7 +2350,7 @@
       const stereoComponent = document.getElementById("stereo-component");
       const stereoInfo = document.getElementById("stereo-info");
       const systemStatus = document.getElementById("system-status");
-
+      const leaderboardToggle = document.getElementById("leaderboard-toggle");
       const leaderboardContent = document.getElementById("leaderboard-content");
       const leaderboardArrow = document.getElementById("leaderboard-arrow");
       const controlButtons = document.querySelectorAll(".control-button");
@@ -3116,10 +2369,6 @@
       // State
       let isCallActive = false;
       let isEightiesMode = false;
-      let isLeaderboardExpanded = false; // Add leaderboard state variable
-
-      // Music toggle starts off by default
-      musicToggle.classList.remove("active");
 
       function playClickSound() {
         try {
@@ -3142,6 +2391,8 @@
           console.log("Audio context error:", e);
         }
       }
+
+      let isLeaderboardExpanded = false;
 
       // Add iOS detection
       const isIOS =
@@ -3209,50 +2460,8 @@
 
               // If we're connecting, make sure we always show the UN-MUTE button
               if (!isCallActive) {
+                // Set a flag to force the UN-MUTE state on iOS
                 window.forceUnmuteOnIOS = true;
-
-                // Create a temporary audio context to help initialize audio system
-                try {
-                  const tempContext = new (window.AudioContext ||
-                    window.webkitAudioContext)();
-                  tempContext.resume().then(() => {
-                    console.log("Temporary audio context resumed");
-                  });
-
-                  // Create and play a brief silent sound
-                  const oscillator = tempContext.createOscillator();
-                  const gainNode = tempContext.createGain();
-                  gainNode.gain.value = 0.0001; // Nearly silent
-                  oscillator.connect(gainNode);
-                  gainNode.connect(tempContext.destination);
-                  oscillator.start(0);
-                  oscillator.stop(tempContext.currentTime + 0.001);
-                } catch (e) {
-                  console.warn("Temporary audio context creation failed:", e);
-                }
-              }
-
-              // Try to prime audio regardless of browser
-              try {
-                if (typeof window.saySilent === "function") {
-                  window.saySilent(0);
-                  // Add a small delay before any subsequent audio operations
-                  setTimeout(() => {
-                    try {
-                      // Try to start listening after priming
-                      if (typeof AI_vhost_api === "function") {
-                        AI_vhost_api("startListening");
-                      }
-                    } catch (err) {
-                      console.log(
-                        "Post-prime listening activation failed:",
-                        err
-                      );
-                    }
-                  }, 100);
-                }
-              } catch (err) {
-                console.log("Audio priming on CONNECT click failed:", err);
               }
             },
             { capture: true }
@@ -3288,61 +2497,12 @@
       document.addEventListener("touchstart", primeAudio, { once: true });
       // --- End Audio Priming ---
 
-      // Add a function to detect if the three-state approach is needed
-      function needsUnmuteState() {
-        // iOS and Safari always need the three-state approach
-        if (isIOS || browserIsSafari) {
-          console.log("iOS/Safari detected - using three-state approach");
-          return true;
-        }
-
-        // Mobile devices generally need the user interaction
-        if (
-          /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-            navigator.userAgent
-          )
-        ) {
-          console.log("Mobile browser detected - using three-state approach");
-          return true;
-        }
-
-        // Check if URL parameter explicitly requests it
-        const urlParams = new URLSearchParams(window.location.search);
-        if (
-          urlParams.get("unmute") === "true" ||
-          urlParams.get("three-state") === "true"
-        ) {
-          console.log("Three-state approach explicitly requested via URL");
-          return true;
-        }
-
-        // For Chrome and other browsers on desktop, auto-transition is generally fine
-        console.log(
-          "Desktop non-Safari browser detected - will use auto-transition"
-        );
-        return false;
-      }
-
-      // Set the global flag early
-      window.needsUnmuteFlow = needsUnmuteState();
-
       // Toggle call - Refactored Logic with special iOS handling
       callButton.addEventListener("click", () => {
-        console.log(
-          "Call button clicked, current text:",
-          callButton.textContent
-        );
-
-        if (callButton.textContent === "CONNECT") {
+        if (!isCallActive) {
           // ---- Connect Flow ----
           console.log("Connecting call and initializing SitePal...");
           isCallActive = true;
-          window.sceneAlreadyLoaded = false; // Reset this flag when connecting
-          window.allowButtonTransition = true; // Allow transitions on new connection
-          window.greetingPlayed = false; // Reset greeting flag
-
-          // Reset flag in case needsUnmuteState changes (e.g., browser change)
-          window.needsUnmuteFlow = needsUnmuteState();
 
           // --- Transmission Effect Start ---
           const deadAir = document.getElementById("deadAir");
@@ -3370,6 +2530,8 @@
           // Activate call status indicator
           callStatus.classList.add("active");
 
+          // REMOVED: deadAir.style.display = 'none'; deadAir.pause();
+
           // Clean up any existing instance
           if (sitepalContainer.dataset.initialized === "true") {
             console.log("Cleaning up previous SitePal instance...");
@@ -3386,139 +2548,85 @@
           liveIndicator.style.display = "block";
           stationSelect.disabled = true;
 
-          // Set to UN-MUTE state initially instead of DISCONNECT
-          callButton.textContent = "UN-MUTE";
-          callButton.classList.add("unmute"); // Add a new class for styling
-          callButton.classList.remove("disconnect");
-          console.log("Call connected, button set to UN-MUTE");
+          // Go directly to DISCONNECT state
+          callButton.textContent = "DISCONNECT";
+          callButton.classList.add("disconnect");
+          console.log("Call connected, button set to DISCONNECT");
 
-          // Remove initial pulse from CONNECT button
-          callButton.classList.remove("initial-pulse");
+          // Try to activate microphone after a short delay
+          setTimeout(activateMicrophone, 2000);
 
-          // Special handling for iOS - maintain but don't activate mic yet
+          // Add initial pulse to CONNECT button
+          callButton.classList.add("initial-pulse");
+
+          // Special handling for iOS
           if (isIOS || browserIsSafari) {
-            console.log(
-              "iOS/Safari detected - deferring mic activation until UN-MUTE"
+            console.log("iOS/Safari detected - applying special handling");
+
+            // Add a click handler to the whole document to initialize audio on iOS
+            document.addEventListener(
+              "click",
+              function iosAudioInit() {
+                console.log("iOS document click - initializing audio context");
+                deadAir
+                  .play()
+                  .catch((e) => console.log("iOS initial play rejected:", e));
+
+                // Try to prime the audio early
+                try {
+                  if (typeof saySilent === "function") {
+                    saySilent(0);
+                  }
+                } catch (e) {
+                  console.log("Early audio priming failed:", e);
+                }
+
+                // Remove the listener after first click
+                document.removeEventListener("click", iosAudioInit);
+              },
+              { once: true }
             );
 
-            // Try to prime audio system
-            try {
-              const tempContext = new (window.AudioContext ||
-                window.webkitAudioContext)();
-              tempContext.resume().then(() => {
-                console.log("Temporary audio context resumed");
-              });
+            // For iOS we need to specially handle the call button click
+            callButton.addEventListener(
+              "click",
+              function (e) {
+                console.log("Call button clicked on iOS");
 
-              // Create and play a brief silent sound
-              const oscillator = tempContext.createOscillator();
-              const gainNode = tempContext.createGain();
-              gainNode.gain.value = 0.0001; // Nearly silent
-              oscillator.connect(gainNode);
-              gainNode.connect(tempContext.destination);
-              oscillator.start(0);
-              oscillator.stop(tempContext.currentTime + 0.001);
-            } catch (e) {
-              console.warn("Temporary audio context creation failed:", e);
-            }
-          }
-
-          // Expand video display when connecting
-          const videoDisplay = document.querySelector(".video-display");
-          if (videoDisplay) {
-            videoDisplay.classList.add("active");
-          }
-        } else if (callButton.textContent === "UN-MUTE") {
-          // ---- UN-MUTE Flow (new state) ----
-          console.log("UN-MUTE clicked, activating microphone...");
-
-          // Prevent multiple clicks
-          callButton.disabled = true;
-
-          // For iOS, we need to be more careful with audio handling
-          const isIOSOrSafari = isIOS || browserIsSafari;
-
-          // Prime audio with SitePal silent function
-          try {
-            // On iOS, use window.saySilent to ensure it works
-            if (typeof window.saySilent === "function") {
-              console.log(
-                "Calling window.saySilent(0) to prime audio system..."
-              );
-              window.saySilent(0);
-            } else if (typeof saySilent === "function") {
-              // Fallback to local saySilent
-              console.log(
-                "Calling local saySilent(0) to prime audio system..."
-              );
-              saySilent(0);
-            }
-          } catch (e) {
-            console.warn("saySilent call failed:", e);
-          }
-
-          // For iOS, we need to handle possible errors with the recognition system
-          if (isIOSOrSafari) {
-            console.log(
-              "iOS/Safari detected - using specialized activation path"
+                // If we're connecting, make sure we always show the UN-MUTE button
+                if (!isCallActive) {
+                  // Set a flag to force the UN-MUTE state on iOS
+                  window.forceUnmuteOnIOS = true;
+                }
+              },
+              { capture: true }
             );
-
-            // First try to stop any existing recognition to avoid errors
-            try {
-              if (typeof AI_vhost_api === "function") {
-                console.log("Trying to stop any existing recognition first");
-                AI_vhost_api("stopListening");
-              }
-            } catch (e) {
-              console.log("Error stopping recognition:", e);
-            }
-
-            // Short delay before activation to allow stop to complete
-            setTimeout(() => {
-              activateMicrophone();
-
-              // Enable button and update to DISCONNECT state
-              callButton.disabled = false;
-              callButton.textContent = "DISCONNECT";
-              callButton.classList.remove("unmute");
-              callButton.classList.add("disconnect");
-              console.log(
-                "Microphone activation attempted, button set to DISCONNECT"
-              );
-
-              // Send state change message to parent
-              window.parent.postMessage(
-                { type: "SITEPAL_STATE_CHANGE", isListening: true },
-                "*"
-              );
-            }, 500); // Longer delay for iOS
-          } else {
-            // Standard path for non-iOS browsers
-            setTimeout(() => {
-              activateMicrophone();
-
-              // Enable button and update to DISCONNECT state
-              callButton.disabled = false;
-              callButton.textContent = "DISCONNECT";
-              callButton.classList.remove("unmute");
-              callButton.classList.add("disconnect");
-              console.log("Microphone activated, button set to DISCONNECT");
-
-              // Send state change message to parent
-              window.parent.postMessage(
-                { type: "SITEPAL_STATE_CHANGE", isListening: true },
-                "*"
-              );
-            }, 300); // Short delay before activation
           }
         } else {
           // ---- Disconnect Flow ----
           console.log("Disconnecting call with static effect...");
           isCallActive = false;
-          window.sceneAlreadyLoaded = false; // Reset scene loaded flag on disconnect
 
-          // Start brief static effect
+          // 1. Initiate SitePal cleanup immediately
+          const sitepalContainer = document.getElementById("sitepal-container");
+          if (
+            sitepalContainer &&
+            sitepalContainer.dataset.initialized === "true"
+          ) {
+            console.log("Calling cleanupSitePal...");
+            if (cleanupSitePal()) {
+              sitepalContainer.dataset.initialized = "false";
+            }
+          }
+          // Hide the SitePal container right away
+          if (sitepalContainer) {
+            sitepalContainer.style.display = "none";
+          }
+
+          // 2. Start brief static effect
           const deadAir = document.getElementById("deadAir");
-          const staticEffectDuration = 1500; // ms
+          const offlineDisplay = document.getElementById("offline-display");
+          const disconnectStaticDuration = 1500; // ms
 
           if (deadAir) {
             deadAir.style.display = "block";
@@ -3530,14 +2638,23 @@
               .catch((e) => console.error("Disconnect static play failed:", e));
           }
 
-          // Set timeout to disconnect after static effect
+          // 3. Set timeout to switch to offline display
           setTimeout(() => {
             console.log(
-              "Disconnect static effect finished. Calling disconnectCall()."
+              "Disconnect static effect finished. Switching to OFFLINE."
             );
-            // Use our new disconnectCall function
-            disconnectCall();
-          }, staticEffectDuration);
+            if (deadAir) {
+              deadAir.pause();
+              deadAir.style.display = "none"; // Hide video
+            }
+            if (offlineDisplay) {
+              offlineDisplay.style.display = "flex"; // Show offline display
+            }
+            // Update the rest of the UI *after* the effect
+            updateCallUI();
+          }, disconnectStaticDuration);
+
+          // REMOVED immediate call to updateCallUI() and manual video reset from here
         }
       });
 
@@ -3549,7 +2666,6 @@
       // Toggle 80s mode
       eightiesToggle.addEventListener("click", () => {
         const crtEffect = document.getElementById("crt-effect");
-        const toggleRow = document.querySelector(".toggle-row.mobile-inline");
 
         // CRT power on/off effect with less opacity
         crtEffect.style.opacity = "0.4"; // Reduced opacity
@@ -3560,15 +2676,6 @@
 
         // Update UI directly
         updateEightiesUI(isEightiesMode);
-
-        // Apply fullscreen layout in 80s mode if screen is wide enough
-        if (window.innerWidth >= 768) {
-          if (isEightiesMode) {
-            toggleRow.classList.add("fullscreen");
-          } else {
-            toggleRow.classList.remove("fullscreen");
-          }
-        }
 
         // Play toggle sound
         try {
@@ -3605,118 +2712,10 @@
         // Notify parent of the mode change
         window.parent.postMessage({ type: "EIGHTIES_MODE_CHANGE" }, "*");
 
-        // Request current music player state after mode change
-        setTimeout(() => {
-          window.parent.postMessage({ type: "REQUEST_MUSIC_STATE" }, "*");
-        }, 300); // Small delay to allow parent to update music player
-
         setTimeout(() => {
           crtEffect.style.opacity = "0";
           crtEffect.classList.remove("crt-on");
         }, 150);
-      });
-
-      // Toggle music
-      musicToggle.addEventListener("click", () => {
-        // Toggle the active state visually
-        musicToggle.classList.toggle("active");
-
-        // Get the current state
-        const isMusicEnabled = musicToggle.classList.contains("active");
-
-        // Play toggle sound
-        try {
-          const audioContext = new (window.AudioContext ||
-            window.webkitAudioContext)();
-          const oscillator = audioContext.createOscillator();
-          const gainNode = audioContext.createGain();
-
-          oscillator.type = "sine";
-          oscillator.frequency.setValueAtTime(
-            isMusicEnabled ? 600 : 300,
-            audioContext.currentTime
-          );
-          oscillator.frequency.exponentialRampToValueAtTime(
-            isMusicEnabled ? 300 : 600,
-            audioContext.currentTime + 0.1
-          );
-
-          gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
-          gainNode.gain.exponentialRampToValueAtTime(
-            0.01,
-            audioContext.currentTime + 0.1
-          );
-
-          oscillator.connect(gainNode);
-          gainNode.connect(audioContext.destination);
-
-          oscillator.start();
-          oscillator.stop(audioContext.currentTime + 0.1);
-        } catch (e) {
-          console.log("Audio context not supported");
-        }
-
-        // Notify parent of the music toggle - this will control both MusicPlayer2 and MusicPlayer3
-        window.parent.postMessage(
-          {
-            type: "MUSIC_TOGGLE",
-            enabled: isMusicEnabled,
-          },
-          "*"
-        );
-      });
-
-      // Toggle constellations
-      constellationToggle.addEventListener("click", () => {
-        // Toggle the active state visually
-        constellationToggle.classList.toggle("active");
-
-        // Get the current state
-        const isConstellationsEnabled =
-          constellationToggle.classList.contains("active");
-
-        // Play toggle sound
-        try {
-          const audioContext = new (window.AudioContext ||
-            window.webkitAudioContext)();
-          const oscillator = audioContext.createOscillator();
-          const gainNode = audioContext.createGain();
-
-          oscillator.type = "sine";
-          oscillator.frequency.setValueAtTime(
-            isConstellationsEnabled ? 500 : 300,
-            audioContext.currentTime
-          );
-          oscillator.frequency.exponentialRampToValueAtTime(
-            isConstellationsEnabled ? 300 : 500,
-            audioContext.currentTime + 0.1
-          );
-
-          gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
-          gainNode.gain.exponentialRampToValueAtTime(
-            0.01,
-            audioContext.currentTime + 0.1
-          );
-
-          oscillator.connect(gainNode);
-          gainNode.connect(audioContext.destination);
-
-          oscillator.start();
-          oscillator.stop(audioContext.currentTime + 0.1);
-        } catch (e) {
-          console.log("Audio context not supported");
-        }
-
-        // Notify parent of the constellation toggle
-        window.parent.postMessage(
-          {
-            type: "CONSTELLATION_TOGGLE",
-            enabled: isConstellationsEnabled,
-          },
-          "*"
-        );
-
-        console.log("Constellations toggled:", isConstellationsEnabled);
       });
 
       // Update UI functions
@@ -3740,14 +2739,6 @@
           if (liveIndicator) liveIndicator.style.display = "block";
           if (stationSelect) stationSelect.disabled = true;
 
-          // Check current state of callButton and preserve it
-          // This prevents resetting to DISCONNECT if we're in UN-MUTE state
-          if (callButton && callButton.textContent !== "UN-MUTE") {
-            callButton.textContent = "DISCONNECT";
-            callButton.classList.add("disconnect");
-            callButton.classList.remove("unmute");
-          }
-
           // Ensure button remains clickable (redundant but safe)
           callButton.style.pointerEvents = "auto";
 
@@ -3758,7 +2749,6 @@
           console.log("Updating UI for disconnected state.");
           callButton.textContent = "CONNECT";
           callButton.classList.remove("disconnect");
-          callButton.classList.remove("unmute"); // Also remove unmute class if it exists
           callButton.style.pointerEvents = "auto"; // Ensure connect button is clickable
           if (callStatus) callStatus.classList.remove("active");
 
@@ -3770,7 +2760,6 @@
             deadAir.style.display = "none"; // Keep video hidden
           }
           // Show offline display again
-          const offlineDisplay = document.getElementById("offline-display");
           if (offlineDisplay) {
             offlineDisplay.style.display = "flex";
           }
@@ -3923,6 +2912,13 @@
 
         // REMOVED: The problematic code that was forcing 3D mode and hiding wireframe
         // regardless of the eighties mode setting
+      }
+
+      // Remove music note
+      const panelSubtitle = document.querySelector(".panel-subtitle");
+
+      if (panelSubtitle && musicNote) {
+        panelSubtitle.innerHTML = "MISSION CONTROL v2.0.80";
       }
 
       // Notify parent that music should be hidden
@@ -4129,17 +3125,7 @@
                 `vh_sceneLoaded callback fired for sceneIndex: ${sceneIndex}, portal: ${portal} (iOS)`
               );
               window.sitepalInitialized = true;
-
-              // Ensure the button is in UN-MUTE state
-              const callButton = document.getElementById("call-button");
-              if (callButton && callButton.textContent !== "DISCONNECT") {
-                callButton.textContent = "UN-MUTE";
-                callButton.classList.add("unmute");
-                callButton.classList.remove("disconnect");
-                console.log(
-                  "SitePal scene loaded (iOS), setting button to UN-MUTE state"
-                );
-              }
+              setupIOSHandlers(); // Existing iOS setup
 
               // Fade out the transmission video
               const deadAir = document.getElementById("deadAir");
@@ -4154,6 +3140,10 @@
                 }, 500); // Matches CSS transition duration
               }
 
+              // Attempt microphone activation *after* scene is loaded
+              console.log("Scene loaded, attempting microphone activation...");
+              activateMicrophone();
+
               // Notify parent frame that SitePal is ready
               window.parent.postMessage({ type: "SITEPAL_READY" }, "*");
 
@@ -4165,7 +3155,28 @@
                 console.warn("saySilent(0) failed (iOS):", e);
               }
 
-              // REMOVED: Initial greeting - will now wait for UN-MUTE click
+              // Make the character say "Greetings" (after delay)
+              setTimeout(() => {
+                try {
+                  console.log("Now making AI say 'Greetings' (iOS)...");
+                  // Using sayText based on docs for initial greeting
+                  sayText("Greetings, how can I help you today?", 8, 1, 6);
+                  /* // Previous sayAI call:
+                  const response = sayAI(
+                    "Greetings", // what to send to the AI
+                    244, // voice ID
+                    1, // language ID
+                    3, // TTS engine ID
+                    "", "", // Effects
+                    "CB", // Vendor
+                    "Bif" // Bot Name
+                  );
+                  console.log("sayAI('Greetings') status (iOS):", response);
+                  */
+                } catch (e) {
+                  console.error("Error calling sayText (iOS):", e);
+                }
+              }, 200); // 200ms delay
             };
 
             // Set up listening status callback (remains the same)
@@ -4183,46 +3194,95 @@
             // Perform the embed with load=0
             AI_vhost_embed(280, 180, 9157686, 244, 1, 0);
 
-            // Trigger the scene load via API - REMOVED this call as it's causing errors
-            // setTimeout(() => {
-            //   try {
-            //     console.log("Calling loadSceneByID (iOS)...");
-            //     AI_vhost_api("loadSceneByID", "vhss_aiPlayer");
-            //   } catch (e) {
-            //     console.error("Error calling loadSceneByID (iOS):", e);
-            //   }
-            // }, 100);
+            // Trigger the scene load via API
+            setTimeout(() => {
+              try {
+                console.log("Calling loadSceneByID (iOS)...");
+                AI_vhost_api("loadSceneByID", "vhss_aiPlayer");
+              } catch (e) {
+                console.error("Error calling loadSceneByID (iOS):", e);
+              }
+            }, 100);
           } catch (e) {
             console.error("Error during iOS SitePal embed:", e);
           }
         }
 
-        // This function was previously used to automatically activate the mic
-        // We're now replacing this with the UN-MUTE button approach
         function setupIOSHandlers() {
-          console.log("Setting up iOS handlers (now waits for UN-MUTE)...");
+          console.log("Setting up iOS handlers...");
 
           // Mark as initialized
           window.sitepalInitialized = true;
           window.parent.postMessage({ type: "SITEPAL_READY" }, "*");
 
-          // Try to prime audio context (but don't activate mic or speak)
+          // Try to prime audio context
           try {
             if (typeof saySilent === "function") {
               saySilent(0);
-              console.log("Audio primed for iOS (silent)");
+              console.log("Audio primed for iOS");
             }
           } catch (e) {
             console.log("iOS audio priming failed:", e);
           }
 
-          // Update UI to UN-MUTE state (not DISCONNECT)
+          // Update UI to DISCONNECT state
           if (callButton) {
-            callButton.textContent = "UN-MUTE";
-            callButton.classList.add("unmute");
-            callButton.classList.remove("disconnect");
-            console.log("iOS handlers set button to UN-MUTE");
+            callButton.textContent = "DISCONNECT";
+            callButton.classList.add("disconnect");
           }
+
+          // Automatically try to activate the microphone
+          setTimeout(() => {
+            console.log("Attempting automatic mic activation for iOS...");
+
+            // Try multiple approaches
+            const activateMic = () => {
+              // 1. Try API call first
+              if (typeof AI_vhost_api === "function") {
+                console.log("iOS: Using direct API call");
+                AI_vhost_api("startListening");
+              }
+
+              // 2. Try finding and clicking the button
+              const micButton = document.querySelector(".vhss-aiplayer-mic-p3");
+              if (micButton) {
+                console.log("iOS: Found mic button, clicking it");
+                micButton.click();
+              }
+
+              // 3. Try iframe buttons
+              const sitepalFrame = document.querySelector("#SitePal iframe");
+              if (sitepalFrame) {
+                try {
+                  const iframeDoc =
+                    sitepalFrame.contentDocument ||
+                    sitepalFrame.contentWindow.document;
+                  const iframeButtons = iframeDoc.querySelectorAll(
+                    ".vhss-aiplayer-mic-p3"
+                  );
+                  if (iframeButtons.length > 0) {
+                    console.log("iOS: Found mic button in iframe");
+                    iframeButtons[0].click();
+                  }
+                } catch (frameError) {
+                  console.log("Cannot access iframe content:", frameError);
+                }
+              }
+
+              // Notify that we're listening
+              window.parent.postMessage(
+                {
+                  type: "SITEPAL_STATE_CHANGE",
+                  isListening: true,
+                },
+                "*"
+              );
+            };
+
+            // Try activation immediately and after a short delay
+            activateMic();
+            setTimeout(activateMic, 1000);
+          }, 500);
         }
       }
 
@@ -4299,7 +3359,6 @@
       // Initialize UI
       updateCallUI();
       updateStationDisplay();
-      updateLeaderboardUI(); // Initialize leaderboard state
 
       // Apply appropriate UI state based on URL parameters
       const urlParams = new URLSearchParams(window.location.search);
@@ -4316,18 +3375,17 @@
         const missionControlPanel = document.getElementById("mission-control");
       }
 
+      updateLeaderboardUI();
+
       // Ensure system status is always on
       if (systemStatus) systemStatus.classList.add("active");
 
+      // Add global test functions to \
       // Toggle Leaderboard
-      const leaderboardToggle = document.getElementById("leaderboard-toggle");
-      if (leaderboardToggle) {
-        leaderboardToggle.addEventListener("click", () => {
-          isLeaderboardExpanded = !isLeaderboardExpanded;
-          updateLeaderboardUI();
-          playClickSound(); // Add click sound feedback
-        });
-      }
+      leaderboardToggle.addEventListener("click", () => {
+        isLeaderboardExpanded = !isLeaderboardExpanded;
+        updateLeaderboardUI();
+      });
 
       // Event Listeners for Control Buttons
       document.querySelectorAll(".control-button").forEach((button) => {
@@ -4340,20 +3398,20 @@
 
       // Handle Control Actions
       function handleControlAction(action) {
-        const button = document.querySelector(`[data-action="${action}"]`);
-        const indicator = button.querySelector(".button-indicator");
+        const indicator = document.querySelector(
+          `[data-action="${action}"] .button-indicator`
+        );
         if (!indicator) return;
 
-        // Add active state to the button
-        button.classList.add("active");
         indicator.classList.add("active");
+        setTimeout(() => {
+          indicator.classList.remove("active");
+        }, 200);
 
-        // Handle specific actions
+        // Add specific action handling here
         switch (action) {
           case "launch":
             console.log("Launch sequence initiated");
-            // Send message to parent to toggle launch mode
-            window.parent.postMessage({ type: "LAUNCH_MODE_TOGGLE" }, "*");
             break;
           case "orbit":
             console.log("Orbit adjustment in progress");
@@ -4365,954 +3423,7 @@
             console.log("Return sequence activated");
             break;
         }
-
-        // Remove active states after animation
-        setTimeout(() => {
-          button.classList.remove("active");
-          indicator.classList.remove("active");
-        }, 2000);
       }
-
-      // Add a debug function to check environment
-      function debugSitePalEnvironment() {
-        console.group("SitePal Environment Debug");
-
-        // Check for various speech functions
-        console.log(
-          "window.sayText exists:",
-          typeof window.sayText === "function"
-        );
-        console.log("sayText exists:", typeof sayText === "function");
-        console.log("window.say exists:", typeof window.say === "function");
-        console.log("say exists:", typeof say === "function");
-        console.log(
-          "window.saySilent exists:",
-          typeof window.saySilent === "function"
-        );
-        console.log("saySilent exists:", typeof saySilent === "function");
-        console.log("AI_vhost_api exists:", typeof AI_vhost_api === "function");
-
-        // Check if we're in an iframe
-        console.log("In iframe:", window !== window.top);
-
-        // Log browser and OS info
-        console.log("User Agent:", navigator.userAgent);
-        console.log("Platform:", navigator.platform);
-
-        // Log if we're using the three-state approach
-        console.log("Using three-state approach:", window.needsUnmuteFlow);
-
-        console.groupEnd();
-      }
-
-      // Call the debug function when scene loads
-      window.vh_sceneLoaded = function (sceneIndex, portal) {
-        console.log(
-          `vh_sceneLoaded callback fired for sceneIndex: ${sceneIndex}, portal: ${portal}`
-        );
-        window.sitepalSceneReady = true; // Set flag
-
-        // Run debug check
-        debugSitePalEnvironment();
-
-        // Prevent double invocation
-        if (window.sceneAlreadyLoaded) {
-          console.log(
-            "Scene load callback called again - ignoring subsequent calls"
-          );
-          return;
-        }
-        window.sceneAlreadyLoaded = true;
-
-        // Fade out the transmission video
-        const deadAir = document.getElementById("deadAir");
-        if (deadAir) {
-          console.log("Scene loaded, fading out transmission video...");
-          deadAir.style.opacity = 0;
-          setTimeout(() => {
-            console.log("Pausing transmission video after fade.");
-            deadAir.pause();
-          }, 500); // Matches CSS transition duration
-        }
-
-        // Prime audio playback using silent speech
-        try {
-          console.log("Priming browser with silent playback...");
-          window.saySilent(0);
-        } catch (e) {
-          console.warn("saySilent(0) failed:", e);
-        }
-
-        // Get the call button
-        const callButton = document.getElementById("call-button");
-        if (!callButton) return;
-
-        // Check if we need the three-state approach or can auto-transition
-        if (window.needsUnmuteFlow) {
-          // Three-state approach for iOS, Safari, mobile devices
-          if (callButton.textContent !== "DISCONNECT") {
-            callButton.textContent = "UN-MUTE";
-            callButton.classList.add("unmute");
-            callButton.classList.remove("disconnect");
-
-            // Prevent automatic triggering by disabling/re-enabling
-            callButton.disabled = true;
-            setTimeout(() => {
-              callButton.disabled = false;
-            }, 500);
-
-            console.log(
-              "SitePal scene loaded, setting button to UN-MUTE state (three-state flow)"
-            );
-          }
-        } else {
-          // Auto-transition approach for desktop browsers
-          console.log("Auto-transition flow - activating immediately");
-
-          // Short delay to ensure everything is ready
-          setTimeout(() => {
-            // Prime audio again
-            try {
-              if (typeof window.saySilent === "function") {
-                window.saySilent(0);
-              }
-            } catch (e) {
-              console.warn("Auto-activation saySilent failed:", e);
-            }
-
-            // Update UI to DISCONNECT state first
-            callButton.textContent = "DISCONNECT";
-            callButton.classList.remove("unmute");
-            callButton.classList.add("disconnect");
-
-            // DIRECTLY call the greeting functions, don't rely solely on activateMicrophone
-            // Each method in its own try/catch for maximum reliability
-            setTimeout(() => {
-              console.log("DIRECT GREETING ATTEMPT FOR DESKTOP");
-
-              // Try the most reliable method first - direct window.sayText() call
-              try {
-                if (typeof window.sayText === "function") {
-                  console.log(
-                    "Desktop direct greeting: calling window.sayText()"
-                  );
-                  window.sayText(
-                    "Greetings, how can I help you today?",
-                    8,
-                    1,
-                    6
-                  );
-                }
-              } catch (e1) {
-                console.error("Desktop direct greeting method 1 failed:", e1);
-              }
-
-              // Secondary: try local sayText
-              try {
-                if (typeof sayText === "function") {
-                  console.log(
-                    "Desktop direct greeting: calling local sayText()"
-                  );
-                  sayText("Greetings, how can I help you today?", 8, 1, 6);
-                }
-              } catch (e2) {
-                console.error("Desktop direct greeting method 2 failed:", e2);
-              }
-
-              // Also call activateMicrophone as a backup
-              try {
-                activateMicrophone();
-              } catch (e3) {
-                console.error("Desktop activateMicrophone call failed:", e3);
-              }
-
-              // Send state change message to parent
-              window.parent.postMessage(
-                {
-                  type: "SITEPAL_STATE_CHANGE",
-                  isListening: true,
-                },
-                "*"
-              );
-            }, 300); // Short delay before direct greeting attempts
-          }, 500);
-        }
-
-        // Notify parent frame that SitePal is ready
-        window.parent.postMessage({ type: "SITEPAL_READY" }, "*");
-      };
-
-      // Add this better method to say greeting directly to SitePal
-      function forceGreeting() {
-        console.log("FORCE GREETING: Attempting direct SitePal access");
-
-        // Method 1: Try checking global variables for SitePal objects
-        try {
-          // Log all global objects that might be SitePal-related
-          for (const key in window) {
-            if (
-              key.includes("sitepal") ||
-              key.includes("vhss") ||
-              key.includes("AI_") ||
-              key.includes("say")
-            ) {
-              console.log(`Found potential SitePal object: ${key}`);
-            }
-          }
-
-          // Try to find SitePal's iframe which might contain the speech functions
-          const frames = document.querySelectorAll("iframe");
-          for (let i = 0; i < frames.length; i++) {
-            try {
-              console.log(`Checking iframe ${i} for SitePal content`);
-              const frameDoc =
-                frames[i].contentDocument || frames[i].contentWindow.document;
-              const frameWindow = frames[i].contentWindow;
-
-              // Check if this is a SitePal frame
-              if (
-                frameDoc.body.innerHTML.includes("sitepal") ||
-                frameDoc.body.innerHTML.includes("vhss")
-              ) {
-                console.log(`Found potential SitePal iframe: ${i}`);
-
-                // Try to call speech functions on the frame's window
-                if (typeof frameWindow.sayText === "function") {
-                  console.log("Found sayText in iframe, calling it");
-                  frameWindow.sayText(
-                    "Greetings, how can I help you today?",
-                    8,
-                    1,
-                    6
-                  );
-                  return true;
-                }
-              }
-            } catch (e) {
-              console.log(`Cannot access iframe ${i} content:`, e);
-            }
-          }
-        } catch (e) {
-          console.error("Error in method 1:", e);
-        }
-
-        // Method 2: Try using vhss player directly
-        try {
-          const vhssPlayer = document.getElementById("vhss_aiPlayer");
-          if (vhssPlayer) {
-            console.log("Found vhss_aiPlayer, trying to access its functions");
-
-            // Try to find and call the say method on vhssPlayer
-            if (vhssPlayer.say) {
-              console.log("Found vhssPlayer.say(), calling it");
-              vhssPlayer.say("Greetings, how can I help you today?");
-              return true;
-            }
-          }
-        } catch (e) {
-          console.error("Error in method 2:", e);
-        }
-
-        // Method 3: Try to inject a script that calls the speech function
-        try {
-          const script = document.createElement("script");
-          script.textContent = `
-            try {
-              console.log("Injected script running");
-              if (typeof sayText === 'function') {
-                sayText("Greetings, how can I help you today?", 8, 1, 6);
-                console.log("Direct script injection: sayText called");
-              } else if (typeof say === 'function') {
-                say("Greetings, how can I help you today?");
-                console.log("Direct script injection: say called");
-              } else {
-                console.log("No speech functions found in injected script context");
-              }
-            } catch(e) {
-              console.error("Injected script error:", e);
-            }
-          `;
-          document.head.appendChild(script);
-
-          // Alternative: try calling AI_vhost_say if it exists
-          if (typeof AI_vhost_say === "function") {
-            console.log("Found AI_vhost_say, calling it");
-            AI_vhost_say("Greetings, how can I help you today?");
-            return true;
-          }
-        } catch (e) {
-          console.error("Error in method 3:", e);
-        }
-
-        // Final attempt: check browser console for any speech function
-        console.log(
-          "URGENT: Please check browser console for available SitePal speech functions!"
-        );
-        console.log("Try typing these in console to find which works:");
-        console.log("1. sayText('Hello', 8, 1, 6)");
-        console.log("2. say('Hello')");
-        console.log("3. AI_vhost_say('Hello')");
-        console.log("4. window.sayText('Hello', 8, 1, 6)");
-
-        return false;
-      }
-
-      // Function to handle auto-transition (replacing the standalone else block)
-      function handleDesktopAutoTransition(callButton) {
-        // Auto-transition approach for desktop browsers
-        console.log("Auto-transition flow - activating immediately");
-
-        // Short delay to ensure everything is ready
-        setTimeout(() => {
-          // Prime audio again
-          try {
-            if (typeof window.saySilent === "function") {
-              window.saySilent(0);
-            }
-          } catch (e) {
-            console.warn("Auto-activation saySilent failed:", e);
-          }
-
-          // Update UI to DISCONNECT state first
-          callButton.textContent = "DISCONNECT";
-          callButton.classList.remove("unmute");
-          callButton.classList.add("disconnect");
-
-          // DIRECTLY call the greeting functions, don't rely solely on activateMicrophone
-          // Each method in its own try/catch for maximum reliability
-          setTimeout(() => {
-            console.log("DIRECT GREETING ATTEMPT FOR DESKTOP");
-
-            // Try the direct approach first
-            const forcedSuccess = forceGreeting();
-
-            if (!forcedSuccess) {
-              // Also try activateMicrophone as a backup
-              try {
-                activateMicrophone();
-              } catch (e3) {
-                console.error("Desktop activateMicrophone call failed:", e3);
-              }
-            }
-
-            // Send state change message to parent
-            window.parent.postMessage(
-              {
-                type: "SITEPAL_STATE_CHANGE",
-                isListening: true,
-              },
-              "*"
-            );
-          }, 300); // Short delay before direct greeting attempts
-        }, 500);
-      }
-
-      // Update the vh_sceneLoaded function to use the new handler
-      window.vh_sceneLoaded = function (sceneIndex, portal) {
-        console.log(
-          `vh_sceneLoaded callback fired for sceneIndex: ${sceneIndex}, portal: ${portal}`
-        );
-        window.sitepalSceneReady = true; // Set flag
-
-        // Run debug check
-        debugSitePalEnvironment();
-
-        // Prevent double invocation
-        if (window.sceneAlreadyLoaded) {
-          console.log(
-            "Scene load callback called again - ignoring subsequent calls"
-          );
-          return;
-        }
-        window.sceneAlreadyLoaded = true;
-
-        // Fade out the transmission video
-        const deadAir = document.getElementById("deadAir");
-        if (deadAir) {
-          console.log("Scene loaded, fading out transmission video...");
-          deadAir.style.opacity = 0;
-          setTimeout(() => {
-            console.log("Pausing transmission video after fade.");
-            deadAir.pause();
-          }, 500); // Matches CSS transition duration
-        }
-
-        // Prime audio playback using silent speech
-        try {
-          console.log("Priming browser with silent playback...");
-          window.saySilent(0);
-        } catch (e) {
-          console.warn("saySilent(0) failed:", e);
-        }
-
-        // Get the call button
-        const callButton = document.getElementById("call-button");
-        if (!callButton) return;
-
-        // Check if we need the three-state approach or can auto-transition
-        if (window.needsUnmuteFlow) {
-          // Three-state approach for iOS, Safari, mobile devices
-          if (callButton.textContent !== "DISCONNECT") {
-            callButton.textContent = "UN-MUTE";
-            callButton.classList.add("unmute");
-            callButton.classList.remove("disconnect");
-
-            // Prevent automatic triggering by disabling/re-enabling
-            callButton.disabled = true;
-            setTimeout(() => {
-              callButton.disabled = false;
-            }, 500);
-
-            console.log(
-              "SitePal scene loaded, setting button to UN-MUTE state (three-state flow)"
-            );
-          }
-        } else {
-          // Use our refactored function for auto-transition
-          handleDesktopAutoTransition(callButton);
-        }
-
-        // Notify parent frame that SitePal is ready
-        window.parent.postMessage({ type: "SITEPAL_READY" }, "*");
-      };
-
-      // At the end of the file, add this script to resize the container
-      document.addEventListener("DOMContentLoaded", function () {
-        // Function to adjust height to fill viewport
-        function adjustHeight() {
-          const missionControl = document.querySelector(".mission-control");
-          if (missionControl) {
-            const viewportHeight = window.innerHeight;
-            missionControl.style.minHeight = `${viewportHeight}px`;
-          }
-        }
-
-        // Run on load and resize
-        adjustHeight();
-        window.addEventListener("resize", adjustHeight);
-      });
-
-      // Add a modified forceGreeting function that searches for speech functions more aggressively
-      function forceSpeechFunction(message) {
-        console.log("ATTEMPTING FORCED SPEECH: " + message);
-
-        // Try to find SitePal's iframe which might contain the speech functions
-        const frames = document.querySelectorAll("iframe");
-        for (let i = 0; i < frames.length; i++) {
-          try {
-            console.log(`Looking for speech functions in iframe ${i}`);
-            const frameWindow = frames[i].contentWindow;
-
-            // Try to access common speech functions in iframe
-            if (typeof frameWindow.sayText === "function") {
-              console.log("Found iframe sayText, calling it");
-              frameWindow.sayText(message, 8, 1, 6);
-              return true;
-            } else if (typeof frameWindow.say === "function") {
-              console.log("Found iframe say, calling it");
-              frameWindow.say(message);
-              return true;
-            }
-
-            // Try to access the speech function through the SitePal object if it exists
-            if (
-              frameWindow.SitePal &&
-              typeof frameWindow.SitePal.say === "function"
-            ) {
-              console.log("Found SitePal.say in iframe, calling it");
-              frameWindow.SitePal.say(message);
-              return true;
-            }
-          } catch (e) {
-            console.log(`Cannot access iframe ${i} content:`, e);
-          }
-        }
-
-        // Try to find direct properties on document that might be SitePal
-        const sitePalElements = document.querySelectorAll(
-          '[id*="sitepal"], [id*="vhss"], [class*="sitepal"], [class*="vhss"]'
-        );
-        console.log(
-          `Found ${sitePalElements.length} potential SitePal elements`
-        );
-
-        for (const element of sitePalElements) {
-          console.log(`Checking element: ${element.id || element.className}`);
-
-          // Try calling methods directly on the element
-          if (typeof element.say === "function") {
-            console.log("Found element.say(), calling it");
-            element.say(message);
-            return true;
-          }
-
-          if (typeof element.sayText === "function") {
-            console.log("Found element.sayText(), calling it");
-            element.sayText(message, 8, 1, 6);
-            return true;
-          }
-        }
-
-        // Try direct API call
-        if (typeof AI_vhost_api === "function") {
-          console.log("Trying direct API call: AI_vhost_api('say', message)");
-          try {
-            AI_vhost_api("say", message);
-            return true;
-          } catch (e) {
-            console.error("API call failed:", e);
-          }
-        }
-
-        // Try special method used on desktop browsers
-        if (typeof vhsshtml5_say === "function") {
-          console.log("Found vhsshtml5_say, calling it");
-          vhsshtml5_say(message);
-          return true;
-        }
-
-        return false;
-      }
-
-      // Update auto-transition function to use the new robust speech function
-      function handleDesktopAutoTransition(callButton) {
-        // Auto-transition approach for desktop browsers
-        console.log("Auto-transition flow - activating immediately");
-
-        // Short delay to ensure everything is ready
-        setTimeout(() => {
-          // Prime audio again
-          try {
-            if (typeof window.saySilent === "function") {
-              window.saySilent(0);
-            }
-          } catch (e) {
-            console.warn("Auto-activation saySilent failed:", e);
-          }
-
-          // Update UI to DISCONNECT state first
-          callButton.textContent = "DISCONNECT";
-          callButton.classList.remove("unmute");
-          callButton.classList.add("disconnect");
-
-          // Activate microphone
-          try {
-            activateMicrophone();
-          } catch (e3) {
-            console.error("Desktop activateMicrophone call failed:", e3);
-          }
-
-          // DIRECTLY call the greeting with progressive delays to ensure SitePal is fully ready
-          setTimeout(() => {
-            // First attempt
-            console.log("DESKTOP GREETING: First attempt");
-            if (!forceSpeechFunction("Greetings, how can I help you today?")) {
-              // If first attempt fails, try again with a longer delay
-              setTimeout(() => {
-                console.log("DESKTOP GREETING: Second attempt");
-                if (
-                  !forceSpeechFunction("Greetings, how can I help you today?")
-                ) {
-                  // Final attempt with even longer delay
-                  setTimeout(() => {
-                    console.log("DESKTOP GREETING: Final attempt");
-                    forceSpeechFunction("Greetings, how can I help you today?");
-                  }, 1000);
-                }
-              }, 500);
-            }
-          }, 300);
-
-          // Send state change message to parent
-          window.parent.postMessage(
-            {
-              type: "SITEPAL_STATE_CHANGE",
-              isListening: true,
-            },
-            "*"
-          );
-        }, 500);
-      }
-
-      // Add console logging to the triggerGreeting function
-      function triggerGreeting() {
-        console.log("Attempting to trigger greeting...");
-
-        // Check if greeting was already played
-        if (window.greetingPlayed) {
-          console.log("Greeting already played, skipping");
-          return;
-        }
-
-        // Set flag to prevent duplicate greetings
-        window.greetingPlayed = true;
-
-        // Try the forced speech function first
-        if (forceSpeechFunction("Greetings, how can I help you today?")) {
-          console.log("Forced greeting successful");
-          return;
-        }
-
-        // Now play the greeting that was previously in vh_sceneLoaded
-        setTimeout(() => {
-          let greetingSuccess = false;
-
-          // Try multiple methods to ensure greeting works
-
-          // Method 1: Use sayText directly
-          try {
-            console.log("Method 1: Calling sayText directly");
-            if (typeof sayText === "function") {
-              sayText("Greetings, how can I help you today?", 8, 1, 6);
-              greetingSuccess = true;
-              console.log("Method 1 successful");
-            }
-          } catch (e) {
-            console.error("Method 1 failed:", e);
-          }
-
-          // Method 2: Use window.sayText
-          if (!greetingSuccess) {
-            try {
-              console.log("Method 2: Calling window.sayText");
-              if (typeof window.sayText === "function") {
-                window.sayText("Greetings, how can I help you today?", 8, 1, 6);
-                greetingSuccess = true;
-                console.log("Method 2 successful");
-              }
-            } catch (e2) {
-              console.error("Method 2 failed:", e2);
-            }
-          }
-
-          // Method 3: Try to use AI_vhost_api
-          if (!greetingSuccess) {
-            try {
-              console.log("Method 3: Using AI_vhost_api");
-              if (typeof AI_vhost_api === "function") {
-                AI_vhost_api("say", "Greetings, how can I help you today?");
-                greetingSuccess = true;
-                console.log("Method 3 successful");
-              }
-            } catch (e3) {
-              console.error("Method 3 failed:", e3);
-            }
-          }
-
-          // Method 4: Last resort - try any SitePal say function
-          if (!greetingSuccess) {
-            try {
-              console.log("Method 4: Last resort attempt");
-              // Check all possible function names
-              const possibleFunctions = [
-                "say",
-                "sayText",
-                "sayAI",
-                "saySentence",
-                "sayGreeting",
-                "vhsshtml5_say",
-              ];
-
-              for (const funcName of possibleFunctions) {
-                if (typeof window[funcName] === "function") {
-                  console.log(`Found function: ${funcName}`);
-                  window[funcName]("Greetings, how can I help you today?");
-                  greetingSuccess = true;
-                  console.log(`Method 4 successful using ${funcName}`);
-                  break;
-                }
-              }
-            } catch (e4) {
-              console.error("Method 4 failed:", e4);
-            }
-          }
-
-          if (!greetingSuccess) {
-            console.error("All greeting methods failed");
-          }
-        }, 300); // Short delay before greeting
-      }
-
-      // Add a simple function to find and call the SitePal speech function
-      function speakGreeting() {
-        console.log("Attempting to speak greeting via direct SitePal access");
-
-        // First attempt standard methods
-        try {
-          if (typeof window.sayText === "function") {
-            console.log("Using window.sayText directly");
-            window.sayText("Greetings, how can I help you today?", 8, 1, 6);
-            return true;
-          }
-
-          if (typeof sayText === "function") {
-            console.log("Using local sayText directly");
-            sayText("Greetings, how can I help you today?", 8, 1, 6);
-            return true;
-          }
-
-          if (typeof AI_vhost_api === "function") {
-            console.log("Using AI_vhost_api('say')");
-            AI_vhost_api("say", "Greetings, how can I help you today?");
-            return true;
-          }
-        } catch (e) {
-          console.error("Standard methods failed:", e);
-        }
-
-        // Try to find SitePal in iframes
-        try {
-          const frames = document.querySelectorAll("iframe");
-          console.log(`Checking ${frames.length} iframes for SitePal`);
-
-          // Look in each iframe
-          for (let i = 0; i < frames.length; i++) {
-            try {
-              const frame = frames[i];
-              const frameWindow = frame.contentWindow;
-
-              if (frameWindow) {
-                // Try sayText
-                if (typeof frameWindow.sayText === "function") {
-                  console.log(`Found sayText in iframe ${i}`);
-                  frameWindow.sayText(
-                    "Greetings, how can I help you today?",
-                    8,
-                    1,
-                    6
-                  );
-                  return true;
-                }
-              }
-            } catch (e) {
-              console.log(`Cannot access iframe ${i}:`, e);
-            }
-          }
-        } catch (e) {
-          console.error("Iframe methods failed:", e);
-        }
-
-        return false;
-      }
-
-      // Update the desktop auto-transition function to be simpler and more reliable
-      function handleDesktopAutoTransition(callButton) {
-        console.log("Auto-transition flow for desktop browser");
-
-        // Short delay to ensure ready
-        setTimeout(() => {
-          // Update UI first
-          callButton.textContent = "DISCONNECT";
-          callButton.classList.remove("unmute");
-          callButton.classList.add("disconnect");
-
-          // Try to speak, but with sequential delays
-          setTimeout(() => {
-            console.log("First greeting attempt");
-            if (!speakGreeting()) {
-              // Second attempt with longer delay
-              setTimeout(() => {
-                console.log("Second greeting attempt");
-                speakGreeting();
-              }, 1000);
-            }
-
-            // Activate microphone regardless
-            activateMicrophone();
-
-            // Notify parent
-            window.parent.postMessage(
-              { type: "SITEPAL_STATE_CHANGE", isListening: true },
-              "*"
-            );
-          }, 500);
-        }, 500);
-      }
-
-      // Add click handler for collapsed video display
-      document.addEventListener("DOMContentLoaded", function () {
-        const videoDisplay = document.querySelector(".video-display");
-        if (videoDisplay) {
-          // Initialize the display state based on screen width and call state
-          if (window.innerWidth <= 480 && !isCallActive) {
-            videoDisplay.classList.remove("active");
-          } else {
-            videoDisplay.classList.add("active");
-          }
-
-          videoDisplay.addEventListener("click", function () {
-            // Add a "touched" class to stop the pulsing animation
-            this.classList.add("touched");
-
-            // Only trigger expansion if in collapsed state on mobile
-            if (
-              window.innerWidth <= 480 &&
-              !this.classList.contains("active") &&
-              !isCallActive
-            ) {
-              this.classList.add("active");
-              // Auto-collapse after 5 seconds if no call initiated
-              setTimeout(() => {
-                if (!isCallActive) {
-                  this.classList.remove("active");
-                }
-              }, 5000);
-            } else if (
-              window.innerWidth <= 480 &&
-              this.classList.contains("active") &&
-              !isCallActive
-            ) {
-              // Allow collapsing when clicked if already expanded and not in a call
-              this.classList.remove("active");
-            }
-          });
-        }
-      });
-
-      // Modify the existing disconnectCall function to handle collapsing on mobile
-      function disconnectCall() {
-        console.log("Disconnecting call and cleaning up SitePal...");
-        isCallActive = false;
-
-        // Collapse video display when disconnecting on mobile
-        const videoDisplay = document.querySelector(".video-display");
-        if (videoDisplay && window.innerWidth <= 480) {
-          videoDisplay.classList.remove("active");
-        }
-
-        // Existing disconnect logic
-        const callButton = document.getElementById("call-button");
-        const callStatus = document.getElementById("call-status");
-        const stationSelect = document.getElementById("station-select");
-        const selfView = document.getElementById("self-view");
-        const liveIndicator = document.getElementById("live-indicator");
-        const sitepalContainer = document.getElementById("sitepal-container");
-        const deadAir = document.getElementById("deadAir");
-        const offlineDisplay = document.getElementById("offline-display");
-
-        // Reset all UI elements
-        callButton.textContent = "CONNECT";
-        callButton.classList.remove("disconnect", "unmute");
-        callStatus.classList.remove("active");
-        stationSelect.disabled = false;
-        selfView.style.display = "none";
-        liveIndicator.style.display = "none";
-
-        // Show offline display
-        offlineDisplay.style.display = "flex";
-
-        // Hide and stop video, hide SitePal
-        deadAir.style.display = "none";
-        deadAir.pause();
-        sitepalContainer.style.display = "none";
-
-        // Clean up SitePal instance
-        cleanupSitePal();
-
-        // Reset the initialization state
-        sitepalContainer.dataset.initialized = "false";
-
-        // Notify parent
-        window.parent.postMessage(
-          { type: "SITEPAL_STATE_CHANGE", isListening: false },
-          "*"
-        );
-
-        console.log("Call disconnected and cleaned up");
-      }
-
-      // Add resize handler to adjust video display state when resizing
-      window.addEventListener("resize", function () {
-        if (videoDisplay) {
-          if (window.innerWidth <= 480 && !isCallActive) {
-            videoDisplay.classList.remove("active");
-          } else if (window.innerWidth > 480) {
-            videoDisplay.classList.add("active");
-          }
-        }
-      });
-
-      // Check for initial message from parent to sync toggle states
-      window.addEventListener("message", (event) => {
-        // Check if the message is from the parent frame
-        if (event.source === window.parent) {
-          const data = event.data;
-
-          // Handle state synchronization
-          if (data.type === "SYNC_STATE") {
-            // Sync 80s mode
-            if (data.isEightiesMode !== undefined) {
-              isEightiesMode = data.isEightiesMode;
-              updateEightiesUI(isEightiesMode);
-            }
-
-            // Sync music state
-            if (data.isMusicEnabled !== undefined) {
-              if (data.isMusicEnabled) {
-                musicToggle.classList.add("active");
-              } else {
-                musicToggle.classList.remove("active");
-              }
-            }
-
-            // Sync constellation state
-            if (data.isConstellationsEnabled !== undefined) {
-              if (data.isConstellationsEnabled) {
-                constellationToggle.classList.add("active");
-              } else {
-                constellationToggle.classList.remove("active");
-              }
-            }
-          }
-
-          // Handle music state updates from parent (when music players change state)
-          if (data.type === "SET_MUSIC_STATE") {
-            // Update music toggle to match the music player state
-            if (data.isPlaying !== undefined) {
-              if (data.isPlaying) {
-                musicToggle.classList.add("active");
-              } else {
-                musicToggle.classList.remove("active");
-              }
-              console.log(
-                "Music toggle synchronized to player state:",
-                data.isPlaying
-              );
-            }
-          }
-        }
-      });
-
-      // Styling for the music toggle
-      document.addEventListener("DOMContentLoaded", function () {
-        // Add music toggle style
-        const musicToggle = document.getElementById("music-toggle");
-        if (musicToggle) {
-          // Check if music should be on by default based on screen size
-          // On larger screens, music is typically enabled
-          if (window.innerWidth > 768) {
-            musicToggle.classList.add("active");
-            // Notify parent that music should be on
-            window.parent.postMessage(
-              {
-                type: "MUSIC_TOGGLE",
-                enabled: true,
-              },
-              "*"
-            );
-          }
-        }
-      });
-
-      // Add window resize handler for toggle layout
-      window.addEventListener("resize", () => {
-        const toggleRow = document.querySelector(".toggle-row.mobile-inline");
-        if (window.innerWidth >= 768 && isEightiesMode) {
-          toggleRow.classList.add("fullscreen");
-        } else {
-          toggleRow.classList.remove("fullscreen");
-        }
-      });
     </script>
   </body>
 </html>

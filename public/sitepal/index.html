@@ -27,137 +27,251 @@
   </head>
   <body>
     <div id="vhss_aiPlayer"></div>
+    <!-- Use v4 of the embed functions for better mobile support -->
     <script
       type="text/javascript"
-      src="//vhss-d.oddcast.com/ai_embed_functions_v1.php"
+      src="//vhss-d.oddcast.com/vhost_embed_functions_v4.php?acc=9157686&js=1"
     ></script>
     <script type="text/javascript">
-      // Global sceneLoaded flag
+      // Global flags
       let sceneLoaded = false;
+      let audioInitialized = false;
+      let microphoneActive = false;
+      let mediaStream = null;
 
       // Define the callback that SitePal will call when scene is ready
       function vh_sceneLoaded() {
         sceneLoaded = true;
+        console.log("Scene loaded, initializing audio...");
 
-        // Prime audio playback on iOS/Safari using silent speech
+        // Initialize audio system and request microphone access
+        initializeAudioAndMicrophone().then((success) => {
+          // Notify parent that scene is loaded and audio is ready
+          window.parent.postMessage(
+            {
+              type: "SITEPAL_SCENE_LOADED",
+              status: "ready",
+              audioReady: audioInitialized,
+              microphoneReady: success,
+            },
+            "*"
+          );
+        });
+      }
+
+      // Helper function to request microphone access
+      async function requestMicrophoneAccess() {
         try {
-          window.saySilent(0);
+          const stream = await navigator.mediaDevices.getUserMedia({
+            audio: true,
+          });
+          mediaStream = stream;
+          // Stop the stream immediately - we just wanted the permission
+          stream.getTracks().forEach((track) => track.stop());
+          return true;
         } catch (e) {
-          console.warn("saySilent(0) failed:", e);
+          console.warn("Microphone access request failed:", e);
+          return false;
+        }
+      }
+
+      // Helper function to initialize audio system and request mic access
+      async function initializeAudioAndMicrophone() {
+        if (audioInitialized) return true;
+
+        try {
+          // First request microphone access
+          const micAccess = await requestMicrophoneAccess();
+          if (!micAccess) {
+            console.warn("Could not get microphone access");
+            return false;
+          }
+
+          // Create audio context
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          const audioContext = new AudioContext();
+
+          // Resume the context
+          await audioContext.resume();
+
+          // Create and play a brief silent sound
+          const oscillator = audioContext.createOscillator();
+          const gainNode = audioContext.createGain();
+          gainNode.gain.value = 0.0001;
+          oscillator.connect(gainNode);
+          gainNode.connect(audioContext.destination);
+          oscillator.start(0);
+          oscillator.stop(audioContext.currentTime + 0.001);
+
+          // Prime SitePal audio system with multiple attempts
+          let primeAttempts = 0;
+          const maxPrimeAttempts = 3;
+
+          while (primeAttempts < maxPrimeAttempts) {
+            try {
+              if (typeof window.saySilent === "function") {
+                window.saySilent(0);
+                console.log("SitePal audio system primed");
+                break;
+              }
+            } catch (e) {
+              console.warn(`Prime attempt ${primeAttempts + 1} failed:`, e);
+            }
+            await new Promise((resolve) => setTimeout(resolve, 500));
+            primeAttempts++;
+          }
+
+          audioInitialized = true;
+
+          // Try to say greeting after initialization
+          setTimeout(() => {
+            try {
+              if (typeof sayText === "function") {
+                sayText("Greetings, how can I help you today?", 8, 1, 6);
+              }
+            } catch (e) {
+              console.warn("Failed to play greeting:", e);
+            }
+          }, 1000);
+
+          return true;
+        } catch (e) {
+          console.warn("Audio initialization failed:", e);
+          return false;
+        }
+      }
+
+      // Helper function to activate microphone with retries
+      async function activateMicrophoneWithRetries(maxRetries = 3) {
+        if (microphoneActive) return true;
+
+        // First ensure we have microphone permission
+        const micAccess = await requestMicrophoneAccess();
+        if (!micAccess) {
+          console.warn("Could not get microphone access");
+          return false;
         }
 
-        // Notify parent that scene is loaded
-        window.parent.postMessage(
-          {
-            type: "SITEPAL_SCENE_LOADED",
-            status: "ready",
-          },
-          "*"
-        );
+        for (let i = 0; i < maxRetries; i++) {
+          try {
+            // Ensure audio is initialized first
+            await initializeAudioAndMicrophone();
+
+            // Try the direct API first
+            if (typeof activateMicrophone === "function") {
+              activateMicrophone();
+              microphoneActive = true;
+              return true;
+            }
+
+            // Try multiple mic button selectors
+            const micSelectors = [
+              ".vhss-aiplayer-mic",
+              "#vhss-aiplayer-mic",
+              ".vhss-aiplayer-mic-p3",
+              "[id^='vhss-aiplayer-mic']",
+            ];
+
+            for (const selector of micSelectors) {
+              const micButton = document.querySelector(selector);
+              if (micButton) {
+                micButton.click();
+                microphoneActive = true;
+                return true;
+              }
+            }
+
+            // If direct methods fail, try the API
+            if (typeof AI_vhost_api === "function") {
+              // Try to prime audio again before starting listening
+              if (typeof window.saySilent === "function") {
+                window.saySilent(0);
+              }
+              await new Promise((resolve) => setTimeout(resolve, 100));
+              AI_vhost_api("startListening");
+              microphoneActive = true;
+              return true;
+            }
+
+            await new Promise((resolve) => setTimeout(resolve, 500));
+          } catch (e) {
+            console.warn(`Microphone activation attempt ${i + 1} failed:`, e);
+            await new Promise((resolve) => setTimeout(resolve, 500));
+          }
+        }
+
+        return false;
       }
 
       window.addEventListener("load", function () {
         try {
-          // iOS-specific audio context initialization
-          let audioContext;
-          try {
-            const AudioContext =
-              window.AudioContext || window.webkitAudioContext;
-            if (AudioContext) {
-              audioContext = new AudioContext();
-              // Create a silent audio buffer to ensure audio context is active
-              const buffer = audioContext.createBuffer(1, 1, 22050);
-              const source = audioContext.createBufferSource();
-              source.buffer = buffer;
-              source.connect(audioContext.destination);
-              // Resume audio context immediately
-              audioContext.resume().catch((e) => {});
-            }
-          } catch (e) {}
+          // Initialize SitePal with autostart disabled for iOS
+          AI_vhost_embed(280, 180, 9157686, 244, 1, 0);
 
-          // Check that the AI_vhost_embed function exists
-          if (typeof AI_vhost_embed === "undefined") {
-            throw new Error("AI_vhost_embed function not found");
-          }
-
-          // Initialize SitePal with explicit parameters
-          AI_vhost_embed(800, 600, 9157686, 244, 1, 1);
-
-          // Notify parent of ready state
-          window.parent.postMessage(
-            {
-              type: "SITEPAL_READY",
-              status: "initialized",
-              audioContext: !!audioContext,
-            },
-            "*"
-          );
-
-          // Enhanced message listener with iOS-specific handling
-          window.addEventListener("message", function (event) {
+          // Set up message listener
+          window.addEventListener("message", async function (event) {
             if (!event.data || !event.data.type) return;
 
             switch (event.data.type) {
               case "PRIME_AUDIO_IOS":
-                // Prime audio playback on iOS/Safari using silent speech
-                try {
-                  if (typeof window.saySilent === "function" && sceneLoaded) {
-                    window.saySilent(0);
-                  }
-                } catch (e) {}
+                const success = await initializeAudioAndMicrophone();
+                window.parent.postMessage(
+                  {
+                    type: "SITEPAL_AUDIO_PRIMED",
+                    success: success,
+                  },
+                  "*"
+                );
                 break;
 
               case "ACTIVATE_SITEPAL_MIC":
-                if (!sceneLoaded) return;
-
-                // Ensure audio context is running
-                if (audioContext && audioContext.state === "suspended") {
-                  audioContext.resume().catch(() => {});
+                if (!sceneLoaded) {
+                  console.warn("Cannot activate mic before scene is loaded");
+                  return;
                 }
 
-                // Try to activate the microphone
-                try {
-                  if (typeof activateMicrophone === "function") {
-                    activateMicrophone();
-                  } else {
-                    // Fallback to click simulation
-                    const micButton = document.querySelector(
-                      ".vhss-aiplayer-mic, #vhss-aiplayer-mic"
-                    );
-                    if (micButton) {
-                      micButton.click();
-                    }
-                  }
-
-                  window.parent.postMessage(
-                    {
-                      type: "SITEPAL_STATE_CHANGE",
-                      isListening: true,
-                    },
-                    "*"
-                  );
-                } catch (e) {
-                  window.parent.postMessage(
-                    {
-                      type: "SITEPAL_ERROR",
-                      error: e.toString(),
-                    },
-                    "*"
-                  );
-                }
+                const micSuccess = await activateMicrophoneWithRetries();
+                window.parent.postMessage(
+                  {
+                    type: "SITEPAL_STATE_CHANGE",
+                    isListening: micSuccess,
+                  },
+                  "*"
+                );
                 break;
 
               case "DISCONNECT_SITEPAL":
-                // Handle disconnect request
                 try {
-                  if (typeof stopListening === "function") {
-                    stopListening();
+                  if (typeof AI_vhost_api === "function") {
+                    AI_vhost_api("stopListening");
+                    AI_vhost_api("stopSpeaking");
                   }
-                } catch (e) {}
+                  if (mediaStream) {
+                    mediaStream.getTracks().forEach((track) => track.stop());
+                    mediaStream = null;
+                  }
+                  microphoneActive = false;
+                  audioInitialized = false;
+                } catch (e) {
+                  console.warn("Error during disconnect:", e);
+                }
                 break;
             }
           });
+
+          // Add touch event listener for iOS audio initialization
+          document.addEventListener(
+            "touchstart",
+            async function initAudio() {
+              const success = await initializeAudioAndMicrophone();
+              if (success && !microphoneActive) {
+                await activateMicrophoneWithRetries();
+              }
+            },
+            { once: true }
+          );
         } catch (e) {
+          console.error("Initialization error:", e);
           window.parent.postMessage(
             {
               type: "SITEPAL_ERROR",

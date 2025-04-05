@@ -57,15 +57,40 @@ const ClientOnlyMusicPlayer = ({
         cursor: "move",
       }}
     >
-      {/* Only render Spotify (MusicPlayer2) now. Visibility controlled by showSpotify prop */}
-      {!is80sMode && (
-        <Suspense fallback={<div>Loading music player...</div>}>
-          <MusicPlayer2
-            isVisible={showSpotify} // Visibility still controlled by showSpotify
-            onClose={() => setShowSpotify(false)}
-            autoPlay={false}
-          />
-        </Suspense>
+      {showSpotify && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: isMobileView ? "60px" : "3rem",
+            left: isMobileView ? "20%" : "0",
+            transform: isMobileView
+              ? "translate(-50%, 0) scale(0.5)"
+              : "scale(0.6)",
+            zIndex: 1000,
+            borderRadius: "12px",
+            boxShadow: "0 4px 30px rgba(0, 0, 0, 0.3)",
+            opacity: 1,
+            transition: "all 0.3s ease",
+            pointerEvents: "auto",
+            cursor: "move",
+          }}
+        >
+          <Suspense fallback={<div>Loading music player...</div>}>
+            {is80sMode ? (
+              <MusicPlayer3
+                isVisible={showSpotify}
+                onClose={() => setShowSpotify(false)}
+                autoPlay={true}
+              />
+            ) : (
+              <MusicPlayer2
+                isVisible={showSpotify}
+                onClose={() => setShowSpotify(false)}
+                autoPlay={true}
+              />
+            )}
+          </Suspense>
+        </div>
       )}
     </div>
   );
@@ -79,48 +104,72 @@ const BurnGalleryClient = dynamic(() => import("../components/BurnGallery"), {
 export default function GalleryPage() {
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  // Initialize showSpotify based on screen size
+  // Initialize state
   const [showSpotify, setShowSpotify] = useState(false); // Start with false for SSR
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [is80sMode, setIs80sMode] = useState(false);
+  const [monsterMode, setMonsterMode] = useState(false);
+  const [mobile, setMobile] = useState(false);
   const [shouldRenderGallery, setShouldRenderGallery] = useState(false);
   const [isMobileView, setIsMobileView] = useState(false);
   const [componentLoaded, setComponentLoaded] = useState(false);
   const [threeDSceneLoaded, setThreeDSceneLoaded] = useState(false);
 
-  // Move the window check to useEffect
+  // Handle window resize
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      setShowSpotify(window.innerWidth > 768);
-    }
-  }, []);
-
-  // Modify the mobile detection useEffect
-  useEffect(() => {
-    const checkMobile = () => {
-      const mobile = typeof window !== "undefined" && window.innerWidth <= 768;
-      setIsMobileView(mobile);
-      // Set showSpotify based on screen size
-      setShowSpotify(!mobile);
+    const handleResize = () => {
+      const isMobile = window.innerWidth <= 768;
+      setMobile(isMobile);
+      setIsMobileView(isMobile);
+      // Remove automatic showSpotify setting
     };
 
-    if (typeof window !== "undefined") {
-      checkMobile();
-      window.addEventListener("resize", checkMobile);
-      return () => window.removeEventListener("resize", checkMobile);
-    }
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  // Add helper function to get the mission control iframe
+  const getMissionControlIframe = () => {
+    // Try to find the mission control iframe
+    const iframes = document.querySelectorAll("iframe");
+    for (const iframe of iframes) {
+      if (iframe.src && iframe.src.includes("cyberpunk_mission_control.html")) {
+        return iframe;
+      }
+    }
+    return null;
+  };
 
   // Modify toggle80sMode to respect mobile view
   const toggle80sMode = () => {
     const newMode = !is80sMode;
     setIs80sMode(newMode);
 
-    // // Always show music player when 80s mode is turned on -> REMOVED, iframe handles 80s music
-    // if (newMode) {
-    //   setShowSpotify(true);
-    // }
-    // Don't hide the player when turning 80s mode off
+    // Ensure music player is shown when 80s mode is enabled
+    if (newMode) {
+      setShowSpotify(true);
+
+      // Get iframe reference
+      const iframe = getMissionControlIframe();
+
+      // Notify mission control about music state
+      if (iframe && iframe.contentWindow) {
+        // Use direct communication with the iframe
+        iframe.contentWindow.postMessage(
+          { type: "STEREO_POWER_STATE", isActive: true, mode: "80s" },
+          "*"
+        );
+
+        // Explicitly update the music toggle in mission control to show it's active
+        iframe.contentWindow.postMessage(
+          { type: "SET_MUSIC_STATE", isPlaying: true },
+          "*"
+        );
+      } else {
+        console.warn("Mission control iframe not found");
+      }
+    }
 
     console.log(
       "Gallery: 80's mode toggled to",
@@ -134,6 +183,19 @@ export default function GalleryPage() {
   const handleClose = () => {
     // Always hide Spotify when closing the music player
     setShowSpotify(false);
+
+    // Get iframe reference
+    const iframe = getMissionControlIframe();
+
+    // Notify mission control that music is no longer playing
+    if (iframe && iframe.contentWindow) {
+      iframe.contentWindow.postMessage(
+        { type: "SET_MUSIC_STATE", isPlaying: false },
+        "*"
+      );
+    } else {
+      console.warn("Mission control iframe not found");
+    }
   };
 
   // Update loading progress based on component and 3D scene loading states
@@ -173,7 +235,137 @@ export default function GalleryPage() {
   // Add debugging
   useEffect(() => {
     console.log("Gallery page showSpotify state:", showSpotify);
+
+    // Get iframe reference
+    const iframe = getMissionControlIframe();
+
+    // Sync music toggle state with mission control
+    if (iframe && iframe.contentWindow) {
+      iframe.contentWindow.postMessage(
+        {
+          type: "MUSIC_TOGGLE",
+          enabled: showSpotify,
+        },
+        "*"
+      );
+
+      // Also send the more explicit SET_MUSIC_STATE message
+      iframe.contentWindow.postMessage(
+        {
+          type: "SET_MUSIC_STATE",
+          isPlaying: showSpotify,
+        },
+        "*"
+      );
+    } else {
+      console.warn(
+        "Mission control iframe not found for showSpotify state sync"
+      );
+    }
   }, [showSpotify]);
+
+  // Listen for messages from the mission control panel iframe
+  useEffect(() => {
+    const handleMessage = (event) => {
+      // Check if the message is from our mission control panel
+      if (event.data && typeof event.data === "object") {
+        // Handle 80s mode toggle from mission control
+        if (
+          event.data.type === "EIGHTIES_MODE_CHANGE" &&
+          !event.data.fromGallery
+        ) {
+          toggle80sMode();
+        }
+
+        // Handle music toggle
+        if (event.data.type === "MUSIC_TOGGLE") {
+          console.log("Music toggle message received:", event.data.enabled);
+          setShowSpotify(event.data.enabled);
+        }
+
+        // Handle request for current music state
+        if (event.data.type === "REQUEST_MUSIC_STATE") {
+          console.log(
+            "Received request for music state, current state:",
+            showSpotify
+          );
+
+          // Get iframe reference
+          const iframe = getMissionControlIframe();
+
+          // Send current music state to mission control panel
+          if (iframe && iframe.contentWindow) {
+            iframe.contentWindow.postMessage(
+              {
+                type: "SET_MUSIC_STATE",
+                isPlaying: showSpotify,
+              },
+              "*"
+            );
+          } else {
+            console.warn(
+              "Mission control iframe not found for REQUEST_MUSIC_STATE response"
+            );
+          }
+        }
+
+        // Handle other message types as needed
+      }
+    };
+
+    // Add event listener for messages
+    window.addEventListener("message", handleMessage);
+
+    // Clean up
+    return () => {
+      window.removeEventListener("message", handleMessage);
+    };
+  }, [toggle80sMode, showSpotify]); // Include showSpotify in dependencies
+
+  // Add an effect to ensure mission control is synced once available
+  useEffect(() => {
+    // Function to check for iframe and sync state
+    const syncMissionControl = () => {
+      const iframe = getMissionControlIframe();
+      if (iframe && iframe.contentWindow) {
+        console.log("Mission control iframe found, syncing state");
+
+        // Send initial state sync
+        iframe.contentWindow.postMessage(
+          {
+            type: "SYNC_STATE",
+            isEightiesMode: is80sMode,
+            isMusicEnabled: showSpotify,
+          },
+          "*"
+        );
+
+        // Also send explicit music state
+        iframe.contentWindow.postMessage(
+          {
+            type: "SET_MUSIC_STATE",
+            isPlaying: showSpotify,
+          },
+          "*"
+        );
+        return true;
+      }
+      return false;
+    };
+
+    // Try immediately
+    if (!syncMissionControl()) {
+      // If not available yet, set up a retry interval
+      const checkInterval = setInterval(() => {
+        if (syncMissionControl()) {
+          clearInterval(checkInterval);
+        }
+      }, 1000);
+
+      // Clean up interval
+      return () => clearInterval(checkInterval);
+    }
+  }, [is80sMode, showSpotify]); // Dependencies include both states that need syncing
 
   return (
     <div

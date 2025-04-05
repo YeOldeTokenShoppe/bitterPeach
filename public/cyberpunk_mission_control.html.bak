@@ -1,0 +1,3794 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cyberpunk Mission Control Panel</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap"
+      rel="stylesheet"
+    />
+    <!-- Firebase SDKs (Add these) -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.7/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.7/firebase-storage-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.7/firebase-firestore-compat.js"></script>
+
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: monospace;
+        background-color: transparent !important;
+        color: #67e8f9;
+        display: flex;
+        justify-content: center;
+        height: 100%;
+        overflow: hidden;
+        width: 100%;
+        position: relative;
+      }
+
+      .mission-control {
+        width: 100%;
+        max-width: 450px;
+        height: 100%;
+        background-image: linear-gradient(to bottom, #0f172a, #1e293b);
+        display: flex;
+        flex-direction: column;
+        padding: 16px;
+        border-left: 1px solid #0e7490;
+        border-right: 1px solid #0e7490;
+        box-shadow: 0 0 15px rgba(6, 182, 212, 0.3),
+          inset 0 0 10px rgba(6, 182, 212, 0.1);
+        overflow-y: auto;
+        position: relative;
+        z-index: 1;
+        clip-path: inset(0 0 0 0);
+        -webkit-clip-path: inset(0 0 0 0);
+        box-sizing: border-box;
+      }
+
+      .panel-header {
+        text-align: center;
+        margin-bottom: 16px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid #0e7490;
+      }
+
+      .panel-title {
+        font-size: 1.05rem;
+        line-height: 1.2;
+        letter-spacing: 0.2em;
+        font-weight: bold;
+        color: #67e8f9;
+        text-shadow: -2px 0 #ff0040, 2px 0 #00b4ff;
+        margin: 0;
+        position: relative;
+        /* animation: threedy-flicker 4s infinite; */
+      }
+
+      .panel-subtitle {
+        font-size: 0.75rem;
+        line-height: 1.4;
+        color: white;
+        text-shadow: -1px 0 #ff0040, 1px 0 #00b4ff;
+        letter-spacing: 0.1em;
+        margin-top: 4px;
+      }
+
+      .video-call {
+        margin-bottom: 16px;
+        background-color: #000;
+        border: 1px solid #134e4a;
+        border-radius: 4px;
+        overflow: visible;
+        position: relative;
+        z-index: 50;
+      }
+
+      .video-header {
+        background-color: #111827;
+        padding: 4px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #134e4a;
+        font-size: 0.75rem;
+      }
+
+      .video-status {
+        height: 8px;
+        width: 8px;
+        border-radius: 50%;
+        background-color: #4b5563;
+      }
+
+      .video-status.active {
+        background-color: #ef4444;
+        animation: pulse 2s infinite;
+      }
+
+      .video-display {
+        height: 180px;
+        position: relative;
+        background: linear-gradient(45deg, #041c2c, #000);
+        overflow: hidden;
+      }
+
+      #vhss-aiplayer-inner * {
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        z-index: 10;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      /* SitePal main container styles */
+      .vhss_bgVideo {
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        margin: 0 !important;
+        background-size: cover !important;
+        background-position: center center !important;
+        background-repeat: no-repeat !important;
+        z-index: 10;
+        top: 0 !important;
+      }
+
+      /* SitePal character container */
+      .vhss_character {
+        position: absolute !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        z-index: 11;
+      }
+
+      /* SitePal canvas */
+      .vhss_character canvas {
+        position: absolute !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        z-index: 12;
+      }
+
+      /* SitePal button holder */
+      .vhsshtml5_button_holder {
+        position: absolute !important;
+        bottom: 50.5px !important;
+        left: 0 !important;
+        width: 100% !important;
+        z-index: 13;
+      }
+
+      /* SitePal loading logo */
+      .waiting_logo {
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        z-index: 14;
+      }
+
+      /* SitePal transcript */
+      .vhsshtml5_transcript {
+        position: absolute !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        z-index: 15;
+      }
+
+      #sitepal-container {
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        z-index: 10;
+        display: none;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      #sitepal-container.active {
+        display: block;
+      }
+
+      /* Ensure video stays behind sitepal when active */
+      #video-feed {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 1;
+      }
+
+      #video-feed video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        /* Add transition and initial z-index */
+        transition: opacity 0.5s ease-out;
+        z-index: 15; /* Ensure it's above sitepal-container (z-index 10) during effect */
+        display: none; /* Hide initially */
+      }
+
+      .video-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-image: repeating-linear-gradient(
+          transparent,
+          transparent 1px,
+          rgba(6, 182, 212, 0.05) 1px,
+          rgba(6, 182, 212, 0.05) 2px
+        );
+        background-size: 100% 2px;
+        pointer-events: none;
+        z-index: 10;
+        display: none;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      /* 3D video overlay */
+      .threedy-mode .video-overlay {
+        background-image: repeating-linear-gradient(
+          transparent,
+          transparent 1px,
+          rgba(255, 0, 64, 0.05) 1px,
+          rgba(0, 180, 255, 0.05) 2px
+        );
+        background-size: 100% 2px;
+        box-shadow: inset -2px 0 10px rgba(255, 0, 64, 0.1),
+          inset 2px 0 10px rgba(0, 180, 255, 0.1);
+      }
+
+      /* 80s video overlay */
+      .eighties-active .video-overlay {
+        background-image: repeating-linear-gradient(
+          transparent,
+          transparent 1px,
+          rgba(217, 70, 239, 0.05) 1px,
+          rgba(34, 211, 238, 0.05) 2px
+        );
+        background-size: 100% 2px;
+        box-shadow: inset 0 0 20px rgba(217, 70, 239, 0.1);
+        opacity: 0.8;
+      }
+
+      .video-gradient {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-image: linear-gradient(
+          to bottom,
+          transparent,
+          rgba(0, 0, 0, 0.5)
+        );
+        pointer-events: none;
+      }
+
+      .video-feed {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        color: #4b5563;
+      }
+
+      .video-feed.offline::before,
+      .video-feed.offline::after {
+        content: "";
+        position: absolute;
+        background-color: #1f2937;
+      }
+
+      .video-feed.offline::before {
+        width: 100%;
+        height: 1px;
+        top: 50%;
+      }
+
+      .video-feed.offline::after {
+        height: 100%;
+        width: 1px;
+        left: 50%;
+      }
+
+      .self-view {
+        position: absolute;
+        bottom: 8px;
+        right: 8px;
+        width: 60px;
+        height: 40px;
+        background-color: #111827;
+        border: 1px solid #0e7490;
+        border-radius: 2px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        z-index: 20; /* Ensure it stays above SitePal elements */
+      }
+
+      .self-view img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .self-view .emoji-placeholder {
+        font-size: 1.75rem;
+        color: #67e8f9;
+        text-shadow: 0 0 5px #06b6d4;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+        line-height: 1;
+      }
+
+      .live-indicator {
+        position: absolute;
+        bottom: 8px;
+        left: 8px;
+        font-size: 0.75rem;
+        color: #22d3ee;
+        animation: pulse 2s infinite;
+      }
+
+      .video-controls {
+        background-color: #111827;
+        padding: 4px;
+        display: flex;
+        justify-content: space-between;
+        position: relative;
+        z-index: 100;
+      }
+
+      .call-button {
+        font-size: 0.75rem;
+        font-family: monospace;
+        padding: 4px 8px;
+        border-radius: 4px;
+        cursor: pointer;
+        background-color: #1f2937;
+        color: #22d3ee;
+        border: 1px solid #134e4a;
+        box-shadow: 0 0 5px rgba(6, 182, 212, 0.3);
+        position: relative;
+        z-index: 101;
+      }
+
+      .call-button.disconnect {
+        color: #f87171;
+        border-color: #7f1d1d;
+        box-shadow: 0 0 5px rgba(220, 38, 38, 0.3);
+      }
+
+      .station-select {
+        background-color: #1f2937;
+        color: #22d3ee;
+        font-size: 0.75rem;
+        font-family: monospace;
+        padding: 0 4px;
+        border: 1px solid #134e4a;
+        border-radius: 4px;
+        box-shadow: 0 0 3px rgba(6, 182, 212, 0.2);
+        position: relative;
+        z-index: 101;
+      }
+
+      .button-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+
+      .control-button {
+        background-color: #1f2937;
+        border-left: 2px solid #ff0040;
+        border-right: 2px solid #00b4ff;
+        border-top: 1px solid transparent; /* Add transparent top/bottom for consistency */
+        border-bottom: 1px solid transparent;
+        border-radius: 4px;
+        padding: 12px;
+        color: #67e8f9;
+        font-family: monospace;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center; /* Vertically center content */
+        min-height: 62px; /* Ensure consistent minimum height */
+        cursor: pointer;
+        transition: all 0.3s;
+        box-shadow: -2px 0 5px rgba(255, 0, 64, 0.3),
+          2px 0 5px rgba(0, 180, 255, 0.3), 0 0 5px rgba(6, 182, 212, 0.2),
+          inset 0 0 10px rgba(6, 182, 212, 0.05);
+      }
+
+      .control-button:hover {
+        background-color: #374151;
+        border-left: 2px solid #ff4080;
+        border-right: 2px solid #40b4ff;
+        box-shadow: -3px 0 10px rgba(255, 0, 64, 0.5),
+          3px 0 10px rgba(0, 180, 255, 0.5);
+      }
+
+      .button-prefix {
+        font-size: 0.75rem;
+        line-height: 1.3;
+        margin-bottom: 4px;
+        opacity: 0.7;
+      }
+
+      .button-label {
+        font-weight: bold;
+        letter-spacing: 0.1em;
+        font-size: 0.875rem;
+        line-height: 1.3;
+      }
+
+      .button-indicator {
+        width: 32px;
+        height: 4px;
+        margin-top: 4px;
+        background-color: #0e7490;
+        border-radius: 9999px;
+      }
+
+      .toggle-section {
+        margin-bottom: 16px;
+        background-color: #111827;
+        padding: 12px;
+        border-radius: 4px;
+        border: 1px solid #134e4a;
+        box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+      }
+
+      .toggle-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+      }
+
+      .toggle-row.music-row {
+        flex-wrap: wrap;
+      }
+
+      .toggle-row .label-switch-container {
+        display: flex;
+        width: 100%;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .toggle-row:last-child {
+        margin-bottom: 0;
+      }
+
+      .toggle-label {
+        font-size: 0.875rem;
+        line-height: 1.4;
+      }
+
+      .toggle-switch {
+        width: 48px;
+        height: 24px;
+        background-color: #1f2937;
+        border-radius: 9999px;
+        position: relative;
+        padding: 2px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+      }
+
+      .toggle-switch.active {
+        background-color: #134e4a;
+        box-shadow: 0 0 5px rgba(6, 182, 212, 0.5);
+      }
+
+      .toggle-switch.eighties.active {
+        background-color: #4c1d95;
+        box-shadow: 0 0 5px rgba(147, 51, 234, 0.5);
+      }
+
+      .toggle-switch.music.active {
+        background-color: #ca8a04;
+        box-shadow: 0 0 5px rgba(234, 179, 8, 0.5);
+      }
+
+      .toggle-switch.music:hover {
+        box-shadow: 0 0 8px rgba(234, 179, 8, 0.7);
+      }
+
+      .toggle-handle {
+        width: 18px;
+        height: 18px;
+        background-color: #e5e7eb;
+        border-radius: 50%;
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        transition: transform 0.3s;
+      }
+
+      .toggle-switch.active .toggle-handle {
+        transform: translateX(24px);
+      }
+
+      .leaderboard-header {
+        width: 100%;
+        background-color: #1f2937;
+        border-radius: 4px;
+        border: 1px solid #134e4a;
+        padding: 4px;
+        font-family: monospace;
+        color: #22d3ee;
+        font-size: 0.75rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 4px;
+        cursor: pointer;
+        box-shadow: 0 0 5px rgba(6, 182, 212, 0.2);
+      }
+
+      .leaderboard-content {
+        background-color: #111827;
+        border-radius: 4px;
+        border: 1px solid #134e4a;
+        padding: 8px;
+        font-family: monospace;
+        color: #22d3ee;
+        font-size: 0.875rem;
+        margin-bottom: 12px;
+        box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.7);
+        background-image: linear-gradient(to bottom, #0c1721, #0a0f16);
+      }
+
+      .leaderboard-header-row {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.75rem;
+        margin-bottom: 4px;
+        padding-bottom: 4px;
+        border-bottom: 1px solid #1f2937;
+      }
+
+      .leaderboard-scrollable {
+        height: 128px;
+        overflow-y: auto;
+        background-image: repeating-linear-gradient(
+          transparent,
+          transparent 1px,
+          rgba(6, 182, 212, 0.03) 1px,
+          rgba(6, 182, 212, 0.03) 2px
+        );
+        background-size: 100% 2px;
+      }
+
+      .leaderboard-entry {
+        display: flex;
+        justify-content: space-between;
+        padding: 4px 0;
+      }
+
+      .leaderboard-entry.top {
+        color: #67e8f9;
+        font-weight: bold;
+        text-shadow: 0 0 5px #06b6d4;
+      }
+
+      .leaderboard-footer {
+        margin-top: 8px;
+        font-size: 0.75rem;
+        text-align: center;
+        color: #22d3ee;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .pulse-dot {
+        height: 4px;
+        width: 4px;
+        border-radius: 50%;
+        background-color: #22d3ee;
+        margin-right: 4px;
+        animation: pulse 2s infinite;
+      }
+
+      .status-bar {
+        margin-top: 16px;
+        display: flex;
+        justify-content: space-between;
+      }
+
+      .status-indicator {
+        display: flex;
+        align-items: center;
+      }
+
+      .status-light {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 8px;
+        background-color: #ef4444;
+      }
+
+      .status-light.active {
+        background-color: #22d3ee;
+        animation: pulse 2s infinite;
+        box-shadow: 0 0 5px #06b6d4, 0 0 5px 2px rgba(255, 255, 255, 0.7),
+          -2px 0 8px #ff0040, 2px 0 8px #00b4ff;
+      }
+
+      .status-label {
+        font-size: 0.75rem;
+      }
+
+      .version-info {
+        font-size: 0.75rem;
+        color: #4b5563;
+      }
+
+      .spacer {
+        flex-grow: 1;
+      }
+
+      @keyframes pulse {
+        0% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+        100% {
+          opacity: 1;
+        }
+      }
+
+      /* Hide scrollbar for Chrome, Safari and Opera */
+      .leaderboard-scrollable::-webkit-scrollbar {
+        display: none;
+      }
+
+      /* Hide scrollbar for IE, Edge and Firefox */
+      .leaderboard-scrollable {
+        -ms-overflow-style: none; /* IE and Edge */
+        scrollbar-width: none; /* Firefox */
+      }
+
+      .control-button[data-action="launch"] {
+        position: relative;
+      }
+
+      .control-button[data-action="launch"]:after {
+        content: "";
+        position: absolute;
+        top: -2px;
+        left: -2px;
+        right: -2px;
+        bottom: -2px;
+        border-radius: 6px;
+        background: transparent;
+        transition: all 0.3s;
+      }
+
+      .control-button[data-action="launch"].active {
+        background-color: #450a0a;
+        border-color: #dc2626;
+      }
+
+      .control-button[data-action="launch"].active:after {
+        background: linear-gradient(45deg, #dc2626, #450a0a);
+        filter: blur(8px);
+        opacity: 0.6;
+        z-index: -1;
+      }
+
+      .control-button[data-action="launch"] .button-indicator {
+        background-color: #dc2626;
+        transition: all 0.3s;
+      }
+
+      .control-button[data-action="launch"].active .button-indicator {
+        animation: redPulse 2s infinite;
+      }
+
+      .toggle-switch.emergency.active {
+        background-color: #991b1b;
+        box-shadow: 0 0 15px rgba(239, 68, 68, 0.5);
+      }
+
+      .toggle-switch.emergency.active .toggle-handle {
+        background-color: #fecaca;
+      }
+
+      #vhss-aiplayer-aiformlogs {
+        display: none !important;
+        opacity: 0 !important;
+      }
+
+      /* 80s mode styles */
+      .mission-control.eighties-active {
+        /* background-image: linear-gradient(to bottom, #0b132b, #2a1786); */
+        border-left: 1px solid #d946ef;
+        box-shadow: 0 0 12px rgba(217, 70, 239, 0.3),
+          inset 0 0 8px rgba(217, 70, 239, 0.1);
+      }
+
+      .eighties-active .panel-title {
+        color: #d946ef;
+        text-shadow: 0 0 3px #d946ef, 0 0 6px #d946ef;
+        font-family: "Press Start 2P", cursive;
+        font-size: 0.8rem; /* Slightly smaller to match height */
+        line-height: 1.5; /* Adjusted line height */
+      }
+
+      .eighties-active .panel-subtitle {
+        color: #22d3ee;
+        font-family: "Press Start 2P", cursive;
+        font-size: 0.6rem;
+        line-height: 1.4;
+      }
+
+      .eighties-active .toggle-label,
+      .eighties-active .button-label,
+      .eighties-active .button-prefix,
+      .eighties-active .status-label {
+        font-family: "Press Start 2P", cursive;
+        font-size: 0.6rem; /* Adjusted size */
+        line-height: 1.5; /* Adjusted line height */
+      }
+
+      .eighties-active .control-button {
+        border: 1px solid #d946ef !important; /* Consistent 1px border */
+        padding: 12px !important; /* Use same padding as base */
+        min-height: 62px !important; /* Ensure override for consistency */
+        box-shadow: 0 0 3px rgba(217, 70, 239, 0.3) !important;
+        background-image: linear-gradient(
+          to bottom,
+          #0f172a,
+          #2a1786
+        ) !important;
+        border-left: 1px solid #d946ef !important;
+        border-right: 1px solid #d946ef !important;
+        transition: all 0.3s;
+      }
+
+      .eighties-active .control-button:hover {
+        /* background-image: linear-gradient(to bottom, #2a1786, #0f172a); */
+        transform: translateY(-2px);
+        box-shadow: 0 0 6px rgba(217, 70, 239, 0.5);
+      }
+
+      .eighties-active .button-indicator {
+        background-color: #d946ef;
+        box-shadow: 0 0 3px #d946ef;
+      }
+
+      .eighties-active .toggle-section,
+      .eighties-active .leaderboard-header,
+      .eighties-active .leaderboard-content {
+        border-color: #d946ef;
+      }
+
+      .eighties-active .status-light.active {
+        background-color: #22d3ee;
+        box-shadow: 0 0 6px #22d3ee;
+        animation: flicker 2s infinite;
+      }
+
+      /* VHS glitch effect */
+      /* @keyframes glitch {
+        0% {
+          transform: translate(0);
+        }
+        20% {
+          transform: translate(-2px, 2px);
+        }
+        40% {
+          transform: translate(-2px, -2px);
+        }
+        60% {
+          transform: translate(2px, 2px);
+        }
+        80% {
+          transform: translate(2px, -2px);
+        }
+        100% {
+          transform: translate(0);
+        }
+      } */
+
+      @keyframes flicker {
+        0% {
+          opacity: 1;
+        }
+        25% {
+          opacity: 0.8;
+        }
+        30% {
+          opacity: 1;
+        }
+        35% {
+          opacity: 0.6;
+        }
+        40% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.9;
+        }
+        75% {
+          opacity: 1;
+        }
+        80% {
+          opacity: 0.7;
+        }
+        100% {
+          opacity: 1;
+        }
+      }
+
+      .eighties-active .panel-title {
+        animation: glitch 5s infinite;
+      }
+
+      /* Color shifting for VHS effect */
+      .color-shift {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        mix-blend-mode: screen;
+        pointer-events: none;
+        opacity: 0;
+        z-index: 998;
+        transition: opacity 0.3s ease;
+      }
+
+      .color-shift.active {
+        opacity: 0.02;
+        animation: color-drift 8s infinite;
+      }
+
+      .color-shift-red {
+        background-color: #ff0000;
+        transform: translateX(-1px);
+      }
+
+      .color-shift-blue {
+        background-color: #0000ff;
+        transform: translateX(1px);
+      }
+
+      /* Scan line effect for 80s mode */
+      .scan-lines {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(
+          to bottom,
+          rgba(255, 255, 255, 0.02) 50%,
+          rgba(0, 0, 0, 0.08) 50%
+        );
+        background-size: 100% 4px;
+        pointer-events: none;
+        z-index: 999;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      }
+
+      .scan-lines.active {
+        opacity: 0.7;
+      }
+
+      /* CRT power on/off effect */
+      .crt-effect {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(2, 6, 23, 0.7); /* Dark blue instead of white */
+        opacity: 0;
+        pointer-events: none;
+        z-index: 1000;
+        transition: all 0.15s ease-out;
+      }
+
+      /* CRT on animation */
+      @keyframes crtOn {
+        0% {
+          opacity: 0.4; /* Less opaque */
+          transform: scale(1);
+        }
+        50% {
+          opacity: 0.3; /* Even less opaque */
+          transform: scale(0.98);
+        }
+        75% {
+          opacity: 0.2; /* Even less opaque */
+          transform: scale(0.99);
+        }
+        100% {
+          opacity: 0;
+          transform: scale(1);
+        }
+      }
+
+      .crt-on {
+        animation: crtOn 0.4s forwards;
+      }
+
+      /* Retro cursor for 80s mode */
+      .eighties-active * {
+        cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' style='fill:none;stroke:%23ff00ff;stroke-width:2px'><rect width='8' height='12'/></svg>")
+            0 0,
+          auto !important;
+      }
+
+      /* Blinking text effect */
+      @keyframes blink {
+        0%,
+        49% {
+          opacity: 1;
+        }
+        50%,
+        100% {
+          opacity: 0;
+        }
+      }
+
+      .eighties-active .blinking-cursor {
+        display: inline-block;
+        width: 8px;
+        height: 12px;
+        background-color: #ff00ff;
+        animation: blink 1s infinite;
+        margin-left: 4px;
+        vertical-align: middle;
+      }
+
+      /* Button press effect */
+      .eighties-active .control-button:active {
+        transform: translateY(1px);
+        box-shadow: 0 0 15px rgba(255, 0, 255, 1);
+      }
+
+      /* Button active state for 80s mode */
+      .eighties-active .control-button.activated {
+        background-image: linear-gradient(to bottom, #3a0ca3, #000000);
+        border-color: #00ffff;
+        box-shadow: 0 0 10px rgba(0, 255, 255, 0.6);
+      }
+
+      .eighties-active .control-button.activated .button-indicator {
+        background-color: #00ffff;
+        box-shadow: 0 0 5px #00ffff;
+      }
+
+      /* Audio visualizer effect for activated buttons */
+      @keyframes visualize {
+        0% {
+          transform: scaleY(0.3);
+        }
+        20% {
+          transform: scaleY(0.5);
+        }
+        40% {
+          transform: scaleY(0.7);
+        }
+        60% {
+          transform: scaleY(1);
+        }
+        80% {
+          transform: scaleY(0.8);
+        }
+        100% {
+          transform: scaleY(0.3);
+        }
+      }
+
+      .eighties-active .control-button.activated .button-indicator {
+        animation: visualize 0.5s infinite;
+        transform-origin: bottom;
+      }
+
+      /* Typing effect */
+      @keyframes typing {
+        from {
+          width: 0;
+        }
+        to {
+          width: 100%;
+        }
+      }
+
+      .typing-container {
+        display: none;
+        overflow: hidden;
+        white-space: nowrap;
+        width: 100%;
+      }
+
+      .eighties-active .typing-container {
+        display: block;
+      }
+
+      .typing-text {
+        display: inline-block;
+        overflow: hidden;
+        animation: typing 1s steps(30, end);
+        white-space: nowrap;
+        font-family: "Press Start 2P", cursive;
+        font-size: 0.6rem;
+        color: #00ffff;
+      }
+
+      @keyframes color-drift {
+        0% {
+          filter: hue-rotate(0deg);
+        }
+        100% {
+          filter: hue-rotate(360deg);
+        }
+      }
+
+      /* Music toggle specific effects */
+      @keyframes equalizer {
+        0% {
+          height: 4px;
+        }
+        50% {
+          height: 12px;
+        }
+        100% {
+          height: 4px;
+        }
+      }
+
+      .music-equalizer {
+        display: flex;
+        gap: 2px;
+        height: 12px;
+        align-items: flex-end;
+        margin-top: 8px;
+        width: 100%;
+        justify-content: center;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      }
+
+      .music-active .music-equalizer {
+        opacity: 1;
+      }
+
+      .music-bar {
+        width: 3px;
+        height: 4px;
+        background-color: #ca8a04;
+        border-radius: 1px;
+        box-shadow: 0 0 3px rgba(234, 179, 8, 0.7);
+      }
+
+      .music-active .music-bar:nth-child(1) {
+        animation: equalizer 0.5s infinite;
+        animation-delay: 0s;
+      }
+
+      .music-active .music-bar:nth-child(2) {
+        animation: equalizer 0.7s infinite;
+        animation-delay: 0.1s;
+      }
+
+      .music-active .music-bar:nth-child(3) {
+        animation: equalizer 0.3s infinite;
+        animation-delay: 0.2s;
+      }
+
+      .music-active .music-bar:nth-child(4) {
+        animation: equalizer 0.6s infinite;
+        animation-delay: 0.1s;
+      }
+
+      .music-active .music-bar:nth-child(5) {
+        animation: equalizer 0.45s infinite;
+        animation-delay: 0.3s;
+      }
+
+      /* Music active state for mission control */
+      .mission-control-music-active .panel-subtitle {
+        color: #fbbf24;
+      }
+
+      .music-title-animation {
+        display: inline-block;
+        animation: music-bounce 2s ease-in-out infinite;
+        transform-origin: bottom;
+      }
+
+      @keyframes music-bounce {
+        0%,
+        100% {
+          transform: translateY(0) rotate(0deg);
+        }
+        25% {
+          transform: translateY(-2px) rotate(-1deg);
+        }
+        75% {
+          transform: translateY(-2px) rotate(1deg);
+        }
+      }
+
+      .toggle-switch.eighties:hover {
+        box-shadow: 0 0 8px rgba(147, 51, 234, 0.7);
+      }
+
+      .toggle-switch.music.active .toggle-handle {
+        transform: translateX(24px);
+      }
+
+      /* 3D glasses mode styles */
+      .threedy-mode {
+        position: relative;
+        overflow: hidden;
+      }
+
+      .threedy-mode .panel-title {
+        position: relative;
+        text-shadow: -2px 0 #ff0040, 2px 0 #00b4ff;
+        color: white;
+      }
+
+      .threedy-mode .panel-subtitle {
+        position: relative;
+        text-shadow: -1px 0 #ff0040, 1px 0 #00b4ff;
+        color: white;
+      }
+
+      .threedy-mode .button-label,
+      .threedy-mode .toggle-label,
+      .threedy-mode .status-label,
+      .threedy-mode #station-display {
+        position: relative;
+        text-shadow: -1px 0 #ff0040, 1px 0 #00b4ff;
+      }
+
+      .threedy-shadow-red,
+      .threedy-shadow-blue {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        opacity: 0.03;
+      }
+
+      .threedy-shadow-red {
+        box-shadow: inset 0 0 15px 2px #ff0040;
+        transform: translateX(-1px);
+        z-index: 10;
+      }
+
+      .threedy-shadow-blue {
+        box-shadow: inset 0 0 15px 2px #00b4ff;
+        transform: translateX(1px);
+        z-index: 11;
+      }
+
+      .threedy-mode .control-button {
+        position: relative;
+        border: 1px solid transparent; /* Base border */
+        border-left: 2px solid #ff0040;
+        border-right: 2px solid #00b4ff;
+        padding: 11px; /* Keep padding consistent */
+        box-shadow: -2px 0 5px rgba(255, 0, 64, 0.3),
+          2px 0 5px rgba(0, 180, 255, 0.3);
+        transition: all 0.3s ease;
+      }
+
+      .threedy-mode .control-button:hover {
+        border-left: 2px solid #ff4080;
+        border-right: 2px solid #40b4ff;
+        box-shadow: -3px 0 10px rgba(255, 0, 64, 0.5),
+          3px 0 10px rgba(0, 180, 255, 0.5);
+      }
+
+      .threedy-mode .toggle-switch {
+        border-left: 1px solid #ff0040;
+        border-right: 1px solid #00b4ff;
+        box-shadow: -1px 0 3px rgba(255, 0, 64, 0.3),
+          1px 0 3px rgba(0, 180, 255, 0.3);
+      }
+
+      .threedy-mode .toggle-switch.active {
+        background: linear-gradient(
+          90deg,
+          rgba(255, 0, 64, 0.3),
+          rgba(0, 180, 255, 0.3)
+        );
+      }
+
+      .threedy-mode .toggle-handle {
+        box-shadow: -1px 0 2px rgba(255, 0, 64, 0.5),
+          1px 0 2px rgba(0, 180, 255, 0.5);
+      }
+
+      .threedy-mode .video-call,
+      .threedy-mode .toggle-section,
+      .threedy-mode .leaderboard-header,
+      .threedy-mode .leaderboard-content {
+        border-left: 1px solid #ff0040;
+        border-right: 1px solid #00b4ff;
+        box-shadow: -2px 0 5px rgba(255, 0, 64, 0.2),
+          2px 0 5px rgba(0, 180, 255, 0.2);
+      }
+
+      .threedy-mode .status-light.active {
+        box-shadow: 0 0 5px 2px rgba(255, 255, 255, 0.7), -2px 0 8px #ff0040,
+          2px 0 8px #00b4ff;
+      }
+
+      /* Flicker and glitch effects for 3D glasses mode */
+      @keyframes threedy-flicker {
+        0%,
+        100% {
+          text-shadow: -2px 0 #ff0040, 2px 0 #00b4ff;
+        }
+        25% {
+          text-shadow: -2.5px 0 #ff0040, 1.8px 0 #00b4ff;
+        }
+        50% {
+          text-shadow: -1.8px 0 #ff0040, 2.5px 0 #00b4ff;
+        }
+        75% {
+          text-shadow: -2.2px 0 #ff0040, 2.2px 0 #00b4ff;
+        }
+      }
+
+      .threedy-mode .panel-title {
+        animation: threedy-flicker 4s infinite;
+      }
+
+      /* 3D toggle button */
+      .toggle-switch.threedy-toggle.active {
+        background: linear-gradient(90deg, #ff0040, #00b4ff);
+        box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+      }
+
+      .toggle-switch.threedy-toggle:hover {
+        box-shadow: 0 0 8px rgba(255, 255, 255, 0.7);
+      }
+
+      /* 80s mode with 3D enhancements - remove these to keep modes separate */
+      .eighties-active.threedy-mode .panel-title,
+      .eighties-active.threedy-mode .panel-subtitle,
+      .eighties-active.threedy-mode .toggle-label,
+      .eighties-active.threedy-mode .button-label,
+      .eighties-active.threedy-mode .button-prefix,
+      .eighties-active.threedy-mode .control-button,
+      .eighties-active.threedy-mode .status-label {
+        /* Override with blank styles to prevent inheritance */
+        text-shadow: none;
+        border-left: none;
+        border-right: none;
+        box-shadow: none;
+      }
+
+      /* Override specific 80s styles to ensure they take precedence */
+      .eighties-active .panel-title {
+        color: #d946ef;
+        text-shadow: 0 0 3px #d946ef, 0 0 6px #d946ef !important;
+        font-family: "Press Start 2P", cursive;
+        font-size: 0.8rem !important; /* Ensure override */
+        line-height: 1.5 !important; /* Ensure override */
+        animation: glitch 5s infinite;
+      }
+
+      .eighties-active .panel-subtitle {
+        color: #22d3ee;
+        text-shadow: 0 0 3px #22d3ee !important;
+        font-family: "Press Start 2P", cursive;
+        font-size: 0.6rem !important; /* Ensure override */
+        line-height: 1.4 !important; /* Ensure override */
+      }
+
+      .eighties-active .toggle-label,
+      .eighties-active .button-label,
+      .eighties-active .button-prefix,
+      .eighties-active .status-label {
+        font-family: "Press Start 2P", cursive;
+        font-size: 0.6rem !important; /* Ensure override */
+        line-height: 1.5 !important; /* Ensure override */
+        text-shadow: 0 0 3px #d946ef !important;
+      }
+
+      .eighties-active .control-button {
+        border: 1px solid #d946ef !important;
+        padding: 12px !important; /* Use same padding as base */
+        min-height: 62px !important; /* Ensure override for consistency */
+        box-shadow: 0 0 3px rgba(217, 70, 239, 0.3) !important;
+        background-image: linear-gradient(
+          to bottom,
+          #0f172a,
+          #2a1786
+        ) !important;
+        border-left: 1px solid #d946ef !important;
+        border-right: 1px solid #d946ef !important;
+        transition: all 0.3s;
+      }
+
+      .stereo-component {
+        background-color: #0c1821;
+        border-radius: 4px;
+        border: 1px solid #134e4a;
+        padding: 6px;
+        margin-bottom: 10px;
+        border-left: 1px solid #ff0040;
+        border-right: 1px solid #00b4ff;
+        box-shadow: -2px 0 5px rgba(255, 0, 64, 0.2),
+          2px 0 5px rgba(0, 180, 255, 0.2), inset 0 0 10px rgba(0, 0, 0, 0.7);
+      }
+
+      .stereo-display {
+        background-color: #041c2c;
+        height: 32px;
+        border-radius: 2px;
+        margin-bottom: 4px;
+        padding: 2px;
+        display: flex;
+        position: relative;
+        overflow: hidden;
+        border-left: 1px solid #ff0040;
+        border-right: 1px solid #00b4ff;
+      }
+
+      .stereo-visualizer {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        width: 100%;
+        height: 100%;
+        padding: 1px;
+      }
+
+      .stereo-bar {
+        width: 3px;
+        background-color: #22d3ee;
+        height: 4px;
+        border-radius: 1px;
+        transition: height 0.05s ease;
+        box-shadow: 0 0 3px rgba(6, 182, 212, 0.5);
+      }
+
+      .stereo-active .stereo-bar {
+        animation: stereo-bar-animation 0.5s infinite alternate;
+      }
+
+      .stereo-controls {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 4px;
+      }
+
+      .stereo-button {
+        font-family: monospace;
+        background-color: #1f2937;
+        border: none;
+        border-radius: 2px;
+        color: #67e8f9;
+        font-size: 0.65rem;
+        padding: 3px 2px;
+        cursor: pointer;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        transition: all 0.3s;
+        border-left: 1px solid #ff0040;
+        border-right: 1px solid #00b4ff;
+        box-shadow: -1px 0 2px rgba(255, 0, 64, 0.2),
+          1px 0 2px rgba(0, 180, 255, 0.2);
+      }
+
+      .stereo-button:hover {
+        background-color: #374151;
+      }
+
+      /* Enhance active power button style */
+      .stereo-button#stereo-power.active {
+        background-color: #06b6d4; /* Cyber blue-teal */
+        color: #f0fdf4; /* Light text for contrast */
+        box-shadow: 0 0 10px rgba(6, 182, 212, 0.7),
+          /* Teal glow */ inset 0 0 5px rgba(6, 182, 212, 0.5),
+          -1px 0 2px rgba(255, 0, 64, 0.2), 1px 0 2px rgba(0, 180, 255, 0.2); /* Keep 3D split */
+      }
+
+      .stereo-button i {
+        margin-right: 2px;
+        font-size: 0.75rem;
+      }
+
+      .stereo-info {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 0.65rem;
+        color: #22d3ee;
+        white-space: nowrap;
+        text-align: center;
+        text-shadow: -1px 0 #ff0040, 1px 0 #00b4ff;
+        z-index: 10;
+        pointer-events: none;
+        width: 100%;
+      }
+
+      .stereo-track-info {
+        animation: marquee 10s linear infinite;
+      }
+
+      @keyframes marquee {
+        0% {
+          transform: translateX(100%);
+        }
+        100% {
+          transform: translateX(-100%);
+        }
+      }
+
+      /* Enhance active stereo display */
+      .stereo-active .stereo-display {
+        border: 1px solid #22d3ee; /* Brighter border */
+        box-shadow: inset 0 0 8px rgba(6, 182, 212, 0.6),
+          0 0 5px rgba(6, 182, 212, 0.4); /* Inner and outer glow */
+      }
+
+      /* 80s mode stereo */
+      .eighties-active .stereo-component {
+        background-color: #0f172a;
+        border-color: #d946ef;
+        border-left: 1px solid #d946ef;
+        border-right: 1px solid #22d3ee;
+        box-shadow: -1px 0 3px rgba(217, 70, 239, 0.3),
+          1px 0 3px rgba(34, 211, 238, 0.3);
+      }
+
+      .eighties-active .stereo-display {
+        background-color: #020617;
+        border-left: 1px solid #d946ef;
+        border-right: 1px solid #22d3ee;
+      }
+
+      .eighties-active .stereo-bar {
+        background-color: #d946ef;
+        box-shadow: 0 0 2px rgba(217, 70, 239, 0.5);
+      }
+
+      .eighties-active .stereo-button {
+        font-family: "Press Start 2P", cursive;
+        font-size: 0.5rem;
+        background-color: #0f172a;
+        border-left: 1px solid #d946ef;
+        border-right: 1px solid #22d3ee;
+        color: #fff;
+        box-shadow: -1px 0 1px rgba(217, 70, 239, 0.3),
+          1px 0 1px rgba(34, 211, 238, 0.3);
+      }
+
+      .eighties-active .stereo-button:hover {
+        background-color: #2a1786;
+      }
+
+      .eighties-active .stereo-button.active {
+        background-color: #2a1786;
+        box-shadow: 0 0 3px rgba(217, 70, 239, 0.5),
+          -1px 0 1px rgba(217, 70, 239, 0.3), 1px 0 1px rgba(34, 211, 238, 0.3);
+      }
+
+      .eighties-active .stereo-info {
+        font-family: "Press Start 2P", cursive;
+        font-size: 0.5rem;
+        color: #22d3ee;
+        text-shadow: 0 0 3px #22d3ee;
+      }
+
+      /* MusicPlayer3 indicator style */
+      .mp3-indicator {
+        position: absolute;
+        top: 1px;
+        right: 2px;
+        font-size: 0.5rem;
+        color: #d946ef;
+        text-shadow: 0 0 2px #d946ef;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      }
+
+      .eighties-active .stereo-active .mp3-indicator {
+        opacity: 1;
+        animation: mp3-pulse 1.5s infinite alternate;
+      }
+
+      @keyframes mp3-pulse {
+        0% {
+          opacity: 0.5;
+        }
+        100% {
+          opacity: 1;
+        }
+      }
+
+      /* MusicPlayer3 special styles for 80s mode */
+      .eighties-active.mp3-mode .stereo-bar {
+        background-color: #d946ef;
+        box-shadow: 0 0 2px rgba(217, 70, 239, 0.5);
+      }
+
+      /* Special animation for MusicPlayer3 bars */
+      @keyframes mp3-bar-animation {
+        0% {
+          height: var(--min-height, 2px);
+        }
+        100% {
+          height: var(--max-height, 24px);
+        }
+      }
+
+      .eighties-active.mp3-mode .stereo-active .stereo-bar {
+        animation: stereo-bar-animation 0.5s infinite alternate;
+      }
+
+      /* Special MP3 track display */
+      .eighties-active.mp3-mode .stereo-track-info {
+        font-family: "Press Start 2P", cursive;
+        color: #22d3ee;
+        text-shadow: 0 0 3px #22d3ee;
+      }
+
+      /* Stereo bar animation */
+      @keyframes stereo-bar-animation {
+        0% {
+          height: var(--min-height, 2px);
+        }
+        100% {
+          height: var(--max-height, 24px);
+        }
+      }
+
+      .stereo-active .stereo-bar {
+        animation: stereo-bar-animation 0.5s infinite alternate;
+      }
+
+      .leaderboard-container {
+        margin-top: 10px;
+      }
+
+      .leaderboard-header {
+        width: 100%;
+        background-color: #1f2937;
+        border-radius: 4px;
+        border: 1px solid #134e4a;
+        padding: 4px;
+        font-family: monospace;
+        color: #22d3ee;
+        font-size: 0.75rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 4px;
+        cursor: pointer;
+        box-shadow: 0 0 5px rgba(6, 182, 212, 0.2);
+      }
+
+      /* 3D glasses mode styles for video call */
+      .threedy-mode .video-call {
+        border-left: 1px solid #ff0040;
+        border-right: 1px solid #00b4ff;
+        box-shadow: -2px 0 5px rgba(255, 0, 64, 0.2),
+          2px 0 5px rgba(0, 180, 255, 0.2);
+      }
+
+      .threedy-mode #station-display {
+        position: relative;
+        text-shadow: -1px 0 #ff0040, 1px 0 #00b4ff;
+      }
+
+      .threedy-mode .call-button {
+        border-left: 1px solid #ff0040;
+        border-right: 1px solid #00b4ff;
+        box-shadow: -1px 0 3px rgba(255, 0, 64, 0.2),
+          1px 0 3px rgba(0, 180, 255, 0.2);
+        text-shadow: -1px 0 #ff0040, 1px 0 #00b4ff;
+      }
+
+      .threedy-mode .call-button:hover {
+        box-shadow: -2px 0 5px rgba(255, 0, 64, 0.4),
+          2px 0 5px rgba(0, 180, 255, 0.4);
+      }
+
+      .threedy-mode .call-button.disconnect {
+        border-left: 1px solid #ff0040;
+        border-right: 1px solid #00b4ff;
+        text-shadow: -1px 0 #ff0040, 1px 0 #00b4ff;
+      }
+
+      .threedy-mode .station-select {
+        border-left: 1px solid #ff0040;
+        border-right: 1px solid #00b4ff;
+        box-shadow: -1px 0 3px rgba(255, 0, 64, 0.2),
+          1px 0 3px rgba(0, 180, 255, 0.2);
+        text-shadow: -1px 0 #ff0040, 1px 0 #00b4ff;
+      }
+
+      .threedy-mode .station-select:hover {
+        box-shadow: -2px 0 5px rgba(255, 0, 64, 0.4),
+          2px 0 5px rgba(0, 180, 255, 0.4);
+      }
+
+      .threedy-mode .video-status.active {
+        box-shadow: 0 0 5px #ef4444, -1px 0 5px #ff0040, 1px 0 5px #00b4ff;
+      }
+
+      /* 80s mode video call styles */
+      .eighties-active .video-call {
+        border: 1px solid #d946ef;
+        background-color: #020617;
+        box-shadow: 0 0 8px rgba(217, 70, 239, 0.3);
+      }
+
+      .eighties-active .video-header {
+        background-color: #0f172a;
+        border-bottom: 1px solid #d946ef;
+        font-family: "Press Start 2P", cursive;
+        font-size: 0.55rem;
+        color: #22d3ee;
+      }
+
+      .eighties-active #station-display {
+        color: #22d3ee;
+        text-shadow: 0 0 3px #22d3ee;
+        font-family: "Press Start 2P", cursive;
+        font-size: 0.55rem;
+      }
+
+      .eighties-active .video-status.active {
+        background-color: #ef4444;
+        box-shadow: 0 0 5px #ef4444;
+      }
+
+      .eighties-active .video-controls {
+        background-color: #0f172a;
+        border-top: 1px solid #d946ef;
+      }
+
+      .eighties-active .call-button {
+        font-family: "Press Start 2P", cursive;
+        font-size: 0.55rem;
+        background-color: #0f172a;
+        border: 1px solid #d946ef;
+        color: #22d3ee;
+        box-shadow: 0 0 3px rgba(217, 70, 239, 0.4);
+      }
+
+      .eighties-active .call-button.disconnect {
+        border-color: #ef4444;
+        color: #ef4444;
+        box-shadow: 0 0 3px rgba(239, 68, 68, 0.4);
+      }
+
+      .eighties-active .call-button:hover {
+        background-color: #2a1786;
+      }
+
+      .eighties-active .station-select {
+        font-family: "Press Start 2P", cursive;
+        font-size: 0.55rem;
+        background-color: #0f172a;
+        border: 1px solid #d946ef;
+        color: #22d3ee;
+        box-shadow: 0 0 3px rgba(217, 70, 239, 0.4);
+      }
+
+      .eighties-active .station-select:hover {
+        background-color: #2a1786;
+      }
+
+      /* 80s Wireframe Background */
+      .wireframe-background {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        z-index: -1 !important; /* Behind everything but still visible */
+        overflow: visible !important;
+        pointer-events: none !important;
+        opacity: 0;
+        transition: opacity 0.5s ease;
+        perspective: 1000px;
+        transform-style: preserve-3d;
+        background: linear-gradient(
+          0deg,
+          #ff008c 0%,
+          #d309e1 30%,
+          #9c1aff 60%,
+          #7700ff 100%
+        );
+      }
+
+      /* Make the wireframe elements more visible */
+      .wireframe-sun {
+        position: absolute;
+        width: 300px !important;
+        height: 300px !important;
+        border-radius: 50%;
+        background: linear-gradient(0deg, #ff0055 0%, #ff0066 100%);
+        box-shadow: 0 0 120px #ff0066 !important;
+        bottom: 35%;
+        left: 50%;
+        transform: translateX(-50%);
+        animation: sun-pulse 4s infinite ease-in-out;
+      }
+
+      .wireframe-grid {
+        position: absolute;
+        bottom: 0;
+        left: -100% !important;
+        right: -100% !important;
+        width: 300% !important;
+        height: 70% !important;
+        transform: rotateX(65deg);
+        transform-origin: bottom;
+        background-image: linear-gradient(
+            90deg,
+            rgba(255, 0, 255, 1) 1px,
+            transparent 1px
+          ),
+          linear-gradient(rgba(255, 0, 255, 1) 1px, transparent 1px) !important;
+        background-size: 60px 60px !important;
+        animation: grid-move 15s linear infinite;
+      }
+
+      @keyframes grid-move {
+        0% {
+          background-position: 0 0;
+        }
+        100% {
+          background-position: 60px 60px;
+        }
+      }
+
+      .wireframe-mountains {
+        position: absolute;
+        bottom: 20%;
+        left: 0;
+        right: 0;
+        height: 20%;
+        overflow: hidden;
+      }
+
+      .wireframe-mountains::before {
+        content: "";
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 100%;
+        background: transparent;
+        border-bottom: 2px solid #ff00ff;
+        clip-path: polygon(
+          0% 100%,
+          5% 70%,
+          10% 85%,
+          15% 65%,
+          25% 90%,
+          35% 70%,
+          45% 85%,
+          50% 60%,
+          55% 85%,
+          65% 75%,
+          75% 90%,
+          85% 70%,
+          95% 85%,
+          100% 100%
+        );
+      }
+
+      .wireframe-mountains::after {
+        content: "";
+        position: absolute;
+        bottom: 0;
+        left: -10%;
+        right: -10%;
+        height: 60%;
+        background: transparent;
+        border-bottom: 2px solid #00ffff;
+        clip-path: polygon(
+          0% 100%,
+          10% 80%,
+          20% 95%,
+          30% 75%,
+          40% 90%,
+          50% 70%,
+          60% 85%,
+          70% 75%,
+          80% 90%,
+          90% 80%,
+          100% 100%
+        );
+      }
+
+      /* Palm tree wireframe style */
+      .palm-tree {
+        position: absolute;
+        bottom: 20%;
+        width: 6px;
+        height: 120px;
+        background: transparent;
+        border-left: 2px solid #ff00ff;
+        z-index: 5;
+      }
+
+      /* Palm fronds - all constructed with borders for wireframe look */
+      .palm-tree::before,
+      .palm-tree::after {
+        background: transparent;
+      }
+
+      .palm-tree::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 60px;
+        height: 30px;
+        border-top: 2px solid #ff00ff;
+        border-radius: 50%;
+        transform: rotate(-30deg);
+      }
+
+      .palm-tree::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: -60px;
+        width: 60px;
+        height: 30px;
+        border-top: 2px solid #ff00ff;
+        border-radius: 50%;
+        transform: rotate(30deg);
+      }
+
+      .palm-tree-left {
+        left: 20%;
+        height: 150px;
+      }
+
+      .palm-tree-left::before {
+        height: 40px;
+        transform: rotate(-20deg);
+      }
+
+      .palm-tree-left::after {
+        height: 40px;
+        width: 70px;
+        transform: rotate(20deg);
+      }
+
+      .palm-tree-right {
+        right: 20%;
+        height: 130px;
+      }
+
+      /* Add more fronds to palm trees */
+      .palm-tree-left::before,
+      .palm-tree-right::before {
+        box-shadow: 0 10px 0 -2px transparent, 0 10px 0 0 #ff00ff,
+          0 20px 0 -2px transparent, 0 20px 0 0 #ff00ff;
+      }
+
+      .palm-tree-left::after,
+      .palm-tree-right::after {
+        box-shadow: 0 10px 0 -2px transparent, 0 10px 0 0 #ff00ff,
+          0 20px 0 -2px transparent, 0 20px 0 0 #ff00ff;
+      }
+
+      /* Add a wireframe car for that classic 80s driving scene look */
+      .wireframe-car {
+        position: absolute;
+        bottom: 20%;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 80px;
+        height: 30px;
+        background: transparent;
+        border: 2px solid #00ffff;
+        z-index: 5;
+        animation: car-drive 15s infinite linear;
+      }
+
+      .wireframe-car::before {
+        content: "";
+        position: absolute;
+        top: -15px;
+        left: 15px;
+        width: 50px;
+        height: 15px;
+        background: transparent;
+        border: 2px solid #00ffff;
+        border-bottom: none;
+      }
+
+      .wireframe-car::after {
+        content: "";
+        position: absolute;
+        bottom: -5px;
+        left: 15px;
+        width: 15px;
+        height: 5px;
+        background: transparent;
+        border: 2px solid #00ffff;
+        box-shadow: 30px 0 0 -2px transparent, 30px 0 0 0 #00ffff;
+      }
+
+      /* Fixed positioning for wireframe background */
+      .mission-control {
+        position: relative;
+        z-index: 10;
+      }
+
+      /* Car animation */
+      @keyframes car-drive {
+        0% {
+          transform: translateX(-200%);
+        }
+        100% {
+          transform: translateX(300%);
+        }
+      }
+
+      /* Override to make sure it shows */
+      body.eighties-mode .wireframe-background {
+        opacity: 0.7 !important;
+        display: block !important;
+      }
+
+      /* Wireframe Backdrop - positioned inside the mission control panel */
+      .wireframe-backdrop {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: -1;
+        overflow: hidden;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.5s ease;
+        perspective: 900px;
+        background: linear-gradient(
+          0deg,
+          #ff0066 0%,
+          #d309e1 20%,
+          #9c1aff 50%,
+          #7700ff 80%,
+          #000000 100%
+        );
+      }
+
+      /* Show the wireframe backdrop when 80s mode is active */
+      .mission-control.eighties-active .wireframe-backdrop {
+        opacity: 0.25;
+      }
+
+      /* Grid with better perspective */
+      .wireframe-grid {
+        position: absolute;
+        bottom: -20%;
+        left: -150%;
+        width: 400%;
+        height: 60%;
+        transform-origin: 50% 0%;
+        transform: rotateX(85deg);
+        background-size: 40px 40px;
+        background-image: linear-gradient(
+            rgba(217, 70, 239, 0.7) 0.5px,
+            transparent 0.5px
+          ),
+          linear-gradient(
+            90deg,
+            rgba(217, 70, 239, 0.7) 0.5px,
+            transparent 0.5px
+          );
+        animation: grid-move 20s linear infinite;
+      }
+
+      @keyframes grid-move {
+        0% {
+          background-position: 0px 0px;
+        }
+        100% {
+          background-position: 0px 40px;
+        }
+      }
+
+      /* Sun with pulse effect */
+      .wireframe-sun {
+        position: absolute;
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        background: linear-gradient(0deg, #ff0055 0%, #ff0066 100%);
+        bottom: 45%;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 1;
+        box-shadow: 0 0 100px 0px rgba(255, 0, 102, 0.5);
+        animation: sun-pulse 4s ease-in-out infinite;
+      }
+
+      @keyframes sun-pulse {
+        0%,
+        100% {
+          box-shadow: 0 0 100px 0px rgba(255, 0, 102, 0.5);
+          transform: translateX(-50%) scale(1);
+        }
+        50% {
+          box-shadow: 0 0 140px 20px rgba(255, 0, 102, 0.5);
+          transform: translateX(-50%) scale(1.05);
+        }
+      }
+
+      /* Mountains with glow effect */
+      .wireframe-mountains {
+        position: absolute;
+        bottom: 25%;
+        left: 0;
+        right: 0;
+        height: 25%;
+        z-index: 2;
+      }
+
+      .wireframe-mountains::before {
+        content: "";
+        position: absolute;
+        bottom: 0;
+        left: -5%;
+        right: -5%;
+        height: 100%;
+        background: transparent;
+        border-bottom: 1.5px solid rgba(217, 70, 239, 0.8);
+        box-shadow: 0 0 5px rgba(217, 70, 239, 0.5);
+        clip-path: polygon(
+          0% 100%,
+          5% 85%,
+          10% 70%,
+          15% 80%,
+          20% 60%,
+          25% 90%,
+          30% 70%,
+          35% 75%,
+          40% 65%,
+          45% 80%,
+          50% 50%,
+          55% 80%,
+          60% 75%,
+          65% 60%,
+          70% 90%,
+          75% 65%,
+          80% 75%,
+          85% 60%,
+          90% 85%,
+          95% 70%,
+          100% 100%
+        );
+      }
+
+      .wireframe-mountains::after {
+        content: "";
+        position: absolute;
+        bottom: 0;
+        left: -5%;
+        right: -5%;
+        height: 70%;
+        background: transparent;
+        border-bottom: 1.5px solid rgba(34, 211, 238, 0.8);
+        box-shadow: 0 0 5px rgba(34, 211, 238, 0.5);
+        clip-path: polygon(
+          0% 100%,
+          8% 85%,
+          15% 95%,
+          22% 75%,
+          30% 85%,
+          38% 60%,
+          45% 75%,
+          50% 90%,
+          60% 75%,
+          70% 80%,
+          75% 65%,
+          82% 80%,
+          90% 70%,
+          95% 85%,
+          100% 100%
+        );
+      }
+
+      /* Stars in the sky */
+      @keyframes star-twinkle {
+        0%,
+        100% {
+          opacity: 0.2;
+        }
+        50% {
+          opacity: 0.8;
+        }
+      }
+
+      .wireframe-stars {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 60%;
+        opacity: 0.7;
+      }
+
+      .wireframe-stars::before,
+      .wireframe-stars::after {
+        content: "";
+        position: absolute;
+        background-image: radial-gradient(
+          1px 1px at 50% 50%,
+          #fff,
+          rgba(0, 0, 0, 0)
+        );
+        background-size: 100px 100px;
+        background-repeat: repeat;
+        width: 100%;
+        height: 100%;
+      }
+
+      .wireframe-stars::before {
+        background-position: 0 0;
+        opacity: 0.5;
+        animation: star-twinkle 3s ease-in-out infinite;
+      }
+
+      .wireframe-stars::after {
+        background-position: 50px 50px;
+        opacity: 0.3;
+        animation: star-twinkle 3s ease-in-out infinite 1.5s;
+      }
+
+      /* Hide SitePal's default loading spinner */
+      #sitepal-container .waiting_logo {
+        display: none !important;
+      }
+
+      /* Styles for the Offline Display */
+      #offline-display {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #111827; /* Equivalent to bg-gray-900 */
+        color: #4b5563; /* Equivalent to text-gray-600 */
+        font-size: 0.875rem; /* text-sm */
+        font-family: monospace;
+        z-index: 5; /* Below video during transition */
+      }
+
+      #offline-display .crosshair-h,
+      #offline-display .crosshair-v {
+        position: absolute;
+        background-color: #374151; /* Equivalent to bg-gray-800 */
+      }
+
+      #offline-display .crosshair-h {
+        width: 100%;
+        height: 1px;
+        top: 50%;
+        left: 0;
+      }
+
+      #offline-display .crosshair-v {
+        height: 100%;
+        width: 1px;
+        left: 50%;
+        top: 0;
+      }
+
+      #offline-display .scanlines-overlay {
+        position: absolute;
+        inset: 0;
+        background-image: repeating-linear-gradient(
+          transparent,
+          transparent 1px,
+          rgba(6, 182, 212, 0.02) 1px,
+          rgba(6, 182, 212, 0.02) 2px
+        );
+        background-size: 100% 2px;
+        pointer-events: none;
+      }
+      /* End Offline Display Styles */
+
+      /* Connect Button Pulse Animation */
+      @keyframes connect-pulse {
+        0% {
+          box-shadow: 0 0 5px rgba(6, 182, 212, 0.3),
+            0 0 8px rgba(34, 211, 238, 0.2);
+          border-color: #134e4a;
+        }
+        50% {
+          box-shadow: 0 0 10px rgba(6, 182, 212, 0.6),
+            0 0 15px rgba(34, 211, 238, 0.4);
+          border-color: #22d3ee;
+        }
+        100% {
+          box-shadow: 0 0 5px rgba(6, 182, 212, 0.3),
+            0 0 8px rgba(34, 211, 238, 0.2);
+          border-color: #134e4a;
+        }
+      }
+
+      .initial-pulse {
+        animation: connect-pulse 1.5s infinite ease-in-out;
+      }
+      /* End Connect Button Pulse */
+
+      /* Remove unnecessary music visualizer and equalizer code */
+      .music-equalizer,
+      .music-bar,
+      .music-active .music-bar:nth-child(1),
+      .music-active .music-bar:nth-child(2),
+      .music-active .music-bar:nth-child(3),
+      .music-active .music-bar:nth-child(4),
+      .music-active .music-bar:nth-child(5) {
+        display: none;
+      }
+
+      /* Remove unused animation keyframes by setting to no-op */
+      @keyframes equalizer {
+        0%,
+        100% {
+          height: 4px;
+        }
+      }
+
+      @keyframes color-drift {
+        0%,
+        100% {
+          filter: none;
+        }
+      }
+
+      @keyframes music-bounce {
+        0%,
+        100% {
+          transform: none;
+        }
+      }
+
+      @keyframes visualize {
+        0%,
+        100% {
+          transform: none;
+        }
+      }
+
+      /* Remove unused typing effect styles */
+      .typing-container,
+      .typing-text {
+        display: none;
+      }
+    </style>
+    <script src="js/sitepal.js"></script>
+  </head>
+  <body>
+    <div class="scan-lines" id="scan-lines"></div>
+    <div class="color-shift color-shift-red" id="color-shift-red"></div>
+    <div class="color-shift color-shift-blue" id="color-shift-blue"></div>
+    <div class="crt-effect" id="crt-effect"></div>
+    <div class="mission-control" id="mission-control">
+      <div class="wireframe-backdrop" id="wireframe-backdrop">
+        <div class="wireframe-stars"></div>
+        <div class="wireframe-sun"></div>
+        <div class="wireframe-grid"></div>
+        <div class="wireframe-mountains"></div>
+      </div>
+      <div class="threedy-shadow-red" id="threedy-shadow-red"></div>
+      <div class="threedy-shadow-blue" id="threedy-shadow-blue"></div>
+      <div class="panel-header">
+        <h1 class="panel-title">INFIN8O-LUNAR</h1>
+        <div class="panel-subtitle">MISSION CONTROL v2.0.80</div>
+      </div>
+
+      <!-- Video Call Section -->
+      <div class="video-call">
+        <div class="video-header">
+          <span id="station-display">COMM:/lunar_base_alpha</span>
+          <div id="call-status" class="video-status"></div>
+        </div>
+
+        <div class="video-display">
+          <div id="video-feed" class="video-feed">
+            <video
+              id="deadAir"
+              loop
+              muted
+              playsinline
+              webkit-playsinline
+              style="width: 100%; height: 100%; object-fit: cover"
+            >
+              <source src="/deadAir.mp4" type="video/mp4" />
+            </video>
+            <!-- Add Offline Display -->
+            <div id="offline-display">
+              <span>SYS//OFFLINE</span>
+              <div class="crosshair-h"></div>
+              <div class="crosshair-v"></div>
+              <div class="scanlines-overlay"></div>
+            </div>
+            <div
+              id="sitepal-container"
+              style="
+                display: none;
+                width: 100%;
+                height: 100%;
+                -webkit-overflow-scrolling: touch;
+              "
+            >
+              <!-- SitePal container - code moved to sitepal.js -->
+            </div>
+          </div>
+          <div class="video-overlay"></div>
+          <div id="self-view" class="self-view" style="display: none"></div>
+          <div id="live-indicator" class="live-indicator" style="display: none">
+            LIVE//REC
+          </div>
+          <div class="video-gradient"></div>
+        </div>
+
+        <div class="video-controls">
+          <button id="call-button" class="call-button">CONNECT</button>
+          <select id="station-select" class="station-select">
+            <option>LUNAR BASE ALPHA</option>
+            <option>MARS OUTPOST</option>
+            <option>ORBITAL STATION</option>
+            <option>EARTH HQ</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Button Grid -->
+      <div class="button-grid">
+        <button class="control-button" data-action="launch">
+          <span class="button-prefix">//SYS</span>
+          <span class="button-label">LAUNCH</span>
+          <div class="button-indicator"></div>
+        </button>
+
+        <button class="control-button" data-action="orbit">
+          <span class="button-prefix">//NAV</span>
+          <span class="button-label">ORBIT</span>
+          <div class="button-indicator"></div>
+        </button>
+
+        <button class="control-button" data-action="signal">
+          <span class="button-prefix">//COM</span>
+          <span class="button-label">SIGNAL</span>
+          <div class="button-indicator"></div>
+        </button>
+
+        <button class="control-button" data-action="return">
+          <span class="button-prefix">//RTN</span>
+          <span class="button-label">RETURN</span>
+          <div class="button-indicator"></div>
+        </button>
+      </div>
+
+      <!-- Toggle Switches -->
+      <div class="toggle-section">
+        <div class="toggle-row">
+          <span class="toggle-label">80s//MODE</span>
+          <div id="eighties-toggle" class="toggle-switch eighties">
+            <div class="toggle-handle"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stereo Component for Music Player -->
+      <div class="stereo-component" id="stereo-component">
+        <div class="stereo-display">
+          <div class="stereo-visualizer" id="stereo-visualizer">
+            <div class="stereo-bar"></div>
+            <div class="stereo-bar"></div>
+            <div class="stereo-bar"></div>
+            <div class="stereo-bar"></div>
+            <div class="stereo-bar"></div>
+            <div class="stereo-bar"></div>
+            <div class="stereo-bar"></div>
+            <div class="stereo-bar"></div>
+            <div class="stereo-bar"></div>
+            <div class="stereo-bar"></div>
+            <div class="stereo-bar"></div>
+            <div class="stereo-bar"></div>
+            <div class="stereo-bar"></div>
+            <div class="stereo-bar"></div>
+          </div>
+          <div class="stereo-info" id="stereo-info">
+            <div class="stereo-track-info">
+              NO SIGNAL // PRESS POWER TO INITIALIZE
+            </div>
+          </div>
+          <div class="mp3-indicator" id="mp3-indicator">MP3</div>
+        </div>
+        <div class="stereo-controls">
+          <!-- Reordered Buttons Again -->
+          <button class="stereo-button" id="stereo-power">
+            <i>⏻</i> POWER
+          </button>
+          <button class="stereo-button" id="stereo-prev" disabled>
+            <i>⏮</i> PREV
+          </button>
+          <button class="stereo-button" id="stereo-play-pause">
+            <i class="fas fa-play"></i> PLAY
+          </button>
+          <button class="stereo-button" id="stereo-next" disabled>
+            <i>⏭</i> NEXT
+          </button>
+        </div>
+      </div>
+
+      <!-- Collapsible Leaderboard -->
+      <div class="leaderboard-container">
+        <button id="leaderboard-toggle" class="leaderboard-header">
+          <span>L34D3RBOARD//v1.2</span>
+          <span id="leaderboard-arrow">▼</span>
+        </button>
+
+        <div
+          id="leaderboard-content"
+          class="leaderboard-content"
+          style="display: none"
+        >
+          <div class="leaderboard-header-row">
+            <span>USER_ID</span>
+            <span>SCR_PTS</span>
+          </div>
+
+          <div class="leaderboard-scrollable">
+            <div class="leaderboard-entry top">
+              <span>Armstrong</span>
+              <span>1969</span>
+            </div>
+            <div class="leaderboard-entry">
+              <span>Aldrin</span>
+              <span>1890</span>
+            </div>
+            <div class="leaderboard-entry">
+              <span>Collins</span>
+              <span>1850</span>
+            </div>
+            <div class="leaderboard-entry">
+              <span>Lovell</span>
+              <span>1800</span>
+            </div>
+            <div class="leaderboard-entry">
+              <span>Cernan</span>
+              <span>1750</span>
+            </div>
+          </div>
+
+          <div class="leaderboard-footer">
+            <div class="pulse-dot"></div>
+            <span>LIVE_DATA//STREAM</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="spacer"></div>
+
+      <!-- Status Bar -->
+      <div class="status-bar">
+        <div class="status-indicator">
+          <div id="system-status" class="status-light active"></div>
+          <span class="status-label">STATUS//OK</span>
+          <span
+            class="blinking-cursor"
+            id="blinking-cursor"
+            style="display: none"
+          ></span>
+        </div>
+        <div class="version-info">CYBERCORE_77</div>
+      </div>
+    </div>
+
+    <script>
+      // DOM elements
+      const callButton = document.getElementById("call-button");
+      const callStatus = document.getElementById("call-status");
+      const videoFeed = document.getElementById("video-feed");
+      const selfView = document.getElementById("self-view");
+      const liveIndicator = document.getElementById("live-indicator");
+      const stationSelect = document.getElementById("station-select");
+      const stationDisplay = document.getElementById("station-display");
+      const eightiesToggle = document.getElementById("eighties-toggle");
+      const stereoPower = document.getElementById("stereo-power");
+      const stereoNext = document.getElementById("stereo-next");
+      const stereoPrev = document.getElementById("stereo-prev");
+      const stereoPlayPause = document.getElementById("stereo-play-pause");
+      const stereoComponent = document.getElementById("stereo-component");
+      const stereoInfo = document.getElementById("stereo-info");
+      const systemStatus = document.getElementById("system-status");
+      const leaderboardToggle = document.getElementById("leaderboard-toggle");
+      const leaderboardContent = document.getElementById("leaderboard-content");
+      const leaderboardArrow = document.getElementById("leaderboard-arrow");
+      const controlButtons = document.querySelectorAll(".control-button");
+
+      // --- Firebase Config & Init ---
+      let storage = null;
+      let firebaseInitialized = false;
+
+      // Initialize Firebase
+      async function initFirebase() {
+        if (!firebaseInitialized) {
+          try {
+            console.log("Initializing Firebase...");
+
+            // Firebase config - replace with your own
+            const firebaseConfig = {
+              apiKey: "AIzaSyBy9ONGOv_1XYZwKLPCKXn-Rm8NJrVSFEk",
+              authDomain: "coconut-test-5c7f6.firebaseapp.com",
+              projectId: "coconut-test-5c7f6",
+              storageBucket: "coconut-test-5c7f6.appspot.com",
+              messagingSenderId: "243264192390",
+              appId: "1:243264192390:web:8c00fa17b70e98e4e8fb17",
+            };
+
+            // Load Firebase scripts dynamically
+            await Promise.all([
+              loadScript(
+                "https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"
+              ),
+              loadScript(
+                "https://www.gstatic.com/firebasejs/9.17.1/firebase-storage-compat.js"
+              ),
+            ]);
+
+            // Initialize Firebase
+            if (!firebase.apps.length) {
+              firebase.initializeApp(firebaseConfig);
+            }
+
+            // Get storage reference
+            storage = firebase.storage();
+            firebaseInitialized = true;
+            console.log("Firebase initialized successfully");
+
+            // Load initial track if stereo is active
+            if (isMusicActive) {
+              loadTrack(currentTrackIdx, musicIsPlaying);
+            }
+          } catch (e) {
+            console.error("Firebase initialization error:", e);
+            storage = null; // Ensure storage is null on error
+            firebaseInitialized = false;
+          }
+        }
+      }
+
+      // Helper function to load scripts
+      function loadScript(src) {
+        return new Promise((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = src;
+          script.onload = resolve;
+          script.onerror = reject;
+          document.head.appendChild(script);
+        });
+      }
+
+      // Initialize Firebase when the document is ready
+      document.addEventListener("DOMContentLoaded", initFirebase);
+      // --- End Firebase Config & Init ---
+
+      // State
+      let isCallActive = false;
+      let isEightiesMode = false;
+      // --- Music Player State (Moved from MusicPlayer3) ---
+      let isMusicActive = false; // Tracks if the stereo is powered on
+      let musicIsPlaying = false; // Tracks actual playback state
+      let currentTrackIdx = 0;
+      let audioPlayer = new Audio(); // Create audio element
+      audioPlayer.volume = 0.15; // Set initial volume
+      let visualizerInterval = null;
+
+      // Track List (Using local paths from MusicPlayer3 fallbacks)
+      const eightiesTrackNames = [
+        // Renamed for clarity
+        "Like A Prayer - Madonna",
+        "Intergalactic - Beastie Boys",
+        "For Those About To Rock - AC/DC",
+        "Good Life - Inner City",
+        "99 Luftballoons - Nena",
+        "Sweet Dreams - Eurythmics",
+      ];
+      const eightiesTrackUrls = [
+        // Renamed for clarity (Local Fallbacks)
+        "/like-a-prayer-madonna.m4a", // Found in public directory
+        "/Intergalactic Beastie Boys.m4a",
+        "/for-those-about-to-rock-ac-d.m4a",
+        "/good-life-inner-city.m4a",
+        "/99 Luftballoons Nena.m4a",
+        "/sweet-dreams-eurythmics.m4a", // May need to be checked
+      ];
+      const eightiesFirebasePaths = [
+        // Renamed for clarity
+        "audio/320k/like-a-prayer-madonna.m4a",
+        "audio/320k/intergalactic-beastie-boys.m4a",
+        "audio/320k/for-those-about-to-rock-ac-dc.m4a",
+        "audio/320k/good-life-inner-city.m4a",
+        "audio/320k/99-luftballoons-nena.m4a",
+        "audio/320k/sweet-dreams-eurythmics.m4a",
+      ];
+
+      // --- Single Track for Modern Mode ---
+      const modernTrackName = "Rocket Man - Steven Drozd";
+      const modernTrackUrl = "/Rocket Man - Steven Drozd.m4a"; // Update local fallback path to match actual file name
+      const modernFirebasePath = "audio/320k/rocket-man---steven-drozd.m4a"; // Firebase Path
+      // --- End Modern Track ---
+
+      // --- End Music Player State ---
+
+      let isLeaderboardExpanded = false;
+
+      // Add iOS detection from sitepal.js - will be defined there
+      /* Removing these as they're now defined in sitepal.js
+      const isIOS =
+        /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+      const browserIsSafari = /^((?!chrome|android).)*safari/i.test(
+        navigator.userAgent
+      );
+      */
+
+      // Log device detection
+      console.log("Device detection (from HTML):", {
+        isIOS: window.isIOS, // Reference from sitepal.js
+        browserIsSafari: window.browserIsSafari, // Reference from sitepal.js
+        userAgent: navigator.userAgent,
+      });
+
+      // Handle initial video playback for iOS
+      document.addEventListener("DOMContentLoaded", () => {
+        const deadAir = document.getElementById("deadAir");
+        const offlineDisplay = document.getElementById("offline-display");
+        const callButton = document.getElementById("call-button"); // Get call button
+
+        offlineDisplay.style.display = "flex"; // Show offline state
+        deadAir.style.display = "none"; // Hide video initially
+        deadAir.pause(); // Ensure video is paused initially
+
+        // Add initial pulse to CONNECT button
+        if (callButton) {
+          // Check if button exists
+          callButton.classList.add("initial-pulse");
+        }
+
+        // Special handling for iOS
+        if (window.isIOS || window.browserIsSafari) {
+          console.log("iOS/Safari detected - applying special handling");
+
+          // Add a click handler to the whole document to initialize audio on iOS
+          document.addEventListener(
+            "click",
+            function iosAudioInit() {
+              console.log("iOS document click - initializing audio context");
+              deadAir
+                .play()
+                .catch((e) => console.log("iOS initial play rejected:", e));
+
+              // Try to prime the audio early
+              try {
+                if (typeof saySilent === "function") {
+                  saySilent(0);
+                }
+              } catch (e) {
+                console.log("Early audio priming failed:", e);
+              }
+
+              // Remove the listener after first click
+              document.removeEventListener("click", iosAudioInit);
+            },
+            { once: true }
+          );
+
+          // For iOS we need to specially handle the call button click
+          callButton.addEventListener(
+            "click",
+            function (e) {
+              console.log("Call button clicked on iOS");
+
+              // If we're connecting, make sure we always show the UN-MUTE button
+              if (!isCallActive) {
+                // Set a flag to force the UN-MUTE state on iOS
+                window.forceUnmuteOnIOS = true;
+              }
+            },
+            { capture: true }
+          );
+        }
+
+        // Removed initial play attempt here, now paused by default
+        // deadAir
+        //   .play()
+        //   .catch((e) => console.log("Initial auto-play prevented:", e));
+      });
+
+      // --- Audio Priming for Mobile ---
+      let hasPrimed = false;
+      function primeAudio() {
+        if (!hasPrimed) {
+          try {
+            console.log("Attempting audio priming for mobile devices...");
+
+            // For iOS, we need to ensure the SitePal script is properly loaded
+            if (window.isIOS || window.browserIsSafari) {
+              console.log("iOS detected, ensuring SitePal is initialized");
+
+              // Create a silent audio element and play it first (iOS trick)
+              const silentAudio = new Audio();
+              silentAudio.src =
+                "data:audio/mp3;base64,//uQxAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAACcQCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA//////////////////////////////////////////////////////////////////8AAAAeTEFNRTMuOTlyBJwAAAAAAAAAADUgJAaUQQABmgAAAnEIbBYzAAAAAAD/80DEAAAAA0gAAAAATEFNRTMuOTkuNQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//sQxAADwAABpAAAACAAADSAAAAETEFNRTMuOTkuNQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+              silentAudio
+                .play()
+                .catch((e) => console.log("Silent audio play failed:", e));
+
+              // Try using SitePal's saySilent after a small delay
+              setTimeout(() => {
+                try {
+                  if (typeof window.saySilent === "function") {
+                    window.saySilent(0); // Play silent audio through SitePal
+                    console.log("SitePal saySilent(0) used for audio priming.");
+                  } else {
+                    console.log(
+                      "saySilent not available yet, will try initializing SitePal..."
+                    );
+
+                    // Check if we need to initialize SitePal
+                    const sitepalContainer =
+                      document.getElementById("sitepal-container");
+                    if (
+                      sitepalContainer &&
+                      sitepalContainer.dataset.initialized !== "true"
+                    ) {
+                      console.log(
+                        "Initializing SitePal for iOS during priming"
+                      );
+                      initSitePal();
+                      sitepalContainer.dataset.initialized = "true";
+                    }
+                  }
+                } catch (e) {
+                  console.error("Error during SitePal audio priming:", e);
+                }
+              }, 300);
+            } else {
+              // Non-iOS devices
+              if (typeof window.saySilent === "function") {
+                window.saySilent(0); // Play silent audio
+                console.log("SitePal saySilent(0) used for audio priming.");
+              } else {
+                console.log("saySilent not available, skipping audio priming.");
+              }
+            }
+
+            hasPrimed = true;
+          } catch (e) {
+            console.error("Error during audio priming:", e);
+          }
+        }
+      }
+      // Attach priming to first user interaction
+      document.addEventListener("click", primeAudio, { once: true });
+      document.addEventListener("touchstart", primeAudio, { once: true });
+      // --- End Audio Priming ---
+
+      // Toggle call - Refactored Logic with special iOS handling
+      callButton.addEventListener("click", () => {
+        if (!isCallActive) {
+          // ---- Connect Flow ----
+          console.log("Connecting call and initializing SitePal...");
+          isCallActive = true;
+
+          // --- Transmission Effect Start ---
+          const deadAir = document.getElementById("deadAir");
+          const sitepalContainer = document.getElementById("sitepal-container");
+          const offlineDisplay = document.getElementById("offline-display"); // Get offline display
+          const selfView = document.getElementById("self-view");
+          const liveIndicator = document.getElementById("live-indicator");
+          const stationSelect = document.getElementById("station-select");
+          const transmissionEffectDuration = 3500; // ms - Shortened duration
+          const fadeOutDuration = 500; // ms (should match CSS transition)
+
+          // Hide offline display
+          offlineDisplay.style.display = "none";
+
+          // Make video visible and opaque, then play
+          deadAir.style.display = "block";
+          deadAir.style.opacity = 1;
+          deadAir.muted = true;
+          deadAir.loop = true;
+          deadAir
+            .play()
+            .catch((e) => console.error("Transmission video play failed:", e));
+
+          // Show SitePal container behind the video
+          sitepalContainer.style.display = "block";
+          // --- End Transmission Effect Start ---
+
+          // Activate call status indicator
+          callStatus.classList.add("active");
+
+          // REMOVED: deadAir.style.display = 'none'; deadAir.pause();
+
+          // Clean up any existing instance
+          if (sitepalContainer.dataset.initialized === "true") {
+            console.log("Cleaning up previous SitePal instance...");
+            cleanupSitePal();
+          }
+
+          // Initialize SitePal
+          initSitePal();
+          sitepalContainer.dataset.initialized = "true";
+
+          // iOS-specific fallback: If SitePal doesn't initialize within 5 seconds, try alternative method
+          if (window.isIOS || window.browserIsSafari) {
+            console.log("Setting up iOS SitePal fallback timer...");
+            window.iosSitePalFallbackTimer = setTimeout(function () {
+              console.log(
+                "iOS SitePal fallback triggered - checking initialization"
+              );
+              if (!window.sitepalInitialized) {
+                console.log(
+                  "SitePal not initialized after timeout, trying direct approach"
+                );
+
+                // Simple direct approach - just reload the container
+                const container = document.getElementById("sitepal-container");
+                if (container) {
+                  container.innerHTML =
+                    '<div id="vhss_aiPlayer" style="width:100%;height:100%;"></div>';
+
+                  // Load script directly
+                  const scriptEl = document.createElement("script");
+                  scriptEl.src =
+                    (location.protocol === "https:" ? "https:" : "http:") +
+                    "//vhss-d.oddcast.com/vhost_embed_functions_v4.php?acc=9157686&js=1";
+
+                  scriptEl.onload = function () {
+                    try {
+                      if (typeof AI_vhost_embed === "function") {
+                        AI_vhost_embed(800, 600, 9157686, 244, 1, 1);
+                        window.sitepalInitialized = true;
+                      }
+                    } catch (e) {
+                      console.error("Error in direct embed:", e);
+                    }
+                  };
+
+                  document.head.appendChild(scriptEl);
+                }
+              }
+            }, 5000);
+          }
+
+          // Update UI
+          if (selfView) selfView.style.display = "block";
+          if (typeof updateSelfView === "function") {
+            updateSelfView();
+          } else {
+            // Fallback for updateSelfView if not defined
+            if (selfView) {
+              selfView.innerHTML = '<div class="emoji-placeholder">😎</div>';
+            }
+          }
+          if (liveIndicator) liveIndicator.style.display = "block";
+          if (stationSelect) stationSelect.disabled = true;
+
+          // Go directly to DISCONNECT state
+          callButton.textContent = "DISCONNECT";
+          callButton.classList.add("disconnect");
+          console.log("Call connected, button set to DISCONNECT");
+
+          // Try to activate microphone after a short delay
+          setTimeout(activateMicrophone, 2000);
+
+          // --- Transmission Effect End Timeout --- // REMOVED - Now handled by vh_sceneLoaded
+          /*
+          setTimeout(() => {
+            console.log("Fading out transmission video...");
+            deadAir.style.opacity = 0; // Start fade out
+
+            setTimeout(() => {
+              console.log("Pausing transmission video.");
+              deadAir.pause();
+              // Optional: Hide video completely if opacity isn't enough
+              // deadAir.style.display = 'none';
+            }, fadeOutDuration); // Pause after fade completes
+          }, transmissionEffectDuration);
+          */
+          // --- End Transmission Effect End Timeout ---
+
+          // Add initial pulse to CONNECT button
+          callButton.classList.add("initial-pulse");
+
+          // Special handling for iOS
+          if (window.isIOS || window.browserIsSafari) {
+            console.log("iOS/Safari detected - applying special handling");
+
+            // Add a click handler to the whole document to initialize audio on iOS
+            document.addEventListener(
+              "click",
+              function iosAudioInit() {
+                console.log("iOS document click - initializing audio context");
+                deadAir
+                  .play()
+                  .catch((e) => console.log("iOS initial play rejected:", e));
+
+                // Try to prime the audio early
+                try {
+                  if (typeof saySilent === "function") {
+                    saySilent(0);
+                  }
+                } catch (e) {
+                  console.log("Early audio priming failed:", e);
+                }
+
+                // Remove the listener after first click
+                document.removeEventListener("click", iosAudioInit);
+              },
+              { once: true }
+            );
+
+            // For iOS we need to specially handle the call button click
+            callButton.addEventListener(
+              "click",
+              function (e) {
+                console.log("Call button clicked on iOS");
+
+                // If we're connecting, make sure we always show the UN-MUTE button
+                if (!isCallActive) {
+                  // Set a flag to force the UN-MUTE state on iOS
+                  window.forceUnmuteOnIOS = true;
+                }
+              },
+              { capture: true }
+            );
+          }
+        } else {
+          // ---- Disconnect Flow ----
+          console.log("Disconnecting call with static effect...");
+          isCallActive = false;
+
+          // 1. Initiate SitePal cleanup immediately - with direct call
+          const sitepalContainer = document.getElementById("sitepal-container");
+          if (sitepalContainer) {
+            console.log("Calling cleanupSitePal directly...");
+            // Direct cleanup
+            try {
+              // Stop any ongoing processes
+              if (typeof AI_vhost_api === "function") {
+                AI_vhost_api("stopSpeaking");
+                AI_vhost_api("stopListening");
+                AI_vhost_api("unloadScene");
+              }
+
+              // Also call stop function
+              if (typeof AI_vhost_stop === "function") {
+                AI_vhost_stop();
+              }
+
+              // Call destroy
+              if (typeof AI_vhost_destroy === "function") {
+                AI_vhost_destroy();
+              }
+
+              // Clear container
+              sitepalContainer.innerHTML = "";
+              sitepalContainer.style.display = "none";
+              window.sitepalInitialized = false;
+              sitepalContainer.dataset.initialized = "false";
+            } catch (e) {
+              console.error("Error in direct cleanup:", e);
+            }
+
+            // Also try the regular cleanup function
+            if (typeof cleanupSitePal === "function") {
+              cleanupSitePal();
+            }
+          }
+
+          // Reset UI elements
+          callButton.textContent = "CONNECT";
+          callButton.classList.remove("disconnect");
+
+          // 2. Start brief static effect
+          const deadAir = document.getElementById("deadAir");
+          const offlineDisplay = document.getElementById("offline-display");
+          const disconnectStaticDuration = 1500; // ms
+
+          if (deadAir) {
+            deadAir.style.display = "block";
+            deadAir.style.opacity = 1; // Ensure it's visible
+            deadAir.loop = false; // Don't loop for disconnect effect
+            deadAir.currentTime = 0; // Rewind to start
+            deadAir
+              .play()
+              .catch((e) => console.error("Disconnect static play failed:", e));
+          }
+
+          // 3. Set timeout to switch to offline display
+          setTimeout(() => {
+            console.log(
+              "Disconnect static effect finished. Switching to OFFLINE."
+            );
+            if (deadAir) {
+              deadAir.pause();
+              deadAir.style.display = "none"; // Hide video
+            }
+            if (offlineDisplay) {
+              offlineDisplay.style.display = "flex"; // Show offline display
+            }
+            // Update the rest of the UI *after* the effect
+            updateCallUI();
+          }, disconnectStaticDuration);
+
+          // REMOVED immediate call to updateCallUI() and manual video reset from here
+        }
+      });
+
+      // Update station
+      stationSelect.addEventListener("change", () => {
+        updateStationDisplay();
+      });
+
+      // Toggle 80s mode
+      eightiesToggle.addEventListener("click", () => {
+        const crtEffect = document.getElementById("crt-effect");
+
+        // CRT power on/off effect with less opacity
+        crtEffect.style.opacity = "0.4"; // Reduced opacity
+        crtEffect.classList.add("crt-on");
+
+        // Toggle the isEightiesMode state
+        isEightiesMode = !isEightiesMode;
+
+        // Update UI directly
+        updateEightiesUI(isEightiesMode);
+
+        // Play toggle sound
+        try {
+          const audioContext = new (window.AudioContext ||
+            window.webkitAudioContext)();
+          const oscillator = audioContext.createOscillator();
+          const gainNode = audioContext.createGain();
+
+          oscillator.type = "sine";
+          oscillator.frequency.setValueAtTime(
+            isEightiesMode ? 800 : 400,
+            audioContext.currentTime
+          );
+          oscillator.frequency.exponentialRampToValueAtTime(
+            isEightiesMode ? 400 : 800,
+            audioContext.currentTime + 0.1
+          );
+
+          gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(
+            0.01,
+            audioContext.currentTime + 0.1
+          );
+
+          oscillator.connect(gainNode);
+          gainNode.connect(audioContext.destination);
+
+          oscillator.start();
+          oscillator.stop(audioContext.currentTime + 0.1);
+        } catch (e) {
+          console.log("Audio context not supported");
+        }
+
+        // Notify parent of the mode change
+        window.parent.postMessage({ type: "EIGHTIES_MODE_CHANGE" }, "*");
+
+        setTimeout(() => {
+          crtEffect.style.opacity = "0";
+          crtEffect.classList.remove("crt-on");
+        }, 150);
+      });
+
+      // Stereo component controls
+      stereoPower.addEventListener("click", async () => {
+        // Toggle music power state
+        isMusicActive = !isMusicActive;
+        playStereoSound(isMusicActive); // Play power sound
+
+        if (isMusicActive) {
+          // Make sure Firebase is initialized before loading tracks
+          if (!firebaseInitialized) {
+            try {
+              console.log("Initializing Firebase before loading tracks...");
+              await initFirebase();
+            } catch (error) {
+              console.error("Failed to initialize Firebase:", error);
+            }
+          }
+
+          // If turning on, load and potentially play the first track
+          loadTrack(currentTrackIdx, true); // Autoplay when powered on
+        } else {
+          // If turning off, pause and reset
+          audioPlayer.pause();
+          musicIsPlaying = false;
+          updateStereoUI(); // Update UI immediately
+          // Optionally reset track info display when powered off
+          stereoInfo.innerHTML =
+            '<div class="stereo-track-info">NO SIGNAL</div>';
+        }
+
+        // Always update the UI based on the new power state
+        updateStereoUI();
+
+        // Notify parent about the general music state
+        window.parent.postMessage(
+          {
+            type: "STEREO_POWER_STATE", // Use a distinct type
+            isActive: isMusicActive,
+            mode: isEightiesMode ? "80s" : "spotify", // Indicate which player is intended
+          },
+          "*"
+        );
+
+        console.log("Stereo power toggled:", isMusicActive);
+      });
+
+      stereoNext.addEventListener("click", () => {
+        if (!isMusicActive) return;
+        playClickSound();
+        changeTrack(1); // Use internal function
+        console.log("Next track requested");
+      });
+
+      stereoPrev.addEventListener("click", () => {
+        if (!isMusicActive) return;
+        playClickSound();
+        changeTrack(-1); // Use internal function
+        console.log("Previous track requested");
+      });
+
+      stereoPlayPause.addEventListener("click", () => {
+        if (!isMusicActive) return;
+        playClickSound();
+        togglePlayPause(); // Call the actual function
+        console.log("Play/Pause toggle requested");
+      });
+
+      // --- Music Player Functions (Moved from MusicPlayer3 & adapted) ---
+
+      function loadTrack(index, autoplay = false) {
+        let trackName, trackUrl, firebasePath;
+
+        if (isEightiesMode) {
+          // Use 80s list
+          if (index < 0 || index >= eightiesTrackUrls.length) {
+            console.error("Invalid 80s track index:", index);
+            return;
+          }
+          currentTrackIdx = index; // Only update index for 80s mode
+          trackName = eightiesTrackNames[currentTrackIdx];
+          trackUrl = eightiesTrackUrls[currentTrackIdx];
+          firebasePath = eightiesFirebasePaths[currentTrackIdx];
+          console.log(`Loading 80s track index: ${currentTrackIdx}`);
+        } else {
+          // Use Modern single track
+          trackName = modernTrackName;
+          trackUrl = modernTrackUrl;
+          firebasePath = modernFirebasePath;
+          console.log(`Loading modern track: ${trackName}`);
+          // No need to update currentTrackIdx when in modern mode
+        }
+
+        // Reset playback state
+        musicIsPlaying = false;
+        updateStereoUI();
+        stereoInfo.innerHTML =
+          '<div class="stereo-track-info">LOADING...</div>'; // Show loading state
+
+        // Define track paths (add your Firebase storage paths here)
+        const localFallbackUrls = isEightiesMode
+          ? eightiesTrackUrls
+          : [modernTrackUrl]; // Adjust fallback based on mode
+        const firebasePaths = isEightiesMode
+          ? eightiesFirebasePaths
+          : [modernFirebasePath]; // Adjust paths based on mode
+        const currentPathIndex = isEightiesMode ? currentTrackIdx : 0; // Use index 0 for modern path
+
+        // Function to set audio source and attach listeners
+        const setAudioSource = (url) => {
+          console.log(`Setting audio source to: ${url}`);
+
+          try {
+            // Check if this is a Firebase URL or a local path
+            if (url.startsWith("http") || url.startsWith("blob:")) {
+              // Direct Firebase or blob URL - use as is
+              audioPlayer.src = url;
+            } else {
+              // Local file path - ensure proper formatting
+              // Make relative to server root with leading slash
+              const formattedUrl = url.startsWith("/") ? url : `/${url}`;
+              console.log(`Formatted local URL: ${formattedUrl}`);
+              audioPlayer.src = formattedUrl;
+            }
+
+            audioPlayer.load();
+
+            // Reset error count for this track
+            audioPlayer._errorCount = 0;
+          } catch (e) {
+            console.error("Error setting audio source:", e);
+            stereoInfo.innerHTML =
+              '<div class="stereo-track-info">ERROR LOADING TRACK</div>';
+            return;
+          }
+
+          audioPlayer.onloadedmetadata = () => {
+            console.log("Metadata loaded for:", trackName);
+            updateTrackInfoDisplay();
+            if (autoplay && isMusicActive) {
+              audioPlayer
+                .play()
+                .then(() => {
+                  console.log("Audio playback started successfully");
+                  musicIsPlaying = true;
+                  updateStereoUI();
+                })
+                .catch((e) => {
+                  console.error("Autoplay failed:", e);
+                  musicIsPlaying = false;
+                  updateStereoUI();
+                });
+            }
+          };
+
+          audioPlayer.onerror = (e) => {
+            console.error("Audio error:", e, "URL:", url);
+            // Count errors to prevent infinite loops
+            audioPlayer._errorCount = (audioPlayer._errorCount || 0) + 1;
+
+            // If Firebase URL failed and we haven't tried too many times, try local fallback
+            if (
+              url.includes("firebasestorage") &&
+              localFallbackUrls[currentPathIndex] &&
+              audioPlayer._errorCount < 3
+            ) {
+              console.warn(
+                "Firebase audio failed, trying local fallback:",
+                localFallbackUrls[currentPathIndex]
+              );
+              const localUrl = localFallbackUrls[currentPathIndex];
+              // Use absolute path for local files
+              const formattedUrl = localUrl.startsWith("/")
+                ? localUrl
+                : `/${localUrl}`;
+              audioPlayer.src = formattedUrl;
+              audioPlayer.load();
+            } else {
+              stereoInfo.innerHTML =
+                '<div class="stereo-track-info">AUDIO ERROR</div>';
+              musicIsPlaying = false;
+              updateStereoUI();
+            }
+          };
+
+          // Rest of the listeners
+          audioPlayer.onplay = () => {
+            musicIsPlaying = true;
+            updateStereoUI();
+            console.log("Playing:", trackName);
+          };
+
+          audioPlayer.onpause = () => {
+            musicIsPlaying = false;
+            updateStereoUI();
+            console.log("Paused:", trackName);
+          };
+
+          audioPlayer.onended = () => {
+            console.log("Track ended:", trackName);
+            changeTrack(1);
+          };
+
+          audioPlayer.ontimeupdate = () => {
+            updateTrackInfoDisplay();
+          };
+        };
+
+        // Because of CORS issues, use local files directly
+        console.log(
+          "Using local audio file:",
+          localFallbackUrls[currentPathIndex]
+        );
+        setAudioSource(localFallbackUrls[currentPathIndex]);
+
+        // Try fetching from Firebase Storage first
+        if (
+          storage &&
+          firebasePaths[currentPathIndex] &&
+          !window.location.hostname.includes("localhost")
+        ) {
+          // Only try Firebase if not on localhost
+          try {
+            console.log(
+              "Attempting to fetch from Firebase Storage:",
+              firebasePaths[currentPathIndex]
+            );
+            const storageRef = storage.ref(firebasePaths[currentPathIndex]);
+
+            storageRef
+              .getDownloadURL()
+              .then((url) => {
+                console.log("Successfully fetched Firebase Storage URL:", url);
+                setAudioSource(url);
+
+                // Update the track info immediately to give feedback
+                const trackInfoElement =
+                  stereoInfo.querySelector(".stereo-track-info");
+                if (trackInfoElement) {
+                  trackInfoElement.textContent = `Loading ${trackName}...`;
+                }
+              })
+              .catch((error) => {
+                console.error("Firebase Storage getDownloadURL error:", error);
+                console.warn(
+                  "Falling back to local URL:",
+                  localFallbackUrls[currentPathIndex]
+                );
+                setAudioSource(localFallbackUrls[currentPathIndex]); // Fallback to local
+              });
+          } catch (e) {
+            console.error("Error accessing Firebase Storage:", e);
+            setAudioSource(localFallbackUrls[currentPathIndex]);
+          }
+        } else {
+          // If on localhost, storage not initialized, or no Firebase path, use local directly
+          const reason = window.location.hostname.includes("localhost")
+            ? "Running on localhost"
+            : "Firebase Storage not available or path missing";
+
+          console.warn(
+            `${reason}, using local URL:`,
+            localFallbackUrls[currentPathIndex]
+          );
+          setAudioSource(localFallbackUrls[currentPathIndex]);
+        }
+      }
+
+      function changeTrack(direction) {
+        // Only change tracks if in 80s mode
+        if (!isEightiesMode) {
+          console.log("Track change ignored: Not in 80s mode.");
+          return;
+        }
+        let nextIndex =
+          (currentTrackIdx + direction + eightiesTrackUrls.length) %
+          eightiesTrackUrls.length;
+        loadTrack(nextIndex, musicIsPlaying || isMusicActive); // Autoplay if player was already playing OR if just powered on
+      }
+
+      function togglePlayPause() {
+        if (!isMusicActive) {
+          console.log("Cannot play/pause, stereo not active.");
+          return;
+        }
+
+        if (!audioPlayer.src) {
+          console.log("No track loaded, loading default track.");
+          loadTrack(currentTrackIdx, true);
+          return;
+        }
+
+        if (audioPlayer.readyState < 2) {
+          console.log("Audio not ready yet, waiting for metadata.");
+          // Show loading indicator
+          const trackInfoElement =
+            stereoInfo.querySelector(".stereo-track-info");
+          if (trackInfoElement) {
+            trackInfoElement.textContent = "LOADING...";
+          }
+
+          // Set a listener to play when ready
+          audioPlayer.oncanplay = () => {
+            audioPlayer
+              .play()
+              .then(() => {
+                console.log("Delayed play successful");
+                musicIsPlaying = true;
+                updateStereoUI();
+              })
+              .catch((e) => console.error("Delayed play failed:", e));
+            audioPlayer.oncanplay = null; // Remove listener after use
+          };
+
+          return;
+        }
+
+        if (musicIsPlaying) {
+          audioPlayer.pause();
+        } else {
+          audioPlayer
+            .play()
+            .then(() => {
+              console.log("Play successful");
+            })
+            .catch((e) => {
+              console.error("Play failed:", e);
+              // Try re-initializing audio on error
+              if (storage && firebaseInitialized) {
+                console.log("Attempting to reload track after play error");
+                loadTrack(currentTrackIdx, true);
+              }
+            });
+        }
+        // State update handled by onplay/onpause events
+      }
+
+      function updateTrackInfoDisplay() {
+        if (!audioPlayer || !audioPlayer.src) return;
+
+        const currentTime = formatTime(audioPlayer.currentTime);
+        const duration = isNaN(audioPlayer.duration)
+          ? "00:00"
+          : formatTime(audioPlayer.duration);
+
+        // Get the correct track name based on the mode
+        const trackName = isEightiesMode
+          ? eightiesTrackNames[currentTrackIdx] || "Loading..."
+          : modernTrackName;
+
+        // Find the inner element to update its content
+        const trackInfoElement = stereoInfo.querySelector(".stereo-track-info");
+        if (!trackInfoElement) {
+          console.error(
+            ".stereo-track-info element not found inside #stereo-info"
+          );
+          return;
+        }
+
+        // Construct the text content
+        let displayText = `${trackName} [${currentTime} / ${duration}]`;
+        if (isEightiesMode) {
+          displayText = `▶ ${trackName} [${currentTime} / ${duration}]`;
+        }
+
+        // Update the text content of the inner element
+        trackInfoElement.textContent = displayText;
+      }
+
+      function formatTime(seconds) {
+        if (isNaN(seconds) || seconds < 0) return "00:00";
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${String(mins).padStart(2, "0")}:${String(secs).padStart(
+          2,
+          "0"
+        )}`;
+      }
+
+      function playStereoSound(isPoweringOn) {
+        // Simplified sound effect for power toggle
+        try {
+          const audioContext = new (window.AudioContext ||
+            window.webkitAudioContext)();
+          const oscillator = audioContext.createOscillator();
+          const gainNode = audioContext.createGain();
+          oscillator.type = "sine";
+          if (isPoweringOn) {
+            oscillator.frequency.setValueAtTime(
+              261.63,
+              audioContext.currentTime
+            ); // C4
+            oscillator.frequency.exponentialRampToValueAtTime(
+              392.0,
+              audioContext.currentTime + 0.2
+            ); // G4
+          } else {
+            oscillator.frequency.setValueAtTime(
+              392.0,
+              audioContext.currentTime
+            ); // G4
+            oscillator.frequency.exponentialRampToValueAtTime(
+              261.63,
+              audioContext.currentTime + 0.2
+            ); // C4
+          }
+          gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(
+            0.01,
+            audioContext.currentTime + 0.3
+          );
+          oscillator.connect(gainNode);
+          gainNode.connect(audioContext.destination);
+          oscillator.start();
+          oscillator.stop(audioContext.currentTime + 0.3);
+        } catch (e) {
+          console.log("Audio context error:", e);
+        }
+      }
+
+      // --- End Music Player Functions ---
+
+      function playClickSound() {
+        try {
+          const audioContext = new (window.AudioContext ||
+            window.webkitAudioContext)();
+          const oscillator = audioContext.createOscillator();
+          const gainNode = audioContext.createGain();
+
+          oscillator.type = "square";
+          oscillator.frequency.setValueAtTime(880, audioContext.currentTime); // A5
+
+          gainNode.gain.setValueAtTime(0.05, audioContext.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(
+            0.01,
+            audioContext.currentTime + 0.1
+          );
+
+          oscillator.connect(gainNode);
+          gainNode.connect(audioContext.destination);
+
+          oscillator.start();
+          oscillator.stop(audioContext.currentTime + 0.1);
+        } catch (e) {
+          console.log("Audio context not supported");
+        }
+      }
+
+      function updateStereoUI() {
+        // Removed isActive parameter, uses global isMusicActive
+        const missionControl = document.getElementById("mission-control");
+        const mp3Indicator = document.getElementById("mp3-indicator");
+        const playPauseButton = document.getElementById("stereo-play-pause"); // Get the button
+        const playPauseIcon = playPauseButton
+          ? playPauseButton.querySelector("i")
+          : null; // Get its icon
+
+        if (isMusicActive) {
+          // Enable stereo
+          stereoPower.classList.add("active");
+          stereoComponent.classList.add("stereo-active");
+
+          // Enable/disable next/prev based on mode
+          stereoNext.disabled = !isEightiesMode;
+          stereoPrev.disabled = !isEightiesMode;
+          stereoPlayPause.disabled = false; // Enable the play/pause button when music is active
+
+          // Update track info using the internal player state
+          updateTrackInfoDisplay();
+
+          // Start visualizer animation if playing
+          if (musicIsPlaying) {
+            startVisualizer();
+          } else {
+            stopVisualizer(); // Stop if paused
+          }
+
+          // Update MP3 indicator visibility based on 80s mode
+          if (mp3Indicator) {
+            if (isEightiesMode) {
+              mp3Indicator.style.display = "block";
+            } else {
+              mp3Indicator.style.display = "none";
+            }
+          }
+
+          // Update play/pause button icon and text
+          if (playPauseButton) {
+            // No need for playPauseIcon here
+            if (musicIsPlaying) {
+              playPauseButton.innerHTML = '<i class="fas fa-pause"></i> PAUSE'; // Set innerHTML directly
+            } else {
+              playPauseButton.innerHTML = '<i class="fas fa-play"></i> PLAY'; // Set innerHTML directly
+            }
+          }
+        } else {
+          // Disable stereo
+          stereoPower.classList.remove("active");
+          stereoNext.disabled = true;
+          stereoPrev.disabled = true;
+          stereoPlayPause.disabled = true; // Disable play/pause when powered off
+          stereoComponent.classList.remove("stereo-active");
+
+          // Reset play/pause button icon and text when powered off
+          if (playPauseButton) {
+            // No need for playPauseIcon here
+            playPauseButton.innerHTML = '<i class="fas fa-play"></i> PLAY'; // Reset innerHTML
+          }
+
+          // Update track info - Handled in power button click now
+          // stereoInfo.innerHTML = '<div class="stereo-track-info">NO SIGNAL</div>';
+
+          // Stop visualizer animation
+          stopVisualizer();
+
+          // Hide MP3 indicator
+          if (mp3Indicator) {
+            mp3Indicator.style.display = "none";
+          }
+        }
+      }
+
+      function startVisualizer() {
+        // Stop existing visualizer if running
+        stopVisualizer();
+
+        // Create a new interval for the visualizer
+        visualizerInterval = setInterval(() => {
+          const bars = document.querySelectorAll(".stereo-bar");
+          bars.forEach((bar) => {
+            const minHeight = 2;
+            const maxHeight = 24;
+
+            // Random height based on "music activity"
+            const height =
+              Math.floor(Math.random() * (maxHeight - minHeight + 1)) +
+              minHeight;
+
+            // Set custom properties for the animation
+            bar.style.setProperty("--min-height", `${minHeight}px`);
+            bar.style.setProperty("--max-height", `${height}px`);
+          });
+        }, 200);
+      }
+
+      function stopVisualizer() {
+        if (visualizerInterval) {
+          clearInterval(visualizerInterval);
+          visualizerInterval = null;
+
+          // Reset all bars
+          const bars = document.querySelectorAll(".stereo-bar");
+          bars.forEach((bar) => {
+            bar.style.height = "4px";
+          });
+        }
+      }
+
+      function updateTrackInfo(trackInfo) {
+        // This function is now OBSOLETE for the 80s player,
+        // as track info is handled internally by updateTrackInfoDisplay.
+        // It might still be used if you re-implement Spotify control via postMessage.
+        console.log(
+          "updateTrackInfo called (likely from parent for Spotify):",
+          trackInfo
+        );
+
+        // Only update display if 80s mode is OFF and music is ON (implies Spotify)
+        if (!isEightiesMode && isMusicActive && trackInfo) {
+          const trackName = trackInfo.name || "Spotify Track";
+          const artistName = trackInfo.artists
+            ? trackInfo.artists.map((a) => a.name).join(", ")
+            : "Unknown Artist";
+          stereoInfo.innerHTML = `<div class="stereo-track-info">▶ ${trackName} - ${artistName}</div>`;
+          // Maybe start a generic visualizer for Spotify?
+          startVisualizer();
+        } else if (!isEightiesMode && !isMusicActive) {
+          // If Spotify is off, show NO SIGNAL
+          stereoInfo.innerHTML =
+            '<div class="stereo-track-info">NO SIGNAL</div>';
+          stopVisualizer();
+        }
+      }
+
+      // Update UI functions
+      function updateCallUI() {
+        console.log("Updating call UI...");
+        // Always get fresh references to elements
+        const callButton = document.getElementById("call-button");
+        const callStatus = document.getElementById("call-status");
+        const selfView = document.getElementById("self-view");
+        const liveIndicator = document.getElementById("live-indicator");
+        const stationSelect = document.getElementById("station-select");
+        const systemStatus = document.getElementById("system-status");
+        const offlineDisplay = document.getElementById("offline-display");
+
+        if (!callButton) {
+          console.warn("Call button not found, cannot update UI");
+          return;
+        }
+
+        if (isCallActive) {
+          // ---- Connected UI Setup ----
+          console.log("Updating UI for connected state.");
+          callButton.textContent = "DISCONNECT";
+          callButton.classList.add("disconnect");
+          callButton.style.pointerEvents = "auto"; // Ensure disconnect button is clickable
+          if (callStatus) callStatus.classList.add("active");
+
+          const deadAir = document.getElementById("deadAir");
+          if (deadAir) {
+            // Ensure video is ready for disconnect effect (opacity 0 but not paused yet)
+            deadAir.style.display = "none";
+            deadAir.pause();
+          }
+          const sitepalContainer = document.getElementById("sitepal-container");
+          if (sitepalContainer) sitepalContainer.style.display = "block";
+          if (selfView) selfView.style.display = "block";
+          if (liveIndicator) liveIndicator.style.display = "block";
+          if (stationSelect) stationSelect.disabled = true;
+
+          // Hide offline display
+          if (offlineDisplay) offlineDisplay.style.display = "none";
+
+          // Ensure button remains clickable (redundant but safe)
+          callButton.style.pointerEvents = "auto";
+
+          // Ensure system status is active
+          if (systemStatus) systemStatus.classList.add("active");
+        }
+      }
+
+      function updateStationDisplay() {
+        const station = stationSelect.value.toLowerCase().replace(" ", "_");
+        stationDisplay.textContent = `COMM:/${station}`;
+      }
+
+      // Add function to update self-view
+      function updateSelfView() {
+        const selfView = document.getElementById("self-view");
+        if (!selfView) {
+          console.error("Self view element not found");
+          return;
+        }
+
+        selfView.innerHTML = '<div class="emoji-placeholder">😎</div>'; // Set default immediately
+        console.log("Requesting avatar from parent...");
+
+        // Request avatar from parent
+        window.parent.postMessage({ type: "REQUEST_AVATAR" }, "*");
+      }
+    </script>
+  </body>
+</html>
