@@ -10,10 +10,6 @@
       href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap"
       rel="stylesheet"
     />
-    <!-- Firebase SDKs (Add these) -->
-    <script src="https://www.gstatic.com/firebasejs/9.6.7/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.7/firebase-storage-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.7/firebase-firestore-compat.js"></script>
 
     <style>
       /* Ensure full height on all devices */
@@ -133,6 +129,7 @@
         animation: pulse 2s infinite;
       }
 
+      /* Default video display state - always expanded on non-mobile screens */
       .video-display {
         height: 180px;
         position: relative;
@@ -141,64 +138,56 @@
         transition: height 0.3s ease-out;
       }
 
-      /* Collapsed state for the video display */
-      .video-display.collapsed {
-        height: 40px;
+      /* Media query for shorter screens (likely mobile) - allow collapsing */
+      @media (max-height: 700px) {
+        /* Default collapsed height on mobile when inactive */
+        .video-display:not(.active) {
+          height: 40px;
+        }
+
+        /* When active, maintain original height */
+        .video-display.active {
+          height: 180px;
+        }
+
+        /* Add an indicator for the collapsed state */
+        .video-display:not(.active)::after {
+          content: "Tap to expand";
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          color: #67e8f9;
+          font-size: 0.75rem;
+          text-shadow: 0 0 5px #06b6d4;
+        }
+
+        /* Add expand/collapse indicators */
+        .video-display::before {
+          content: "▼";
+          position: absolute;
+          right: 8px;
+          top: 10px;
+          color: #67e8f9;
+          font-size: 0.7rem;
+          opacity: 0.8;
+          z-index: 20;
+          pointer-events: none;
+          transition: transform 0.3s;
+        }
+
+        .video-display.active::before {
+          transform: rotate(180deg);
+          top: 8px;
+        }
+
+        /* Add touch hint on first load */
+        .video-display:not(.touched):not(.active)::after {
+          animation: pulse 2s infinite;
+        }
       }
 
-      #vhss-aiplayer-inner * {
-        position: absolute !important;
-        top: 0 !important;
-        left: 0 !important;
-        width: 100% !important;
-        height: 100% !important;
-        z-index: 10;
-        -webkit-overflow-scrolling: touch;
-      }
-
-      /* SitePal main container styles */
-      .vhss_bgVideo {
-        position: absolute !important;
-        top: 0 !important;
-        left: 0 !important;
-        width: 100% !important;
-        height: 100% !important;
-        margin: 0 !important;
-        background-size: cover !important;
-        background-position: center center !important;
-        background-repeat: no-repeat !important;
-        z-index: 10;
-        top: 0 !important;
-      }
-
-      /* SitePal character container */
-      .vhss_character {
-        position: absolute !important;
-        bottom: 0 !important;
-        left: 0 !important;
-        width: 100% !important;
-        height: 100% !important;
-        z-index: 11;
-      }
-
-      /* SitePal canvas */
-      .vhss_character canvas {
-        position: absolute !important;
-        bottom: 0 !important;
-        left: 0 !important;
-        width: 100% !important;
-        height: 100% !important;
-        z-index: 12;
-      }
-
-      /* SitePal button holder */
-      .vhsshtml5_button_holder {
-        position: absolute !important;
-        bottom: 50.5px !important;
-        left: 0 !important;
-        width: 100% !important;
-        z-index: 13;
-      }
+      /* Collapsed state for the video display - REMOVE THIS as we're handling it in the media query */
 
       /* SitePal loading logo */
       .waiting_logo {
@@ -208,15 +197,6 @@
         width: 100% !important;
         height: 100% !important;
         z-index: 14;
-      }
-
-      /* SitePal transcript */
-      .vhsshtml5_transcript {
-        position: absolute !important;
-        bottom: 0 !important;
-        left: 0 !important;
-        width: 100% !important;
-        z-index: 15;
       }
 
       #sitepal-container {
@@ -498,10 +478,6 @@
         justify-content: space-between;
         align-items: center;
         margin-bottom: 16px;
-      }
-
-      .toggle-row.music-row {
-        flex-wrap: wrap;
       }
 
       .toggle-row .label-switch-container {
@@ -841,28 +817,6 @@
         animation: flicker 2s infinite;
       }
 
-      /* VHS glitch effect */
-      /* @keyframes glitch {
-                                0% {
-                                  transform: translate(0);
-                                }
-                                20% {
-                                  transform: translate(-2px, 2px);
-                                }
-                                40% {
-                                  transform: translate(-2px, -2px);
-                                }
-                                60% {
-                                  transform: translate(2px, 2px);
-                                }
-                                80% {
-                                  transform: translate(2px, -2px);
-                                }
-                                100% {
-                                  transform: translate(0);
-                                }
-                              } */
-
       @keyframes flicker {
         0% {
           opacity: 1;
@@ -947,44 +901,6 @@
 
       .scan-lines.active {
         opacity: 0.7;
-      }
-
-      /* CRT power on/off effect */
-      .crt-effect {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(2, 6, 23, 0.7); /* Dark blue instead of white */
-        opacity: 0;
-        pointer-events: none;
-        z-index: 1000;
-        transition: all 0.15s ease-out;
-      }
-
-      /* CRT on animation */
-      @keyframes crtOn {
-        0% {
-          opacity: 0.4; /* Less opaque */
-          transform: scale(1);
-        }
-        50% {
-          opacity: 0.3; /* Even less opaque */
-          transform: scale(0.98);
-        }
-        75% {
-          opacity: 0.2; /* Even less opaque */
-          transform: scale(0.99);
-        }
-        100% {
-          opacity: 0;
-          transform: scale(1);
-        }
-      }
-
-      .crt-on {
-        animation: crtOn 0.4s forwards;
       }
 
       /* Retro cursor for 80s mode */
@@ -1140,27 +1056,6 @@
           2px 0 8px #00b4ff;
       }
 
-      /* Flicker and glitch effects for 3D glasses mode */
-      @keyframes threedy-flicker {
-        0%,
-        100% {
-          text-shadow: -2px 0 #ff0040, 2px 0 #00b4ff;
-        }
-        25% {
-          text-shadow: -2.5px 0 #ff0040, 1.8px 0 #00b4ff;
-        }
-        50% {
-          text-shadow: -1.8px 0 #ff0040, 2.5px 0 #00b4ff;
-        }
-        75% {
-          text-shadow: -2.2px 0 #ff0040, 2.2px 0 #00b4ff;
-        }
-      }
-
-      .threedy-mode .panel-title {
-        animation: threedy-flicker 4s infinite;
-      }
-
       /* 3D toggle button */
       .toggle-switch.threedy-toggle.active {
         background: linear-gradient(90deg, #ff0040, #00b4ff);
@@ -1227,247 +1122,6 @@
         border-left: 1px solid #d946ef !important;
         border-right: 1px solid #d946ef !important;
         transition: all 0.3s;
-      }
-
-      .stereo-component {
-        background-color: #0c1821;
-        border-radius: 4px;
-        border: 1px solid #134e4a;
-        padding: 6px;
-        margin-bottom: 10px;
-        border-left: 1px solid #ff0040;
-        border-right: 1px solid #00b4ff;
-        box-shadow: -2px 0 5px rgba(255, 0, 64, 0.2),
-          2px 0 5px rgba(0, 180, 255, 0.2), inset 0 0 10px rgba(0, 0, 0, 0.7);
-      }
-
-      .stereo-display {
-        background-color: #041c2c;
-        height: 32px;
-        border-radius: 2px;
-        margin-bottom: 4px;
-        padding: 2px;
-        display: flex;
-        position: relative;
-        overflow: hidden;
-        border-left: 1px solid #ff0040;
-        border-right: 1px solid #00b4ff;
-      }
-
-      .stereo-visualizer {
-        display: flex;
-        align-items: flex-end;
-        justify-content: space-between;
-        width: 100%;
-        height: 100%;
-        padding: 1px;
-      }
-
-      .stereo-bar {
-        width: 3px;
-        background-color: #22d3ee;
-        height: 4px;
-        border-radius: 1px;
-        transition: height 0.05s ease;
-        box-shadow: 0 0 3px rgba(6, 182, 212, 0.5);
-      }
-
-      .stereo-active .stereo-bar {
-        animation: stereo-bar-animation 0.5s infinite alternate;
-      }
-
-      .stereo-controls {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 4px;
-      }
-
-      .stereo-button {
-        font-family: monospace;
-        background-color: #1f2937;
-        border: none;
-        border-radius: 2px;
-        color: #67e8f9;
-        font-size: 0.65rem;
-        padding: 3px 2px;
-        cursor: pointer;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        transition: all 0.3s;
-        border-left: 1px solid #ff0040;
-        border-right: 1px solid #00b4ff;
-        box-shadow: -1px 0 2px rgba(255, 0, 64, 0.2),
-          1px 0 2px rgba(0, 180, 255, 0.2);
-      }
-
-      .stereo-button:hover {
-        background-color: #374151;
-      }
-
-      /* Enhance active power button style */
-      .stereo-button#stereo-power.active {
-        background-color: #06b6d4; /* Cyber blue-teal */
-        color: #f0fdf4; /* Light text for contrast */
-        box-shadow: 0 0 10px rgba(6, 182, 212, 0.7),
-          /* Teal glow */ inset 0 0 5px rgba(6, 182, 212, 0.5),
-          -1px 0 2px rgba(255, 0, 64, 0.2), 1px 0 2px rgba(0, 180, 255, 0.2); /* Keep 3D split */
-      }
-
-      .stereo-button i {
-        margin-right: 2px;
-        font-size: 0.75rem;
-      }
-
-      .stereo-info {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        font-size: 0.65rem;
-        color: #22d3ee;
-        white-space: nowrap;
-        text-align: center;
-        text-shadow: -1px 0 #ff0040, 1px 0 #00b4ff;
-        z-index: 10;
-        pointer-events: none;
-        width: 100%;
-      }
-
-      .stereo-track-info {
-        animation: marquee 10s linear infinite;
-      }
-
-      @keyframes marquee {
-        0% {
-          transform: translateX(100%);
-        }
-        100% {
-          transform: translateX(-100%);
-        }
-      }
-
-      /* Enhance active stereo display */
-      .stereo-active .stereo-display {
-        border: 1px solid #22d3ee; /* Brighter border */
-        box-shadow: inset 0 0 8px rgba(6, 182, 212, 0.6),
-          0 0 5px rgba(6, 182, 212, 0.4); /* Inner and outer glow */
-      }
-
-      /* 80s mode stereo */
-      .eighties-active .stereo-component {
-        background-color: #0f172a;
-        border-color: #d946ef;
-        border-left: 1px solid #d946ef;
-        border-right: 1px solid #22d3ee;
-        box-shadow: -1px 0 3px rgba(217, 70, 239, 0.3),
-          1px 0 3px rgba(34, 211, 238, 0.3);
-      }
-
-      .eighties-active .stereo-display {
-        background-color: #020617;
-        border-left: 1px solid #d946ef;
-        border-right: 1px solid #22d3ee;
-      }
-
-      .eighties-active .stereo-bar {
-        background-color: #d946ef;
-        box-shadow: 0 0 2px rgba(217, 70, 239, 0.5);
-      }
-
-      .eighties-active .stereo-button {
-        font-family: "Press Start 2P", cursive;
-        font-size: 0.5rem;
-        background-color: #0f172a;
-        border-left: 1px solid #d946ef;
-        border-right: 1px solid #22d3ee;
-        color: #fff;
-        box-shadow: -1px 0 1px rgba(217, 70, 239, 0.3),
-          1px 0 1px rgba(34, 211, 238, 0.3);
-      }
-
-      .eighties-active .stereo-button:hover {
-        background-color: #2a1786;
-      }
-
-      .eighties-active .stereo-button.active {
-        background-color: #2a1786;
-        box-shadow: 0 0 3px rgba(217, 70, 239, 0.5),
-          -1px 0 1px rgba(217, 70, 239, 0.3), 1px 0 1px rgba(34, 211, 238, 0.3);
-      }
-
-      .eighties-active .stereo-info {
-        font-family: "Press Start 2P", cursive;
-        font-size: 0.5rem;
-        color: #22d3ee;
-        text-shadow: 0 0 3px #22d3ee;
-      }
-
-      /* MusicPlayer3 indicator style */
-      .mp3-indicator {
-        position: absolute;
-        top: 1px;
-        right: 2px;
-        font-size: 0.5rem;
-        color: #d946ef;
-        text-shadow: 0 0 2px #d946ef;
-        opacity: 0;
-        transition: opacity 0.3s ease;
-      }
-
-      .eighties-active .stereo-active .mp3-indicator {
-        opacity: 1;
-        animation: mp3-pulse 1.5s infinite alternate;
-      }
-
-      @keyframes mp3-pulse {
-        0% {
-          opacity: 0.5;
-        }
-        100% {
-          opacity: 1;
-        }
-      }
-
-      /* MusicPlayer3 special styles for 80s mode */
-      .eighties-active.mp3-mode .stereo-bar {
-        background-color: #d946ef;
-        box-shadow: 0 0 2px rgba(217, 70, 239, 0.5);
-      }
-
-      /* Special animation for MusicPlayer3 bars */
-      @keyframes mp3-bar-animation {
-        0% {
-          height: var(--min-height, 2px);
-        }
-        100% {
-          height: var(--max-height, 24px);
-        }
-      }
-
-      .eighties-active.mp3-mode .stereo-active .stereo-bar {
-        animation: stereo-bar-animation 0.5s infinite alternate;
-      }
-
-      /* Special MP3 track display */
-      .eighties-active.mp3-mode .stereo-track-info {
-        font-family: "Press Start 2P", cursive;
-        color: #22d3ee;
-        text-shadow: 0 0 3px #22d3ee;
-      }
-
-      /* Stereo bar animation */
-      @keyframes stereo-bar-animation {
-        0% {
-          height: var(--min-height, 2px);
-        }
-        100% {
-          height: var(--max-height, 24px);
-        }
-      }
-
-      .stereo-active .stereo-bar {
-        animation: stereo-bar-animation 0.5s infinite alternate;
       }
 
       .leaderboard-container {
@@ -1683,70 +1337,6 @@
         animation: connect-pulse 1.5s infinite ease-in-out;
       }
       /* End Connect Button Pulse */
-
-      /* Remove unnecessary music visualizer and equalizer code */
-      .music-equalizer,
-      .music-bar,
-      .music-active .music-bar:nth-child(1),
-      .music-active .music-bar:nth-child(2),
-      .music-active .music-bar:nth-child(3),
-      .music-active .music-bar:nth-child(4),
-      .music-active .music-bar:nth-child(5) {
-        display: none;
-      }
-
-      /* Remove unused animation keyframes by setting to no-op */
-      @keyframes equalizer {
-        0%,
-        100% {
-          height: 4px;
-        }
-      }
-
-      @keyframes color-drift {
-        0%,
-        100% {
-          filter: none;
-        }
-      }
-
-      @keyframes music-bounce {
-        0%,
-        100% {
-          transform: none;
-        }
-      }
-
-      @keyframes visualize {
-        0%,
-        100% {
-          transform: none;
-        }
-      }
-
-      /* Remove unused typing effect styles */
-      .typing-container,
-      .typing-text {
-        display: none;
-      }
-
-      /* Remove all music player related styles */
-      .music-equalizer,
-      .music-active,
-      .music-bar,
-      .music-title-animation,
-      .mission-control-music-active,
-      .stereo-component,
-      .stereo-display,
-      .stereo-visualizer,
-      .stereo-bar,
-      .stereo-info,
-      .stereo-controls,
-      .stereo-button,
-      .stereo-track-info,
-      .mp3-indicator {
-        display: none;
-      }
 
       /* Add UN-MUTE button style */
       .call-button.unmute {
@@ -2193,7 +1783,7 @@
     <div class="scan-lines" id="scan-lines"></div>
     <div class="color-shift color-shift-red" id="color-shift-red"></div>
     <div class="color-shift color-shift-blue" id="color-shift-blue"></div>
-    <div class="crt-effect" id="crt-effect"></div>
+
     <div class="mission-control" id="mission-control">
       <div class="threedy-shadow-red" id="threedy-shadow-red"></div>
       <div class="threedy-shadow-blue" id="threedy-shadow-blue"></div>
@@ -2237,693 +1827,77 @@
                 -webkit-overflow-scrolling: touch;
               "
             >
+              <!-- </script> -->
               <script
                 type="text/javascript"
                 src="//vhss-d.oddcast.com/ai_embed_functions_v1.php"
               ></script>
               <script type="text/javascript">
-                // Replace verbose console logging with empty operations in production
-                if (location.hostname !== "localhost") {
-                  console.log = function () {};
-                  console.debug = function () {};
-                }
-
-                // Global helper for SitePal API access
-                window.sitePalHelper = {
-                  initialized: false,
-
-                  initApi: function () {
-                    if (
-                      typeof AI_vhost_stop === "function" &&
-                      typeof AI_vhost_api === "function" &&
-                      typeof AI_vhost_destroy === "function"
-                    ) {
-                      console.log("SitePal API functions accessed globally");
-                      this.initialized = true;
-                      return true;
-                    }
-                    return false;
-                  },
-
-                  startListening: function () {
-                    if (this.initApi() || this.initialized) {
-                      try {
-                        console.log("Starting SitePal listening via helper");
-
-                        // First try to find and click the mic button directly
-                        const micButton = document.querySelector(
-                          ".vhss-aiplayer-mic-p3"
-                        );
-                        if (micButton) {
-                          console.log("Found mic button directly, clicking it");
-                          micButton.click();
-                          return true;
-                        }
-
-                        // If button not found, try using the API
-                        if (typeof saySilent === "function") {
-                          saySilent(0);
-                        }
-                        setTimeout(() => {
-                          AI_vhost_api("startListening");
-                        }, 300);
-                        return true;
-                      } catch (e) {
-                        console.error("Error starting SitePal listening:", e);
-                      }
-                    }
-                    return false;
-                  },
-
-                  stopListening: function () {
-                    if (this.initApi() || this.initialized) {
-                      try {
-                        console.log("Stopping SitePal listening via helper");
-                        AI_vhost_api("stopListening");
-                        return true;
-                      } catch (e) {
-                        console.error("Error stopping SitePal listening:", e);
-                      }
-                    }
-                    return false;
-                  },
-                };
-
                 function initSitePal() {
-                  console.log("Starting SitePal initialization...");
-
-                  // Set a visible loading state
-                  const sitepalContainer =
+                  const container =
                     document.getElementById("sitepal-container");
-                  if (sitepalContainer) {
-                    sitepalContainer.innerHTML =
-                      '<div id="vhss_aiPlayer" style="text-align: center; color: #67e8f9;">Loading AI Agent...</div>';
+                  const deadAir = document.getElementById("deadAir");
+
+                  if (container) {
+                    container.innerHTML = '<div id="vhss_aiPlayer"></div>';
+                    container.style.display = "block";
                   }
 
-                  // Special iOS initialization path
-                  if (isIOS || browserIsSafari) {
-                    console.log("Using iOS-specific initialization path");
-                    initSitePalOnIOS();
-                    return;
-                  }
+                  function embedNow() {
+                    window.vh_sceneLoaded = () => {
+                      console.log("✅ Scene loaded");
 
-                  // Clear any existing initialization
-                  cleanupSitePal();
-
-                  // Load the embed script if not present
-                  if (typeof AI_vhost_embed !== "function") {
-                    console.log("Loading SitePal embed script...");
-                    const scriptEl = document.createElement("script");
-                    scriptEl.src =
-                      "//vhss-d.oddcast.com/vhost_embed_functions_v4.php?acc=9157686&js=1";
-                    scriptEl.type = "text/javascript";
-                    document.head.appendChild(scriptEl);
-
-                    scriptEl.onload = function () {
-                      console.log("SitePal embed script loaded");
-                      setTimeout(performEmbed, 500);
-                    };
-                  } else {
-                    console.log("SitePal embed script already loaded");
-                    performEmbed();
-                  }
-
-                  function performEmbed() {
-                    try {
-                      console.log("Performing SitePal embed...");
-
-                      // Set up scene loaded callback before embed
-                      window.vh_sceneLoaded = function (sceneIndex, portal) {
-                        console.log(
-                          `vh_sceneLoaded callback fired for sceneIndex: ${sceneIndex}, portal: ${portal}`
-                        );
-                        window.sitepalSceneReady = true; // Set flag
-
-                        // Prevent double invocation
-                        if (window.sceneAlreadyLoaded) {
-                          console.log(
-                            "Scene load callback called again - ignoring subsequent calls"
-                          );
-                          return;
-                        }
-                        window.sceneAlreadyLoaded = true;
-
-                        // Fade out the transmission video
-                        const deadAir = document.getElementById("deadAir");
-                        if (deadAir) {
-                          console.log(
-                            "Scene loaded, fading out transmission video..."
-                          );
-                          deadAir.style.opacity = 0;
-                          setTimeout(() => {
-                            console.log(
-                              "Pausing transmission video after fade."
-                            );
-                            deadAir.pause();
-                          }, 500); // Matches CSS transition duration
-                        }
-
-                        // Prime audio playback using silent speech
-                        try {
-                          console.log(
-                            "Priming browser with silent playback..."
-                          );
-                          window.saySilent(0);
-                        } catch (e) {
-                          console.warn("saySilent(0) failed:", e);
-                        }
-
-                        // Get the call button
-                        const callButton =
-                          document.getElementById("call-button");
-                        if (!callButton) return;
-
-                        // Check if we need the three-state approach or can auto-transition
-                        if (window.needsUnmuteFlow) {
-                          // Three-state approach for iOS, Safari, mobile devices
-                          if (callButton.textContent !== "DISCONNECT") {
-                            callButton.textContent = "UN-MUTE";
-                            callButton.classList.add("unmute");
-                            callButton.classList.remove("disconnect");
-
-                            // Prevent automatic triggering by disabling/re-enabling
-                            callButton.disabled = true;
-                            setTimeout(() => {
-                              callButton.disabled = false;
-                            }, 500);
-
-                            console.log(
-                              "SitePal scene loaded, setting button to UN-MUTE state (three-state flow)"
-                            );
-                          }
-                        } else {
-                          // Auto-transition approach for desktop browsers
-                          console.log(
-                            "Auto-transition flow - activating immediately"
-                          );
-
-                          // Short delay to ensure everything is ready
-                          setTimeout(() => {
-                            // Prime audio again
-                            try {
-                              if (typeof window.saySilent === "function") {
-                                window.saySilent(0);
-                              }
-                            } catch (e) {
-                              console.warn(
-                                "Auto-activation saySilent failed:",
-                                e
-                              );
-                            }
-
-                            // Update UI to DISCONNECT state first
-                            callButton.textContent = "DISCONNECT";
-                            callButton.classList.remove("unmute");
-                            callButton.classList.add("disconnect");
-
-                            // DIRECTLY call the greeting functions, don't rely solely on activateMicrophone
-                            // Each method in its own try/catch for maximum reliability
-                            setTimeout(() => {
-                              console.log(
-                                "DIRECT GREETING ATTEMPT FOR DESKTOP"
-                              );
-
-                              // Try the most reliable method first - direct window.sayText() call
-                              try {
-                                if (typeof window.sayText === "function") {
-                                  console.log(
-                                    "Desktop direct greeting: calling window.sayText()"
-                                  );
-                                  window.sayText(
-                                    "Greetings, how can I help you today?",
-                                    8,
-                                    1,
-                                    6
-                                  );
-                                }
-                              } catch (e1) {
-                                console.error(
-                                  "Desktop direct greeting method 1 failed:",
-                                  e1
-                                );
-                              }
-
-                              // Secondary: try local sayText
-                              try {
-                                if (typeof sayText === "function") {
-                                  console.log(
-                                    "Desktop direct greeting: calling local sayText()"
-                                  );
-                                  sayText(
-                                    "Greetings, how can I help you today?",
-                                    8,
-                                    1,
-                                    6
-                                  );
-                                }
-                              } catch (e2) {
-                                console.error(
-                                  "Desktop direct greeting method 2 failed:",
-                                  e2
-                                );
-                              }
-
-                              // Also call activateMicrophone as a backup
-                              try {
-                                activateMicrophone();
-                              } catch (e3) {
-                                console.error(
-                                  "Desktop activateMicrophone call failed:",
-                                  e3
-                                );
-                              }
-
-                              // Send state change message to parent
-                              window.parent.postMessage(
-                                {
-                                  type: "SITEPAL_STATE_CHANGE",
-                                  isListening: true,
-                                },
-                                "*"
-                              );
-                            }, 300); // Short delay before direct greeting attempts
-                          }, 500);
-                        }
-
-                        // Notify parent frame that SitePal is ready
-                        window.parent.postMessage(
-                          { type: "SITEPAL_READY" },
-                          "*"
-                        );
-                      };
-
-                      // Set up listening status callback (remains the same)
-                      window.vh_listeningStatusUpdate = function (isListening) {
-                        console.log(
-                          "SitePal listening status update:",
-                          isListening
-                        );
-                        window.parent.postMessage(
-                          {
-                            type: "SITEPAL_STATE_CHANGE",
-                            isListening: isListening,
-                          },
-                          "*"
-                        );
-                      };
-
-                      // Perform the embed
-                      AI_vhost_embed(280, 180, 9157686, 244, 1, 1);
-
-                      // Set up initialization check
-                      let checkCount = 0;
-                      const maxChecks = 20;
-
-                      const checkInterval = setInterval(() => {
-                        checkCount++;
-                        console.log(
-                          `Checking SitePal initialization (${checkCount}/${maxChecks})...`
-                        );
-
-                        if (window.sitepalInitialized) {
-                          console.log("SitePal initialization confirmed");
-                          clearInterval(checkInterval);
-                          activateMicrophone();
-                          return;
-                        }
-
-                        // Try to find the mic button
-                        const micButton = document.querySelector(
-                          ".vhss-aiplayer-mic-p3"
-                        );
-                        if (micButton) {
-                          console.log("Found SitePal mic button!");
-                          window.sitepalInitialized = true;
-                          clearInterval(checkInterval);
-                          window.parent.postMessage(
-                            { type: "SITEPAL_READY" },
-                            "*"
-                          );
-                          activateMicrophone();
-                          return;
-                        }
-
-                        // Check iframes
-                        const iframes = document.querySelectorAll("iframe");
-                        for (let iframe of iframes) {
-                          try {
-                            const iframeDoc =
-                              iframe.contentDocument ||
-                              iframe.contentWindow.document;
-                            const iframeMicButton = iframeDoc.querySelector(
-                              ".vhss-aiplayer-mic-p3"
-                            );
-                            if (iframeMicButton) {
-                              console.log(
-                                "Found SitePal mic button in iframe!"
-                              );
-                              window.sitepalInitialized = true;
-                              clearInterval(checkInterval);
-                              window.parent.postMessage(
-                                { type: "SITEPAL_READY" },
-                                "*"
-                              );
-                              activateMicrophone();
-                              return;
-                            }
-                          } catch (e) {
-                            // Ignore iframe access errors
-                          }
-                        }
-
-                        if (checkCount >= maxChecks) {
-                          console.warn(
-                            "SitePal initialization check timed out"
-                          );
-                          clearInterval(checkInterval);
-                          // Try one last time
-                          activateMicrophone();
-                        }
-                      }, 1000);
-                    } catch (e) {
-                      console.error("Error during SitePal embed:", e);
-                    }
-                  }
-                }
-
-                // Function to handle microphone activation
-                function activateMicrophone() {
-                  console.log("Attempting to activate microphone...");
-
-                  // Check if microphone might already be active
-                  let micAlreadyActive = false;
-
-                  // First check if SitePal API can tell us if listening is active
-                  try {
-                    if (typeof AI_vhost_api === "function") {
-                      // Some versions of the API support checking if we're already listening
-                      if (typeof AI_get_listening_status === "function") {
-                        micAlreadyActive = AI_get_listening_status();
-                        console.log(
-                          "Checked listening status via API:",
-                          micAlreadyActive
-                        );
+                      if (deadAir) {
+                        deadAir.style.opacity = 0;
+                        setTimeout(() => deadAir.pause(), 500);
                       }
-                    }
-                  } catch (e) {
-                    console.warn("Error checking listening status:", e);
-                  }
 
-                  // If we're already listening, just update UI and trigger greeting
-                  if (micAlreadyActive) {
-                    console.log(
-                      "Microphone appears to be already active, skipping activation"
-                    );
-                    updateUIForRecording();
-                    triggerGreeting();
-                    return;
-                  }
-
-                  // Try multiple approaches to activate the microphone
-                  let success = false;
-
-                  // 1. Try direct API call first
-                  try {
-                    if (typeof AI_vhost_api === "function") {
-                      console.log("Using direct API call to start listening");
-                      try {
-                        AI_vhost_api("stopListening"); // First stop to avoid errors
-                        setTimeout(() => {
-                          try {
-                            AI_vhost_api("startListening");
-                          } catch (startErr) {
-                            console.warn("Error in startListening:", startErr);
-                          }
-                        }, 100);
-                      } catch (stopErr) {
-                        console.warn("Error in stopListening:", stopErr);
-                        // Try direct start if stop fails
-                        try {
-                          AI_vhost_api("startListening");
-                        } catch (e2) {
-                          console.warn("Direct start also failed:", e2);
-                        }
-                      }
-                      success = true;
-                    }
-                  } catch (e) {
-                    console.warn("API call failed:", e);
-                  }
-
-                  // 2. Try finding and clicking the button directly
-                  if (!success) {
-                    const micButton = document.querySelector(
-                      ".vhss-aiplayer-mic-p3"
-                    );
-                    if (micButton) {
-                      console.log("Found mic button directly, clicking it");
-                      micButton.click();
-                      success = true;
-                    }
-                  }
-
-                  // 3. Try finding the button in iframes
-                  if (!success) {
-                    const iframes = document.querySelectorAll("iframe");
-                    for (let iframe of iframes) {
-                      try {
-                        const iframeDoc =
-                          iframe.contentDocument ||
-                          iframe.contentWindow.document;
-                        const iframeMicButton = iframeDoc.querySelector(
-                          ".vhss-aiplayer-mic-p3"
-                        );
-                        if (iframeMicButton) {
-                          console.log(
-                            "Found mic button in iframe, clicking it"
-                          );
-                          iframeMicButton.click();
-                          success = true;
-                          break;
-                        }
-                      } catch (e) {
-                        console.warn("Cannot access iframe content:", e);
-                      }
-                    }
-                  }
-
-                  // 4. Try using the helper
-                  if (
-                    !success &&
-                    window.sitePalHelper &&
-                    window.sitePalHelper.startListening
-                  ) {
-                    console.log("Using sitePalHelper to start listening");
-                    if (window.sitePalHelper.startListening()) {
-                      success = true;
-                    }
-                  }
-
-                  // If any method was successful, update the UI and play greeting
-                  if (success) {
-                    console.log("Successfully activated microphone");
-                    updateUIForRecording();
-                    triggerGreeting();
-                  } else {
-                    console.warn(
-                      "Failed to activate microphone, will retry in 1 second"
-                    );
-                    // Retry once after a delay
-                    setTimeout(activateMicrophone, 1000);
-                  }
-                }
-
-                // Separate function for the greeting to avoid duplicating code
-                function triggerGreeting() {
-                  console.log("Attempting to trigger greeting...");
-
-                  // Check if greeting was already played
-                  if (window.greetingPlayed) {
-                    console.log("Greeting already played, skipping");
-                    return;
-                  }
-
-                  // Set flag to prevent duplicate greetings
-                  window.greetingPlayed = true;
-
-                  // Now play the greeting that was previously in vh_sceneLoaded
-                  setTimeout(() => {
-                    let greetingSuccess = false;
-
-                    // Try multiple methods to ensure greeting works
-
-                    // Method 1: Use sayText directly
-                    try {
-                      console.log("Method 1: Calling sayText directly");
-                      if (typeof sayText === "function") {
-                        sayText(
-                          "Greetings, how can I help you today?",
-                          8,
-                          1,
-                          6
-                        );
-                        greetingSuccess = true;
-                        console.log("Method 1 successful");
-                      }
-                    } catch (e) {
-                      console.error("Method 1 failed:", e);
-                    }
-
-                    // Method 2: Use window.sayText
-                    if (!greetingSuccess) {
-                      try {
-                        console.log("Method 2: Calling window.sayText");
-                        if (typeof window.sayText === "function") {
-                          window.sayText(
+                      // Greeting
+                      setTimeout(() => {
+                        console.log("🗣️ Greeting...");
+                        if (typeof sayText === "function") {
+                          sayText(
                             "Greetings, how can I help you today?",
                             8,
                             1,
                             6
                           );
-                          greetingSuccess = true;
-                          console.log("Method 2 successful");
-                        }
-                      } catch (e2) {
-                        console.error("Method 2 failed:", e2);
-                      }
-                    }
-
-                    // Method 3: Try to use AI_vhost_api
-                    if (!greetingSuccess) {
-                      try {
-                        console.log("Method 3: Using AI_vhost_api");
-                        if (typeof AI_vhost_api === "function") {
+                        } else if (typeof AI_vhost_api === "function") {
                           AI_vhost_api(
                             "say",
                             "Greetings, how can I help you today?"
                           );
-                          greetingSuccess = true;
-                          console.log("Method 3 successful");
                         }
-                      } catch (e3) {
-                        console.error("Method 3 failed:", e3);
-                      }
-                    }
 
-                    // Method 4: Last resort - try any SitePal say function
-                    if (!greetingSuccess) {
-                      try {
-                        console.log("Method 4: Last resort attempt");
-                        // Check all possible function names
-                        const possibleFunctions = [
-                          "say",
-                          "sayText",
-                          "sayAI",
-                          "saySentence",
-                          "sayGreeting",
-                        ];
+                        // Start listening after greeting
+                        setTimeout(() => {
+                          AI_vhost_api("startListening");
+                          console.log("🎙️ Listening...");
+                        }, 1500);
+                      }, 300);
+                    };
 
-                        for (const funcName of possibleFunctions) {
-                          if (typeof window[funcName] === "function") {
-                            console.log(`Found function: ${funcName}`);
-                            window[funcName](
-                              "Greetings, how can I help you today?"
-                            );
-                            greetingSuccess = true;
-                            console.log(
-                              `Method 4 successful using ${funcName}`
-                            );
-                            break;
-                          }
-                        }
-                      } catch (e4) {
-                        console.error("Method 4 failed:", e4);
-                      }
-                    }
+                    AI_vhost_embed(280, 180, 9157686, 244, 0, 1);
+                  }
 
-                    if (!greetingSuccess) {
-                      console.error("All greeting methods failed");
-                    }
-                  }, 300); // Short delay before greeting
+                  if (typeof AI_vhost_embed !== "function") {
+                    const script = document.createElement("script");
+                    script.src =
+                      "//vhss-d.oddcast.com/vhost_embed_functions_v4.php?acc=9157686&js=1";
+                    script.onload = embedNow;
+                    document.head.appendChild(script);
+                  } else {
+                    embedNow();
+                  }
                 }
-
-                // Add message listener for SitePal API calls
-                window.addEventListener("message", function (event) {
-                  if (event.data.type === "SITEPAL_API_CALL") {
-                    console.log("Received SITEPAL_API_CALL:", event.data);
-
-                    // Try to find and click the mic button directly
-                    const micButton = document.querySelector(
-                      ".vhss-aiplayer-mic-p3"
-                    );
-                    if (micButton) {
-                      console.log("Found mic button, clicking it");
-                      micButton.click();
-                      return;
-                    }
-
-                    // Try API call if button not found
-                    try {
-                      if (typeof AI_vhost_api === "function") {
-                        AI_vhost_api(event.data.command);
-                        console.log("API call successful");
-                      } else {
-                        console.error("AI_vhost_api not available");
-                      }
-                    } catch (e) {
-                      console.error("Error making API call:", e);
-                    }
-                  }
-                });
-
-                // Special handling for ACTIVATE_SITEPAL_MIC message
-                window.addEventListener("message", function (event) {
-                  if (event.data.type === "ACTIVATE_SITEPAL_MIC") {
-                    console.log("Received ACTIVATE_SITEPAL_MIC message");
-
-                    // Try multiple approaches to activate the microphone
-                    setTimeout(() => {
-                      // 1. Try direct button click
-                      const micButton = document.querySelector(
-                        ".vhss-aiplayer-mic-p3"
-                      );
-                      if (micButton) {
-                        console.log("Found mic button directly, clicking it");
-                        micButton.click();
-                        return;
-                      }
-
-                      // 2. Try API call
-                      if (typeof AI_vhost_api === "function") {
-                        console.log("Using API to start listening");
-                        AI_vhost_api("startListening");
-                        return;
-                      }
-
-                      // 3. Try helper
-                      if (
-                        window.sitePalHelper &&
-                        window.sitePalHelper.startListening
-                      ) {
-                        console.log("Using sitePalHelper to start listening");
-                        window.sitePalHelper.startListening();
-                      }
-                    }, 500);
-                  }
-                });
-
-                // Add a timer to check and click the mic button when in UN-MUTE state
-                // /* // Commenting out this interval as it causes ReferenceError
-                // setInterval(() => {
-                //   if (isCallActive && callButton.textContent === "UN-MUTE") {
-                //     console.log("Checking for mic button in interval...");
-                //     if (checkAndClickMicButton()) {
-                //       console.log("Successfully clicked mic button");
-                //       updateUIForRecording();
-                //     }
-                //   }
-                // }, 5000);
-                // */
+              </script>
+              <script>
+                document
+                  .getElementById("call-button")
+                  .addEventListener("click", () => {
+                    console.log("🚀 CONNECT clicked");
+                    initSitePal();
+                  });
               </script>
               <div id="vhss_aiPlayer"></div>
               <!-- Add placeholder elements that SitePal expects -->
@@ -3092,7 +2066,7 @@
       const stereoNext = document.getElementById("stereo-next");
       const stereoPrev = document.getElementById("stereo-prev");
       const stereoPlayPause = document.getElementById("stereo-play-pause");
-      const stereoComponent = document.getElementById("stereo-component");
+
       const stereoInfo = document.getElementById("stereo-info");
       const systemStatus = document.getElementById("system-status");
 
@@ -3322,8 +2296,10 @@
       }
 
       // Set the global flag early
-      window.needsUnmuteFlow = needsUnmuteState();
-
+      window.needsUnmuteFlow = /iPhone|iPad|iPod|Android|Mobile/i.test(
+        navigator.userAgent
+      );
+      const videoDisplay = document.querySelector(".video-display");
       // Toggle call - Refactored Logic with special iOS handling
       callButton.addEventListener("click", () => {
         console.log(
@@ -3379,6 +2355,20 @@
           sitepalContainer.dataset.initialized = "true";
 
           // Update UI
+          function updateSelfView() {
+            const selfView = document.getElementById("self-view");
+            if (!selfView) {
+              console.error("Self view element not found");
+              return;
+            }
+
+            selfView.innerHTML = '<div class="emoji-placeholder">😎</div>'; // Set default immediately
+            console.log("Requesting avatar from parent...");
+
+            // Request avatar from parent
+            window.parent.postMessage({ type: "REQUEST_AVATAR" }, "*");
+          }
+
           selfView.style.display = "block";
           updateSelfView();
           liveIndicator.style.display = "block";
@@ -3421,74 +2411,36 @@
           }
 
           // Expand video display when connecting
-          const videoDisplay = document.querySelector(".video-display");
+
           if (videoDisplay) {
             videoDisplay.classList.add("active");
           }
-        } else if (callButton.textContent === "UN-MUTE") {
-          // ---- UN-MUTE Flow (new state) ----
-          console.log("UN-MUTE clicked, activating microphone...");
+          if (callButton.textContent === "UN-MUTE") {
+            console.log("UN-MUTE clicked, activating microphone...");
+            callButton.disabled = true;
 
-          // Prevent multiple clicks
-          callButton.disabled = true;
+            // function activateSitePalMic() {
+            //   if (typeof AI_vhost_api === "function") {
+            //     console.log("Calling AI_vhost_api('startListening')");
+            //     AI_vhost_api("startListening");
+            //   } else {
+            //     console.log("AI_vhost_api not ready yet, retrying...");
+            //     setTimeout(activateSitePalMic, 300); // retry after 300ms
+            //   }
+            // }
 
-          // For iOS, we need to be more careful with audio handling
-          const isIOSOrSafari = isIOS || browserIsSafari;
+            // activateSitePalMic();
 
-          // Prime audio with SitePal silent function
-          try {
-            // On iOS, use window.saySilent to ensure it works
-            if (typeof window.saySilent === "function") {
-              console.log(
-                "Calling window.saySilent(0) to prime audio system..."
-              );
-              window.saySilent(0);
-            } else if (typeof saySilent === "function") {
-              // Fallback to local saySilent
-              console.log(
-                "Calling local saySilent(0) to prime audio system..."
-              );
-              saySilent(0);
-            }
-          } catch (e) {
-            console.warn("saySilent call failed:", e);
-          }
+            // UI state updates
+            callButton.textContent = "DISCONNECT";
+            callButton.classList.remove("unmute");
+            callButton.classList.add("disconnect");
+            callButton.disabled = false;
 
-          // For iOS, we need to handle possible errors with the recognition system
-          if (isIOSOrSafari) {
-            console.log(
-              "iOS/Safari detected - using specialized activation path"
+            window.parent.postMessage(
+              { type: "SITEPAL_STATE_CHANGE", isListening: true },
+              "*"
             );
-
-            // First try to stop any existing recognition to avoid errors
-            try {
-              if (typeof AI_vhost_api === "function") {
-                console.log("Trying to stop any existing recognition first");
-                AI_vhost_api("stopListening");
-              }
-            } catch (e) {
-              console.log("Error stopping recognition:", e);
-            }
-
-            // Short delay before activation to allow stop to complete
-            setTimeout(() => {
-              activateMicrophone();
-
-              // Enable button and update to DISCONNECT state
-              callButton.disabled = false;
-              callButton.textContent = "DISCONNECT";
-              callButton.classList.remove("unmute");
-              callButton.classList.add("disconnect");
-              console.log(
-                "Microphone activation attempted, button set to DISCONNECT"
-              );
-
-              // Send state change message to parent
-              window.parent.postMessage(
-                { type: "SITEPAL_STATE_CHANGE", isListening: true },
-                "*"
-              );
-            }, 500); // Longer delay for iOS
           } else {
             // Standard path for non-iOS browsers
             setTimeout(() => {
@@ -3546,12 +2498,7 @@
 
       // Toggle 80s mode
       eightiesToggle.addEventListener("click", () => {
-        const crtEffect = document.getElementById("crt-effect");
         const toggleRow = document.querySelector(".toggle-row.mobile-inline");
-
-        // CRT power on/off effect with less opacity
-        crtEffect.style.opacity = "0.4"; // Reduced opacity
-        crtEffect.classList.add("crt-on");
 
         // Toggle the isEightiesMode state
         isEightiesMode = !isEightiesMode;
@@ -3602,16 +2549,6 @@
 
         // Notify parent of the mode change
         window.parent.postMessage({ type: "EIGHTIES_MODE_CHANGE" }, "*");
-
-        // Request current music player state after mode change
-        setTimeout(() => {
-          window.parent.postMessage({ type: "REQUEST_MUSIC_STATE" }, "*");
-        }, 300); // Small delay to allow parent to update music player
-
-        setTimeout(() => {
-          crtEffect.style.opacity = "0";
-          crtEffect.classList.remove("crt-on");
-        }, 150);
       });
 
       // Toggle music
@@ -3716,94 +2653,6 @@
 
         console.log("Constellations toggled:", isConstellationsEnabled);
       });
-
-      // Update UI functions
-      function updateCallUI() {
-        // Note: isCallActive state and button text/class are primarily managed
-        // by the main callButton event listener now. This function reflects
-        // the state onto other UI elements and handles the disconnect cleanup.
-
-        if (isCallActive) {
-          // This path is less critical now, mostly for refreshing UI if needed,
-          // but the initial setup happens in the event listener.
-          if (callStatus) callStatus.classList.add("active");
-          const deadAir = document.getElementById("deadAir");
-          if (deadAir) {
-            deadAir.style.display = "none";
-            deadAir.pause();
-          }
-          const sitepalContainer = document.getElementById("sitepal-container");
-          if (sitepalContainer) sitepalContainer.style.display = "block";
-          if (selfView) selfView.style.display = "block";
-          if (liveIndicator) liveIndicator.style.display = "block";
-          if (stationSelect) stationSelect.disabled = true;
-
-          // Check current state of callButton and preserve it
-          // This prevents resetting to DISCONNECT if we're in UN-MUTE state
-          if (callButton && callButton.textContent !== "UN-MUTE") {
-            callButton.textContent = "DISCONNECT";
-            callButton.classList.add("disconnect");
-            callButton.classList.remove("unmute");
-          }
-
-          // Ensure button remains clickable (redundant but safe)
-          callButton.style.pointerEvents = "auto";
-
-          // Ensure system status is active
-          if (systemStatus) systemStatus.classList.add("active");
-        } else {
-          // ---- Disconnect UI Cleanup ----
-          console.log("Updating UI for disconnected state.");
-          callButton.textContent = "CONNECT";
-          callButton.classList.remove("disconnect");
-          callButton.classList.remove("unmute"); // Also remove unmute class if it exists
-          callButton.style.pointerEvents = "auto"; // Ensure connect button is clickable
-          if (callStatus) callStatus.classList.remove("active");
-
-          const deadAir = document.getElementById("deadAir");
-          if (deadAir) {
-            // Ensure video is paused and hidden on disconnect
-            deadAir.pause();
-            deadAir.style.opacity = 1; // Ensure ready for next connect effect
-            deadAir.style.display = "none"; // Keep video hidden
-          }
-          // Show offline display again
-          const offlineDisplay = document.getElementById("offline-display");
-          if (offlineDisplay) {
-            offlineDisplay.style.display = "flex";
-          }
-
-          const sitepalContainer = document.getElementById("sitepal-container");
-          if (sitepalContainer) {
-            sitepalContainer.style.display = "none";
-            // Ensure SitePal is cleaned up if it was initialized
-            if (sitepalContainer.dataset.initialized === "true") {
-              console.log(
-                "Cleaning up SitePal via updateCallUI (disconnect path)"
-              );
-              if (cleanupSitePal()) {
-                sitepalContainer.dataset.initialized = "false";
-              }
-            }
-          }
-
-          if (selfView) selfView.style.display = "none";
-          if (liveIndicator) liveIndicator.style.display = "none";
-          if (stationSelect) stationSelect.disabled = false;
-
-          // Ensure system status is active
-          if (systemStatus) systemStatus.classList.add("active");
-        }
-      }
-
-      function updateStationDisplay() {
-        const station = stationSelect.value.toLowerCase().replace(" ", "_");
-        stationDisplay.textContent = `COMM:/${station}`;
-      }
-
-      function updatePowerUI() {
-        // Empty stub function
-      }
 
       function updateEightiesUI(isActive) {
         const missionControl = document.getElementById("mission-control");
@@ -3935,368 +2784,6 @@
         }
       }
 
-      // Add function to update self-view
-      function updateSelfView() {
-        const selfView = document.getElementById("self-view");
-        if (!selfView) {
-          console.error("Self view element not found");
-          return;
-        }
-
-        selfView.innerHTML = '<div class="emoji-placeholder">😎</div>'; // Set default immediately
-        console.log("Requesting avatar from parent...");
-
-        // Request avatar from parent
-        window.parent.postMessage({ type: "REQUEST_AVATAR" }, "*");
-      }
-
-      // Add a function to check for and click the mic button
-      function checkAndClickMicButton() {
-        console.log("Checking for SitePal mic button...");
-
-        // Special handling for iOS
-        if (isIOS || browserIsSafari) {
-          console.log("Using iOS-specific mic button check");
-
-          // On iOS, we may need to force the API call directly
-          try {
-            // Try direct API call first
-            if (typeof AI_vhost_api === "function") {
-              console.log("iOS: Using direct API call for mic activation");
-              AI_vhost_api("startListening");
-              return true;
-            }
-
-            // Then try finding the button
-            const micButton = document.querySelector(".vhss-aiplayer-mic-p3");
-            if (micButton) {
-              console.log("iOS: Found mic button, simulating touch");
-
-              // For iOS, simulate both click and touch events
-              micButton.dispatchEvent(
-                new MouseEvent("mousedown", {
-                  bubbles: true,
-                  cancelable: true,
-                  view: window,
-                })
-              );
-
-              micButton.dispatchEvent(
-                new MouseEvent("click", {
-                  bubbles: true,
-                  cancelable: true,
-                  view: window,
-                })
-              );
-
-              // iOS Safari may not support TouchEvent constructor
-              try {
-                // Check if TouchEvent constructor exists
-                if (typeof TouchEvent === "function") {
-                  micButton.dispatchEvent(
-                    new TouchEvent("touchstart", {
-                      bubbles: true,
-                      cancelable: true,
-                      view: window,
-                      touches: [
-                        new Touch({
-                          identifier: Date.now(),
-                          target: micButton,
-                          clientX: 10,
-                          clientY: 10,
-                          screenX: 10,
-                          screenY: 10,
-                          pageX: 10,
-                          pageY: 10,
-                          radiusX: 2,
-                          radiusY: 2,
-                        }),
-                      ],
-                    })
-                  );
-                } else {
-                  // Fallback for browsers that don't support TouchEvent constructor
-                  console.log(
-                    "TouchEvent constructor not supported, using alternative approach"
-                  );
-
-                  // Create and dispatch a synthetic touchstart event
-                  const touchEvent = document.createEvent("Event");
-                  touchEvent.initEvent("touchstart", true, true);
-                  micButton.dispatchEvent(touchEvent);
-                }
-              } catch (e) {
-                console.error("Error creating touch event:", e);
-              }
-
-              // Even if these don't work, we'll return true to update the UI
-              return true;
-            }
-          } catch (e) {
-            console.error("iOS mic button error:", e);
-          }
-
-          // For iOS, we'll pretend we succeeded to update the UI
-          return true;
-        }
-
-        // Standard path for non-iOS devices
-        // Try to find the button in the document
-        const micButton = document.querySelector(".vhss-aiplayer-mic-p3");
-        if (micButton) {
-          console.log("Found SitePal mic button in document, clicking it");
-          micButton.click();
-          return true;
-        }
-
-        // Try to find in iframes
-        const iframes = document.querySelectorAll("iframe");
-        for (let i = 0; i < iframes.length; i++) {
-          try {
-            const iframeDoc =
-              iframes[i].contentDocument || iframes[i].contentWindow.document;
-            const iframeMicButton = iframeDoc.querySelector(
-              ".vhss-aiplayer-mic-p3"
-            );
-            if (iframeMicButton) {
-              console.log(
-                `Found SitePal mic button in iframe ${i}, clicking it`
-              );
-              iframeMicButton.click();
-              return true;
-            }
-          } catch (e) {
-            console.warn(`Cannot access iframe ${i} content:`, e);
-          }
-        }
-
-        return false;
-      }
-
-      // Function to initialize SitePal on iOS devices
-      function initSitePalOnIOS() {
-        console.log("Initializing SitePal for iOS...");
-
-        // First, ensure we have a clean container
-        const sitepalContainer = document.getElementById("sitepal-container");
-        if (!sitepalContainer) {
-          console.error("SitePal container not found");
-          return;
-        }
-
-        // Create a fresh vhss_aiPlayer div
-        const aiPlayer = document.createElement("div");
-        aiPlayer.id = "vhss_aiPlayer";
-        aiPlayer.style.cssText = "text-align: center; color: #67e8f9;";
-        aiPlayer.innerHTML = "Loading AI Agent...";
-        sitepalContainer.innerHTML = ""; // Clear existing content
-        sitepalContainer.appendChild(aiPlayer);
-
-        // Load the embed script if needed
-        if (typeof AI_vhost_embed !== "function") {
-          console.log("Loading SitePal embed script for iOS...");
-          const scriptEl = document.createElement("script");
-          scriptEl.src =
-            "//vhss-d.oddcast.com/vhost_embed_functions_v4.php?acc=9157686&js=1";
-          scriptEl.type = "text/javascript";
-
-          // Use a promise to handle script loading
-          new Promise((resolve, reject) => {
-            scriptEl.onload = resolve;
-            scriptEl.onerror = reject;
-            document.head.appendChild(scriptEl);
-          })
-            .then(() => {
-              console.log("SitePal embed script loaded for iOS");
-              setTimeout(performIOSEmbed, 500);
-            })
-            .catch((error) => {
-              console.error("Failed to load SitePal script:", error);
-            });
-        } else {
-          performIOSEmbed();
-        }
-
-        function performIOSEmbed() {
-          try {
-            console.log("Performing SitePal embed for iOS...");
-
-            // Define the scene loaded callback *before* embedding
-            window.vh_sceneLoaded = function (sceneIndex, portal) {
-              console.log(
-                `vh_sceneLoaded callback fired for sceneIndex: ${sceneIndex}, portal: ${portal} (iOS)`
-              );
-              window.sitepalInitialized = true;
-
-              // Ensure the button is in UN-MUTE state
-              const callButton = document.getElementById("call-button");
-              if (callButton && callButton.textContent !== "DISCONNECT") {
-                callButton.textContent = "UN-MUTE";
-                callButton.classList.add("unmute");
-                callButton.classList.remove("disconnect");
-                console.log(
-                  "SitePal scene loaded (iOS), setting button to UN-MUTE state"
-                );
-              }
-
-              // Fade out the transmission video
-              const deadAir = document.getElementById("deadAir");
-              if (deadAir) {
-                console.log(
-                  "Scene loaded (iOS), fading out transmission video..."
-                );
-                deadAir.style.opacity = 0;
-                setTimeout(() => {
-                  console.log("Pausing transmission video after fade (iOS).");
-                  deadAir.pause();
-                }, 500); // Matches CSS transition duration
-              }
-
-              // Notify parent frame that SitePal is ready
-              window.parent.postMessage({ type: "SITEPAL_READY" }, "*");
-
-              // Prime audio playback on iOS/Safari using silent speech
-              try {
-                console.log("Priming browser with silent playback (iOS)...");
-                window.saySilent(0);
-              } catch (e) {
-                console.warn("saySilent(0) failed (iOS):", e);
-              }
-
-              // REMOVED: Initial greeting - will now wait for UN-MUTE click
-            };
-
-            // Set up listening status callback (remains the same)
-            window.vh_listeningStatusUpdate = function (isListening) {
-              console.log("SitePal listening status update:", isListening);
-              window.parent.postMessage(
-                {
-                  type: "SITEPAL_STATE_CHANGE",
-                  isListening: isListening,
-                },
-                "*"
-              );
-            };
-
-            // Perform the embed with load=0
-            AI_vhost_embed(280, 180, 9157686, 244, 1, 0);
-
-            // Trigger the scene load via API - REMOVED this call as it's causing errors
-            // setTimeout(() => {
-            //   try {
-            //     console.log("Calling loadSceneByID (iOS)...");
-            //     AI_vhost_api("loadSceneByID", "vhss_aiPlayer");
-            //   } catch (e) {
-            //     console.error("Error calling loadSceneByID (iOS):", e);
-            //   }
-            // }, 100);
-          } catch (e) {
-            console.error("Error during iOS SitePal embed:", e);
-          }
-        }
-
-        // This function was previously used to automatically activate the mic
-        // We're now replacing this with the UN-MUTE button approach
-        function setupIOSHandlers() {
-          console.log("Setting up iOS handlers (now waits for UN-MUTE)...");
-
-          // Mark as initialized
-          window.sitepalInitialized = true;
-          window.parent.postMessage({ type: "SITEPAL_READY" }, "*");
-
-          // Try to prime audio context (but don't activate mic or speak)
-          try {
-            if (typeof saySilent === "function") {
-              saySilent(0);
-              console.log("Audio primed for iOS (silent)");
-            }
-          } catch (e) {
-            console.log("iOS audio priming failed:", e);
-          }
-
-          // Update UI to UN-MUTE state (not DISCONNECT)
-          if (callButton) {
-            callButton.textContent = "UN-MUTE";
-            callButton.classList.add("unmute");
-            callButton.classList.remove("disconnect");
-            console.log("iOS handlers set button to UN-MUTE");
-          }
-        }
-      }
-
-      // Function to clean up SitePal
-      function cleanupSitePal() {
-        console.log("Cleaning up SitePal...");
-
-        try {
-          // Stop any ongoing processes
-          if (typeof AI_vhost_api === "function") {
-            console.log("Calling stopSpeaking...");
-            AI_vhost_api("stopSpeaking");
-            console.log("Calling stopListening...");
-            AI_vhost_api("stopListening");
-            console.log("Calling unloadScene...");
-            AI_vhost_api("unloadScene");
-          }
-
-          // Also call the older stop function for robustness
-          if (typeof AI_vhost_stop === "function") {
-            console.log("Calling AI_vhost_stop()...");
-            AI_vhost_stop();
-          }
-
-          // Clear the container
-          const container = document.getElementById("vhss_aiPlayer");
-          if (container) {
-            container.innerHTML = "";
-          }
-
-          // Remove any lingering iframes
-          const iframes = document.querySelectorAll("#SitePal iframe");
-          iframes.forEach((iframe) => {
-            iframe.src = "about:blank";
-            iframe.remove();
-          });
-
-          // Reset state
-          window.sitepalInitialized = false;
-
-          return true;
-        } catch (e) {
-          console.error("Error during cleanup:", e);
-          return false;
-        }
-      }
-
-      // Function to update UI when recording starts
-      function updateUIForRecording() {
-        console.log("Updating UI for recording state");
-
-        // Update button state
-        if (callButton) {
-          callButton.textContent = "DISCONNECT";
-          callButton.classList.add("disconnect");
-        }
-
-        // Notify parent frame that we're listening
-        window.parent.postMessage(
-          {
-            type: "SITEPAL_STATE_CHANGE",
-            isListening: true,
-          },
-          "*"
-        );
-
-        // Clear the iOS button timer if it exists
-        if (window.iosButtonTimer) {
-          clearInterval(window.iosButtonTimer);
-          window.iosButtonTimer = null;
-        }
-      }
-
-      // Initialize UI
-      updateCallUI();
-      updateStationDisplay();
       updateLeaderboardUI(); // Initialize leaderboard state
 
       // Apply appropriate UI state based on URL parameters
@@ -4371,409 +2858,6 @@
         }, 2000);
       }
 
-      // Add a debug function to check environment
-      function debugSitePalEnvironment() {
-        console.group("SitePal Environment Debug");
-
-        // Check for various speech functions
-        console.log(
-          "window.sayText exists:",
-          typeof window.sayText === "function"
-        );
-        console.log("sayText exists:", typeof sayText === "function");
-        console.log("window.say exists:", typeof window.say === "function");
-        console.log("say exists:", typeof say === "function");
-        console.log(
-          "window.saySilent exists:",
-          typeof window.saySilent === "function"
-        );
-        console.log("saySilent exists:", typeof saySilent === "function");
-        console.log("AI_vhost_api exists:", typeof AI_vhost_api === "function");
-
-        // Check if we're in an iframe
-        console.log("In iframe:", window !== window.top);
-
-        // Log browser and OS info
-        console.log("User Agent:", navigator.userAgent);
-        console.log("Platform:", navigator.platform);
-
-        // Log if we're using the three-state approach
-        console.log("Using three-state approach:", window.needsUnmuteFlow);
-
-        console.groupEnd();
-      }
-
-      // Call the debug function when scene loads
-      window.vh_sceneLoaded = function (sceneIndex, portal) {
-        console.log(
-          `vh_sceneLoaded callback fired for sceneIndex: ${sceneIndex}, portal: ${portal}`
-        );
-        window.sitepalSceneReady = true; // Set flag
-
-        // Run debug check
-        debugSitePalEnvironment();
-
-        // Prevent double invocation
-        if (window.sceneAlreadyLoaded) {
-          console.log(
-            "Scene load callback called again - ignoring subsequent calls"
-          );
-          return;
-        }
-        window.sceneAlreadyLoaded = true;
-
-        // Fade out the transmission video
-        const deadAir = document.getElementById("deadAir");
-        if (deadAir) {
-          console.log("Scene loaded, fading out transmission video...");
-          deadAir.style.opacity = 0;
-          setTimeout(() => {
-            console.log("Pausing transmission video after fade.");
-            deadAir.pause();
-          }, 500); // Matches CSS transition duration
-        }
-
-        // Prime audio playback using silent speech
-        try {
-          console.log("Priming browser with silent playback...");
-          window.saySilent(0);
-        } catch (e) {
-          console.warn("saySilent(0) failed:", e);
-        }
-
-        // Get the call button
-        const callButton = document.getElementById("call-button");
-        if (!callButton) return;
-
-        // Check if we need the three-state approach or can auto-transition
-        if (window.needsUnmuteFlow) {
-          // Three-state approach for iOS, Safari, mobile devices
-          if (callButton.textContent !== "DISCONNECT") {
-            callButton.textContent = "UN-MUTE";
-            callButton.classList.add("unmute");
-            callButton.classList.remove("disconnect");
-
-            // Prevent automatic triggering by disabling/re-enabling
-            callButton.disabled = true;
-            setTimeout(() => {
-              callButton.disabled = false;
-            }, 500);
-
-            console.log(
-              "SitePal scene loaded, setting button to UN-MUTE state (three-state flow)"
-            );
-          }
-        } else {
-          // Auto-transition approach for desktop browsers
-          console.log("Auto-transition flow - activating immediately");
-
-          // Short delay to ensure everything is ready
-          setTimeout(() => {
-            // Prime audio again
-            try {
-              if (typeof window.saySilent === "function") {
-                window.saySilent(0);
-              }
-            } catch (e) {
-              console.warn("Auto-activation saySilent failed:", e);
-            }
-
-            // Update UI to DISCONNECT state first
-            callButton.textContent = "DISCONNECT";
-            callButton.classList.remove("unmute");
-            callButton.classList.add("disconnect");
-
-            // DIRECTLY call the greeting functions, don't rely solely on activateMicrophone
-            // Each method in its own try/catch for maximum reliability
-            setTimeout(() => {
-              console.log("DIRECT GREETING ATTEMPT FOR DESKTOP");
-
-              // Try the most reliable method first - direct window.sayText() call
-              try {
-                if (typeof window.sayText === "function") {
-                  console.log(
-                    "Desktop direct greeting: calling window.sayText()"
-                  );
-                  window.sayText(
-                    "Greetings, how can I help you today?",
-                    8,
-                    1,
-                    6
-                  );
-                }
-              } catch (e1) {
-                console.error("Desktop direct greeting method 1 failed:", e1);
-              }
-
-              // Secondary: try local sayText
-              try {
-                if (typeof sayText === "function") {
-                  console.log(
-                    "Desktop direct greeting: calling local sayText()"
-                  );
-                  sayText("Greetings, how can I help you today?", 8, 1, 6);
-                }
-              } catch (e2) {
-                console.error("Desktop direct greeting method 2 failed:", e2);
-              }
-
-              // Also call activateMicrophone as a backup
-              try {
-                activateMicrophone();
-              } catch (e3) {
-                console.error("Desktop activateMicrophone call failed:", e3);
-              }
-
-              // Send state change message to parent
-              window.parent.postMessage(
-                {
-                  type: "SITEPAL_STATE_CHANGE",
-                  isListening: true,
-                },
-                "*"
-              );
-            }, 300); // Short delay before direct greeting attempts
-          }, 500);
-        }
-
-        // Notify parent frame that SitePal is ready
-        window.parent.postMessage({ type: "SITEPAL_READY" }, "*");
-      };
-
-      // Add this better method to say greeting directly to SitePal
-      function forceGreeting() {
-        console.log("FORCE GREETING: Attempting direct SitePal access");
-
-        // Method 1: Try checking global variables for SitePal objects
-        try {
-          // Log all global objects that might be SitePal-related
-          for (const key in window) {
-            if (
-              key.includes("sitepal") ||
-              key.includes("vhss") ||
-              key.includes("AI_") ||
-              key.includes("say")
-            ) {
-              console.log(`Found potential SitePal object: ${key}`);
-            }
-          }
-
-          // Try to find SitePal's iframe which might contain the speech functions
-          const frames = document.querySelectorAll("iframe");
-          for (let i = 0; i < frames.length; i++) {
-            try {
-              console.log(`Checking iframe ${i} for SitePal content`);
-              const frameDoc =
-                frames[i].contentDocument || frames[i].contentWindow.document;
-              const frameWindow = frames[i].contentWindow;
-
-              // Check if this is a SitePal frame
-              if (
-                frameDoc.body.innerHTML.includes("sitepal") ||
-                frameDoc.body.innerHTML.includes("vhss")
-              ) {
-                console.log(`Found potential SitePal iframe: ${i}`);
-
-                // Try to call speech functions on the frame's window
-                if (typeof frameWindow.sayText === "function") {
-                  console.log("Found sayText in iframe, calling it");
-                  frameWindow.sayText(
-                    "Greetings, how can I help you today?",
-                    8,
-                    1,
-                    6
-                  );
-                  return true;
-                }
-              }
-            } catch (e) {
-              console.log(`Cannot access iframe ${i} content:`, e);
-            }
-          }
-        } catch (e) {
-          console.error("Error in method 1:", e);
-        }
-
-        // Method 2: Try using vhss player directly
-        try {
-          const vhssPlayer = document.getElementById("vhss_aiPlayer");
-          if (vhssPlayer) {
-            console.log("Found vhss_aiPlayer, trying to access its functions");
-
-            // Try to find and call the say method on vhssPlayer
-            if (vhssPlayer.say) {
-              console.log("Found vhssPlayer.say(), calling it");
-              vhssPlayer.say("Greetings, how can I help you today?");
-              return true;
-            }
-          }
-        } catch (e) {
-          console.error("Error in method 2:", e);
-        }
-
-        // Method 3: Try to inject a script that calls the speech function
-        try {
-          const script = document.createElement("script");
-          script.textContent = `
-            try {
-              console.log("Injected script running");
-              if (typeof sayText === 'function') {
-                sayText("Greetings, how can I help you today?", 8, 1, 6);
-                console.log("Direct script injection: sayText called");
-              } else if (typeof say === 'function') {
-                say("Greetings, how can I help you today?");
-                console.log("Direct script injection: say called");
-              } else {
-                console.log("No speech functions found in injected script context");
-              }
-            } catch(e) {
-              console.error("Injected script error:", e);
-            }
-          `;
-          document.head.appendChild(script);
-
-          // Alternative: try calling AI_vhost_say if it exists
-          if (typeof AI_vhost_say === "function") {
-            console.log("Found AI_vhost_say, calling it");
-            AI_vhost_say("Greetings, how can I help you today?");
-            return true;
-          }
-        } catch (e) {
-          console.error("Error in method 3:", e);
-        }
-
-        // Final attempt: check browser console for any speech function
-        console.log(
-          "URGENT: Please check browser console for available SitePal speech functions!"
-        );
-        console.log("Try typing these in console to find which works:");
-        console.log("1. sayText('Hello', 8, 1, 6)");
-        console.log("2. say('Hello')");
-        console.log("3. AI_vhost_say('Hello')");
-        console.log("4. window.sayText('Hello', 8, 1, 6)");
-
-        return false;
-      }
-
-      // Function to handle auto-transition (replacing the standalone else block)
-      function handleDesktopAutoTransition(callButton) {
-        // Auto-transition approach for desktop browsers
-        console.log("Auto-transition flow - activating immediately");
-
-        // Short delay to ensure everything is ready
-        setTimeout(() => {
-          // Prime audio again
-          try {
-            if (typeof window.saySilent === "function") {
-              window.saySilent(0);
-            }
-          } catch (e) {
-            console.warn("Auto-activation saySilent failed:", e);
-          }
-
-          // Update UI to DISCONNECT state first
-          callButton.textContent = "DISCONNECT";
-          callButton.classList.remove("unmute");
-          callButton.classList.add("disconnect");
-
-          // DIRECTLY call the greeting functions, don't rely solely on activateMicrophone
-          // Each method in its own try/catch for maximum reliability
-          setTimeout(() => {
-            console.log("DIRECT GREETING ATTEMPT FOR DESKTOP");
-
-            // Try the direct approach first
-            const forcedSuccess = forceGreeting();
-
-            if (!forcedSuccess) {
-              // Also try activateMicrophone as a backup
-              try {
-                activateMicrophone();
-              } catch (e3) {
-                console.error("Desktop activateMicrophone call failed:", e3);
-              }
-            }
-
-            // Send state change message to parent
-            window.parent.postMessage(
-              {
-                type: "SITEPAL_STATE_CHANGE",
-                isListening: true,
-              },
-              "*"
-            );
-          }, 300); // Short delay before direct greeting attempts
-        }, 500);
-      }
-
-      // Update the vh_sceneLoaded function to use the new handler
-      window.vh_sceneLoaded = function (sceneIndex, portal) {
-        console.log(
-          `vh_sceneLoaded callback fired for sceneIndex: ${sceneIndex}, portal: ${portal}`
-        );
-        window.sitepalSceneReady = true; // Set flag
-
-        // Run debug check
-        debugSitePalEnvironment();
-
-        // Prevent double invocation
-        if (window.sceneAlreadyLoaded) {
-          console.log(
-            "Scene load callback called again - ignoring subsequent calls"
-          );
-          return;
-        }
-        window.sceneAlreadyLoaded = true;
-
-        // Fade out the transmission video
-        const deadAir = document.getElementById("deadAir");
-        if (deadAir) {
-          console.log("Scene loaded, fading out transmission video...");
-          deadAir.style.opacity = 0;
-          setTimeout(() => {
-            console.log("Pausing transmission video after fade.");
-            deadAir.pause();
-          }, 500); // Matches CSS transition duration
-        }
-
-        // Prime audio playback using silent speech
-        try {
-          console.log("Priming browser with silent playback...");
-          window.saySilent(0);
-        } catch (e) {
-          console.warn("saySilent(0) failed:", e);
-        }
-
-        // Get the call button
-        const callButton = document.getElementById("call-button");
-        if (!callButton) return;
-
-        // Check if we need the three-state approach or can auto-transition
-        if (window.needsUnmuteFlow) {
-          // Three-state approach for iOS, Safari, mobile devices
-          if (callButton.textContent !== "DISCONNECT") {
-            callButton.textContent = "UN-MUTE";
-            callButton.classList.add("unmute");
-            callButton.classList.remove("disconnect");
-
-            // Prevent automatic triggering by disabling/re-enabling
-            callButton.disabled = true;
-            setTimeout(() => {
-              callButton.disabled = false;
-            }, 500);
-
-            console.log(
-              "SitePal scene loaded, setting button to UN-MUTE state (three-state flow)"
-            );
-          }
-        } else {
-          // Use our refactored function for auto-transition
-          handleDesktopAutoTransition(callButton);
-        }
-
-        // Notify parent frame that SitePal is ready
-        window.parent.postMessage({ type: "SITEPAL_READY" }, "*");
-      };
-
       // At the end of the file, add this script to resize the container
       document.addEventListener("DOMContentLoaded", function () {
         // Function to adjust height to fill viewport
@@ -4790,349 +2874,12 @@
         window.addEventListener("resize", adjustHeight);
       });
 
-      // Add a modified forceGreeting function that searches for speech functions more aggressively
-      function forceSpeechFunction(message) {
-        console.log("ATTEMPTING FORCED SPEECH: " + message);
-
-        // Try to find SitePal's iframe which might contain the speech functions
-        const frames = document.querySelectorAll("iframe");
-        for (let i = 0; i < frames.length; i++) {
-          try {
-            console.log(`Looking for speech functions in iframe ${i}`);
-            const frameWindow = frames[i].contentWindow;
-
-            // Try to access common speech functions in iframe
-            if (typeof frameWindow.sayText === "function") {
-              console.log("Found iframe sayText, calling it");
-              frameWindow.sayText(message, 8, 1, 6);
-              return true;
-            } else if (typeof frameWindow.say === "function") {
-              console.log("Found iframe say, calling it");
-              frameWindow.say(message);
-              return true;
-            }
-
-            // Try to access the speech function through the SitePal object if it exists
-            if (
-              frameWindow.SitePal &&
-              typeof frameWindow.SitePal.say === "function"
-            ) {
-              console.log("Found SitePal.say in iframe, calling it");
-              frameWindow.SitePal.say(message);
-              return true;
-            }
-          } catch (e) {
-            console.log(`Cannot access iframe ${i} content:`, e);
-          }
-        }
-
-        // Try to find direct properties on document that might be SitePal
-        const sitePalElements = document.querySelectorAll(
-          '[id*="sitepal"], [id*="vhss"], [class*="sitepal"], [class*="vhss"]'
-        );
-        console.log(
-          `Found ${sitePalElements.length} potential SitePal elements`
-        );
-
-        for (const element of sitePalElements) {
-          console.log(`Checking element: ${element.id || element.className}`);
-
-          // Try calling methods directly on the element
-          if (typeof element.say === "function") {
-            console.log("Found element.say(), calling it");
-            element.say(message);
-            return true;
-          }
-
-          if (typeof element.sayText === "function") {
-            console.log("Found element.sayText(), calling it");
-            element.sayText(message, 8, 1, 6);
-            return true;
-          }
-        }
-
-        // Try direct API call
-        if (typeof AI_vhost_api === "function") {
-          console.log("Trying direct API call: AI_vhost_api('say', message)");
-          try {
-            AI_vhost_api("say", message);
-            return true;
-          } catch (e) {
-            console.error("API call failed:", e);
-          }
-        }
-
-        // Try special method used on desktop browsers
-        if (typeof vhsshtml5_say === "function") {
-          console.log("Found vhsshtml5_say, calling it");
-          vhsshtml5_say(message);
-          return true;
-        }
-
-        return false;
-      }
-
-      // Update auto-transition function to use the new robust speech function
-      function handleDesktopAutoTransition(callButton) {
-        // Auto-transition approach for desktop browsers
-        console.log("Auto-transition flow - activating immediately");
-
-        // Short delay to ensure everything is ready
-        setTimeout(() => {
-          // Prime audio again
-          try {
-            if (typeof window.saySilent === "function") {
-              window.saySilent(0);
-            }
-          } catch (e) {
-            console.warn("Auto-activation saySilent failed:", e);
-          }
-
-          // Update UI to DISCONNECT state first
-          callButton.textContent = "DISCONNECT";
-          callButton.classList.remove("unmute");
-          callButton.classList.add("disconnect");
-
-          // Activate microphone
-          try {
-            activateMicrophone();
-          } catch (e3) {
-            console.error("Desktop activateMicrophone call failed:", e3);
-          }
-
-          // DIRECTLY call the greeting with progressive delays to ensure SitePal is fully ready
-          setTimeout(() => {
-            // First attempt
-            console.log("DESKTOP GREETING: First attempt");
-            if (!forceSpeechFunction("Greetings, how can I help you today?")) {
-              // If first attempt fails, try again with a longer delay
-              setTimeout(() => {
-                console.log("DESKTOP GREETING: Second attempt");
-                if (
-                  !forceSpeechFunction("Greetings, how can I help you today?")
-                ) {
-                  // Final attempt with even longer delay
-                  setTimeout(() => {
-                    console.log("DESKTOP GREETING: Final attempt");
-                    forceSpeechFunction("Greetings, how can I help you today?");
-                  }, 1000);
-                }
-              }, 500);
-            }
-          }, 300);
-
-          // Send state change message to parent
-          window.parent.postMessage(
-            {
-              type: "SITEPAL_STATE_CHANGE",
-              isListening: true,
-            },
-            "*"
-          );
-        }, 500);
-      }
-
-      // Add console logging to the triggerGreeting function
-      function triggerGreeting() {
-        console.log("Attempting to trigger greeting...");
-
-        // Check if greeting was already played
-        if (window.greetingPlayed) {
-          console.log("Greeting already played, skipping");
-          return;
-        }
-
-        // Set flag to prevent duplicate greetings
-        window.greetingPlayed = true;
-
-        // Try the forced speech function first
-        if (forceSpeechFunction("Greetings, how can I help you today?")) {
-          console.log("Forced greeting successful");
-          return;
-        }
-
-        // Now play the greeting that was previously in vh_sceneLoaded
-        setTimeout(() => {
-          let greetingSuccess = false;
-
-          // Try multiple methods to ensure greeting works
-
-          // Method 1: Use sayText directly
-          try {
-            console.log("Method 1: Calling sayText directly");
-            if (typeof sayText === "function") {
-              sayText("Greetings, how can I help you today?", 8, 1, 6);
-              greetingSuccess = true;
-              console.log("Method 1 successful");
-            }
-          } catch (e) {
-            console.error("Method 1 failed:", e);
-          }
-
-          // Method 2: Use window.sayText
-          if (!greetingSuccess) {
-            try {
-              console.log("Method 2: Calling window.sayText");
-              if (typeof window.sayText === "function") {
-                window.sayText("Greetings, how can I help you today?", 8, 1, 6);
-                greetingSuccess = true;
-                console.log("Method 2 successful");
-              }
-            } catch (e2) {
-              console.error("Method 2 failed:", e2);
-            }
-          }
-
-          // Method 3: Try to use AI_vhost_api
-          if (!greetingSuccess) {
-            try {
-              console.log("Method 3: Using AI_vhost_api");
-              if (typeof AI_vhost_api === "function") {
-                AI_vhost_api("say", "Greetings, how can I help you today?");
-                greetingSuccess = true;
-                console.log("Method 3 successful");
-              }
-            } catch (e3) {
-              console.error("Method 3 failed:", e3);
-            }
-          }
-
-          // Method 4: Last resort - try any SitePal say function
-          if (!greetingSuccess) {
-            try {
-              console.log("Method 4: Last resort attempt");
-              // Check all possible function names
-              const possibleFunctions = [
-                "say",
-                "sayText",
-                "sayAI",
-                "saySentence",
-                "sayGreeting",
-                "vhsshtml5_say",
-              ];
-
-              for (const funcName of possibleFunctions) {
-                if (typeof window[funcName] === "function") {
-                  console.log(`Found function: ${funcName}`);
-                  window[funcName]("Greetings, how can I help you today?");
-                  greetingSuccess = true;
-                  console.log(`Method 4 successful using ${funcName}`);
-                  break;
-                }
-              }
-            } catch (e4) {
-              console.error("Method 4 failed:", e4);
-            }
-          }
-
-          if (!greetingSuccess) {
-            console.error("All greeting methods failed");
-          }
-        }, 300); // Short delay before greeting
-      }
-
-      // Add a simple function to find and call the SitePal speech function
-      function speakGreeting() {
-        console.log("Attempting to speak greeting via direct SitePal access");
-
-        // First attempt standard methods
-        try {
-          if (typeof window.sayText === "function") {
-            console.log("Using window.sayText directly");
-            window.sayText("Greetings, how can I help you today?", 8, 1, 6);
-            return true;
-          }
-
-          if (typeof sayText === "function") {
-            console.log("Using local sayText directly");
-            sayText("Greetings, how can I help you today?", 8, 1, 6);
-            return true;
-          }
-
-          if (typeof AI_vhost_api === "function") {
-            console.log("Using AI_vhost_api('say')");
-            AI_vhost_api("say", "Greetings, how can I help you today?");
-            return true;
-          }
-        } catch (e) {
-          console.error("Standard methods failed:", e);
-        }
-
-        // Try to find SitePal in iframes
-        try {
-          const frames = document.querySelectorAll("iframe");
-          console.log(`Checking ${frames.length} iframes for SitePal`);
-
-          // Look in each iframe
-          for (let i = 0; i < frames.length; i++) {
-            try {
-              const frame = frames[i];
-              const frameWindow = frame.contentWindow;
-
-              if (frameWindow) {
-                // Try sayText
-                if (typeof frameWindow.sayText === "function") {
-                  console.log(`Found sayText in iframe ${i}`);
-                  frameWindow.sayText(
-                    "Greetings, how can I help you today?",
-                    8,
-                    1,
-                    6
-                  );
-                  return true;
-                }
-              }
-            } catch (e) {
-              console.log(`Cannot access iframe ${i}:`, e);
-            }
-          }
-        } catch (e) {
-          console.error("Iframe methods failed:", e);
-        }
-
-        return false;
-      }
-
-      // Update the desktop auto-transition function to be simpler and more reliable
-      function handleDesktopAutoTransition(callButton) {
-        console.log("Auto-transition flow for desktop browser");
-
-        // Short delay to ensure ready
-        setTimeout(() => {
-          // Update UI first
-          callButton.textContent = "DISCONNECT";
-          callButton.classList.remove("unmute");
-          callButton.classList.add("disconnect");
-
-          // Try to speak, but with sequential delays
-          setTimeout(() => {
-            console.log("First greeting attempt");
-            if (!speakGreeting()) {
-              // Second attempt with longer delay
-              setTimeout(() => {
-                console.log("Second greeting attempt");
-                speakGreeting();
-              }, 1000);
-            }
-
-            // Activate microphone regardless
-            activateMicrophone();
-
-            // Notify parent
-            window.parent.postMessage(
-              { type: "SITEPAL_STATE_CHANGE", isListening: true },
-              "*"
-            );
-          }, 500);
-        }, 500);
-      }
-
       // Add click handler for collapsed video display
       document.addEventListener("DOMContentLoaded", function () {
         const videoDisplay = document.querySelector(".video-display");
         if (videoDisplay) {
-          // Initialize the display state based on screen width and call state
-          if (window.innerWidth <= 480 && !isCallActive) {
+          // Initialize the display state based on screen height and call state
+          if (window.innerHeight <= 700 && !isCallActive) {
             videoDisplay.classList.remove("active");
           } else {
             videoDisplay.classList.add("active");
@@ -5144,7 +2891,7 @@
 
             // Only trigger expansion if in collapsed state on mobile
             if (
-              window.innerWidth <= 480 &&
+              window.innerHeight <= 700 &&
               !this.classList.contains("active") &&
               !isCallActive
             ) {
@@ -5156,7 +2903,7 @@
                 }
               }, 5000);
             } else if (
-              window.innerWidth <= 480 &&
+              window.innerHeight <= 700 &&
               this.classList.contains("active") &&
               !isCallActive
             ) {
@@ -5169,12 +2916,23 @@
 
       // Modify the existing disconnectCall function to handle collapsing on mobile
       function disconnectCall() {
-        console.log("Disconnecting call and cleaning up SitePal...");
         isCallActive = false;
+        if (typeof AI_vhost_api === "function") {
+          console.log("🛑 Stopping SitePal character...");
+          AI_vhost_api("stop");
+        } else {
+          console.warn("AI_vhost_api is not available to stop.");
+        }
 
+        // Hide SitePal container
+        const container = document.getElementById("sitepal-container");
+        if (container) {
+          container.style.display = "none";
+          container.innerHTML = ""; // optional: clear inner content
+        }
         // Collapse video display when disconnecting on mobile
         const videoDisplay = document.querySelector(".video-display");
-        if (videoDisplay && window.innerWidth <= 480) {
+        if (videoDisplay && window.innerHeight <= 700) {
           videoDisplay.classList.remove("active");
         }
 
@@ -5205,7 +2963,7 @@
         sitepalContainer.style.display = "none";
 
         // Clean up SitePal instance
-        cleanupSitePal();
+        // cleanupSitePal();
 
         // Reset the initialization state
         sitepalContainer.dataset.initialized = "false";
@@ -5215,16 +2973,15 @@
           { type: "SITEPAL_STATE_CHANGE", isListening: false },
           "*"
         );
-
-        console.log("Call disconnected and cleaned up");
       }
 
       // Add resize handler to adjust video display state when resizing
       window.addEventListener("resize", function () {
+        const videoDisplay = document.querySelector(".video-display");
         if (videoDisplay) {
-          if (window.innerWidth <= 480 && !isCallActive) {
+          if (window.innerHeight <= 700 && !isCallActive) {
             videoDisplay.classList.remove("active");
-          } else if (window.innerWidth > 480) {
+          } else if (window.innerHeight > 700) {
             videoDisplay.classList.add("active");
           }
         }
