@@ -205,13 +205,39 @@
         left: 0 !important;
         width: 100% !important;
         height: 100% !important;
-        z-index: 30 !important; /* Increased to ensure visibility */
+        z-index: 5 !important; /* Lower z-index during loading */
         display: none;
         -webkit-overflow-scrolling: touch;
       }
 
       #sitepal-container.active {
         display: block !important; /* Use !important to ensure it overrides other styles */
+        z-index: 30 !important; /* Higher z-index only when active */
+      }
+
+      /* Hide SitePal loading elements */
+      #sitepal-container .waiting_logo,
+      #sitepal-container .loading-container,
+      #sitepal-container [id*="loading"],
+      #sitepal-container [class*="loading"] {
+        display: none !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
+      }
+
+      /* Style for video feed and transmission effect */
+      #video-feed {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 10; /* Higher than sitepal during loading */
+      }
+
+      #deadAir {
+        z-index: 20 !important; /* Ensure transmission effect is above everything during loading */
+        position: relative;
       }
 
       /* Make sure SitePal player is visible */
@@ -222,15 +248,6 @@
       }
 
       /* Ensure video stays behind sitepal when active */
-      #video-feed {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        z-index: 1;
-      }
-
       #video-feed video {
         width: 100%;
         height: 100%;
@@ -1858,6 +1875,7 @@
                       // Hide the transmission video effect
                       if (deadAir) {
                         deadAir.style.opacity = 0;
+                        deadAir.style.zIndex = "5"; // Lower z-index once loading is complete
                         setTimeout(() => deadAir.pause(), 500);
                       }
 
@@ -1865,6 +1883,14 @@
                       if (container) {
                         container.style.display = "block";
                         container.classList.add("active");
+                        container.style.zIndex = "30"; // Explicitly set high z-index when loaded
+
+                        // Also set z-index for the vhss_aiPlayer element
+                        const playerDiv =
+                          document.getElementById("vhss_aiPlayer");
+                        if (playerDiv) {
+                          playerDiv.style.zIndex = "25";
+                        }
                       }
 
                       // Make SitePal APIs available on window object for easier access
@@ -1890,11 +1916,53 @@
                         console.log("✅ Made AI_vhost_api available on window");
                       }
 
+                      // Request microphone permission during CONNECT to avoid interruption during the greeting
+                      requestMicrophonePermission();
+
                       // DO NOT prime audio or activate mic here - wait for UN-MUTE button
                       console.log(
                         "⏸️ Waiting for UN-MUTE before activating audio"
                       );
                     };
+
+                    // Function to request microphone permissions ahead of time
+                    function requestMicrophonePermission() {
+                      console.log(
+                        "🎤 Requesting microphone permission during CONNECT phase..."
+                      );
+                      try {
+                        // Use the browser's getUserMedia API to request microphone access
+                        if (
+                          navigator.mediaDevices &&
+                          navigator.mediaDevices.getUserMedia
+                        ) {
+                          navigator.mediaDevices
+                            .getUserMedia({ audio: true })
+                            .then((stream) => {
+                              console.log("✅ Microphone permission granted");
+                              // Stop all tracks to release the microphone - we're just getting permission
+                              stream
+                                .getTracks()
+                                .forEach((track) => track.stop());
+                            })
+                            .catch((err) => {
+                              console.warn(
+                                "⚠️ Microphone permission denied or error:",
+                                err
+                              );
+                            });
+                        } else {
+                          console.warn(
+                            "⚠️ getUserMedia not supported in this browser"
+                          );
+                        }
+                      } catch (e) {
+                        console.error(
+                          "❌ Error requesting microphone permission:",
+                          e
+                        );
+                      }
+                    }
 
                     // Set both callback names that SitePal might use
                     window.vh_sceneLoaded = handleSceneLoaded;
@@ -2453,6 +2521,7 @@
           // Make video visible and opaque, then play
           deadAir.style.display = "block";
           deadAir.style.opacity = 1;
+          deadAir.style.zIndex = "20"; // Ensure transmission effect is on top during loading
           deadAir.muted = true;
           deadAir.loop = true;
           deadAir
@@ -2461,6 +2530,7 @@
 
           // Show SitePal container behind the video
           sitepalContainer.style.display = "block";
+          sitepalContainer.style.zIndex = "5"; // Lower z-index during loading
           // --- End Transmission Effect Start ---
 
           // Activate call status indicator
@@ -2552,9 +2622,30 @@
             console.log("Updated button to DISCONNECT state");
           }, 100);
 
-          // Try to play greeting with all possible methods
+          // STEP 1: First prime the audio system with silent audio
+          console.log("Step 1: Priming audio system...");
+          let primingSuccessful = false;
+
           try {
-            console.log("Attempting to play greeting...");
+            if (typeof window.saySilent === "function") {
+              window.saySilent(0);
+              primingSuccessful = true;
+              console.log("✅ Audio primed with window.saySilent(0)");
+            } else if (typeof saySilent === "function") {
+              saySilent(0);
+              primingSuccessful = true;
+              console.log("✅ Audio primed with saySilent(0)");
+            } else {
+              console.warn("⚠️ No saySilent function found for priming");
+            }
+          } catch (e) {
+            console.warn("⚠️ Error during audio priming:", e);
+          }
+
+          // STEP 2: Wait a moment, then try to play greeting
+          setTimeout(() => {
+            console.log("Step 2: Playing greeting...");
+            let greetingPlayed = false;
 
             // Try with window methods first (more reliable)
             const windowSayText = typeof window.sayText === "function";
@@ -2569,163 +2660,104 @@
               localVhostApi,
             });
 
-            // Force a brief pause before attempting to speak
-            setTimeout(() => {
-              // Try each method one at a time with better error handling
-              let speechSuccess = false;
-
-              console.log(
-                "🗣️ Attempting greeting with Method 1: window.sayText"
-              );
-              if (windowSayText) {
-                try {
-                  // First attempt
-                  window.sayText("Hello, I am ready to assist you.", 8, 1, 6);
-                  speechSuccess = true;
-                  console.log("✅ Method 1 succeeded");
-                } catch (e) {
-                  console.warn("Method 1 failed:", e);
-                }
+            if (windowSayText) {
+              try {
+                window.sayText("Hello, I am ready to assist you.", 8, 1, 6);
+                greetingPlayed = true;
+                console.log("✅ Greeting played successfully");
+              } catch (e) {
+                console.warn(
+                  "⚠️ Error playing greeting with window.sayText:",
+                  e
+                );
               }
-
-              // If first method failed, try the second after a short delay
-              if (!speechSuccess && windowVhostApi) {
-                setTimeout(() => {
-                  console.log(
-                    "🗣️ Attempting greeting with Method 2: window.AI_vhost_api"
-                  );
-                  try {
-                    window.AI_vhost_api(
-                      "say",
-                      "Hello, I am ready to assist you."
-                    );
-                    speechSuccess = true;
-                    console.log("✅ Method 2 succeeded");
-                  } catch (e) {
-                    console.warn("Method 2 failed:", e);
-                  }
-
-                  // If still not successful, try the third method
-                  if (!speechSuccess && localSayText) {
-                    setTimeout(() => {
-                      console.log(
-                        "🗣️ Attempting greeting with Method 3: sayText"
-                      );
-                      try {
-                        sayText("Hello, I am ready to assist you.", 8, 1, 6);
-                        speechSuccess = true;
-                        console.log("✅ Method 3 succeeded");
-                      } catch (e) {
-                        console.warn("Method 3 failed:", e);
-                      }
-
-                      // Final attempt with another method
-                      if (!speechSuccess && localVhostApi) {
-                        setTimeout(() => {
-                          console.log(
-                            "🗣️ Attempting greeting with Method 4: AI_vhost_api"
-                          );
-                          try {
-                            AI_vhost_api(
-                              "say",
-                              "Hello, I am ready to assist you."
-                            );
-                            console.log("✅ Method 4 succeeded");
-                          } catch (e) {
-                            console.warn("Method 4 failed:", e);
-                          }
-
-                          // Always activate microphone after all attempts, with delay
-                          activateMicrophone();
-                        }, 500);
-                      } else {
-                        // Activate microphone after a delay
-                        activateMicrophone();
-                      }
-                    }, 500);
-                  } else {
-                    // Activate microphone after a delay
-                    activateMicrophone();
-                  }
-                }, 500);
-              } else if (speechSuccess) {
-                // If first method worked, activate mic after appropriate delay
-                setTimeout(activateMicrophone, 3000);
-              } else {
-                // Try other methods if window methods failed
-                if (localSayText) {
-                  console.log("🗣️ Attempting greeting with Method 3: sayText");
-                  try {
-                    sayText("Hello, I am ready to assist you.", 8, 1, 6);
-                    speechSuccess = true;
-                    console.log("✅ Method 3 succeeded");
-                  } catch (e) {
-                    console.warn("Method 3 failed:", e);
-                  }
-                }
-
-                if (!speechSuccess && localVhostApi) {
-                  console.log(
-                    "🗣️ Attempting greeting with Method 4: AI_vhost_api"
-                  );
-                  try {
-                    AI_vhost_api("say", "Hello, I am ready to assist you.");
-                    speechSuccess = true;
-                    console.log("✅ Method 4 succeeded");
-                  } catch (e) {
-                    console.warn("Method 4 failed:", e);
-                  }
-                }
-
-                // Activate microphone after a delay
-                setTimeout(activateMicrophone, speechSuccess ? 3000 : 500);
-              }
-            }, 500);
-          } catch (e) {
-            console.error("Error in greeting sequence:", e);
-            // Fallback to activating microphone directly
-            setTimeout(activateMicrophone, 500);
-          }
-
-          // Function to handle microphone activation
-          function activateMicrophone() {
-            console.log("⏱️ Now activating microphone...");
-            try {
-              if (typeof window.saySilent === "function") {
-                console.log("Priming with window.saySilent(0)");
-                window.saySilent(0);
-              } else if (typeof saySilent === "function") {
-                console.log("Priming with saySilent(0)");
-                saySilent(0);
-              }
-            } catch (e) {
-              console.warn("Error during audio priming:", e);
             }
 
-            // Short delay after priming before activating mic
-            setTimeout(() => {
+            if (!greetingPlayed && windowVhostApi) {
               try {
-                console.log("Starting listening...");
-                if (typeof window.AI_vhost_api === "function") {
-                  window.AI_vhost_api("startListening");
-                  console.log("Started listening with window.AI_vhost_api");
-                } else if (typeof AI_vhost_api === "function") {
-                  AI_vhost_api("startListening");
-                  console.log("Started listening with AI_vhost_api");
-                } else {
-                  console.warn("No listening API available");
+                window.AI_vhost_api("say", "Hello, I am ready to assist you.");
+                greetingPlayed = true;
+                console.log("✅ Greeting played with window.AI_vhost_api");
+              } catch (e) {
+                console.warn(
+                  "⚠️ Error playing greeting with window.AI_vhost_api:",
+                  e
+                );
+              }
+            }
+
+            if (!greetingPlayed && localSayText) {
+              try {
+                sayText("Hello, I am ready to assist you.", 8, 1, 6);
+                greetingPlayed = true;
+                console.log("✅ Greeting played with local sayText");
+              } catch (e) {
+                console.warn(
+                  "⚠️ Error playing greeting with local sayText:",
+                  e
+                );
+              }
+            }
+
+            if (!greetingPlayed && localVhostApi) {
+              try {
+                AI_vhost_api("say", "Hello, I am ready to assist you.");
+                greetingPlayed = true;
+                console.log("✅ Greeting played with local AI_vhost_api");
+              } catch (e) {
+                console.warn(
+                  "⚠️ Error playing greeting with local AI_vhost_api:",
+                  e
+                );
+              }
+            }
+
+            // STEP 3: Wait for greeting to finish, then activate microphone
+            const delayBeforeMic = greetingPlayed ? 5000 : 500; // Increased from 3500ms to 5000ms
+            console.log(
+              `Step 3: Waiting ${delayBeforeMic}ms before activating microphone...`
+            );
+
+            setTimeout(() => {
+              console.log("Step 4: Activating microphone...");
+
+              // Prime one more time before activating mic
+              try {
+                if (typeof window.saySilent === "function") {
+                  window.saySilent(0);
+                } else if (typeof saySilent === "function") {
+                  saySilent(0);
                 }
               } catch (e) {
-                console.error("Error starting listening:", e);
+                console.warn("⚠️ Error during final audio priming:", e);
               }
 
-              // Notify parent of state change
-              window.parent.postMessage(
-                { type: "SITEPAL_STATE_CHANGE", isListening: true },
-                "*"
-              );
-            }, 500);
-          }
+              // Finally activate the microphone
+              setTimeout(() => {
+                try {
+                  if (typeof window.AI_vhost_api === "function") {
+                    window.AI_vhost_api("startListening");
+                    console.log(
+                      "✅ Microphone activated with window.AI_vhost_api"
+                    );
+                  } else if (typeof AI_vhost_api === "function") {
+                    AI_vhost_api("startListening");
+                    console.log("✅ Microphone activated with AI_vhost_api");
+                  } else {
+                    console.warn("❌ No API found to activate microphone");
+                  }
+
+                  // Notify parent of state change
+                  window.parent.postMessage(
+                    { type: "SITEPAL_STATE_CHANGE", isListening: true },
+                    "*"
+                  );
+                } catch (e) {
+                  console.error("❌ Error activating microphone:", e);
+                }
+              }, 500);
+            }, delayBeforeMic);
+          }, 500);
         } else {
           // ---- Disconnect Flow ----
           console.log("Disconnecting call with static effect...");
