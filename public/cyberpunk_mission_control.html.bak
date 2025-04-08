@@ -10,12 +10,17 @@
       href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap"
       rel="stylesheet"
     />
-    <!-- Firebase SDKs (Add these) -->
-    <script src="https://www.gstatic.com/firebasejs/9.6.7/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.7/firebase-storage-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.7/firebase-firestore-compat.js"></script>
 
     <style>
+      /* Ensure full height on all devices */
+      html,
+      body {
+        height: 100vh;
+        margin: 0;
+        padding: 0;
+        overflow-x: hidden;
+      }
+
       body {
         margin: 0;
         padding: 0;
@@ -24,16 +29,16 @@
         color: #67e8f9;
         display: flex;
         justify-content: center;
-        height: 100%;
-        overflow: hidden;
         width: 100%;
         position: relative;
+        min-height: 100vh; /* Minimum height to ensure it fills viewport */
+        overflow-y: auto; /* Allow vertical scrolling if needed */
       }
 
       .mission-control {
         width: 100%;
         max-width: 450px;
-        height: 100%;
+        min-height: 100vh; /* Use min-height instead of fixed height */
         background-image: linear-gradient(to bottom, #0f172a, #1e293b);
         display: flex;
         flex-direction: column;
@@ -43,30 +48,44 @@
         box-shadow: 0 0 15px rgba(6, 182, 212, 0.3),
           inset 0 0 10px rgba(6, 182, 212, 0.1);
         overflow-y: auto;
+        overflow-x: hidden; /* Hide horizontal scrollbar */
         position: relative;
         z-index: 1;
-        clip-path: inset(0 0 0 0);
-        -webkit-clip-path: inset(0 0 0 0);
         box-sizing: border-box;
       }
 
+      /* Fix panel header height */
       .panel-header {
+        min-height: 60px;
+        height: 60px;
+        max-height: 60px;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
         text-align: center;
         margin-bottom: 16px;
         padding-bottom: 8px;
         border-bottom: 1px solid #0e7490;
       }
 
+      /* Fix panel title height */
       .panel-title {
-        font-size: 1.05rem;
+        height: 22px;
         line-height: 1.2;
+        margin: 0;
+        padding: 0;
+        font-size: 1.05rem;
         letter-spacing: 0.2em;
         font-weight: bold;
         color: #67e8f9;
         text-shadow: -2px 0 #ff0040, 2px 0 #00b4ff;
-        margin: 0;
         position: relative;
-        /* animation: threedy-flicker 4s infinite; */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
       }
 
       .panel-subtitle {
@@ -110,66 +129,65 @@
         animation: pulse 2s infinite;
       }
 
+      /* Default video display state - always expanded on non-mobile screens */
       .video-display {
         height: 180px;
         position: relative;
         background: linear-gradient(45deg, #041c2c, #000);
         overflow: hidden;
+        transition: height 0.3s ease-out;
       }
 
-      #vhss-aiplayer-inner * {
-        position: absolute !important;
-        top: 0 !important;
-        left: 0 !important;
-        width: 100% !important;
-        height: 100% !important;
-        z-index: 10;
-        -webkit-overflow-scrolling: touch;
+      /* Media query for shorter screens (likely mobile) - allow collapsing */
+      @media (max-height: 700px) {
+        /* Default collapsed height on mobile when inactive */
+        .video-display:not(.active) {
+          height: 40px;
+        }
+
+        /* When active, maintain original height */
+        .video-display.active {
+          height: 180px;
+        }
+
+        /* Add an indicator for the collapsed state */
+        .video-display:not(.active)::after {
+          content: "Tap to expand";
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          color: #67e8f9;
+          font-size: 0.75rem;
+          text-shadow: 0 0 5px #06b6d4;
+        }
+
+        /* Add expand/collapse indicators */
+        .video-display::before {
+          content: "▼";
+          position: absolute;
+          right: 8px;
+          top: 10px;
+          color: #67e8f9;
+          font-size: 0.7rem;
+          opacity: 0.8;
+          z-index: 20;
+          pointer-events: none;
+          transition: transform 0.3s;
+        }
+
+        .video-display.active::before {
+          transform: rotate(180deg);
+          top: 8px;
+        }
+
+        /* Add touch hint on first load */
+        .video-display:not(.touched):not(.active)::after {
+          animation: pulse 2s infinite;
+        }
       }
 
-      /* SitePal main container styles */
-      .vhss_bgVideo {
-        position: absolute !important;
-        top: 0 !important;
-        left: 0 !important;
-        width: 100% !important;
-        height: 100% !important;
-        margin: 0 !important;
-        background-size: cover !important;
-        background-position: center center !important;
-        background-repeat: no-repeat !important;
-        z-index: 10;
-        top: 0 !important;
-      }
-
-      /* SitePal character container */
-      .vhss_character {
-        position: absolute !important;
-        bottom: 0 !important;
-        left: 0 !important;
-        width: 100% !important;
-        height: 100% !important;
-        z-index: 11;
-      }
-
-      /* SitePal canvas */
-      .vhss_character canvas {
-        position: absolute !important;
-        bottom: 0 !important;
-        left: 0 !important;
-        width: 100% !important;
-        height: 100% !important;
-        z-index: 12;
-      }
-
-      /* SitePal button holder */
-      .vhsshtml5_button_holder {
-        position: absolute !important;
-        bottom: 50.5px !important;
-        left: 0 !important;
-        width: 100% !important;
-        z-index: 13;
-      }
+      /* Collapsed state for the video display - REMOVE THIS as we're handling it in the media query */
 
       /* SitePal loading logo */
       .waiting_logo {
@@ -179,15 +197,6 @@
         width: 100% !important;
         height: 100% !important;
         z-index: 14;
-      }
-
-      /* SitePal transcript */
-      .vhsshtml5_transcript {
-        position: absolute !important;
-        bottom: 0 !important;
-        left: 0 !important;
-        width: 100% !important;
-        z-index: 15;
       }
 
       #sitepal-container {
@@ -203,6 +212,13 @@
 
       #sitepal-container.active {
         display: block;
+      }
+
+      /* Make sure SitePal player is visible */
+      #vhss_aiPlayer {
+        width: 100% !important;
+        height: 100% !important;
+        z-index: 20 !important;
       }
 
       /* Ensure video stays behind sitepal when active */
@@ -471,10 +487,6 @@
         margin-bottom: 16px;
       }
 
-      .toggle-row.music-row {
-        flex-wrap: wrap;
-      }
-
       .toggle-row .label-switch-container {
         display: flex;
         width: 100%;
@@ -622,6 +634,7 @@
         margin-top: 16px;
         display: flex;
         justify-content: space-between;
+        margin-top: auto; /* Push status bar to the bottom */
       }
 
       .status-indicator {
@@ -740,18 +753,28 @@
       }
 
       .eighties-active .panel-title {
+        height: 22px;
+        line-height: 1.5;
+        font-size: 0.8rem;
         color: #d946ef;
         text-shadow: 0 0 3px #d946ef, 0 0 6px #d946ef;
         font-family: "Press Start 2P", cursive;
-        font-size: 0.8rem; /* Slightly smaller to match height */
-        line-height: 1.5; /* Adjusted line height */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
       }
 
       .eighties-active .panel-subtitle {
+        height: 18px;
+        line-height: 1.4;
+        font-size: 0.6rem;
         color: #22d3ee;
         font-family: "Press Start 2P", cursive;
-        font-size: 0.6rem;
-        line-height: 1.4;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
       }
 
       .eighties-active .toggle-label,
@@ -759,8 +782,8 @@
       .eighties-active .button-prefix,
       .eighties-active .status-label {
         font-family: "Press Start 2P", cursive;
-        font-size: 0.6rem; /* Adjusted size */
-        line-height: 1.5; /* Adjusted line height */
+        font-size: 0.6rem;
+        line-height: 1.5;
       }
 
       .eighties-active .control-button {
@@ -800,28 +823,6 @@
         box-shadow: 0 0 6px #22d3ee;
         animation: flicker 2s infinite;
       }
-
-      /* VHS glitch effect */
-      /* @keyframes glitch {
-        0% {
-          transform: translate(0);
-        }
-        20% {
-          transform: translate(-2px, 2px);
-        }
-        40% {
-          transform: translate(-2px, -2px);
-        }
-        60% {
-          transform: translate(2px, 2px);
-        }
-        80% {
-          transform: translate(2px, -2px);
-        }
-        100% {
-          transform: translate(0);
-        }
-      } */
 
       @keyframes flicker {
         0% {
@@ -909,44 +910,6 @@
         opacity: 0.7;
       }
 
-      /* CRT power on/off effect */
-      .crt-effect {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(2, 6, 23, 0.7); /* Dark blue instead of white */
-        opacity: 0;
-        pointer-events: none;
-        z-index: 1000;
-        transition: all 0.15s ease-out;
-      }
-
-      /* CRT on animation */
-      @keyframes crtOn {
-        0% {
-          opacity: 0.4; /* Less opaque */
-          transform: scale(1);
-        }
-        50% {
-          opacity: 0.3; /* Even less opaque */
-          transform: scale(0.98);
-        }
-        75% {
-          opacity: 0.2; /* Even less opaque */
-          transform: scale(0.99);
-        }
-        100% {
-          opacity: 0;
-          transform: scale(1);
-        }
-      }
-
-      .crt-on {
-        animation: crtOn 0.4s forwards;
-      }
-
       /* Retro cursor for 80s mode */
       .eighties-active * {
         cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' style='fill:none;stroke:%23ff00ff;stroke-width:2px'><rect width='8' height='12'/></svg>")
@@ -994,165 +957,8 @@
         box-shadow: 0 0 5px #00ffff;
       }
 
-      /* Audio visualizer effect for activated buttons */
-      @keyframes visualize {
-        0% {
-          transform: scaleY(0.3);
-        }
-        20% {
-          transform: scaleY(0.5);
-        }
-        40% {
-          transform: scaleY(0.7);
-        }
-        60% {
-          transform: scaleY(1);
-        }
-        80% {
-          transform: scaleY(0.8);
-        }
-        100% {
-          transform: scaleY(0.3);
-        }
-      }
-
-      .eighties-active .control-button.activated .button-indicator {
-        animation: visualize 0.5s infinite;
-        transform-origin: bottom;
-      }
-
-      /* Typing effect */
-      @keyframes typing {
-        from {
-          width: 0;
-        }
-        to {
-          width: 100%;
-        }
-      }
-
-      .typing-container {
-        display: none;
-        overflow: hidden;
-        white-space: nowrap;
-        width: 100%;
-      }
-
-      .eighties-active .typing-container {
-        display: block;
-      }
-
-      .typing-text {
-        display: inline-block;
-        overflow: hidden;
-        animation: typing 1s steps(30, end);
-        white-space: nowrap;
-        font-family: "Press Start 2P", cursive;
-        font-size: 0.6rem;
-        color: #00ffff;
-      }
-
-      @keyframes color-drift {
-        0% {
-          filter: hue-rotate(0deg);
-        }
-        100% {
-          filter: hue-rotate(360deg);
-        }
-      }
-
-      /* Music toggle specific effects */
-      @keyframes equalizer {
-        0% {
-          height: 4px;
-        }
-        50% {
-          height: 12px;
-        }
-        100% {
-          height: 4px;
-        }
-      }
-
-      .music-equalizer {
-        display: flex;
-        gap: 2px;
-        height: 12px;
-        align-items: flex-end;
-        margin-top: 8px;
-        width: 100%;
-        justify-content: center;
-        opacity: 0;
-        transition: opacity 0.3s ease;
-      }
-
-      .music-active .music-equalizer {
-        opacity: 1;
-      }
-
-      .music-bar {
-        width: 3px;
-        height: 4px;
-        background-color: #ca8a04;
-        border-radius: 1px;
-        box-shadow: 0 0 3px rgba(234, 179, 8, 0.7);
-      }
-
-      .music-active .music-bar:nth-child(1) {
-        animation: equalizer 0.5s infinite;
-        animation-delay: 0s;
-      }
-
-      .music-active .music-bar:nth-child(2) {
-        animation: equalizer 0.7s infinite;
-        animation-delay: 0.1s;
-      }
-
-      .music-active .music-bar:nth-child(3) {
-        animation: equalizer 0.3s infinite;
-        animation-delay: 0.2s;
-      }
-
-      .music-active .music-bar:nth-child(4) {
-        animation: equalizer 0.6s infinite;
-        animation-delay: 0.1s;
-      }
-
-      .music-active .music-bar:nth-child(5) {
-        animation: equalizer 0.45s infinite;
-        animation-delay: 0.3s;
-      }
-
-      /* Music active state for mission control */
-      .mission-control-music-active .panel-subtitle {
-        color: #fbbf24;
-      }
-
-      .music-title-animation {
-        display: inline-block;
-        animation: music-bounce 2s ease-in-out infinite;
-        transform-origin: bottom;
-      }
-
-      @keyframes music-bounce {
-        0%,
-        100% {
-          transform: translateY(0) rotate(0deg);
-        }
-        25% {
-          transform: translateY(-2px) rotate(-1deg);
-        }
-        75% {
-          transform: translateY(-2px) rotate(1deg);
-        }
-      }
-
       .toggle-switch.eighties:hover {
         box-shadow: 0 0 8px rgba(147, 51, 234, 0.7);
-      }
-
-      .toggle-switch.music.active .toggle-handle {
-        transform: translateX(24px);
       }
 
       /* 3D glasses mode styles */
@@ -1257,27 +1063,6 @@
           2px 0 8px #00b4ff;
       }
 
-      /* Flicker and glitch effects for 3D glasses mode */
-      @keyframes threedy-flicker {
-        0%,
-        100% {
-          text-shadow: -2px 0 #ff0040, 2px 0 #00b4ff;
-        }
-        25% {
-          text-shadow: -2.5px 0 #ff0040, 1.8px 0 #00b4ff;
-        }
-        50% {
-          text-shadow: -1.8px 0 #ff0040, 2.5px 0 #00b4ff;
-        }
-        75% {
-          text-shadow: -2.2px 0 #ff0040, 2.2px 0 #00b4ff;
-        }
-      }
-
-      .threedy-mode .panel-title {
-        animation: threedy-flicker 4s infinite;
-      }
-
       /* 3D toggle button */
       .toggle-switch.threedy-toggle.active {
         background: linear-gradient(90deg, #ff0040, #00b4ff);
@@ -1344,247 +1129,6 @@
         border-left: 1px solid #d946ef !important;
         border-right: 1px solid #d946ef !important;
         transition: all 0.3s;
-      }
-
-      .stereo-component {
-        background-color: #0c1821;
-        border-radius: 4px;
-        border: 1px solid #134e4a;
-        padding: 6px;
-        margin-bottom: 10px;
-        border-left: 1px solid #ff0040;
-        border-right: 1px solid #00b4ff;
-        box-shadow: -2px 0 5px rgba(255, 0, 64, 0.2),
-          2px 0 5px rgba(0, 180, 255, 0.2), inset 0 0 10px rgba(0, 0, 0, 0.7);
-      }
-
-      .stereo-display {
-        background-color: #041c2c;
-        height: 32px;
-        border-radius: 2px;
-        margin-bottom: 4px;
-        padding: 2px;
-        display: flex;
-        position: relative;
-        overflow: hidden;
-        border-left: 1px solid #ff0040;
-        border-right: 1px solid #00b4ff;
-      }
-
-      .stereo-visualizer {
-        display: flex;
-        align-items: flex-end;
-        justify-content: space-between;
-        width: 100%;
-        height: 100%;
-        padding: 1px;
-      }
-
-      .stereo-bar {
-        width: 3px;
-        background-color: #22d3ee;
-        height: 4px;
-        border-radius: 1px;
-        transition: height 0.05s ease;
-        box-shadow: 0 0 3px rgba(6, 182, 212, 0.5);
-      }
-
-      .stereo-active .stereo-bar {
-        animation: stereo-bar-animation 0.5s infinite alternate;
-      }
-
-      .stereo-controls {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 4px;
-      }
-
-      .stereo-button {
-        font-family: monospace;
-        background-color: #1f2937;
-        border: none;
-        border-radius: 2px;
-        color: #67e8f9;
-        font-size: 0.65rem;
-        padding: 3px 2px;
-        cursor: pointer;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        transition: all 0.3s;
-        border-left: 1px solid #ff0040;
-        border-right: 1px solid #00b4ff;
-        box-shadow: -1px 0 2px rgba(255, 0, 64, 0.2),
-          1px 0 2px rgba(0, 180, 255, 0.2);
-      }
-
-      .stereo-button:hover {
-        background-color: #374151;
-      }
-
-      /* Enhance active power button style */
-      .stereo-button#stereo-power.active {
-        background-color: #06b6d4; /* Cyber blue-teal */
-        color: #f0fdf4; /* Light text for contrast */
-        box-shadow: 0 0 10px rgba(6, 182, 212, 0.7),
-          /* Teal glow */ inset 0 0 5px rgba(6, 182, 212, 0.5),
-          -1px 0 2px rgba(255, 0, 64, 0.2), 1px 0 2px rgba(0, 180, 255, 0.2); /* Keep 3D split */
-      }
-
-      .stereo-button i {
-        margin-right: 2px;
-        font-size: 0.75rem;
-      }
-
-      .stereo-info {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        font-size: 0.65rem;
-        color: #22d3ee;
-        white-space: nowrap;
-        text-align: center;
-        text-shadow: -1px 0 #ff0040, 1px 0 #00b4ff;
-        z-index: 10;
-        pointer-events: none;
-        width: 100%;
-      }
-
-      .stereo-track-info {
-        animation: marquee 10s linear infinite;
-      }
-
-      @keyframes marquee {
-        0% {
-          transform: translateX(100%);
-        }
-        100% {
-          transform: translateX(-100%);
-        }
-      }
-
-      /* Enhance active stereo display */
-      .stereo-active .stereo-display {
-        border: 1px solid #22d3ee; /* Brighter border */
-        box-shadow: inset 0 0 8px rgba(6, 182, 212, 0.6),
-          0 0 5px rgba(6, 182, 212, 0.4); /* Inner and outer glow */
-      }
-
-      /* 80s mode stereo */
-      .eighties-active .stereo-component {
-        background-color: #0f172a;
-        border-color: #d946ef;
-        border-left: 1px solid #d946ef;
-        border-right: 1px solid #22d3ee;
-        box-shadow: -1px 0 3px rgba(217, 70, 239, 0.3),
-          1px 0 3px rgba(34, 211, 238, 0.3);
-      }
-
-      .eighties-active .stereo-display {
-        background-color: #020617;
-        border-left: 1px solid #d946ef;
-        border-right: 1px solid #22d3ee;
-      }
-
-      .eighties-active .stereo-bar {
-        background-color: #d946ef;
-        box-shadow: 0 0 2px rgba(217, 70, 239, 0.5);
-      }
-
-      .eighties-active .stereo-button {
-        font-family: "Press Start 2P", cursive;
-        font-size: 0.5rem;
-        background-color: #0f172a;
-        border-left: 1px solid #d946ef;
-        border-right: 1px solid #22d3ee;
-        color: #fff;
-        box-shadow: -1px 0 1px rgba(217, 70, 239, 0.3),
-          1px 0 1px rgba(34, 211, 238, 0.3);
-      }
-
-      .eighties-active .stereo-button:hover {
-        background-color: #2a1786;
-      }
-
-      .eighties-active .stereo-button.active {
-        background-color: #2a1786;
-        box-shadow: 0 0 3px rgba(217, 70, 239, 0.5),
-          -1px 0 1px rgba(217, 70, 239, 0.3), 1px 0 1px rgba(34, 211, 238, 0.3);
-      }
-
-      .eighties-active .stereo-info {
-        font-family: "Press Start 2P", cursive;
-        font-size: 0.5rem;
-        color: #22d3ee;
-        text-shadow: 0 0 3px #22d3ee;
-      }
-
-      /* MusicPlayer3 indicator style */
-      .mp3-indicator {
-        position: absolute;
-        top: 1px;
-        right: 2px;
-        font-size: 0.5rem;
-        color: #d946ef;
-        text-shadow: 0 0 2px #d946ef;
-        opacity: 0;
-        transition: opacity 0.3s ease;
-      }
-
-      .eighties-active .stereo-active .mp3-indicator {
-        opacity: 1;
-        animation: mp3-pulse 1.5s infinite alternate;
-      }
-
-      @keyframes mp3-pulse {
-        0% {
-          opacity: 0.5;
-        }
-        100% {
-          opacity: 1;
-        }
-      }
-
-      /* MusicPlayer3 special styles for 80s mode */
-      .eighties-active.mp3-mode .stereo-bar {
-        background-color: #d946ef;
-        box-shadow: 0 0 2px rgba(217, 70, 239, 0.5);
-      }
-
-      /* Special animation for MusicPlayer3 bars */
-      @keyframes mp3-bar-animation {
-        0% {
-          height: var(--min-height, 2px);
-        }
-        100% {
-          height: var(--max-height, 24px);
-        }
-      }
-
-      .eighties-active.mp3-mode .stereo-active .stereo-bar {
-        animation: stereo-bar-animation 0.5s infinite alternate;
-      }
-
-      /* Special MP3 track display */
-      .eighties-active.mp3-mode .stereo-track-info {
-        font-family: "Press Start 2P", cursive;
-        color: #22d3ee;
-        text-shadow: 0 0 3px #22d3ee;
-      }
-
-      /* Stereo bar animation */
-      @keyframes stereo-bar-animation {
-        0% {
-          height: var(--min-height, 2px);
-        }
-        100% {
-          height: var(--max-height, 24px);
-        }
-      }
-
-      .stereo-active .stereo-bar {
-        animation: stereo-bar-animation 0.5s infinite alternate;
       }
 
       .leaderboard-container {
@@ -1721,473 +1265,6 @@
         background-color: #2a1786;
       }
 
-      /* 80s Wireframe Background */
-      .wireframe-background {
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        width: 100vw !important;
-        height: 100vh !important;
-        z-index: -1 !important; /* Behind everything but still visible */
-        overflow: visible !important;
-        pointer-events: none !important;
-        opacity: 0;
-        transition: opacity 0.5s ease;
-        perspective: 1000px;
-        transform-style: preserve-3d;
-        background: linear-gradient(
-          0deg,
-          #ff008c 0%,
-          #d309e1 30%,
-          #9c1aff 60%,
-          #7700ff 100%
-        );
-      }
-
-      /* Make the wireframe elements more visible */
-      .wireframe-sun {
-        position: absolute;
-        width: 300px !important;
-        height: 300px !important;
-        border-radius: 50%;
-        background: linear-gradient(0deg, #ff0055 0%, #ff0066 100%);
-        box-shadow: 0 0 120px #ff0066 !important;
-        bottom: 35%;
-        left: 50%;
-        transform: translateX(-50%);
-        animation: sun-pulse 4s infinite ease-in-out;
-      }
-
-      .wireframe-grid {
-        position: absolute;
-        bottom: 0;
-        left: -100% !important;
-        right: -100% !important;
-        width: 300% !important;
-        height: 70% !important;
-        transform: rotateX(65deg);
-        transform-origin: bottom;
-        background-image: linear-gradient(
-            90deg,
-            rgba(255, 0, 255, 1) 1px,
-            transparent 1px
-          ),
-          linear-gradient(rgba(255, 0, 255, 1) 1px, transparent 1px) !important;
-        background-size: 60px 60px !important;
-        animation: grid-move 15s linear infinite;
-      }
-
-      @keyframes grid-move {
-        0% {
-          background-position: 0 0;
-        }
-        100% {
-          background-position: 60px 60px;
-        }
-      }
-
-      .wireframe-mountains {
-        position: absolute;
-        bottom: 20%;
-        left: 0;
-        right: 0;
-        height: 20%;
-        overflow: hidden;
-      }
-
-      .wireframe-mountains::before {
-        content: "";
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        height: 100%;
-        background: transparent;
-        border-bottom: 2px solid #ff00ff;
-        clip-path: polygon(
-          0% 100%,
-          5% 70%,
-          10% 85%,
-          15% 65%,
-          25% 90%,
-          35% 70%,
-          45% 85%,
-          50% 60%,
-          55% 85%,
-          65% 75%,
-          75% 90%,
-          85% 70%,
-          95% 85%,
-          100% 100%
-        );
-      }
-
-      .wireframe-mountains::after {
-        content: "";
-        position: absolute;
-        bottom: 0;
-        left: -10%;
-        right: -10%;
-        height: 60%;
-        background: transparent;
-        border-bottom: 2px solid #00ffff;
-        clip-path: polygon(
-          0% 100%,
-          10% 80%,
-          20% 95%,
-          30% 75%,
-          40% 90%,
-          50% 70%,
-          60% 85%,
-          70% 75%,
-          80% 90%,
-          90% 80%,
-          100% 100%
-        );
-      }
-
-      /* Palm tree wireframe style */
-      .palm-tree {
-        position: absolute;
-        bottom: 20%;
-        width: 6px;
-        height: 120px;
-        background: transparent;
-        border-left: 2px solid #ff00ff;
-        z-index: 5;
-      }
-
-      /* Palm fronds - all constructed with borders for wireframe look */
-      .palm-tree::before,
-      .palm-tree::after {
-        background: transparent;
-      }
-
-      .palm-tree::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 60px;
-        height: 30px;
-        border-top: 2px solid #ff00ff;
-        border-radius: 50%;
-        transform: rotate(-30deg);
-      }
-
-      .palm-tree::after {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: -60px;
-        width: 60px;
-        height: 30px;
-        border-top: 2px solid #ff00ff;
-        border-radius: 50%;
-        transform: rotate(30deg);
-      }
-
-      .palm-tree-left {
-        left: 20%;
-        height: 150px;
-      }
-
-      .palm-tree-left::before {
-        height: 40px;
-        transform: rotate(-20deg);
-      }
-
-      .palm-tree-left::after {
-        height: 40px;
-        width: 70px;
-        transform: rotate(20deg);
-      }
-
-      .palm-tree-right {
-        right: 20%;
-        height: 130px;
-      }
-
-      /* Add more fronds to palm trees */
-      .palm-tree-left::before,
-      .palm-tree-right::before {
-        box-shadow: 0 10px 0 -2px transparent, 0 10px 0 0 #ff00ff,
-          0 20px 0 -2px transparent, 0 20px 0 0 #ff00ff;
-      }
-
-      .palm-tree-left::after,
-      .palm-tree-right::after {
-        box-shadow: 0 10px 0 -2px transparent, 0 10px 0 0 #ff00ff,
-          0 20px 0 -2px transparent, 0 20px 0 0 #ff00ff;
-      }
-
-      /* Add a wireframe car for that classic 80s driving scene look */
-      .wireframe-car {
-        position: absolute;
-        bottom: 20%;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 80px;
-        height: 30px;
-        background: transparent;
-        border: 2px solid #00ffff;
-        z-index: 5;
-        animation: car-drive 15s infinite linear;
-      }
-
-      .wireframe-car::before {
-        content: "";
-        position: absolute;
-        top: -15px;
-        left: 15px;
-        width: 50px;
-        height: 15px;
-        background: transparent;
-        border: 2px solid #00ffff;
-        border-bottom: none;
-      }
-
-      .wireframe-car::after {
-        content: "";
-        position: absolute;
-        bottom: -5px;
-        left: 15px;
-        width: 15px;
-        height: 5px;
-        background: transparent;
-        border: 2px solid #00ffff;
-        box-shadow: 30px 0 0 -2px transparent, 30px 0 0 0 #00ffff;
-      }
-
-      /* Fixed positioning for wireframe background */
-      .mission-control {
-        position: relative;
-        z-index: 10;
-      }
-
-      /* Car animation */
-      @keyframes car-drive {
-        0% {
-          transform: translateX(-200%);
-        }
-        100% {
-          transform: translateX(300%);
-        }
-      }
-
-      /* Override to make sure it shows */
-      body.eighties-mode .wireframe-background {
-        opacity: 0.7 !important;
-        display: block !important;
-      }
-
-      /* Wireframe Backdrop - positioned inside the mission control panel */
-      .wireframe-backdrop {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        z-index: -1;
-        overflow: hidden;
-        pointer-events: none;
-        opacity: 0;
-        transition: opacity 0.5s ease;
-        perspective: 900px;
-        background: linear-gradient(
-          0deg,
-          #ff0066 0%,
-          #d309e1 20%,
-          #9c1aff 50%,
-          #7700ff 80%,
-          #000000 100%
-        );
-      }
-
-      /* Show the wireframe backdrop when 80s mode is active */
-      .mission-control.eighties-active .wireframe-backdrop {
-        opacity: 0.25;
-      }
-
-      /* Grid with better perspective */
-      .wireframe-grid {
-        position: absolute;
-        bottom: -20%;
-        left: -150%;
-        width: 400%;
-        height: 60%;
-        transform-origin: 50% 0%;
-        transform: rotateX(85deg);
-        background-size: 40px 40px;
-        background-image: linear-gradient(
-            rgba(217, 70, 239, 0.7) 0.5px,
-            transparent 0.5px
-          ),
-          linear-gradient(
-            90deg,
-            rgba(217, 70, 239, 0.7) 0.5px,
-            transparent 0.5px
-          );
-        animation: grid-move 20s linear infinite;
-      }
-
-      @keyframes grid-move {
-        0% {
-          background-position: 0px 0px;
-        }
-        100% {
-          background-position: 0px 40px;
-        }
-      }
-
-      /* Sun with pulse effect */
-      .wireframe-sun {
-        position: absolute;
-        width: 120px;
-        height: 120px;
-        border-radius: 50%;
-        background: linear-gradient(0deg, #ff0055 0%, #ff0066 100%);
-        bottom: 45%;
-        left: 50%;
-        transform: translateX(-50%);
-        z-index: 1;
-        box-shadow: 0 0 100px 0px rgba(255, 0, 102, 0.5);
-        animation: sun-pulse 4s ease-in-out infinite;
-      }
-
-      @keyframes sun-pulse {
-        0%,
-        100% {
-          box-shadow: 0 0 100px 0px rgba(255, 0, 102, 0.5);
-          transform: translateX(-50%) scale(1);
-        }
-        50% {
-          box-shadow: 0 0 140px 20px rgba(255, 0, 102, 0.5);
-          transform: translateX(-50%) scale(1.05);
-        }
-      }
-
-      /* Mountains with glow effect */
-      .wireframe-mountains {
-        position: absolute;
-        bottom: 25%;
-        left: 0;
-        right: 0;
-        height: 25%;
-        z-index: 2;
-      }
-
-      .wireframe-mountains::before {
-        content: "";
-        position: absolute;
-        bottom: 0;
-        left: -5%;
-        right: -5%;
-        height: 100%;
-        background: transparent;
-        border-bottom: 1.5px solid rgba(217, 70, 239, 0.8);
-        box-shadow: 0 0 5px rgba(217, 70, 239, 0.5);
-        clip-path: polygon(
-          0% 100%,
-          5% 85%,
-          10% 70%,
-          15% 80%,
-          20% 60%,
-          25% 90%,
-          30% 70%,
-          35% 75%,
-          40% 65%,
-          45% 80%,
-          50% 50%,
-          55% 80%,
-          60% 75%,
-          65% 60%,
-          70% 90%,
-          75% 65%,
-          80% 75%,
-          85% 60%,
-          90% 85%,
-          95% 70%,
-          100% 100%
-        );
-      }
-
-      .wireframe-mountains::after {
-        content: "";
-        position: absolute;
-        bottom: 0;
-        left: -5%;
-        right: -5%;
-        height: 70%;
-        background: transparent;
-        border-bottom: 1.5px solid rgba(34, 211, 238, 0.8);
-        box-shadow: 0 0 5px rgba(34, 211, 238, 0.5);
-        clip-path: polygon(
-          0% 100%,
-          8% 85%,
-          15% 95%,
-          22% 75%,
-          30% 85%,
-          38% 60%,
-          45% 75%,
-          50% 90%,
-          60% 75%,
-          70% 80%,
-          75% 65%,
-          82% 80%,
-          90% 70%,
-          95% 85%,
-          100% 100%
-        );
-      }
-
-      /* Stars in the sky */
-      @keyframes star-twinkle {
-        0%,
-        100% {
-          opacity: 0.2;
-        }
-        50% {
-          opacity: 0.8;
-        }
-      }
-
-      .wireframe-stars {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 60%;
-        opacity: 0.7;
-      }
-
-      .wireframe-stars::before,
-      .wireframe-stars::after {
-        content: "";
-        position: absolute;
-        background-image: radial-gradient(
-          1px 1px at 50% 50%,
-          #fff,
-          rgba(0, 0, 0, 0)
-        );
-        background-size: 100px 100px;
-        background-repeat: repeat;
-        width: 100%;
-        height: 100%;
-      }
-
-      .wireframe-stars::before {
-        background-position: 0 0;
-        opacity: 0.5;
-        animation: star-twinkle 3s ease-in-out infinite;
-      }
-
-      .wireframe-stars::after {
-        background-position: 50px 50px;
-        opacity: 0.3;
-        animation: star-twinkle 3s ease-in-out infinite 1.5s;
-      }
-
       /* Hide SitePal's default loading spinner */
       #sitepal-container .waiting_logo {
         display: none !important;
@@ -2268,66 +1345,453 @@
       }
       /* End Connect Button Pulse */
 
-      /* Remove unnecessary music visualizer and equalizer code */
-      .music-equalizer,
-      .music-bar,
-      .music-active .music-bar:nth-child(1),
-      .music-active .music-bar:nth-child(2),
-      .music-active .music-bar:nth-child(3),
-      .music-active .music-bar:nth-child(4),
-      .music-active .music-bar:nth-child(5) {
-        display: none;
+      /* Add UN-MUTE button style */
+      .call-button.unmute {
+        color: #22d3ee;
+        border-color: #0e7490;
+        box-shadow: 0 0 10px rgba(6, 182, 212, 0.5);
+        animation: connect-pulse 1.5s infinite ease-in-out;
       }
 
-      /* Remove unused animation keyframes by setting to no-op */
-      @keyframes equalizer {
-        0%,
+      /* Update existing animation to pulse specifically designed for the UN-MUTE state */
+      @keyframes connect-pulse {
+        0% {
+          box-shadow: 0 0 5px rgba(6, 182, 212, 0.3),
+            0 0 8px rgba(34, 211, 238, 0.2);
+          border-color: #134e4a;
+        }
+        50% {
+          box-shadow: 0 0 10px rgba(6, 182, 212, 0.6),
+            0 0 15px rgba(34, 211, 238, 0.4);
+          border-color: #22d3ee;
+        }
         100% {
-          height: 4px;
+          box-shadow: 0 0 5px rgba(6, 182, 212, 0.3),
+            0 0 8px rgba(34, 211, 238, 0.2);
+          border-color: #134e4a;
         }
       }
 
-      @keyframes color-drift {
-        0%,
+      /* 80s mode video call styles */
+      .eighties-active .video-call {
+        border: 1px solid #d946ef;
+        background-color: #020617;
+        box-shadow: 0 0 8px rgba(217, 70, 239, 0.3);
+      }
+
+      .eighties-active .video-header {
+        background-color: #0f172a;
+        border-bottom: 1px solid #d946ef;
+        font-family: "Press Start 2P", cursive;
+        font-size: 0.55rem;
+        color: #22d3ee;
+      }
+
+      .eighties-active #station-display {
+        color: #22d3ee;
+        text-shadow: 0 0 3px #22d3ee;
+        font-family: "Press Start 2P", cursive;
+        font-size: 0.55rem;
+      }
+
+      .eighties-active .video-status.active {
+        background-color: #ef4444;
+        box-shadow: 0 0 5px #ef4444;
+      }
+
+      .eighties-active .video-controls {
+        background-color: #0f172a;
+        border-top: 1px solid #d946ef;
+      }
+
+      .eighties-active .call-button {
+        font-family: "Press Start 2P", cursive;
+        font-size: 0.55rem;
+        background-color: #0f172a;
+        border: 1px solid #d946ef;
+        color: #22d3ee;
+        box-shadow: 0 0 3px rgba(217, 70, 239, 0.4);
+      }
+
+      .eighties-active .call-button.unmute {
+        border-color: #22d3ee;
+        color: #d946ef;
+        box-shadow: 0 0 8px rgba(34, 211, 238, 0.6);
+        animation: eighties-pulse 1.5s infinite alternate;
+      }
+
+      @keyframes eighties-pulse {
+        0% {
+          box-shadow: 0 0 3px rgba(217, 70, 239, 0.4);
+          border-color: #d946ef;
+        }
         100% {
-          filter: none;
+          box-shadow: 0 0 10px rgba(34, 211, 238, 0.7);
+          border-color: #22d3ee;
         }
       }
 
-      @keyframes music-bounce {
-        0%,
-        100% {
-          transform: none;
+      .eighties-active .call-button.disconnect {
+        border-color: #ef4444;
+        color: #ef4444;
+        box-shadow: 0 0 3px rgba(239, 68, 68, 0.4);
+      }
+
+      .eighties-active .call-button:hover {
+        background-color: #2a1786;
+      }
+
+      /* Add styles for the constellations toggle */
+      .toggle-switch.constellations {
+        background-color: #1e3a8a;
+        border-color: #3b82f6;
+      }
+
+      .toggle-switch.constellations .toggle-handle {
+        background-color: #93c5fd;
+      }
+
+      .toggle-switch.constellations.active {
+        background-color: #1e40af;
+        box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
+      }
+
+      .toggle-switch.constellations.active .toggle-handle {
+        background-color: #bfdbfe;
+      }
+
+      /* Update eighties mode styles to include constellations toggle */
+      .eighties-active .toggle-switch.constellations {
+        background-color: #581c87;
+        border-color: #d946ef;
+      }
+
+      .eighties-active .toggle-switch.constellations .toggle-handle {
+        background-color: #e879f9;
+      }
+
+      .eighties-active .toggle-switch.constellations.active {
+        background-color: #6b21a8;
+        box-shadow: 0 0 15px rgba(217, 70, 239, 0.5);
+      }
+
+      .eighties-active .toggle-switch.constellations.active .toggle-handle {
+        background-color: #f0abfc;
+      }
+
+      /* Add responsive styles for small screens */
+      @media (max-width: 480px) {
+        /* Default collapsed height on mobile when inactive */
+        .video-display:not(.active) {
+          height: 40px;
+        }
+
+        /* When active, maintain original height */
+        .video-display.active {
+          height: 180px;
+        }
+
+        /* Add an indicator for the collapsed state */
+        .video-display:not(.active)::after {
+          content: "Tap to expand";
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          color: #67e8f9;
+          font-size: 0.75rem;
+          text-shadow: 0 0 5px #06b6d4;
+        }
+
+        /* Add expand/collapse indicators */
+        .video-display::before {
+          content: "▼";
+          position: absolute;
+          right: 8px;
+          top: 10px;
+          color: #67e8f9;
+          font-size: 0.7rem;
+          opacity: 0.8;
+          z-index: 20;
+          pointer-events: none;
+          transition: transform 0.3s;
+        }
+
+        .video-display.active::before {
+          transform: rotate(180deg);
+          top: 8px;
+        }
+
+        /* Add touch hint on first load */
+        .video-display:not(.touched):not(.active)::after {
+          animation: pulse 2s infinite;
+        }
+
+        /* Optimize spacing */
+        .mission-control {
+          padding: 12px 10px;
+        }
+
+        /* Reduce spacing between elements */
+        .panel-header {
+          min-height: 50px;
+          height: 50px;
+          max-height: 50px;
+          margin-bottom: 12px;
+          padding-bottom: 4px;
+        }
+
+        .video-call {
+          margin-bottom: 12px;
+        }
+
+        /* Further optimize button grid */
+        .button-grid {
+          gap: 8px;
+          margin-bottom: 12px;
+        }
+
+        /* Make buttons significantly smaller and more compact */
+        .control-button {
+          padding: 6px 4px;
+          min-height: 48px;
+        }
+
+        .button-prefix {
+          font-size: 0.65rem;
+          margin-bottom: 2px;
+        }
+
+        .button-label {
+          font-size: 0.8rem;
+        }
+
+        .button-indicator {
+          width: 24px;
+          height: 3px;
+          margin-top: 3px;
+        }
+
+        /* Make toggle sections more compact */
+        .toggle-section {
+          padding: 8px;
+          margin-bottom: 12px;
+        }
+
+        /* Style the inline toggle groups - two lines for full-size screens */
+        .toggle-row.mobile-inline {
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: space-between;
+          gap: 20px;
+          margin-bottom: 0;
+        }
+
+        .toggle-group {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 45%;
+          margin-bottom: 10px;
+        }
+
+        .toggle-group:nth-child(3) {
+          width: 90%;
+          margin-bottom: 0;
+        }
+
+        .toggle-label {
+          font-size: 0.75rem;
+          margin-right: 8px;
+          white-space: nowrap;
+          text-align: center;
+        }
+
+        .toggle-switch {
+          width: 42px;
+          height: 22px;
+        }
+
+        .toggle-handle {
+          width: 18px;
+          height: 18px;
+        }
+
+        /* Mobile adjustments */
+        @media (max-width: 767px) {
+          .toggle-row.mobile-inline {
+            flex-wrap: nowrap;
+            gap: 0;
+          }
+
+          .toggle-group {
+            width: 33%;
+            margin-bottom: 0;
+          }
+
+          .toggle-group:nth-child(3) {
+            width: 33%;
+          }
+
+          .toggle-label {
+            font-size: 0.65rem;
+            margin-right: 4px;
+          }
+
+          .toggle-switch {
+            width: 36px;
+            height: 20px;
+          }
+
+          .toggle-handle {
+            width: 16px;
+            height: 16px;
+          }
         }
       }
 
-      @keyframes visualize {
-        0%,
-        100% {
-          transform: none;
+      /* Extra small screens */
+      @media (max-width: 360px) {
+        /* Make video even smaller when active on very small screens */
+        .video-display.active {
+          height: 150px;
+        }
+
+        /* Reduce padding further */
+        .mission-control {
+          padding: 8px 6px;
+        }
+
+        /* Make grid buttons even more compact */
+        .button-grid {
+          gap: 6px;
+        }
+
+        .control-button {
+          padding: 4px;
+          min-height: 44px;
+        }
+
+        .button-prefix {
+          font-size: 0.6rem;
+          margin-bottom: 1px;
+        }
+
+        .button-label {
+          font-size: 0.75rem;
+          letter-spacing: 0.05em;
+        }
+
+        .button-indicator {
+          width: 20px;
+          height: 2px;
+          margin-top: 2px;
+        }
+
+        /* Further reduce toggle spacing */
+        .toggle-section {
+          padding: 6px;
+          margin-bottom: 8px;
+        }
+
+        .toggle-row {
+          margin-bottom: 6px;
+        }
+
+        .toggle-label {
+          font-size: 0.75rem;
+        }
+
+        /* Even more compact toggles for very small screens */
+        .toggle-group .toggle-label {
+          font-size: 0.6rem;
+          margin-right: 2px;
+        }
+
+        .toggle-group .toggle-switch {
+          width: 30px;
+          height: 16px;
+        }
+
+        .toggle-group .toggle-handle {
+          width: 12px;
+          height: 12px;
+          top: 2px;
+        }
+
+        .toggle-group .toggle-switch.active .toggle-handle {
+          transform: translateX(14px);
+        }
+
+        /* Smaller toggle switches */
+        .toggle-switch {
+          width: 42px;
+          height: 20px;
+        }
+
+        .toggle-switch .toggle-handle {
+          width: 16px;
+          height: 16px;
+          top: 2px;
+        }
+
+        .toggle-switch.active .toggle-handle {
+          transform: translateX(20px);
+        }
+
+        /* Even smaller leaderboard */
+        .leaderboard-scrollable {
+          height: 90px;
         }
       }
 
-      /* Remove unused typing effect styles */
-      .typing-container,
-      .typing-text {
-        display: none;
+      /* Full-screen mode adjustments for toggle buttons */
+      @media (min-width: 768px) {
+        .toggle-row.mobile-inline {
+          flex-wrap: wrap;
+          justify-content: space-around;
+          padding: 10px 0;
+        }
+
+        .toggle-group {
+          width: 45%;
+          margin-bottom: 15px;
+          justify-content: center;
+        }
+
+        .toggle-group:nth-child(2) {
+          left: 0;
+          position: static;
+        }
+
+        .toggle-group:nth-child(3) {
+          width: 90%;
+          justify-content: center;
+        }
+
+        .toggle-group .toggle-label {
+          font-size: 0.75rem;
+          margin-right: 8px;
+        }
+
+        .toggle-group .toggle-switch {
+          width: 42px;
+          height: 22px;
+        }
+
+        .toggle-group .toggle-handle {
+          width: 18px;
+          height: 18px;
+        }
       }
     </style>
-    <script src="js/sitepal.js"></script>
   </head>
   <body>
     <div class="scan-lines" id="scan-lines"></div>
     <div class="color-shift color-shift-red" id="color-shift-red"></div>
     <div class="color-shift color-shift-blue" id="color-shift-blue"></div>
-    <div class="crt-effect" id="crt-effect"></div>
+
     <div class="mission-control" id="mission-control">
-      <div class="wireframe-backdrop" id="wireframe-backdrop">
-        <div class="wireframe-stars"></div>
-        <div class="wireframe-sun"></div>
-        <div class="wireframe-grid"></div>
-        <div class="wireframe-mountains"></div>
-      </div>
       <div class="threedy-shadow-red" id="threedy-shadow-red"></div>
       <div class="threedy-shadow-blue" id="threedy-shadow-blue"></div>
       <div class="panel-header">
@@ -2370,7 +1834,208 @@
                 -webkit-overflow-scrolling: touch;
               "
             >
-              <!-- SitePal container - code moved to sitepal.js -->
+              <!-- </script> -->
+              <script
+                type="text/javascript"
+                src="//vhss-d.oddcast.com/ai_embed_functions_v1.php"
+              ></script>
+              <script type="text/javascript">
+                function initSitePal() {
+                  const container =
+                    document.getElementById("sitepal-container");
+                  const deadAir = document.getElementById("deadAir");
+
+                  if (container) {
+                    container.innerHTML = '<div id="vhss_aiPlayer"></div>';
+                    container.style.display = "block";
+                  }
+
+                  function embedNow() {
+                    // Set both callback handlers for compatibility
+                    window.vh_sceneLoaded = () => {
+                      console.log("✅ Scene loaded");
+
+                      if (deadAir) {
+                        deadAir.style.opacity = 0;
+                        setTimeout(() => deadAir.pause(), 500);
+                      }
+
+                      // Make SitePal APIs available on window object for easier access
+                      if (
+                        typeof saySilent === "function" &&
+                        !window.saySilent
+                      ) {
+                        window.saySilent = saySilent;
+                        console.log("✅ Made saySilent available on window");
+                      }
+
+                      if (typeof sayText === "function" && !window.sayText) {
+                        window.sayText = sayText;
+                        console.log("✅ Made sayText available on window");
+                      }
+
+                      if (
+                        typeof AI_vhost_api === "function" &&
+                        !window.AI_vhost_api
+                      ) {
+                        window.AI_vhost_api = AI_vhost_api;
+                        console.log("✅ Made AI_vhost_api available on window");
+                      }
+
+                      // Prime audio with saySilent but don't play greeting or start listening yet
+                      setTimeout(() => {
+                        console.log("🔇 Priming audio with saySilent(0)...");
+                        try {
+                          if (typeof saySilent === "function") {
+                            saySilent(0);
+                            console.log("✅ Initial audio priming complete");
+                          } else {
+                            console.warn(
+                              "⚠️ saySilent not available for initial priming"
+                            );
+                          }
+                        } catch (e) {
+                          console.error("❌ Error during initial priming:", e);
+                        }
+                      }, 300);
+                    };
+
+                    // Add the official SitePal callback function
+                    window.vhss_sceneLoaded = function () {
+                      console.log("✅ vhss_sceneLoaded callback fired");
+
+                      // Make sure the character is visible
+                      if (container) {
+                        container.style.display = "block";
+                        container.classList.add("active");
+                      }
+
+                      // Call our other handler for consistency
+                      if (typeof window.vh_sceneLoaded === "function") {
+                        window.vh_sceneLoaded();
+                      }
+                    };
+
+                    // Add a backup timeout in case neither callback fires
+                    setTimeout(() => {
+                      console.log(
+                        "⏱️ Backup timeout checking if SitePal is visible"
+                      );
+                      if (
+                        container &&
+                        !container.classList.contains("active")
+                      ) {
+                        console.log(
+                          "⚠️ Forcing SitePal container to be visible"
+                        );
+                        container.style.display = "block";
+                        container.classList.add("active");
+
+                        // Call our scene loaded handler anyway
+                        if (typeof window.vh_sceneLoaded === "function") {
+                          window.vh_sceneLoaded();
+                        }
+                      }
+                    }, 5000);
+
+                    // Call SitePal embed function
+                    AI_vhost_embed(280, 180, 9157686, 244, 0, 1);
+                    console.log("📱 Called AI_vhost_embed to load SitePal");
+                  }
+
+                  // Set up a backup timeout in case scene loaded doesn't fire
+                  const sceneLoadTimeout = setTimeout(() => {
+                    console.log("⚠️ Scene load timeout - backup transition");
+                    if (deadAir) {
+                      deadAir.style.opacity = 0;
+                      setTimeout(() => deadAir.pause(), 500);
+                    }
+                    if (container) {
+                      container.style.display = "block";
+                      container.style.opacity = "1";
+                    }
+                    // Try to make SitePal APIs available
+                    setupSitePalAPIs();
+                  }, 8000); // 8-second backup
+
+                  function setupSitePalAPIs() {
+                    console.log("Setting up SitePal APIs on window...");
+                    // Make SitePal APIs available on window object for easier access
+                    if (typeof saySilent === "function" && !window.saySilent) {
+                      window.saySilent = saySilent;
+                      console.log("✅ Made saySilent available on window");
+                    }
+
+                    if (typeof sayText === "function" && !window.sayText) {
+                      window.sayText = sayText;
+                      console.log("✅ Made sayText available on window");
+                    }
+
+                    if (
+                      typeof AI_vhost_api === "function" &&
+                      !window.AI_vhost_api
+                    ) {
+                      window.AI_vhost_api = AI_vhost_api;
+                      console.log("✅ Made AI_vhost_api available on window");
+                    }
+
+                    // Prime audio with saySilent but don't play greeting or start listening yet
+                    setTimeout(() => {
+                      console.log("🔇 Priming audio with saySilent(0)...");
+                      try {
+                        if (typeof saySilent === "function") {
+                          saySilent(0);
+                          console.log("✅ Initial audio priming complete");
+                        } else {
+                          console.warn(
+                            "⚠️ saySilent not available for initial priming"
+                          );
+                        }
+                      } catch (e) {
+                        console.error("❌ Error during initial priming:", e);
+                      }
+                    }, 300);
+                  }
+
+                  if (typeof AI_vhost_embed !== "function") {
+                    console.log("Loading SitePal scripts...");
+                    const script = document.createElement("script");
+                    script.src =
+                      "//vhss-d.oddcast.com/vhost_embed_functions_v4.php?acc=9157686&js=1";
+                    script.onload = () => {
+                      console.log("✅ SitePal script loaded successfully");
+                      embedNow();
+                    };
+                    script.onerror = (e) => {
+                      console.error("❌ Failed to load SitePal script:", e);
+                    };
+                    document.head.appendChild(script);
+                  } else {
+                    console.log("SitePal script already loaded, embedding now");
+                    embedNow();
+                  }
+                }
+              </script>
+              <script>
+                document
+                  .getElementById("call-button")
+                  .addEventListener("click", () => {
+                    console.log("🚀 CONNECT clicked");
+                    initSitePal();
+                  });
+              </script>
+              <div id="vhss_aiPlayer"></div>
+              <!-- Add placeholder elements that SitePal expects -->
+              <div id="vhss-aiplayer-aiformlogs"></div>
+              <div id="vhss-aiplayer-aiformtranscript"></div>
+              <div id="vhss-aiplayer-aiformstatus"></div>
+              <div id="vhss-aiplayer-aiformerror"></div>
+              <!-- Add the actual mic button class that SitePal uses -->
+              <div
+                class="vhss-aiplayer-mic-p3"
+                id="vhss-aiplayer-mic-p3"
+                style="display: none"
+              ></div>
             </div>
           </div>
           <div class="video-overlay"></div>
@@ -2421,105 +2086,77 @@
 
       <!-- Toggle Switches -->
       <div class="toggle-section">
-        <div class="toggle-row">
-          <span class="toggle-label">80s//MODE</span>
-          <div id="eighties-toggle" class="toggle-switch eighties">
-            <div class="toggle-handle"></div>
+        <div class="toggle-row mobile-inline">
+          <div class="toggle-group music-group">
+            <span class="toggle-label">MUSIC</span>
+            <div id="music-toggle" class="toggle-switch music">
+              <div class="toggle-handle"></div>
+            </div>
+          </div>
+          <div class="toggle-group">
+            <span class="toggle-label">80s <br />MODE</span>
+            <div id="eighties-toggle" class="toggle-switch eighties">
+              <div class="toggle-handle"></div>
+            </div>
+          </div>
+          <div class="toggle-group">
+            <span class="toggle-label">STAR <br />CHART</span>
+            <div id="constellation-toggle" class="toggle-switch">
+              <div class="toggle-handle"></div>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- Stereo Component for Music Player -->
-      <div class="stereo-component" id="stereo-component">
-        <div class="stereo-display">
-          <div class="stereo-visualizer" id="stereo-visualizer">
-            <div class="stereo-bar"></div>
-            <div class="stereo-bar"></div>
-            <div class="stereo-bar"></div>
-            <div class="stereo-bar"></div>
-            <div class="stereo-bar"></div>
-            <div class="stereo-bar"></div>
-            <div class="stereo-bar"></div>
-            <div class="stereo-bar"></div>
-            <div class="stereo-bar"></div>
-            <div class="stereo-bar"></div>
-            <div class="stereo-bar"></div>
-            <div class="stereo-bar"></div>
-            <div class="stereo-bar"></div>
-            <div class="stereo-bar"></div>
-          </div>
-          <div class="stereo-info" id="stereo-info">
-            <div class="stereo-track-info">
-              NO SIGNAL // PRESS POWER TO INITIALIZE
-            </div>
-          </div>
-          <div class="mp3-indicator" id="mp3-indicator">MP3</div>
-        </div>
-        <div class="stereo-controls">
-          <!-- Reordered Buttons Again -->
-          <button class="stereo-button" id="stereo-power">
-            <i>⏻</i> POWER
+      <!-- Remove Stereo Component -->
+      <div class="collapsible-leaderboard">
+        <!-- Collapsible Leaderboard -->
+        <div class="leaderboard-container">
+          <button id="leaderboard-toggle" class="leaderboard-header">
+            <span>L34D3RBOARD//v1.2</span>
+            <span id="leaderboard-arrow">▼</span>
           </button>
-          <button class="stereo-button" id="stereo-prev" disabled>
-            <i>⏮</i> PREV
-          </button>
-          <button class="stereo-button" id="stereo-play-pause">
-            <i class="fas fa-play"></i> PLAY
-          </button>
-          <button class="stereo-button" id="stereo-next" disabled>
-            <i>⏭</i> NEXT
-          </button>
-        </div>
-      </div>
 
-      <!-- Collapsible Leaderboard -->
-      <div class="leaderboard-container">
-        <button id="leaderboard-toggle" class="leaderboard-header">
-          <span>L34D3RBOARD//v1.2</span>
-          <span id="leaderboard-arrow">▼</span>
-        </button>
+          <div
+            id="leaderboard-content"
+            class="leaderboard-content"
+            style="display: none"
+          >
+            <div class="leaderboard-header-row">
+              <span>USER_ID</span>
+              <span>SCR_PTS</span>
+            </div>
 
-        <div
-          id="leaderboard-content"
-          class="leaderboard-content"
-          style="display: none"
-        >
-          <div class="leaderboard-header-row">
-            <span>USER_ID</span>
-            <span>SCR_PTS</span>
-          </div>
+            <div class="leaderboard-scrollable">
+              <div class="leaderboard-entry top">
+                <span>Armstrong</span>
+                <span>1969</span>
+              </div>
+              <div class="leaderboard-entry">
+                <span>Aldrin</span>
+                <span>1890</span>
+              </div>
+              <div class="leaderboard-entry">
+                <span>Collins</span>
+                <span>1850</span>
+              </div>
+              <div class="leaderboard-entry">
+                <span>Lovell</span>
+                <span>1800</span>
+              </div>
+              <div class="leaderboard-entry">
+                <span>Cernan</span>
+                <span>1750</span>
+              </div>
+            </div>
 
-          <div class="leaderboard-scrollable">
-            <div class="leaderboard-entry top">
-              <span>Armstrong</span>
-              <span>1969</span>
+            <div class="leaderboard-footer">
+              <div class="pulse-dot"></div>
+              <span>LIVE_DATA//STREAM</span>
             </div>
-            <div class="leaderboard-entry">
-              <span>Aldrin</span>
-              <span>1890</span>
-            </div>
-            <div class="leaderboard-entry">
-              <span>Collins</span>
-              <span>1850</span>
-            </div>
-            <div class="leaderboard-entry">
-              <span>Lovell</span>
-              <span>1800</span>
-            </div>
-            <div class="leaderboard-entry">
-              <span>Cernan</span>
-              <span>1750</span>
-            </div>
-          </div>
-
-          <div class="leaderboard-footer">
-            <div class="pulse-dot"></div>
-            <span>LIVE_DATA//STREAM</span>
           </div>
         </div>
       </div>
-
-      <div class="spacer"></div>
 
       <!-- Status Bar -->
       <div class="status-bar">
@@ -2546,69 +2183,21 @@
       const stationSelect = document.getElementById("station-select");
       const stationDisplay = document.getElementById("station-display");
       const eightiesToggle = document.getElementById("eighties-toggle");
+      const constellationToggle = document.getElementById(
+        "constellation-toggle"
+      );
+      const musicToggle = document.getElementById("music-toggle");
       const stereoPower = document.getElementById("stereo-power");
       const stereoNext = document.getElementById("stereo-next");
       const stereoPrev = document.getElementById("stereo-prev");
       const stereoPlayPause = document.getElementById("stereo-play-pause");
-      const stereoComponent = document.getElementById("stereo-component");
+
       const stereoInfo = document.getElementById("stereo-info");
       const systemStatus = document.getElementById("system-status");
-      const leaderboardToggle = document.getElementById("leaderboard-toggle");
+
       const leaderboardContent = document.getElementById("leaderboard-content");
       const leaderboardArrow = document.getElementById("leaderboard-arrow");
       const controlButtons = document.querySelectorAll(".control-button");
-
-      // --- Firebase Config & Init ---
-      let storage = null;
-      let firebaseInitialized = false;
-
-      // Initialize Firebase
-      async function initFirebase() {
-        if (!firebaseInitialized) {
-          try {
-            console.log("Initializing Firebase...");
-
-            // Firebase config - replace with your own
-            const firebaseConfig = {
-              apiKey: "AIzaSyBy9ONGOv_1XYZwKLPCKXn-Rm8NJrVSFEk",
-              authDomain: "coconut-test-5c7f6.firebaseapp.com",
-              projectId: "coconut-test-5c7f6",
-              storageBucket: "coconut-test-5c7f6.appspot.com",
-              messagingSenderId: "243264192390",
-              appId: "1:243264192390:web:8c00fa17b70e98e4e8fb17",
-            };
-
-            // Load Firebase scripts dynamically
-            await Promise.all([
-              loadScript(
-                "https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"
-              ),
-              loadScript(
-                "https://www.gstatic.com/firebasejs/9.17.1/firebase-storage-compat.js"
-              ),
-            ]);
-
-            // Initialize Firebase
-            if (!firebase.apps.length) {
-              firebase.initializeApp(firebaseConfig);
-            }
-
-            // Get storage reference
-            storage = firebase.storage();
-            firebaseInitialized = true;
-            console.log("Firebase initialized successfully");
-
-            // Load initial track if stereo is active
-            if (isMusicActive) {
-              loadTrack(currentTrackIdx, musicIsPlaying);
-            }
-          } catch (e) {
-            console.error("Firebase initialization error:", e);
-            storage = null; // Ensure storage is null on error
-            firebaseInitialized = false;
-          }
-        }
-      }
 
       // Helper function to load scripts
       function loadScript(src) {
@@ -2621,73 +2210,47 @@
         });
       }
 
-      // Initialize Firebase when the document is ready
-      document.addEventListener("DOMContentLoaded", initFirebase);
-      // --- End Firebase Config & Init ---
-
       // State
       let isCallActive = false;
       let isEightiesMode = false;
-      // --- Music Player State (Moved from MusicPlayer3) ---
-      let isMusicActive = false; // Tracks if the stereo is powered on
-      let musicIsPlaying = false; // Tracks actual playback state
-      let currentTrackIdx = 0;
-      let audioPlayer = new Audio(); // Create audio element
-      audioPlayer.volume = 0.15; // Set initial volume
-      let visualizerInterval = null;
+      let isLeaderboardExpanded = false; // Add leaderboard state variable
 
-      // Track List (Using local paths from MusicPlayer3 fallbacks)
-      const eightiesTrackNames = [
-        // Renamed for clarity
-        "Like A Prayer - Madonna",
-        "Intergalactic - Beastie Boys",
-        "For Those About To Rock - AC/DC",
-        "Good Life - Inner City",
-        "99 Luftballoons - Nena",
-        "Sweet Dreams - Eurythmics",
-      ];
-      const eightiesTrackUrls = [
-        // Renamed for clarity (Local Fallbacks)
-        "/like-a-prayer-madonna.m4a", // Found in public directory
-        "/Intergalactic Beastie Boys.m4a",
-        "/for-those-about-to-rock-ac-d.m4a",
-        "/good-life-inner-city.m4a",
-        "/99 Luftballoons Nena.m4a",
-        "/sweet-dreams-eurythmics.m4a", // May need to be checked
-      ];
-      const eightiesFirebasePaths = [
-        // Renamed for clarity
-        "audio/320k/like-a-prayer-madonna.m4a",
-        "audio/320k/intergalactic-beastie-boys.m4a",
-        "audio/320k/for-those-about-to-rock-ac-dc.m4a",
-        "audio/320k/good-life-inner-city.m4a",
-        "audio/320k/99-luftballoons-nena.m4a",
-        "audio/320k/sweet-dreams-eurythmics.m4a",
-      ];
+      // Music toggle starts off by default
+      musicToggle.classList.remove("active");
 
-      // --- Single Track for Modern Mode ---
-      const modernTrackName = "Rocket Man - Steven Drozd";
-      const modernTrackUrl = "/Rocket Man - Steven Drozd.m4a"; // Update local fallback path to match actual file name
-      const modernFirebasePath = "audio/320k/rocket-man---steven-drozd.m4a"; // Firebase Path
-      // --- End Modern Track ---
+      function playClickSound() {
+        try {
+          const audioContext = new (window.AudioContext ||
+            window.webkitAudioContext)();
+          const oscillator = audioContext.createOscillator();
+          const gainNode = audioContext.createGain();
+          oscillator.type = "sine";
+          oscillator.frequency.setValueAtTime(880, audioContext.currentTime); // A5
+          gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(
+            0.01,
+            audioContext.currentTime + 0.1
+          );
+          oscillator.connect(gainNode);
+          gainNode.connect(audioContext.destination);
+          oscillator.start();
+          oscillator.stop(audioContext.currentTime + 0.1);
+        } catch (e) {
+          console.log("Audio context error:", e);
+        }
+      }
 
-      // --- End Music Player State ---
-
-      let isLeaderboardExpanded = false;
-
-      // Add iOS detection from sitepal.js - will be defined there
-      /* Removing these as they're now defined in sitepal.js
+      // Add iOS detection
       const isIOS =
         /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
       const browserIsSafari = /^((?!chrome|android).)*safari/i.test(
         navigator.userAgent
       );
-      */
 
       // Log device detection
-      console.log("Device detection (from HTML):", {
-        isIOS: window.isIOS, // Reference from sitepal.js
-        browserIsSafari: window.browserIsSafari, // Reference from sitepal.js
+      console.log("Device detection:", {
+        isIOS: isIOS,
+        browserIsSafari: browserIsSafari,
         userAgent: navigator.userAgent,
       });
 
@@ -2708,7 +2271,7 @@
         }
 
         // Special handling for iOS
-        if (window.isIOS || window.browserIsSafari) {
+        if (isIOS || browserIsSafari) {
           console.log("iOS/Safari detected - applying special handling");
 
           // Add a click handler to the whole document to initialize audio on iOS
@@ -2743,8 +2306,50 @@
 
               // If we're connecting, make sure we always show the UN-MUTE button
               if (!isCallActive) {
-                // Set a flag to force the UN-MUTE state on iOS
                 window.forceUnmuteOnIOS = true;
+
+                // Create a temporary audio context to help initialize audio system
+                try {
+                  const tempContext = new (window.AudioContext ||
+                    window.webkitAudioContext)();
+                  tempContext.resume().then(() => {
+                    console.log("Temporary audio context resumed");
+                  });
+
+                  // Create and play a brief silent sound
+                  const oscillator = tempContext.createOscillator();
+                  const gainNode = tempContext.createGain();
+                  gainNode.gain.value = 0.0001; // Nearly silent
+                  oscillator.connect(gainNode);
+                  gainNode.connect(tempContext.destination);
+                  oscillator.start(0);
+                  oscillator.stop(tempContext.currentTime + 0.001);
+                } catch (e) {
+                  console.warn("Temporary audio context creation failed:", e);
+                }
+              }
+
+              // Try to prime audio regardless of browser
+              try {
+                if (typeof window.saySilent === "function") {
+                  window.saySilent(0);
+                  // Add a small delay before any subsequent audio operations
+                  setTimeout(() => {
+                    try {
+                      // Try to start listening after priming
+                      if (typeof AI_vhost_api === "function") {
+                        AI_vhost_api("startListening");
+                      }
+                    } catch (err) {
+                      console.log(
+                        "Post-prime listening activation failed:",
+                        err
+                      );
+                    }
+                  }, 100);
+                }
+              } catch (err) {
+                console.log("Audio priming on CONNECT click failed:", err);
               }
             },
             { capture: true }
@@ -2762,59 +2367,13 @@
       function primeAudio() {
         if (!hasPrimed) {
           try {
-            console.log("Attempting audio priming for mobile devices...");
-
-            // For iOS, we need to ensure the SitePal script is properly loaded
-            if (window.isIOS || window.browserIsSafari) {
-              console.log("iOS detected, ensuring SitePal is initialized");
-
-              // Create a silent audio element and play it first (iOS trick)
-              const silentAudio = new Audio();
-              silentAudio.src =
-                "data:audio/mp3;base64,//uQxAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAACcQCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA//////////////////////////////////////////////////////////////////8AAAAeTEFNRTMuOTlyBJwAAAAAAAAAADUgJAaUQQABmgAAAnEIbBYzAAAAAAD/80DEAAAAA0gAAAAATEFNRTMuOTkuNQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//sQxAADwAABpAAAACAAADSAAAAETEFNRTMuOTkuNQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
-              silentAudio
-                .play()
-                .catch((e) => console.log("Silent audio play failed:", e));
-
-              // Try using SitePal's saySilent after a small delay
-              setTimeout(() => {
-                try {
-                  if (typeof window.saySilent === "function") {
-                    window.saySilent(0); // Play silent audio through SitePal
-                    console.log("SitePal saySilent(0) used for audio priming.");
-                  } else {
-                    console.log(
-                      "saySilent not available yet, will try initializing SitePal..."
-                    );
-
-                    // Check if we need to initialize SitePal
-                    const sitepalContainer =
-                      document.getElementById("sitepal-container");
-                    if (
-                      sitepalContainer &&
-                      sitepalContainer.dataset.initialized !== "true"
-                    ) {
-                      console.log(
-                        "Initializing SitePal for iOS during priming"
-                      );
-                      initSitePal();
-                      sitepalContainer.dataset.initialized = "true";
-                    }
-                  }
-                } catch (e) {
-                  console.error("Error during SitePal audio priming:", e);
-                }
-              }, 300);
+            // Use SitePal's silent function if available, otherwise ignore
+            if (typeof window.saySilent === "function") {
+              window.saySilent(0); // Play silent audio
+              console.log("SitePal saySilent(0) used for audio priming.");
             } else {
-              // Non-iOS devices
-              if (typeof window.saySilent === "function") {
-                window.saySilent(0); // Play silent audio
-                console.log("SitePal saySilent(0) used for audio priming.");
-              } else {
-                console.log("saySilent not available, skipping audio priming.");
-              }
+              console.log("saySilent not available, skipping audio priming.");
             }
-
             hasPrimed = true;
           } catch (e) {
             console.error("Error during audio priming:", e);
@@ -2826,20 +2385,68 @@
       document.addEventListener("touchstart", primeAudio, { once: true });
       // --- End Audio Priming ---
 
+      // Add a function to detect if the three-state approach is needed
+      function needsUnmuteState() {
+        // iOS and Safari always need the three-state approach
+        if (isIOS || browserIsSafari) {
+          console.log("iOS/Safari detected - using three-state approach");
+          return true;
+        }
+
+        // Mobile devices generally need the user interaction
+        if (
+          /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+            navigator.userAgent
+          )
+        ) {
+          console.log("Mobile browser detected - using three-state approach");
+          return true;
+        }
+
+        // Check if URL parameter explicitly requests it
+        const urlParams = new URLSearchParams(window.location.search);
+        if (
+          urlParams.get("unmute") === "true" ||
+          urlParams.get("three-state") === "true"
+        ) {
+          console.log("Three-state approach explicitly requested via URL");
+          return true;
+        }
+
+        // For Chrome and other browsers on desktop, auto-transition is generally fine
+        console.log(
+          "Desktop non-Safari browser detected - will use auto-transition"
+        );
+        return false;
+      }
+
+      // Set the global flag early
+      window.needsUnmuteFlow = /iPhone|iPad|iPod|Android|Mobile/i.test(
+        navigator.userAgent
+      );
+      const videoDisplay = document.querySelector(".video-display");
       // Toggle call - Refactored Logic with special iOS handling
       callButton.addEventListener("click", () => {
-        if (!isCallActive) {
+        console.log(
+          "Call button clicked, current text:",
+          callButton.textContent
+        );
+
+        if (callButton.textContent === "CONNECT") {
           // ---- Connect Flow ----
           console.log("Connecting call and initializing SitePal...");
           isCallActive = true;
+          window.sceneAlreadyLoaded = false; // Reset this flag when connecting
+          window.allowButtonTransition = true; // Allow transitions on new connection
+          window.greetingPlayed = false; // Reset greeting flag
+
+          // Reset flag in case needsUnmuteState changes (e.g., browser change)
+          window.needsUnmuteFlow = needsUnmuteState();
 
           // --- Transmission Effect Start ---
           const deadAir = document.getElementById("deadAir");
           const sitepalContainer = document.getElementById("sitepal-container");
           const offlineDisplay = document.getElementById("offline-display"); // Get offline display
-          const selfView = document.getElementById("self-view");
-          const liveIndicator = document.getElementById("live-indicator");
-          const stationSelect = document.getElementById("station-select");
           const transmissionEffectDuration = 3500; // ms - Shortened duration
           const fadeOutDuration = 500; // ms (should match CSS transition)
 
@@ -2862,8 +2469,6 @@
           // Activate call status indicator
           callStatus.classList.add("active");
 
-          // REMOVED: deadAir.style.display = 'none'; deadAir.pause();
-
           // Clean up any existing instance
           if (sitepalContainer.dataset.initialized === "true") {
             console.log("Cleaning up previous SitePal instance...");
@@ -2874,181 +2479,229 @@
           initSitePal();
           sitepalContainer.dataset.initialized = "true";
 
-          // iOS-specific fallback: If SitePal doesn't initialize within 5 seconds, try alternative method
-          if (window.isIOS || window.browserIsSafari) {
-            console.log("Setting up iOS SitePal fallback timer...");
-            window.iosSitePalFallbackTimer = setTimeout(function () {
-              console.log(
-                "iOS SitePal fallback triggered - checking initialization"
-              );
-              if (!window.sitepalInitialized) {
-                console.log(
-                  "SitePal not initialized after timeout, trying direct approach"
-                );
+          // Update UI
+          function updateSelfView() {
+            const selfView = document.getElementById("self-view");
+            if (!selfView) {
+              console.error("Self view element not found");
+              return;
+            }
 
-                // Simple direct approach - just reload the container
-                const container = document.getElementById("sitepal-container");
-                if (container) {
-                  container.innerHTML =
-                    '<div id="vhss_aiPlayer" style="width:100%;height:100%;"></div>';
+            selfView.innerHTML = '<div class="emoji-placeholder">😎</div>'; // Set default immediately
+            console.log("Requesting avatar from parent...");
 
-                  // Load script directly
-                  const scriptEl = document.createElement("script");
-                  scriptEl.src =
-                    (location.protocol === "https:" ? "https:" : "http:") +
-                    "//vhss-d.oddcast.com/vhost_embed_functions_v4.php?acc=9157686&js=1";
-
-                  scriptEl.onload = function () {
-                    try {
-                      if (typeof AI_vhost_embed === "function") {
-                        AI_vhost_embed(800, 600, 9157686, 244, 1, 1);
-                        window.sitepalInitialized = true;
-                      }
-                    } catch (e) {
-                      console.error("Error in direct embed:", e);
-                    }
-                  };
-
-                  document.head.appendChild(scriptEl);
-                }
-              }
-            }, 5000);
+            // Request avatar from parent
+            window.parent.postMessage({ type: "REQUEST_AVATAR" }, "*");
           }
 
-          // Update UI
-          if (selfView) selfView.style.display = "block";
-          if (typeof updateSelfView === "function") {
-            updateSelfView();
-          } else {
-            // Fallback for updateSelfView if not defined
-            if (selfView) {
-              selfView.innerHTML = '<div class="emoji-placeholder">😎</div>';
+          selfView.style.display = "block";
+          updateSelfView();
+          liveIndicator.style.display = "block";
+          stationSelect.disabled = true;
+
+          // Set to UN-MUTE state initially instead of DISCONNECT
+          callButton.textContent = "UN-MUTE";
+          callButton.classList.add("unmute"); // Add a new class for styling
+          callButton.classList.remove("disconnect");
+          console.log("Call connected, button set to UN-MUTE");
+
+          // Remove initial pulse from CONNECT button
+          callButton.classList.remove("initial-pulse");
+
+          // Special handling for iOS - maintain but don't activate mic yet
+          if (isIOS || browserIsSafari) {
+            console.log(
+              "iOS/Safari detected - deferring mic activation until UN-MUTE"
+            );
+
+            // Try to prime audio system
+            try {
+              const tempContext = new (window.AudioContext ||
+                window.webkitAudioContext)();
+              tempContext.resume().then(() => {
+                console.log("Temporary audio context resumed");
+              });
+
+              // Create and play a brief silent sound
+              const oscillator = tempContext.createOscillator();
+              const gainNode = tempContext.createGain();
+              gainNode.gain.value = 0.0001; // Nearly silent
+              oscillator.connect(gainNode);
+              gainNode.connect(tempContext.destination);
+              oscillator.start(0);
+              oscillator.stop(tempContext.currentTime + 0.001);
+            } catch (e) {
+              console.warn("Temporary audio context creation failed:", e);
             }
           }
-          if (liveIndicator) liveIndicator.style.display = "block";
-          if (stationSelect) stationSelect.disabled = true;
 
-          // Go directly to DISCONNECT state
-          callButton.textContent = "DISCONNECT";
-          callButton.classList.add("disconnect");
-          console.log("Call connected, button set to DISCONNECT");
-
-          // Try to activate microphone after a short delay
-          setTimeout(activateMicrophone, 2000);
-
-          // --- Transmission Effect End Timeout --- // REMOVED - Now handled by vh_sceneLoaded
-          /*
-          setTimeout(() => {
-            console.log("Fading out transmission video...");
-            deadAir.style.opacity = 0; // Start fade out
-
-            setTimeout(() => {
-              console.log("Pausing transmission video.");
-              deadAir.pause();
-              // Optional: Hide video completely if opacity isn't enough
-              // deadAir.style.display = 'none';
-            }, fadeOutDuration); // Pause after fade completes
-          }, transmissionEffectDuration);
-          */
-          // --- End Transmission Effect End Timeout ---
-
-          // Add initial pulse to CONNECT button
-          callButton.classList.add("initial-pulse");
-
-          // Special handling for iOS
-          if (window.isIOS || window.browserIsSafari) {
-            console.log("iOS/Safari detected - applying special handling");
-
-            // Add a click handler to the whole document to initialize audio on iOS
-            document.addEventListener(
-              "click",
-              function iosAudioInit() {
-                console.log("iOS document click - initializing audio context");
-                deadAir
-                  .play()
-                  .catch((e) => console.log("iOS initial play rejected:", e));
-
-                // Try to prime the audio early
-                try {
-                  if (typeof saySilent === "function") {
-                    saySilent(0);
-                  }
-                } catch (e) {
-                  console.log("Early audio priming failed:", e);
-                }
-
-                // Remove the listener after first click
-                document.removeEventListener("click", iosAudioInit);
-              },
-              { once: true }
-            );
-
-            // For iOS we need to specially handle the call button click
-            callButton.addEventListener(
-              "click",
-              function (e) {
-                console.log("Call button clicked on iOS");
-
-                // If we're connecting, make sure we always show the UN-MUTE button
-                if (!isCallActive) {
-                  // Set a flag to force the UN-MUTE state on iOS
-                  window.forceUnmuteOnIOS = true;
-                }
-              },
-              { capture: true }
-            );
+          // Expand video display when connecting
+          if (videoDisplay) {
+            videoDisplay.classList.add("active");
           }
+        } else if (callButton.textContent === "UN-MUTE") {
+          // ---- UN-MUTE Flow ----
+          console.log("UN-MUTE clicked, activating microphone and audio...");
+
+          // Temporarily disable button to prevent double clicks
+          callButton.disabled = true;
+
+          // Force button state change immediately to ensure it happens
+          setTimeout(() => {
+            callButton.textContent = "DISCONNECT";
+            callButton.classList.remove("unmute");
+            callButton.classList.add("disconnect");
+            callButton.disabled = false;
+            console.log("Updated button to DISCONNECT state");
+          }, 100);
+
+          // Try to play greeting with all possible methods
+          try {
+            console.log("Attempting to play greeting...");
+
+            // Try with window methods first (more reliable)
+            const windowSayText = typeof window.sayText === "function";
+            const windowVhostApi = typeof window.AI_vhost_api === "function";
+            const localSayText = typeof sayText === "function";
+            const localVhostApi = typeof AI_vhost_api === "function";
+
+            console.log("Available speech APIs:", {
+              windowSayText,
+              windowVhostApi,
+              localSayText,
+              localVhostApi,
+            });
+
+            if (windowSayText) {
+              console.log("Using window.sayText for greeting");
+              try {
+                // Attempt with different parameter combinations
+                window.sayText("Hello, I am ready to assist you.", 1, 1, 6);
+                // If the above doesn't work, this will execute in 2 seconds as a backup
+                setTimeout(() => {
+                  try {
+                    window.sayText("Hello, I am ready to assist you.", 1);
+                  } catch (e) {
+                    console.warn("Backup greeting 1 failed:", e);
+                  }
+                }, 2000);
+              } catch (e) {
+                console.warn("First greeting attempt failed:", e);
+              }
+            } else if (windowVhostApi) {
+              console.log("Using window.AI_vhost_api for greeting");
+              window.AI_vhost_api("say", "Hello, I am ready to assist you.");
+            } else if (localSayText) {
+              console.log("Using local sayText for greeting");
+              try {
+                // Try different parameter combinations
+                sayText("Hello, I am ready to assist you.", 1, 1, 6);
+                // Backup in case the first attempt fails
+                setTimeout(() => {
+                  try {
+                    sayText("Hello, I am ready to assist you.", 1);
+                  } catch (e) {
+                    console.warn("Backup local greeting failed:", e);
+                  }
+                }, 2000);
+              } catch (e) {
+                console.warn("First local greeting attempt failed:", e);
+              }
+            } else if (localVhostApi) {
+              console.log("Using local AI_vhost_api for greeting");
+              AI_vhost_api("say", "Hello, I am ready to assist you.");
+            } else {
+              console.warn("⚠️ No speech APIs found for greeting");
+
+              // Last resort - try to find any SitePal API in the iframe context
+              try {
+                console.log(
+                  "Attempting to find SitePal API in iframe context..."
+                );
+                const iframes = document.getElementsByTagName("iframe");
+                for (let i = 0; i < iframes.length; i++) {
+                  try {
+                    const iframeWindow = iframes[i].contentWindow;
+                    if (
+                      iframeWindow &&
+                      typeof iframeWindow.sayText === "function"
+                    ) {
+                      console.log("Found sayText in iframe", i);
+                      iframeWindow.sayText(
+                        "Hello, I am ready to assist you.",
+                        1
+                      );
+                      break;
+                    } else if (
+                      iframeWindow &&
+                      typeof iframeWindow.AI_vhost_api === "function"
+                    ) {
+                      console.log("Found AI_vhost_api in iframe", i);
+                      iframeWindow.AI_vhost_api(
+                        "say",
+                        "Hello, I am ready to assist you."
+                      );
+                      break;
+                    }
+                  } catch (frameErr) {
+                    console.warn("Error accessing iframe", i, frameErr);
+                  }
+                }
+              } catch (e) {
+                console.error("Last resort greeting attempt failed:", e);
+              }
+            }
+          } catch (e) {
+            console.error("Error playing greeting:", e);
+          }
+
+          // Prime audio again with saySilent for good measure
+          setTimeout(() => {
+            try {
+              if (typeof window.saySilent === "function") {
+                console.log("Priming with window.saySilent(0)");
+                window.saySilent(0);
+              } else if (typeof saySilent === "function") {
+                console.log("Priming with saySilent(0)");
+                saySilent(0);
+              }
+            } catch (e) {
+              console.warn("Error during audio priming:", e);
+            }
+
+            // Start listening after a delay
+            setTimeout(() => {
+              try {
+                console.log("Starting listening...");
+                if (typeof window.AI_vhost_api === "function") {
+                  window.AI_vhost_api("startListening");
+                  console.log("Started listening with window.AI_vhost_api");
+                } else if (typeof AI_vhost_api === "function") {
+                  AI_vhost_api("startListening");
+                  console.log("Started listening with AI_vhost_api");
+                } else {
+                  console.warn("No listening API available");
+                }
+              } catch (e) {
+                console.error("Error starting listening:", e);
+              }
+
+              // Notify parent of state change
+              window.parent.postMessage(
+                { type: "SITEPAL_STATE_CHANGE", isListening: true },
+                "*"
+              );
+            }, 500);
+          }, 1000);
         } else {
           // ---- Disconnect Flow ----
           console.log("Disconnecting call with static effect...");
           isCallActive = false;
+          window.sceneAlreadyLoaded = false; // Reset scene loaded flag on disconnect
 
-          // 1. Initiate SitePal cleanup immediately - with direct call
-          const sitepalContainer = document.getElementById("sitepal-container");
-          if (sitepalContainer) {
-            console.log("Calling cleanupSitePal directly...");
-            // Direct cleanup
-            try {
-              // Stop any ongoing processes
-              if (typeof AI_vhost_api === "function") {
-                AI_vhost_api("stopSpeaking");
-                AI_vhost_api("stopListening");
-                AI_vhost_api("unloadScene");
-              }
-
-              // Also call stop function
-              if (typeof AI_vhost_stop === "function") {
-                AI_vhost_stop();
-              }
-
-              // Call destroy
-              if (typeof AI_vhost_destroy === "function") {
-                AI_vhost_destroy();
-              }
-
-              // Clear container
-              sitepalContainer.innerHTML = "";
-              sitepalContainer.style.display = "none";
-              window.sitepalInitialized = false;
-              sitepalContainer.dataset.initialized = "false";
-            } catch (e) {
-              console.error("Error in direct cleanup:", e);
-            }
-
-            // Also try the regular cleanup function
-            if (typeof cleanupSitePal === "function") {
-              cleanupSitePal();
-            }
-          }
-
-          // Reset UI elements
-          callButton.textContent = "CONNECT";
-          callButton.classList.remove("disconnect");
-
-          // 2. Start brief static effect
+          // Start brief static effect
           const deadAir = document.getElementById("deadAir");
-          const offlineDisplay = document.getElementById("offline-display");
-          const disconnectStaticDuration = 1500; // ms
+          const staticEffectDuration = 1500; // ms
 
           if (deadAir) {
             deadAir.style.display = "block";
@@ -3060,23 +2713,14 @@
               .catch((e) => console.error("Disconnect static play failed:", e));
           }
 
-          // 3. Set timeout to switch to offline display
+          // Set timeout to disconnect after static effect
           setTimeout(() => {
             console.log(
-              "Disconnect static effect finished. Switching to OFFLINE."
+              "Disconnect static effect finished. Calling disconnectCall()."
             );
-            if (deadAir) {
-              deadAir.pause();
-              deadAir.style.display = "none"; // Hide video
-            }
-            if (offlineDisplay) {
-              offlineDisplay.style.display = "flex"; // Show offline display
-            }
-            // Update the rest of the UI *after* the effect
-            updateCallUI();
-          }, disconnectStaticDuration);
-
-          // REMOVED immediate call to updateCallUI() and manual video reset from here
+            // Use our new disconnectCall function
+            disconnectCall();
+          }, staticEffectDuration);
         }
       });
 
@@ -3087,17 +2731,22 @@
 
       // Toggle 80s mode
       eightiesToggle.addEventListener("click", () => {
-        const crtEffect = document.getElementById("crt-effect");
-
-        // CRT power on/off effect with less opacity
-        crtEffect.style.opacity = "0.4"; // Reduced opacity
-        crtEffect.classList.add("crt-on");
+        const toggleRow = document.querySelector(".toggle-row.mobile-inline");
 
         // Toggle the isEightiesMode state
         isEightiesMode = !isEightiesMode;
 
         // Update UI directly
         updateEightiesUI(isEightiesMode);
+
+        // Apply fullscreen layout in 80s mode if screen is wide enough
+        if (window.innerWidth >= 768) {
+          if (isEightiesMode) {
+            toggleRow.classList.add("fullscreen");
+          } else {
+            toggleRow.classList.remove("fullscreen");
+          }
+        }
 
         // Play toggle sound
         try {
@@ -3133,444 +2782,34 @@
 
         // Notify parent of the mode change
         window.parent.postMessage({ type: "EIGHTIES_MODE_CHANGE" }, "*");
-
-        setTimeout(() => {
-          crtEffect.style.opacity = "0";
-          crtEffect.classList.remove("crt-on");
-        }, 150);
       });
 
-      // Stereo component controls
-      stereoPower.addEventListener("click", async () => {
-        // Toggle music power state
-        isMusicActive = !isMusicActive;
-        playStereoSound(isMusicActive); // Play power sound
+      // Toggle music
+      musicToggle.addEventListener("click", () => {
+        // Toggle the active state visually
+        musicToggle.classList.toggle("active");
 
-        if (isMusicActive) {
-          // Make sure Firebase is initialized before loading tracks
-          if (!firebaseInitialized) {
-            try {
-              console.log("Initializing Firebase before loading tracks...");
-              await initFirebase();
-            } catch (error) {
-              console.error("Failed to initialize Firebase:", error);
-            }
-          }
+        // Get the current state
+        const isMusicEnabled = musicToggle.classList.contains("active");
 
-          // If turning on, load and potentially play the first track
-          loadTrack(currentTrackIdx, true); // Autoplay when powered on
-        } else {
-          // If turning off, pause and reset
-          audioPlayer.pause();
-          musicIsPlaying = false;
-          updateStereoUI(); // Update UI immediately
-          // Optionally reset track info display when powered off
-          stereoInfo.innerHTML =
-            '<div class="stereo-track-info">NO SIGNAL</div>';
-        }
-
-        // Always update the UI based on the new power state
-        updateStereoUI();
-
-        // Notify parent about the general music state
-        window.parent.postMessage(
-          {
-            type: "STEREO_POWER_STATE", // Use a distinct type
-            isActive: isMusicActive,
-            mode: isEightiesMode ? "80s" : "spotify", // Indicate which player is intended
-          },
-          "*"
-        );
-
-        console.log("Stereo power toggled:", isMusicActive);
-      });
-
-      stereoNext.addEventListener("click", () => {
-        if (!isMusicActive) return;
-        playClickSound();
-        changeTrack(1); // Use internal function
-        console.log("Next track requested");
-      });
-
-      stereoPrev.addEventListener("click", () => {
-        if (!isMusicActive) return;
-        playClickSound();
-        changeTrack(-1); // Use internal function
-        console.log("Previous track requested");
-      });
-
-      stereoPlayPause.addEventListener("click", () => {
-        if (!isMusicActive) return;
-        playClickSound();
-        togglePlayPause(); // Call the actual function
-        console.log("Play/Pause toggle requested");
-      });
-
-      // --- Music Player Functions (Moved from MusicPlayer3 & adapted) ---
-
-      function loadTrack(index, autoplay = false) {
-        let trackName, trackUrl, firebasePath;
-
-        if (isEightiesMode) {
-          // Use 80s list
-          if (index < 0 || index >= eightiesTrackUrls.length) {
-            console.error("Invalid 80s track index:", index);
-            return;
-          }
-          currentTrackIdx = index; // Only update index for 80s mode
-          trackName = eightiesTrackNames[currentTrackIdx];
-          trackUrl = eightiesTrackUrls[currentTrackIdx];
-          firebasePath = eightiesFirebasePaths[currentTrackIdx];
-          console.log(`Loading 80s track index: ${currentTrackIdx}`);
-        } else {
-          // Use Modern single track
-          trackName = modernTrackName;
-          trackUrl = modernTrackUrl;
-          firebasePath = modernFirebasePath;
-          console.log(`Loading modern track: ${trackName}`);
-          // No need to update currentTrackIdx when in modern mode
-        }
-
-        // Reset playback state
-        musicIsPlaying = false;
-        updateStereoUI();
-        stereoInfo.innerHTML =
-          '<div class="stereo-track-info">LOADING...</div>'; // Show loading state
-
-        // Define track paths (add your Firebase storage paths here)
-        const localFallbackUrls = isEightiesMode
-          ? eightiesTrackUrls
-          : [modernTrackUrl]; // Adjust fallback based on mode
-        const firebasePaths = isEightiesMode
-          ? eightiesFirebasePaths
-          : [modernFirebasePath]; // Adjust paths based on mode
-        const currentPathIndex = isEightiesMode ? currentTrackIdx : 0; // Use index 0 for modern path
-
-        // Function to set audio source and attach listeners
-        const setAudioSource = (url) => {
-          console.log(`Setting audio source to: ${url}`);
-
-          try {
-            // Check if this is a Firebase URL or a local path
-            if (url.startsWith("http") || url.startsWith("blob:")) {
-              // Direct Firebase or blob URL - use as is
-              audioPlayer.src = url;
-            } else {
-              // Local file path - ensure proper formatting
-              // Make relative to server root with leading slash
-              const formattedUrl = url.startsWith("/") ? url : `/${url}`;
-              console.log(`Formatted local URL: ${formattedUrl}`);
-              audioPlayer.src = formattedUrl;
-            }
-
-            audioPlayer.load();
-
-            // Reset error count for this track
-            audioPlayer._errorCount = 0;
-          } catch (e) {
-            console.error("Error setting audio source:", e);
-            stereoInfo.innerHTML =
-              '<div class="stereo-track-info">ERROR LOADING TRACK</div>';
-            return;
-          }
-
-          audioPlayer.onloadedmetadata = () => {
-            console.log("Metadata loaded for:", trackName);
-            updateTrackInfoDisplay();
-            if (autoplay && isMusicActive) {
-              audioPlayer
-                .play()
-                .then(() => {
-                  console.log("Audio playback started successfully");
-                  musicIsPlaying = true;
-                  updateStereoUI();
-                })
-                .catch((e) => {
-                  console.error("Autoplay failed:", e);
-                  musicIsPlaying = false;
-                  updateStereoUI();
-                });
-            }
-          };
-
-          audioPlayer.onerror = (e) => {
-            console.error("Audio error:", e, "URL:", url);
-            // Count errors to prevent infinite loops
-            audioPlayer._errorCount = (audioPlayer._errorCount || 0) + 1;
-
-            // If Firebase URL failed and we haven't tried too many times, try local fallback
-            if (
-              url.includes("firebasestorage") &&
-              localFallbackUrls[currentPathIndex] &&
-              audioPlayer._errorCount < 3
-            ) {
-              console.warn(
-                "Firebase audio failed, trying local fallback:",
-                localFallbackUrls[currentPathIndex]
-              );
-              const localUrl = localFallbackUrls[currentPathIndex];
-              // Use absolute path for local files
-              const formattedUrl = localUrl.startsWith("/")
-                ? localUrl
-                : `/${localUrl}`;
-              audioPlayer.src = formattedUrl;
-              audioPlayer.load();
-            } else {
-              stereoInfo.innerHTML =
-                '<div class="stereo-track-info">AUDIO ERROR</div>';
-              musicIsPlaying = false;
-              updateStereoUI();
-            }
-          };
-
-          // Rest of the listeners
-          audioPlayer.onplay = () => {
-            musicIsPlaying = true;
-            updateStereoUI();
-            console.log("Playing:", trackName);
-          };
-
-          audioPlayer.onpause = () => {
-            musicIsPlaying = false;
-            updateStereoUI();
-            console.log("Paused:", trackName);
-          };
-
-          audioPlayer.onended = () => {
-            console.log("Track ended:", trackName);
-            changeTrack(1);
-          };
-
-          audioPlayer.ontimeupdate = () => {
-            updateTrackInfoDisplay();
-          };
-        };
-
-        // Because of CORS issues, use local files directly
-        console.log(
-          "Using local audio file:",
-          localFallbackUrls[currentPathIndex]
-        );
-        setAudioSource(localFallbackUrls[currentPathIndex]);
-
-        // Try fetching from Firebase Storage first
-        if (
-          storage &&
-          firebasePaths[currentPathIndex] &&
-          !window.location.hostname.includes("localhost")
-        ) {
-          // Only try Firebase if not on localhost
-          try {
-            console.log(
-              "Attempting to fetch from Firebase Storage:",
-              firebasePaths[currentPathIndex]
-            );
-            const storageRef = storage.ref(firebasePaths[currentPathIndex]);
-
-            storageRef
-              .getDownloadURL()
-              .then((url) => {
-                console.log("Successfully fetched Firebase Storage URL:", url);
-                setAudioSource(url);
-
-                // Update the track info immediately to give feedback
-                const trackInfoElement =
-                  stereoInfo.querySelector(".stereo-track-info");
-                if (trackInfoElement) {
-                  trackInfoElement.textContent = `Loading ${trackName}...`;
-                }
-              })
-              .catch((error) => {
-                console.error("Firebase Storage getDownloadURL error:", error);
-                console.warn(
-                  "Falling back to local URL:",
-                  localFallbackUrls[currentPathIndex]
-                );
-                setAudioSource(localFallbackUrls[currentPathIndex]); // Fallback to local
-              });
-          } catch (e) {
-            console.error("Error accessing Firebase Storage:", e);
-            setAudioSource(localFallbackUrls[currentPathIndex]);
-          }
-        } else {
-          // If on localhost, storage not initialized, or no Firebase path, use local directly
-          const reason = window.location.hostname.includes("localhost")
-            ? "Running on localhost"
-            : "Firebase Storage not available or path missing";
-
-          console.warn(
-            `${reason}, using local URL:`,
-            localFallbackUrls[currentPathIndex]
-          );
-          setAudioSource(localFallbackUrls[currentPathIndex]);
-        }
-      }
-
-      function changeTrack(direction) {
-        // Only change tracks if in 80s mode
-        if (!isEightiesMode) {
-          console.log("Track change ignored: Not in 80s mode.");
-          return;
-        }
-        let nextIndex =
-          (currentTrackIdx + direction + eightiesTrackUrls.length) %
-          eightiesTrackUrls.length;
-        loadTrack(nextIndex, musicIsPlaying || isMusicActive); // Autoplay if player was already playing OR if just powered on
-      }
-
-      function togglePlayPause() {
-        if (!isMusicActive) {
-          console.log("Cannot play/pause, stereo not active.");
-          return;
-        }
-
-        if (!audioPlayer.src) {
-          console.log("No track loaded, loading default track.");
-          loadTrack(currentTrackIdx, true);
-          return;
-        }
-
-        if (audioPlayer.readyState < 2) {
-          console.log("Audio not ready yet, waiting for metadata.");
-          // Show loading indicator
-          const trackInfoElement =
-            stereoInfo.querySelector(".stereo-track-info");
-          if (trackInfoElement) {
-            trackInfoElement.textContent = "LOADING...";
-          }
-
-          // Set a listener to play when ready
-          audioPlayer.oncanplay = () => {
-            audioPlayer
-              .play()
-              .then(() => {
-                console.log("Delayed play successful");
-                musicIsPlaying = true;
-                updateStereoUI();
-              })
-              .catch((e) => console.error("Delayed play failed:", e));
-            audioPlayer.oncanplay = null; // Remove listener after use
-          };
-
-          return;
-        }
-
-        if (musicIsPlaying) {
-          audioPlayer.pause();
-        } else {
-          audioPlayer
-            .play()
-            .then(() => {
-              console.log("Play successful");
-            })
-            .catch((e) => {
-              console.error("Play failed:", e);
-              // Try re-initializing audio on error
-              if (storage && firebaseInitialized) {
-                console.log("Attempting to reload track after play error");
-                loadTrack(currentTrackIdx, true);
-              }
-            });
-        }
-        // State update handled by onplay/onpause events
-      }
-
-      function updateTrackInfoDisplay() {
-        if (!audioPlayer || !audioPlayer.src) return;
-
-        const currentTime = formatTime(audioPlayer.currentTime);
-        const duration = isNaN(audioPlayer.duration)
-          ? "00:00"
-          : formatTime(audioPlayer.duration);
-
-        // Get the correct track name based on the mode
-        const trackName = isEightiesMode
-          ? eightiesTrackNames[currentTrackIdx] || "Loading..."
-          : modernTrackName;
-
-        // Find the inner element to update its content
-        const trackInfoElement = stereoInfo.querySelector(".stereo-track-info");
-        if (!trackInfoElement) {
-          console.error(
-            ".stereo-track-info element not found inside #stereo-info"
-          );
-          return;
-        }
-
-        // Construct the text content
-        let displayText = `${trackName} [${currentTime} / ${duration}]`;
-        if (isEightiesMode) {
-          displayText = `▶ ${trackName} [${currentTime} / ${duration}]`;
-        }
-
-        // Update the text content of the inner element
-        trackInfoElement.textContent = displayText;
-      }
-
-      function formatTime(seconds) {
-        if (isNaN(seconds) || seconds < 0) return "00:00";
-        const mins = Math.floor(seconds / 60);
-        const secs = Math.floor(seconds % 60);
-        return `${String(mins).padStart(2, "0")}:${String(secs).padStart(
-          2,
-          "0"
-        )}`;
-      }
-
-      function playStereoSound(isPoweringOn) {
-        // Simplified sound effect for power toggle
+        // Play toggle sound
         try {
           const audioContext = new (window.AudioContext ||
             window.webkitAudioContext)();
           const oscillator = audioContext.createOscillator();
           const gainNode = audioContext.createGain();
+
           oscillator.type = "sine";
-          if (isPoweringOn) {
-            oscillator.frequency.setValueAtTime(
-              261.63,
-              audioContext.currentTime
-            ); // C4
-            oscillator.frequency.exponentialRampToValueAtTime(
-              392.0,
-              audioContext.currentTime + 0.2
-            ); // G4
-          } else {
-            oscillator.frequency.setValueAtTime(
-              392.0,
-              audioContext.currentTime
-            ); // G4
-            oscillator.frequency.exponentialRampToValueAtTime(
-              261.63,
-              audioContext.currentTime + 0.2
-            ); // C4
-          }
-          gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
-          gainNode.gain.exponentialRampToValueAtTime(
-            0.01,
-            audioContext.currentTime + 0.3
+          oscillator.frequency.setValueAtTime(
+            isMusicEnabled ? 600 : 300,
+            audioContext.currentTime
           );
-          oscillator.connect(gainNode);
-          gainNode.connect(audioContext.destination);
-          oscillator.start();
-          oscillator.stop(audioContext.currentTime + 0.3);
-        } catch (e) {
-          console.log("Audio context error:", e);
-        }
-      }
+          oscillator.frequency.exponentialRampToValueAtTime(
+            isMusicEnabled ? 300 : 600,
+            audioContext.currentTime + 0.1
+          );
 
-      // --- End Music Player Functions ---
-
-      function playClickSound() {
-        try {
-          const audioContext = new (window.AudioContext ||
-            window.webkitAudioContext)();
-          const oscillator = audioContext.createOscillator();
-          const gainNode = audioContext.createGain();
-
-          oscillator.type = "square";
-          oscillator.frequency.setValueAtTime(880, audioContext.currentTime); // A5
-
-          gainNode.gain.setValueAtTime(0.05, audioContext.currentTime);
+          gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
           gainNode.gain.exponentialRampToValueAtTime(
             0.01,
             audioContext.currentTime + 0.1
@@ -3584,211 +2823,484 @@
         } catch (e) {
           console.log("Audio context not supported");
         }
-      }
 
-      function updateStereoUI() {
-        // Removed isActive parameter, uses global isMusicActive
+        // Notify parent of the music toggle - this will control both MusicPlayer2 and MusicPlayer3
+        window.parent.postMessage(
+          {
+            type: "MUSIC_TOGGLE",
+            enabled: isMusicEnabled,
+          },
+          "*"
+        );
+      });
+
+      // Toggle constellations
+      constellationToggle.addEventListener("click", () => {
+        // Toggle the active state visually
+        constellationToggle.classList.toggle("active");
+
+        // Get the current state
+        const isConstellationsEnabled =
+          constellationToggle.classList.contains("active");
+
+        // Play toggle sound
+        try {
+          const audioContext = new (window.AudioContext ||
+            window.webkitAudioContext)();
+          const oscillator = audioContext.createOscillator();
+          const gainNode = audioContext.createGain();
+
+          oscillator.type = "sine";
+          oscillator.frequency.setValueAtTime(
+            isConstellationsEnabled ? 500 : 300,
+            audioContext.currentTime
+          );
+          oscillator.frequency.exponentialRampToValueAtTime(
+            isConstellationsEnabled ? 300 : 500,
+            audioContext.currentTime + 0.1
+          );
+
+          gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(
+            0.01,
+            audioContext.currentTime + 0.1
+          );
+
+          oscillator.connect(gainNode);
+          gainNode.connect(audioContext.destination);
+
+          oscillator.start();
+          oscillator.stop(audioContext.currentTime + 0.1);
+        } catch (e) {
+          console.log("Audio context not supported");
+        }
+
+        // Notify parent of the constellation toggle
+        window.parent.postMessage(
+          {
+            type: "CONSTELLATION_TOGGLE",
+            enabled: isConstellationsEnabled,
+          },
+          "*"
+        );
+
+        console.log("Constellations toggled:", isConstellationsEnabled);
+      });
+
+      function updateEightiesUI(isActive) {
         const missionControl = document.getElementById("mission-control");
+        const scanLines = document.getElementById("scan-lines");
+        const colorShiftRed = document.getElementById("color-shift-red");
+        const colorShiftBlue = document.getElementById("color-shift-blue");
+        const blinkingCursor = document.getElementById("blinking-cursor");
         const mp3Indicator = document.getElementById("mp3-indicator");
-        const playPauseButton = document.getElementById("stereo-play-pause"); // Get the button
-        const playPauseIcon = playPauseButton
-          ? playPauseButton.querySelector("i")
-          : null; // Get its icon
+        const threeRedShadow = document.getElementById("threedy-shadow-red");
+        const threeBlueShadow = document.getElementById("threedy-shadow-blue");
+        const wireframeBackdrop = document.getElementById("wireframe-backdrop");
 
-        if (isMusicActive) {
-          // Enable stereo
-          stereoPower.classList.add("active");
-          stereoComponent.classList.add("stereo-active");
+        // Clear any previous intervals
+        if (window.eightiesInterval) {
+          clearInterval(window.eightiesInterval);
+          window.eightiesInterval = null;
+        }
 
-          // Enable/disable next/prev based on mode
-          stereoNext.disabled = !isEightiesMode;
-          stereoPrev.disabled = !isEightiesMode;
-          stereoPlayPause.disabled = false; // Enable the play/pause button when music is active
+        if (isActive) {
+          eightiesToggle.classList.add("active");
+          if (missionControl) {
+            missionControl.classList.add("eighties-active");
+            missionControl.classList.remove("threedy-mode");
+          }
+          if (scanLines) scanLines.classList.add("active");
+          if (colorShiftRed) colorShiftRed.classList.add("active");
+          if (colorShiftBlue) colorShiftBlue.classList.add("active");
+          if (blinkingCursor) blinkingCursor.style.display = "inline-block";
 
-          // Update track info using the internal player state
-          updateTrackInfoDisplay();
+          isEightiesMode = true;
 
-          // Start visualizer animation if playing
-          if (musicIsPlaying) {
-            startVisualizer();
-          } else {
-            stopVisualizer(); // Stop if paused
+          // Hide 3D shadows in 80s mode
+          if (threeRedShadow) threeRedShadow.style.display = "none";
+          if (threeBlueShadow) threeBlueShadow.style.display = "none";
+
+          // Update system status text
+          const statusLabel = document.querySelector(".status-label");
+          if (statusLabel) {
+            statusLabel.textContent = "RETRO";
+            // Remove 3D text shadows for 80s mode
+            statusLabel.style.textShadow = "0 0 3px #22d3ee";
           }
 
-          // Update MP3 indicator visibility based on 80s mode
-          if (mp3Indicator) {
-            if (isEightiesMode) {
-              mp3Indicator.style.display = "block";
-            } else {
-              mp3Indicator.style.display = "none";
+          // Remove 3D text shadows from all elements in 80s mode
+          document
+            .querySelectorAll(
+              ".control-button, .toggle-label, .status-label, .leaderboard-header"
+            )
+            .forEach((element) => {
+              // Use appropriate 80s text shadow instead
+              element.style.textShadow = "0 0 3px #d946ef";
+            });
+
+          // Add some random glitches (reduced frequency and opacity)
+          window.eightiesInterval = setInterval(() => {
+            if (Math.random() > 0.97 && scanLines) {
+              scanLines.style.opacity = "0.6";
+              setTimeout(() => {
+                if (scanLines) scanLines.style.opacity = "0.7";
+              }, 100);
             }
-          }
+          }, 3000);
 
-          // Update play/pause button icon and text
-          if (playPauseButton) {
-            // No need for playPauseIcon here
-            if (musicIsPlaying) {
-              playPauseButton.innerHTML = '<i class="fas fa-pause"></i> PAUSE'; // Set innerHTML directly
-            } else {
-              playPauseButton.innerHTML = '<i class="fas fa-play"></i> PLAY'; // Set innerHTML directly
-            }
-          }
+          // If music is active, notify the parent to use
+          // Add class to body for additional styles
+          document.body.classList.add("eighties-mode");
         } else {
-          // Disable stereo
-          stereoPower.classList.remove("active");
-          stereoNext.disabled = true;
-          stereoPrev.disabled = true;
-          stereoPlayPause.disabled = true; // Disable play/pause when powered off
-          stereoComponent.classList.remove("stereo-active");
-
-          // Reset play/pause button icon and text when powered off
-          if (playPauseButton) {
-            // No need for playPauseIcon here
-            playPauseButton.innerHTML = '<i class="fas fa-play"></i> PLAY'; // Reset innerHTML
+          eightiesToggle.classList.remove("active");
+          if (missionControl) {
+            missionControl.classList.remove("eighties-active");
+            missionControl.classList.add("threedy-mode");
           }
+          if (scanLines) scanLines.classList.remove("active");
+          if (colorShiftRed) colorShiftRed.classList.remove("active");
+          if (colorShiftBlue) colorShiftBlue.classList.remove("active");
+          if (blinkingCursor) blinkingCursor.style.display = "none";
 
-          // Update track info - Handled in power button click now
-          // stereoInfo.innerHTML = '<div class="stereo-track-info">NO SIGNAL</div>';
+          // Fade out wireframe backdrop
 
-          // Stop visualizer animation
-          stopVisualizer();
+          isEightiesMode = false;
+
+          // Show 3D shadows when not in 80s mode
+          if (threeRedShadow) threeRedShadow.style.display = "block";
+          if (threeBlueShadow) threeBlueShadow.style.display = "block";
 
           // Hide MP3 indicator
           if (mp3Indicator) {
             mp3Indicator.style.display = "none";
           }
+
+          // Reset status text to 3D style
+          const statusLabel = document.querySelector(".status-label");
+          if (statusLabel) {
+            statusLabel.textContent = "3D//ACTIVE";
+            statusLabel.style.textShadow = "-1px 0 #ff0040, 1px 0 #00b4ff";
+          }
+
+          // Apply 3D text shadows to all elements when not in 80s mode
+          document
+            .querySelectorAll(
+              ".control-button, .toggle-label, .status-label, .leaderboard-header"
+            )
+            .forEach((element) => {
+              element.style.textShadow = "-1px 0 #ff0040, 1px 0 #00b4ff";
+            });
+
+          // Remove eighties mode class from body
+          document.body.classList.remove("eighties-mode");
         }
-      }
 
-      function startVisualizer() {
-        // Stop existing visualizer if running
-        stopVisualizer();
-
-        // Create a new interval for the visualizer
-        visualizerInterval = setInterval(() => {
-          const bars = document.querySelectorAll(".stereo-bar");
-          bars.forEach((bar) => {
-            const minHeight = 2;
-            const maxHeight = 24;
-
-            // Random height based on "music activity"
-            const height =
-              Math.floor(Math.random() * (maxHeight - minHeight + 1)) +
-              minHeight;
-
-            // Set custom properties for the animation
-            bar.style.setProperty("--min-height", `${minHeight}px`);
-            bar.style.setProperty("--max-height", `${height}px`);
-          });
-        }, 200);
-      }
-
-      function stopVisualizer() {
-        if (visualizerInterval) {
-          clearInterval(visualizerInterval);
-          visualizerInterval = null;
-
-          // Reset all bars
-          const bars = document.querySelectorAll(".stereo-bar");
-          bars.forEach((bar) => {
-            bar.style.height = "4px";
-          });
-        }
-      }
-
-      function updateTrackInfo(trackInfo) {
-        // This function is now OBSOLETE for the 80s player,
-        // as track info is handled internally by updateTrackInfoDisplay.
-        // It might still be used if you re-implement Spotify control via postMessage.
-        console.log(
-          "updateTrackInfo called (likely from parent for Spotify):",
-          trackInfo
+        document.documentElement.style.setProperty(
+          "--eighties-color",
+          isActive ? "#2a1786" : "transparent"
         );
 
-        // Only update display if 80s mode is OFF and music is ON (implies Spotify)
-        if (!isEightiesMode && isMusicActive && trackInfo) {
-          const trackName = trackInfo.name || "Spotify Track";
-          const artistName = trackInfo.artists
-            ? trackInfo.artists.map((a) => a.name).join(", ")
-            : "Unknown Artist";
-          stereoInfo.innerHTML = `<div class="stereo-track-info">▶ ${trackName} - ${artistName}</div>`;
-          // Maybe start a generic visualizer for Spotify?
-          startVisualizer();
-        } else if (!isEightiesMode && !isMusicActive) {
-          // If Spotify is off, show NO SIGNAL
-          stereoInfo.innerHTML =
-            '<div class="stereo-track-info">NO SIGNAL</div>';
-          stopVisualizer();
+        // REMOVED: The problematic code that was forcing 3D mode and hiding wireframe
+        // regardless of the eighties mode setting
+      }
+
+      // Notify parent that music should be hidden
+
+      function updateLeaderboardUI() {
+        if (isLeaderboardExpanded) {
+          leaderboardContent.style.display = "block";
+          leaderboardArrow.textContent = "▲";
+        } else {
+          leaderboardContent.style.display = "none";
+          leaderboardArrow.textContent = "▼";
         }
       }
 
-      // Update UI functions
-      function updateCallUI() {
-        console.log("Updating call UI...");
-        // Always get fresh references to elements
+      updateLeaderboardUI(); // Initialize leaderboard state
+
+      // Apply appropriate UI state based on URL parameters
+      const urlParams = new URLSearchParams(window.location.search);
+      const startIn80sMode = urlParams.get("eighties") === "true";
+
+      if (startIn80sMode) {
+        isEightiesMode = true;
+        updateEightiesUI(true);
+      } else {
+        isEightiesMode = false;
+        updateEightiesUI(false);
+
+        // If not starting in 80s mode, ensure 3D effect is applied
+        const missionControlPanel = document.getElementById("mission-control");
+      }
+
+      // Ensure system status is always on
+      if (systemStatus) systemStatus.classList.add("active");
+
+      // Toggle Leaderboard
+      const leaderboardToggle = document.getElementById("leaderboard-toggle");
+      if (leaderboardToggle) {
+        leaderboardToggle.addEventListener("click", () => {
+          isLeaderboardExpanded = !isLeaderboardExpanded;
+          updateLeaderboardUI();
+          playClickSound(); // Add click sound feedback
+        });
+      }
+
+      // Event Listeners for Control Buttons
+      document.querySelectorAll(".control-button").forEach((button) => {
+        button.addEventListener("click", () => {
+          playClickSound();
+          const action = button.getAttribute("data-action");
+          handleControlAction(action);
+        });
+      });
+
+      // Handle Control Actions
+      function handleControlAction(action) {
+        const button = document.querySelector(`[data-action="${action}"]`);
+        const indicator = button.querySelector(".button-indicator");
+        if (!indicator) return;
+
+        // Add active state to the button
+        button.classList.add("active");
+        indicator.classList.add("active");
+
+        // Handle specific actions
+        switch (action) {
+          case "launch":
+            console.log("Launch sequence initiated");
+            // Send message to parent to toggle launch mode
+            window.parent.postMessage({ type: "LAUNCH_MODE_TOGGLE" }, "*");
+            break;
+          case "orbit":
+            console.log("Orbit adjustment in progress");
+            break;
+          case "signal":
+            console.log("Signal broadcast initiated");
+            break;
+          case "return":
+            console.log("Return sequence activated");
+            break;
+        }
+
+        // Remove active states after animation
+        setTimeout(() => {
+          button.classList.remove("active");
+          indicator.classList.remove("active");
+        }, 2000);
+      }
+
+      // At the end of the file, add this script to resize the container
+      document.addEventListener("DOMContentLoaded", function () {
+        // Function to adjust height to fill viewport
+        function adjustHeight() {
+          const missionControl = document.querySelector(".mission-control");
+          if (missionControl) {
+            const viewportHeight = window.innerHeight;
+            missionControl.style.minHeight = `${viewportHeight}px`;
+          }
+        }
+
+        // Run on load and resize
+        adjustHeight();
+        window.addEventListener("resize", adjustHeight);
+      });
+
+      // Add click handler for collapsed video display
+      document.addEventListener("DOMContentLoaded", function () {
+        const videoDisplay = document.querySelector(".video-display");
+        if (videoDisplay) {
+          // Initialize the display state based on screen height and call state
+          if (window.innerHeight <= 700 && !isCallActive) {
+            videoDisplay.classList.remove("active");
+          } else {
+            videoDisplay.classList.add("active");
+          }
+
+          videoDisplay.addEventListener("click", function () {
+            // Add a "touched" class to stop the pulsing animation
+            this.classList.add("touched");
+
+            // Only trigger expansion if in collapsed state on mobile
+            if (
+              window.innerHeight <= 700 &&
+              !this.classList.contains("active") &&
+              !isCallActive
+            ) {
+              this.classList.add("active");
+              // Auto-collapse after 5 seconds if no call initiated
+              setTimeout(() => {
+                if (!isCallActive) {
+                  this.classList.remove("active");
+                }
+              }, 5000);
+            } else if (
+              window.innerHeight <= 700 &&
+              this.classList.contains("active") &&
+              !isCallActive
+            ) {
+              // Allow collapsing when clicked if already expanded and not in a call
+              this.classList.remove("active");
+            }
+          });
+        }
+      });
+
+      // Modify the existing disconnectCall function to handle collapsing on mobile
+      function disconnectCall() {
+        isCallActive = false;
+        if (typeof AI_vhost_api === "function") {
+          console.log("🛑 Stopping SitePal character...");
+          AI_vhost_api("stop");
+        } else {
+          console.warn("AI_vhost_api is not available to stop.");
+        }
+
+        // Hide SitePal container
+        const container = document.getElementById("sitepal-container");
+        if (container) {
+          container.style.display = "none";
+          container.innerHTML = ""; // optional: clear inner content
+        }
+        // Collapse video display when disconnecting on mobile
+        const videoDisplay = document.querySelector(".video-display");
+        if (videoDisplay && window.innerHeight <= 700) {
+          videoDisplay.classList.remove("active");
+        }
+
+        // Existing disconnect logic
         const callButton = document.getElementById("call-button");
         const callStatus = document.getElementById("call-status");
+        const stationSelect = document.getElementById("station-select");
         const selfView = document.getElementById("self-view");
         const liveIndicator = document.getElementById("live-indicator");
-        const stationSelect = document.getElementById("station-select");
-        const systemStatus = document.getElementById("system-status");
+        const sitepalContainer = document.getElementById("sitepal-container");
+        const deadAir = document.getElementById("deadAir");
         const offlineDisplay = document.getElementById("offline-display");
 
-        if (!callButton) {
-          console.warn("Call button not found, cannot update UI");
-          return;
-        }
+        // Reset all UI elements
+        callButton.textContent = "CONNECT";
+        callButton.classList.remove("disconnect", "unmute");
+        callStatus.classList.remove("active");
+        stationSelect.disabled = false;
+        selfView.style.display = "none";
+        liveIndicator.style.display = "none";
 
-        if (isCallActive) {
-          // ---- Connected UI Setup ----
-          console.log("Updating UI for connected state.");
-          callButton.textContent = "DISCONNECT";
-          callButton.classList.add("disconnect");
-          callButton.style.pointerEvents = "auto"; // Ensure disconnect button is clickable
-          if (callStatus) callStatus.classList.add("active");
+        // Show offline display
+        offlineDisplay.style.display = "flex";
 
-          const deadAir = document.getElementById("deadAir");
-          if (deadAir) {
-            // Ensure video is ready for disconnect effect (opacity 0 but not paused yet)
-            deadAir.style.display = "none";
-            deadAir.pause();
+        // Hide and stop video, hide SitePal
+        deadAir.style.display = "none";
+        deadAir.pause();
+        sitepalContainer.style.display = "none";
+
+        // Clean up SitePal instance
+        // cleanupSitePal();
+
+        // Reset the initialization state
+        sitepalContainer.dataset.initialized = "false";
+
+        // Notify parent
+        window.parent.postMessage(
+          { type: "SITEPAL_STATE_CHANGE", isListening: false },
+          "*"
+        );
+      }
+
+      // Add resize handler to adjust video display state when resizing
+      window.addEventListener("resize", function () {
+        const videoDisplay = document.querySelector(".video-display");
+        if (videoDisplay) {
+          if (window.innerHeight <= 700 && !isCallActive) {
+            videoDisplay.classList.remove("active");
+          } else if (window.innerHeight > 700) {
+            videoDisplay.classList.add("active");
           }
-          const sitepalContainer = document.getElementById("sitepal-container");
-          if (sitepalContainer) sitepalContainer.style.display = "block";
-          if (selfView) selfView.style.display = "block";
-          if (liveIndicator) liveIndicator.style.display = "block";
-          if (stationSelect) stationSelect.disabled = true;
-
-          // Hide offline display
-          if (offlineDisplay) offlineDisplay.style.display = "none";
-
-          // Ensure button remains clickable (redundant but safe)
-          callButton.style.pointerEvents = "auto";
-
-          // Ensure system status is active
-          if (systemStatus) systemStatus.classList.add("active");
         }
-      }
+      });
 
-      function updateStationDisplay() {
-        const station = stationSelect.value.toLowerCase().replace(" ", "_");
-        stationDisplay.textContent = `COMM:/${station}`;
-      }
+      // Check for initial message from parent to sync toggle states
+      window.addEventListener("message", (event) => {
+        // Check if the message is from the parent frame
+        if (event.source === window.parent) {
+          const data = event.data;
 
-      // Add function to update self-view
-      function updateSelfView() {
-        const selfView = document.getElementById("self-view");
-        if (!selfView) {
-          console.error("Self view element not found");
-          return;
+          // Handle state synchronization
+          if (data.type === "SYNC_STATE") {
+            // Sync 80s mode
+            if (data.isEightiesMode !== undefined) {
+              isEightiesMode = data.isEightiesMode;
+              updateEightiesUI(isEightiesMode);
+            }
+
+            // Sync music state
+            if (data.isMusicEnabled !== undefined) {
+              if (data.isMusicEnabled) {
+                musicToggle.classList.add("active");
+              } else {
+                musicToggle.classList.remove("active");
+              }
+            }
+
+            // Sync constellation state
+            if (data.isConstellationsEnabled !== undefined) {
+              if (data.isConstellationsEnabled) {
+                constellationToggle.classList.add("active");
+              } else {
+                constellationToggle.classList.remove("active");
+              }
+            }
+          }
+
+          // Handle music state updates from parent (when music players change state)
+          if (data.type === "SET_MUSIC_STATE") {
+            // Update music toggle to match the music player state
+            if (data.isPlaying !== undefined) {
+              if (data.isPlaying) {
+                musicToggle.classList.add("active");
+              } else {
+                musicToggle.classList.remove("active");
+              }
+              console.log(
+                "Music toggle synchronized to player state:",
+                data.isPlaying
+              );
+            }
+          }
         }
+      });
 
-        selfView.innerHTML = '<div class="emoji-placeholder">😎</div>'; // Set default immediately
-        console.log("Requesting avatar from parent...");
+      // Styling for the music toggle
+      document.addEventListener("DOMContentLoaded", function () {
+        // Add music toggle style
+        const musicToggle = document.getElementById("music-toggle");
+        if (musicToggle) {
+          // Check if music should be on by default based on screen size
+          // On larger screens, music is typically enabled
+          if (window.innerWidth > 768) {
+            musicToggle.classList.add("active");
+            // Notify parent that music should be on
+            window.parent.postMessage(
+              {
+                type: "MUSIC_TOGGLE",
+                enabled: true,
+              },
+              "*"
+            );
+          }
+        }
+      });
 
-        // Request avatar from parent
-        window.parent.postMessage({ type: "REQUEST_AVATAR" }, "*");
-      }
+      // Add window resize handler for toggle layout
+      window.addEventListener("resize", () => {
+        const toggleRow = document.querySelector(".toggle-row.mobile-inline");
+        if (window.innerWidth >= 768 && isEightiesMode) {
+          toggleRow.classList.add("fullscreen");
+        } else {
+          toggleRow.classList.remove("fullscreen");
+        }
+      });
     </script>
   </body>
 </html>

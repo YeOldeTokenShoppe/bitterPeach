@@ -205,13 +205,20 @@
         left: 0 !important;
         width: 100% !important;
         height: 100% !important;
-        z-index: 10;
+        z-index: 30 !important; /* Increased to ensure visibility */
         display: none;
         -webkit-overflow-scrolling: touch;
       }
 
       #sitepal-container.active {
-        display: block;
+        display: block !important; /* Use !important to ensure it overrides other styles */
+      }
+
+      /* Make sure SitePal player is visible */
+      #vhss_aiPlayer {
+        width: 100% !important;
+        height: 100% !important;
+        z-index: 20 !important;
       }
 
       /* Ensure video stays behind sitepal when active */
@@ -1844,49 +1851,164 @@
                   }
 
                   function embedNow() {
-                    window.vh_sceneLoaded = () => {
-                      console.log("✅ Scene loaded");
+                    // Handle the scene loaded event - make sure character is visible
+                    const handleSceneLoaded = () => {
+                      console.log("✅ SitePal scene loaded callback triggered");
 
+                      // Hide the transmission video effect
                       if (deadAir) {
                         deadAir.style.opacity = 0;
                         setTimeout(() => deadAir.pause(), 500);
                       }
 
-                      // Greeting
-                      setTimeout(() => {
-                        console.log("🗣️ Greeting...");
-                        if (typeof sayText === "function") {
-                          sayText(
-                            "Greetings, how can I help you today?",
-                            8,
-                            1,
-                            6
-                          );
-                        } else if (typeof AI_vhost_api === "function") {
-                          AI_vhost_api(
-                            "say",
-                            "Greetings, how can I help you today?"
-                          );
-                        }
+                      // Ensure SitePal container is visible and has active class
+                      if (container) {
+                        container.style.display = "block";
+                        container.classList.add("active");
+                      }
 
-                        // Start listening after greeting
-                        setTimeout(() => {
-                          AI_vhost_api("startListening");
-                          console.log("🎙️ Listening...");
-                        }, 1500);
-                      }, 300);
+                      // Make SitePal APIs available on window object for easier access
+                      // but don't prime audio or start listening yet - wait for UN-MUTE
+                      if (
+                        typeof saySilent === "function" &&
+                        !window.saySilent
+                      ) {
+                        window.saySilent = saySilent;
+                        console.log("✅ Made saySilent available on window");
+                      }
+
+                      if (typeof sayText === "function" && !window.sayText) {
+                        window.sayText = sayText;
+                        console.log("✅ Made sayText available on window");
+                      }
+
+                      if (
+                        typeof AI_vhost_api === "function" &&
+                        !window.AI_vhost_api
+                      ) {
+                        window.AI_vhost_api = AI_vhost_api;
+                        console.log("✅ Made AI_vhost_api available on window");
+                      }
+
+                      // DO NOT prime audio or activate mic here - wait for UN-MUTE button
+                      console.log(
+                        "⏸️ Waiting for UN-MUTE before activating audio"
+                      );
                     };
 
+                    // Set both callback names that SitePal might use
+                    window.vh_sceneLoaded = handleSceneLoaded;
+                    window.vhss_sceneLoaded = handleSceneLoaded;
+
+                    // Add a backup timeout in case callbacks don't fire
+                    setTimeout(() => {
+                      console.log(
+                        "⏱️ Checking if SitePal character is visible..."
+                      );
+                      if (
+                        container &&
+                        !container.classList.contains("active")
+                      ) {
+                        console.log(
+                          "⚠️ Character not visible, forcing display"
+                        );
+                        handleSceneLoaded();
+
+                        // Check if vhss_aiPlayer is actually visible
+                        const playerDiv =
+                          document.getElementById("vhss_aiPlayer");
+                        if (playerDiv && playerDiv.innerHTML === "") {
+                          console.log(
+                            "⚠️ SitePal player appears empty, trying to reload..."
+                          );
+
+                          // Try embedding again
+                          try {
+                            playerDiv.innerHTML = "";
+                            AI_vhost_embed(280, 180, 9157686, 244, 0, 1);
+                            console.log(
+                              "🔄 Attempted to reload SitePal character"
+                            );
+                          } catch (e) {
+                            console.error("❌ Error reloading SitePal:", e);
+                          }
+                        }
+                      }
+                    }, 5000);
+
+                    console.log("📱 Calling AI_vhost_embed to load SitePal...");
                     AI_vhost_embed(280, 180, 9157686, 244, 0, 1);
                   }
 
+                  // Set up a backup timeout in case scene loaded doesn't fire
+                  const sceneLoadTimeout = setTimeout(() => {
+                    console.log("⚠️ Scene load timeout - backup transition");
+                    if (deadAir) {
+                      deadAir.style.opacity = 0;
+                      setTimeout(() => deadAir.pause(), 500);
+                    }
+                    if (container) {
+                      container.style.display = "block";
+                      container.style.opacity = "1";
+                    }
+                    // Try to make SitePal APIs available
+                    setupSitePalAPIs();
+                  }, 8000); // 8-second backup
+
+                  function setupSitePalAPIs() {
+                    console.log("Setting up SitePal APIs on window...");
+                    // Make SitePal APIs available on window object for easier access
+                    if (typeof saySilent === "function" && !window.saySilent) {
+                      window.saySilent = saySilent;
+                      console.log("✅ Made saySilent available on window");
+                    }
+
+                    if (typeof sayText === "function" && !window.sayText) {
+                      window.sayText = sayText;
+                      console.log("✅ Made sayText available on window");
+                    }
+
+                    if (
+                      typeof AI_vhost_api === "function" &&
+                      !window.AI_vhost_api
+                    ) {
+                      window.AI_vhost_api = AI_vhost_api;
+                      console.log("✅ Made AI_vhost_api available on window");
+                    }
+
+                    // Prime audio with saySilent but don't play greeting or start listening yet
+                    setTimeout(() => {
+                      console.log("🔇 Priming audio with saySilent(0)...");
+                      try {
+                        if (typeof saySilent === "function") {
+                          saySilent(0);
+                          console.log("✅ Initial audio priming complete");
+                        } else {
+                          console.warn(
+                            "⚠️ saySilent not available for initial priming"
+                          );
+                        }
+                      } catch (e) {
+                        console.error("❌ Error during initial priming:", e);
+                      }
+                    }, 300);
+                  }
+
                   if (typeof AI_vhost_embed !== "function") {
+                    console.log("Loading SitePal scripts...");
                     const script = document.createElement("script");
                     script.src =
                       "//vhss-d.oddcast.com/vhost_embed_functions_v4.php?acc=9157686&js=1";
-                    script.onload = embedNow;
+                    script.onload = () => {
+                      console.log("✅ SitePal script loaded successfully");
+                      embedNow();
+                    };
+                    script.onerror = (e) => {
+                      console.error("❌ Failed to load SitePal script:", e);
+                    };
                     document.head.appendChild(script);
                   } else {
+                    console.log("SitePal script already loaded, embedding now");
                     embedNow();
                   }
                 }
@@ -2411,54 +2533,198 @@
           }
 
           // Expand video display when connecting
-
           if (videoDisplay) {
             videoDisplay.classList.add("active");
           }
-          if (callButton.textContent === "UN-MUTE") {
-            console.log("UN-MUTE clicked, activating microphone...");
-            callButton.disabled = true;
+        } else if (callButton.textContent === "UN-MUTE") {
+          // ---- UN-MUTE Flow ----
+          console.log("UN-MUTE clicked, activating microphone and audio...");
 
-            // function activateSitePalMic() {
-            //   if (typeof AI_vhost_api === "function") {
-            //     console.log("Calling AI_vhost_api('startListening')");
-            //     AI_vhost_api("startListening");
-            //   } else {
-            //     console.log("AI_vhost_api not ready yet, retrying...");
-            //     setTimeout(activateSitePalMic, 300); // retry after 300ms
-            //   }
-            // }
+          // Temporarily disable button to prevent double clicks
+          callButton.disabled = true;
 
-            // activateSitePalMic();
-
-            // UI state updates
+          // Force button state change immediately to ensure it happens
+          setTimeout(() => {
             callButton.textContent = "DISCONNECT";
             callButton.classList.remove("unmute");
             callButton.classList.add("disconnect");
             callButton.disabled = false;
+            console.log("Updated button to DISCONNECT state");
+          }, 100);
 
-            window.parent.postMessage(
-              { type: "SITEPAL_STATE_CHANGE", isListening: true },
-              "*"
-            );
-          } else {
-            // Standard path for non-iOS browsers
+          // Try to play greeting with all possible methods
+          try {
+            console.log("Attempting to play greeting...");
+
+            // Try with window methods first (more reliable)
+            const windowSayText = typeof window.sayText === "function";
+            const windowVhostApi = typeof window.AI_vhost_api === "function";
+            const localSayText = typeof sayText === "function";
+            const localVhostApi = typeof AI_vhost_api === "function";
+
+            console.log("Available speech APIs:", {
+              windowSayText,
+              windowVhostApi,
+              localSayText,
+              localVhostApi,
+            });
+
+            // Force a brief pause before attempting to speak
             setTimeout(() => {
-              activateMicrophone();
+              // Try each method one at a time with better error handling
+              let speechSuccess = false;
 
-              // Enable button and update to DISCONNECT state
-              callButton.disabled = false;
-              callButton.textContent = "DISCONNECT";
-              callButton.classList.remove("unmute");
-              callButton.classList.add("disconnect");
-              console.log("Microphone activated, button set to DISCONNECT");
+              console.log(
+                "🗣️ Attempting greeting with Method 1: window.sayText"
+              );
+              if (windowSayText) {
+                try {
+                  // First attempt
+                  window.sayText("Hello, I am ready to assist you.", 8, 1, 6);
+                  speechSuccess = true;
+                  console.log("✅ Method 1 succeeded");
+                } catch (e) {
+                  console.warn("Method 1 failed:", e);
+                }
+              }
 
-              // Send state change message to parent
+              // If first method failed, try the second after a short delay
+              if (!speechSuccess && windowVhostApi) {
+                setTimeout(() => {
+                  console.log(
+                    "🗣️ Attempting greeting with Method 2: window.AI_vhost_api"
+                  );
+                  try {
+                    window.AI_vhost_api(
+                      "say",
+                      "Hello, I am ready to assist you."
+                    );
+                    speechSuccess = true;
+                    console.log("✅ Method 2 succeeded");
+                  } catch (e) {
+                    console.warn("Method 2 failed:", e);
+                  }
+
+                  // If still not successful, try the third method
+                  if (!speechSuccess && localSayText) {
+                    setTimeout(() => {
+                      console.log(
+                        "🗣️ Attempting greeting with Method 3: sayText"
+                      );
+                      try {
+                        sayText("Hello, I am ready to assist you.", 8, 1, 6);
+                        speechSuccess = true;
+                        console.log("✅ Method 3 succeeded");
+                      } catch (e) {
+                        console.warn("Method 3 failed:", e);
+                      }
+
+                      // Final attempt with another method
+                      if (!speechSuccess && localVhostApi) {
+                        setTimeout(() => {
+                          console.log(
+                            "🗣️ Attempting greeting with Method 4: AI_vhost_api"
+                          );
+                          try {
+                            AI_vhost_api(
+                              "say",
+                              "Hello, I am ready to assist you."
+                            );
+                            console.log("✅ Method 4 succeeded");
+                          } catch (e) {
+                            console.warn("Method 4 failed:", e);
+                          }
+
+                          // Always activate microphone after all attempts, with delay
+                          activateMicrophone();
+                        }, 500);
+                      } else {
+                        // Activate microphone after a delay
+                        activateMicrophone();
+                      }
+                    }, 500);
+                  } else {
+                    // Activate microphone after a delay
+                    activateMicrophone();
+                  }
+                }, 500);
+              } else if (speechSuccess) {
+                // If first method worked, activate mic after appropriate delay
+                setTimeout(activateMicrophone, 3000);
+              } else {
+                // Try other methods if window methods failed
+                if (localSayText) {
+                  console.log("🗣️ Attempting greeting with Method 3: sayText");
+                  try {
+                    sayText("Hello, I am ready to assist you.", 8, 1, 6);
+                    speechSuccess = true;
+                    console.log("✅ Method 3 succeeded");
+                  } catch (e) {
+                    console.warn("Method 3 failed:", e);
+                  }
+                }
+
+                if (!speechSuccess && localVhostApi) {
+                  console.log(
+                    "🗣️ Attempting greeting with Method 4: AI_vhost_api"
+                  );
+                  try {
+                    AI_vhost_api("say", "Hello, I am ready to assist you.");
+                    speechSuccess = true;
+                    console.log("✅ Method 4 succeeded");
+                  } catch (e) {
+                    console.warn("Method 4 failed:", e);
+                  }
+                }
+
+                // Activate microphone after a delay
+                setTimeout(activateMicrophone, speechSuccess ? 3000 : 500);
+              }
+            }, 500);
+          } catch (e) {
+            console.error("Error in greeting sequence:", e);
+            // Fallback to activating microphone directly
+            setTimeout(activateMicrophone, 500);
+          }
+
+          // Function to handle microphone activation
+          function activateMicrophone() {
+            console.log("⏱️ Now activating microphone...");
+            try {
+              if (typeof window.saySilent === "function") {
+                console.log("Priming with window.saySilent(0)");
+                window.saySilent(0);
+              } else if (typeof saySilent === "function") {
+                console.log("Priming with saySilent(0)");
+                saySilent(0);
+              }
+            } catch (e) {
+              console.warn("Error during audio priming:", e);
+            }
+
+            // Short delay after priming before activating mic
+            setTimeout(() => {
+              try {
+                console.log("Starting listening...");
+                if (typeof window.AI_vhost_api === "function") {
+                  window.AI_vhost_api("startListening");
+                  console.log("Started listening with window.AI_vhost_api");
+                } else if (typeof AI_vhost_api === "function") {
+                  AI_vhost_api("startListening");
+                  console.log("Started listening with AI_vhost_api");
+                } else {
+                  console.warn("No listening API available");
+                }
+              } catch (e) {
+                console.error("Error starting listening:", e);
+              }
+
+              // Notify parent of state change
               window.parent.postMessage(
                 { type: "SITEPAL_STATE_CHANGE", isListening: true },
                 "*"
               );
-            }, 300); // Short delay before activation
+            }, 500);
           }
         } else {
           // ---- Disconnect Flow ----
