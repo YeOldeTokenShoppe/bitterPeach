@@ -39,7 +39,7 @@ import MoonScene from "./MoonLamps";
 import CameraGUI from "./CameraGUI";
 import HolographicStatue from "./HolographicStatue";
 import PostProcessingEffects from "./PostProcessingEffects";
-
+import ConstellationModel from "./ConstellationModel";
 import StarField from "./StarField";
 
 const scene = new THREE.Scene();
@@ -60,6 +60,8 @@ function ThreeDVotiveStand({
   userData,
   setIsStatueLoaded,
   rocketModelVisible,
+  isConstellationVisible,
+  toggleConstellationVisibility,
 }) {
   const [showFloatingViewer, setShowFloatingViewer] = useState(false);
   const [selectedCandleData, setSelectedCandleData] = useState(null);
@@ -410,6 +412,12 @@ function ThreeDVotiveStand({
 
   // Add a state to control the confetti effect independently
 
+  // ---> ADD: Function to toggle constellation visibility <---
+  // const toggleConstellationVisibility = useCallback(() => {
+  //   setIsConstellationVisible((prev) => !prev);
+  //   console.log("Toggled constellation visibility to:", !isConstellationVisible);
+  // }, []);
+
   const handleCandleClick = useCallback((candleData) => {
     console.log("Candle clicked:", candleData);
     setSelectedCandleData(candleData);
@@ -507,6 +515,11 @@ function ThreeDVotiveStand({
         </Suspense>
         <Suspense fallback={null}>
           <PostProcessingEffects is80sMode={is80sMode} />
+        </Suspense>
+
+        {/* Add the constellation model before the star field */}
+        <Suspense fallback={null}>
+          <ConstellationModel isVisible={isConstellationVisible} />
         </Suspense>
 
         {/* Render the stars last */}

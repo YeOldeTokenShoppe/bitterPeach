@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Box,
   Button,
@@ -22,6 +22,7 @@ const MobileSidePanel = ({
   setShowSpotify,
   rocketModelVisible,
   toggleRocketModel,
+  toggleConstellationVisibility,
 }) => {
   console.log("--- MobileSidePanel RENDERED ---", {
     is80sMode,
@@ -120,20 +121,12 @@ const MobileSidePanel = ({
   // Update the message handler for events FROM iframe
   useEffect(() => {
     const handleMessage = (event) => {
-      // Basic check for event data and type
       if (!event.data || !event.data.type) return;
 
-      // Ensure the message is from the specific iframe
-      const missionControlIframe = missionControlIframeRef.current;
-      if (
-        !missionControlIframe ||
-        event.source !== missionControlIframe.contentWindow
-      ) {
-        return;
-      }
+      // Add origin check for security in production
+      // if (event.origin !== 'YOUR_EXPECTED_PARENT_ORIGIN') return;
 
-      // Log *all* messages received from the specific iframe for debugging
-      console.log("MobileSidePanel received message FROM iframe:", event.data);
+      console.log("MobileSidePanel: Message received from iframe:", event.data);
 
       switch (event.data.type) {
         // --- Handle iframe readiness ---
@@ -200,15 +193,44 @@ const MobileSidePanel = ({
             }
           }
           break;
+        case "CONSTELLATION_TOGGLE":
+          console.log(
+            "MobileSidePanel: Received CONSTELLATION_TOGGLE message, enabled:",
+            event.data.enabled
+          );
+          if (toggleConstellationVisibility) {
+            toggleConstellationVisibility();
+          } else {
+            console.error(
+              "MobileSidePanel: toggleConstellationVisibility function not received as prop"
+            );
+          }
+          break;
         // ... rest of the cases like LAUNCH_MODE_TOGGLE, CONSTELLATION_TOGGLE etc.
         default:
-        // console.log("MobileSidePanel: Unhandled message type from iframe:", event.data.type);
+          // Log unhandled message types
+          if (event.data.type !== "FIREBASE_CONFIG_RESPONSE") {
+            // Avoid logging the config response itself
+            console.log(
+              "MobileSidePanel: Unhandled message type from iframe:",
+              event.data.type
+            );
+          }
+          break;
       }
     };
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [toggle80sMode, setShowSpotify, toggleRocketModel, rocketModelVisible]); // Add dependencies that are called inside
+  }, [
+    toggle80sMode,
+    toggleMonsterMode,
+    monsterMode,
+    is80sMode,
+    rocketModelVisible,
+    toggleRocketModel,
+    toggleConstellationVisibility,
+  ]);
 
   // Function to toggle call status
   const toggleCall = (e) => {

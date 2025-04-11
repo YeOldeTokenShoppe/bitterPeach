@@ -130,6 +130,15 @@ function BurnGallery({
   const [monsterMode, setMonsterMode] = useState(false);
   const [clerkUserData, setClerkUserData] = useState(null);
   const [rocketModelVisible, setRocketModelVisible] = useState(false);
+  const [isConstellationVisible, setIsConstellationVisible] = useState(false);
+
+  const toggleConstellationVisibility = useCallback(() => {
+    setIsConstellationVisible((prev) => !prev);
+    console.log(
+      "BurnGallery: Toggled constellation visibility to:",
+      !isConstellationVisible
+    );
+  }, [isConstellationVisible]);
 
   const setSpawnFunction = useCallback((func) => {
     spawnMonsterFunctionRef.current = func;
@@ -342,6 +351,8 @@ function BurnGallery({
                 userData={clerkUserData}
                 setIsStatueLoaded={setIsStatueLoaded}
                 rocketModelVisible={rocketModelVisible}
+                isConstellationVisible={isConstellationVisible}
+                toggleConstellationVisibility={toggleConstellationVisibility}
               />
             ) : null}
           </GridItem>
@@ -360,6 +371,7 @@ function BurnGallery({
               setShowSpotify={setShowSpotify}
               rocketModelVisible={rocketModelVisible}
               toggleRocketModel={toggleRocketModel}
+              toggleConstellationVisibility={toggleConstellationVisibility}
             />
           ) : (
             <SidePanel
@@ -371,6 +383,7 @@ function BurnGallery({
               showSpotify={showSpotify}
               rocketModelVisible={rocketModelVisible}
               toggleRocketModel={toggleRocketModel}
+              toggleConstellationVisibility={toggleConstellationVisibility}
             />
           ))}
         {/* <Box

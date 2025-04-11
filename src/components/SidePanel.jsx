@@ -48,6 +48,7 @@ const SidePanel = ({
   showSpotify,
   rocketModelVisible,
   toggleRocketModel,
+  toggleConstellationVisibility,
 }) => {
   const [isTextBoxVisible, setIsTextBoxVisible] = useState(true);
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
@@ -520,10 +521,14 @@ const SidePanel = ({
       // Add origin check for security in production
       // if (event.origin !== 'YOUR_EXPECTED_PARENT_ORIGIN') return;
 
-      console.log("Message received from iframe:", event.data);
+      console.log("SidePanel: Message received from iframe:", event.data);
+
+      // ---> REMOVE Log here <---
+      // console.log(
+      //   `SidePanel: Switching on event.data.type: '${event.data.type}'`
+      // );
 
       switch (event.data.type) {
-        // --- Add this case ---
         case "REQUEST_FIREBASE_CONFIG":
           console.log("Iframe requested Firebase config.");
           // Construct config from environment variables
@@ -547,7 +552,6 @@ const SidePanel = ({
             "Sent Firebase config to iframe via sendMessageToIframe."
           );
           break;
-        // --- End Add this case ---
 
         case "EIGHTIES_MODE_CHANGE": // Received from iframe toggle
           console.log("80s mode toggle requested by iframe");
@@ -645,11 +649,28 @@ const SidePanel = ({
           console.log("Received iframe music state:", event.data);
           break;
 
+        // ---> ADD: Handle Constellation Toggle <---
+        case "CONSTELLATION_TOGGLE":
+          console.log(
+            "SidePanel: Received CONSTELLATION_TOGGLE message, enabled:", // REMOVE marker
+            event.data.enabled
+          );
+          if (toggleConstellationVisibility) {
+            toggleConstellationVisibility();
+          } else {
+            console.error(
+              "SidePanel: toggleConstellationVisibility function not received as prop"
+            );
+          }
+          break;
+
         default:
           // Log unhandled message types
           if (event.data.type !== "FIREBASE_CONFIG_RESPONSE") {
             // Avoid logging the config response itself
-            console.log("Unhandled message type from iframe:", event.data.type);
+            console.log(
+              `SidePanel: Unhandled message type from iframe: '${event.data.type}'` // Keep this for unknown messages
+            );
           }
           break;
       }
@@ -664,6 +685,7 @@ const SidePanel = ({
     is80sMode,
     rocketModelVisible,
     toggleRocketModel,
+    toggleConstellationVisibility,
   ]);
 
   // Sync all states with iframe

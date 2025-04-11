@@ -1461,7 +1461,8 @@
       /* Add styles for the constellations toggle */
       .toggle-switch.constellations {
         background-color: #1e3a8a;
-        border-color: #3b82f6;
+        /* Fixed: Use border shorthand */
+        border: 1px solid #3b82f6;
       }
 
       .toggle-switch.constellations .toggle-handle {
@@ -1475,6 +1476,8 @@
 
       .toggle-switch.constellations.active .toggle-handle {
         background-color: #bfdbfe;
+        /* Add transform explicitly to increase specificity */
+        transform: translateX(24px);
       }
 
       /* Update eighties mode styles to include constellations toggle */
@@ -2082,12 +2085,13 @@
                 }
               </script>
               <script>
-                document
-                  .getElementById("call-button")
-                  .addEventListener("click", () => {
+                const connectButton = document.getElementById("call-button");
+                if (connectButton) {
+                  connectButton.addEventListener("click", () => {
                     console.log("🚀 CONNECT clicked");
                     initSitePal();
                   });
+                }
               </script>
               <div id="vhss_aiPlayer"></div>
               <!-- Add placeholder elements that SitePal expects -->
@@ -2166,7 +2170,7 @@
           </div>
           <div class="toggle-group">
             <span class="toggle-label">STAR <br />CHART</span>
-            <div id="constellation-toggle" class="toggle-switch">
+            <div id="constellation-toggle" class="toggle-switch eighties">
               <div class="toggle-handle"></div>
             </div>
           </div>
@@ -2237,6 +2241,9 @@
         <div class="version-info">CYBERCORE_77</div>
       </div>
     </div>
+
+    <!-- Add script for constellation toggle -->
+    <!-- <script src="constellation-toggle.js"></script> -->
 
     <script>
       // DOM elements
@@ -2901,12 +2908,20 @@
 
       // Toggle constellations
       constellationToggle.addEventListener("click", () => {
+        // console.log("Constellation toggle clicked!");
+        // console.log("Element before toggle:", constellationToggle);
+        // console.log("Class list BEFORE:", constellationToggle.classList.toString());
+
         // Toggle the active state visually
         constellationToggle.classList.toggle("active");
+
+        // console.log("Class list AFTER:", constellationToggle.classList.toString());
 
         // Get the current state
         const isConstellationsEnabled =
           constellationToggle.classList.contains("active");
+
+        // console.log("isConstellationsEnabled state:", isConstellationsEnabled);
 
         // Play toggle sound
         try {
@@ -2949,7 +2964,10 @@
           "*"
         );
 
-        console.log("Constellations toggled:", isConstellationsEnabled);
+        console.log(
+          "Constellations toggled (in HTML script):",
+          isConstellationsEnabled
+        ); // Keep this one maybe?
       });
 
       function updateEightiesUI(isActive) {
