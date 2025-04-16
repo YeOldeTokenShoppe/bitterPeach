@@ -5,8 +5,8 @@ function SliderRevolutionCarousel() {
   const [isSmallerThan30rem] = useMediaQuery("(max-width: 30rem)");
 
   const iframeSrc = isSmallerThan30rem
-    ? "https://rl80.com/562-2/"
-    : "https://rl80.com/645-2/";
+    ? "https://ourlady.io/645-2/"
+    : "https://ourlady.io/home/";
 
   return (
     <div

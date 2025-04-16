@@ -15,6 +15,7 @@ export default function Page() {
   const [loadingStage, setLoadingStage] = useState("initializing");
   const [showContent, setShowContent] = useState(false);
   const [contentOpacity, setContentOpacity] = useState(0);
+  const [isMobile, setIsMobile] = useState(false);
 
   // List of critical images to preload for the index page
   const criticalImages = [
@@ -23,6 +24,22 @@ export default function Page() {
     "/nuhart1.svg", // Badge image
     // Add any other critical images
   ];
+
+  // Handle responsive layout
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    
+    // Check initially
+    checkMobile();
+
+    // Add resize listener
+    window.addEventListener('resize', checkMobile);
+    
+    // Cleanup
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Simulate loading progress for the WordPress iframe
   useEffect(() => {
@@ -236,9 +253,10 @@ export default function Page() {
             href="/home"
             style={{
               textDecoration: "none",
-              position: "fixed",
-              top: "2rem",
-              right: "2rem",
+              position: "absolute",
+              top: isMobile ? "unset" : "2rem",
+              bottom: isMobile ? "4rem" : "unset",
+              right: isMobile ? "1rem" : "2rem",
               zIndex: 9999,
             }}
           >

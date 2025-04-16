@@ -36,6 +36,7 @@ const MobileSidePanel = ({
   const { isLoaded, isSignedIn, user } = useUser();
   const [iframeReady, setIframeReady] = useState(false);
   const messageQueueRef = useRef([]);
+  const [showVaporwaveVideo, setShowVaporwaveVideo] = useState(false);
 
   const sitepalIframeRef = useRef(null);
   const missionControlIframeRef = useRef(null);
@@ -59,6 +60,224 @@ const MobileSidePanel = ({
     }
   };
 
+  // Function to log the state of video screen elements for debugging
+  const logVideoScreenState = () => {
+    try {
+      const iframe = missionControlIframeRef.current;
+      if (iframe && iframe.contentDocument) {
+        const videoArea = iframe.contentDocument.querySelector("#video-area");
+        const offlineDisplay = iframe.contentDocument.querySelector("#offline-display");
+        const videoScreen = iframe.contentDocument.querySelector(".video-screen");
+        const videoContainer = iframe.contentDocument.querySelector(".video-container");
+        
+        console.log("Video Screen State:", {
+          videoArea: videoArea ? {
+            display: videoArea.style.display,
+            height: videoArea.style.height,
+            maxHeight: videoArea.style.maxHeight,
+            classes: videoArea.className,
+            computedHeight: window.getComputedStyle(videoArea).height
+          } : null,
+          offlineDisplay: offlineDisplay ? {
+            display: offlineDisplay.style.display,
+            height: offlineDisplay.style.height,
+            maxHeight: offlineDisplay.style.maxHeight,
+            classes: offlineDisplay.className,
+            computedHeight: window.getComputedStyle(offlineDisplay).height
+          } : null,
+          videoScreen: videoScreen ? {
+            display: videoScreen.style.display,
+            height: videoScreen.style.height,
+            maxHeight: videoScreen.style.maxHeight,
+            computedHeight: window.getComputedStyle(videoScreen).height
+          } : null,
+          videoContainer: videoContainer ? {
+            display: videoContainer.style.display,
+            height: videoContainer.style.height,
+            maxHeight: videoContainer.style.maxHeight,
+            computedHeight: window.getComputedStyle(videoContainer).height
+          } : null
+        });
+      }
+    } catch (error) {
+      console.error("Error logging video screen state:", error);
+    }
+  };
+
+  // Add function to update video position
+  const updateVideoPosition = useCallback(() => {
+    const iframe = missionControlIframeRef.current;
+    if (iframe && iframe.contentWindow) {
+      const offlineDisplay =
+        iframe.contentDocument?.querySelector("#offline-display");
+      if (offlineDisplay) {
+        const rect = offlineDisplay.getBoundingClientRect();
+        const videoContainer = document.querySelector(".vaporwave-container");
+        if (videoContainer) {
+          // Set dimensions first
+          videoContainer.style.top = `${rect.top}px`;
+          videoContainer.style.left = `${rect.left}px`;
+          videoContainer.style.width = `${rect.width}px`;
+          videoContainer.style.height = `${rect.height}px`;
+          videoContainer.style.transform = "none"; // Remove the translateX since we're setting exact position
+          
+          // After a small delay, make it visible
+          setTimeout(() => {
+            videoContainer.style.opacity = "1";
+            videoContainer.style.visibility = "visible";
+          }, 50);
+        }
+      }
+    }
+  }, []);
+
+  // Function to properly expand the video screen by adding the 'active' class
+  const expandVideoScreen = () => {
+    try {
+      const iframe = missionControlIframeRef.current;
+      if (!iframe || !iframe.contentDocument) return;
+
+      console.log("Expanding video display and adding vaporwave video...");
+      
+      // 1. First, grab the key elements
+      const videoDisplay = iframe.contentDocument.querySelector(".video-display");
+      const videoFeed = iframe.contentDocument.querySelector("#video-feed");
+      const offlineDisplay = iframe.contentDocument.querySelector("#offline-display");
+      const deadAir = iframe.contentDocument.querySelector("#deadAir");
+      
+      // 2. Add 'active' class to video-display - THIS IS THE KEY STEP
+      if (videoDisplay) {
+        console.log("Adding 'active' class to video-display");
+        videoDisplay.classList.add("active");
+        videoDisplay.classList.add("touched"); // Add touched class to prevent pulsing
+        
+        // Force the height to be 180px for mobile
+        videoDisplay.style.height = "180px";
+        
+        // Also dispatch a resize event to ensure CSS media queries are applied
+        const resizeEvent = new Event('resize');
+        iframe.contentWindow.dispatchEvent(resizeEvent);
+      }
+      
+      // 3. Hide deadAir video if it exists
+      if (deadAir) {
+        deadAir.style.display = "none";
+        if (deadAir.pause) deadAir.pause();
+      }
+      
+      // 4. Create or update vaporwave video directly in the video feed
+      if (videoFeed) {
+        // Check if vaporwave video already exists
+        let vaporVideo = videoFeed.querySelector('video[data-vaporwave]');
+        
+        if (!vaporVideo) {
+          console.log("Creating new vaporwave video element");
+          vaporVideo = iframe.contentDocument.createElement('video');
+          vaporVideo.setAttribute('data-vaporwave', 'true');
+          vaporVideo.setAttribute('src', '/vaporwave-sunset.mp4');
+          vaporVideo.setAttribute('autoplay', '');
+          vaporVideo.setAttribute('loop', '');
+          vaporVideo.setAttribute('muted', '');
+          vaporVideo.setAttribute('playsinline', '');
+          vaporVideo.style.position = 'absolute';
+          vaporVideo.style.top = '0';
+          vaporVideo.style.left = '0';
+          vaporVideo.style.width = '100%';
+          vaporVideo.style.height = '100%';
+          vaporVideo.style.objectFit = 'cover';
+          vaporVideo.style.zIndex = '10'; // Above offlineDisplay content
+          vaporVideo.style.display = 'block'; // Ensure it's visible
+          
+          // Add video to the feed
+          videoFeed.appendChild(vaporVideo);
+          
+          // Make sure it's playing
+          vaporVideo.play().catch(err => console.warn("Could not autoplay video:", err));
+        } else {
+          // Update existing video
+          console.log("Updating existing vaporwave video");
+          vaporVideo.style.display = "block";
+          vaporVideo.play().catch(err => console.warn("Could not play video:", err));
+        }
+        
+        // Hide "OFFLINE" text in offlineDisplay
+        if (offlineDisplay) {
+          const offlineText = offlineDisplay.querySelector("span");
+          if (offlineText) offlineText.style.opacity = "0";
+        }
+      }
+      
+      // Make sure to hide our overlay video since we're adding it directly to the iframe
+      const overlayVideo = document.querySelector(".vaporwave-container");
+      if (overlayVideo) {
+        overlayVideo.style.display = "none";
+      }
+      
+      // 5. Send a message to the iframe to ensure it knows the video should be expanded
+      iframe.contentWindow.postMessage(
+        { type: "EXPAND_VIDEO_SCREEN", expanded: true },
+        "*"
+      );
+      
+      // 6. Force a reflow to ensure the height change takes effect
+      if (videoDisplay) {
+        videoDisplay.offsetHeight;
+      }
+      
+      console.log("Video display expansion and vaporwave video setup complete");
+    } catch (error) {
+      console.error("Error in expandVideoScreen:", error);
+    }
+  };
+  // Function to collapse the video screen when 80s mode is disabled
+  const collapseVideoScreen = () => {
+    try {
+      const iframe = missionControlIframeRef.current;
+      if (!iframe || !iframe.contentDocument) return;
+      
+      console.log("Collapsing video display...");
+      
+      // 1. Get the video display element
+      const videoDisplay = iframe.contentDocument.querySelector(".video-display");
+      const videoFeed = iframe.contentDocument.querySelector("#video-feed");
+      const offlineDisplay = iframe.contentDocument.querySelector("#offline-display");
+      
+      // 2. Remove the 'active' class to collapse it
+      if (videoDisplay) {
+        console.log("Removing 'active' class from video-display");
+        videoDisplay.classList.remove("active");
+        // Keep the touched class to prevent the pulsing animation
+      }
+      
+      // 3. Find and remove or hide the vaporwave video
+      if (videoFeed) {
+        const vaporVideo = videoFeed.querySelector('video[data-vaporwave]');
+        if (vaporVideo) {
+          console.log("Removing vaporwave video");
+          vaporVideo.pause();
+          vaporVideo.style.display = "none";
+          // Optionally remove it entirely
+          // vaporVideo.parentNode.removeChild(vaporVideo);
+        }
+      }
+      
+      // 4. Restore "OFFLINE" text visibility
+      if (offlineDisplay) {
+        const offlineText = offlineDisplay.querySelector("span");
+        if (offlineText) offlineText.style.opacity = "1";
+      }
+      
+      // 5. Notify the iframe about the state change
+      iframe.contentWindow.postMessage(
+        { type: "EXPAND_VIDEO_SCREEN", expanded: false },
+        "*"
+      );
+      
+      console.log("Video display collapse complete");
+    } catch (error) {
+      console.error("Error in collapseVideoScreen:", error);
+    }
+  };
   // Function to send messages to the Mission Control iframe or queue them
   const sendMessageToMissionControl = (message) => {
     const iframe = missionControlIframeRef.current;
@@ -206,6 +425,48 @@ const MobileSidePanel = ({
             );
           }
           break;
+        case "RESIZE":
+        case "LAYOUT_CHANGE":
+          if (is80sMode) {
+            // First hide video
+            const videoContainer = document.querySelector(".vaporwave-container");
+            if (videoContainer) {
+              videoContainer.style.opacity = "0";
+              videoContainer.style.visibility = "hidden";
+            }
+            
+            // Wait a bit before updating position
+            setTimeout(() => {
+              updateVideoPosition();
+              // Show video after position update
+              if (videoContainer) {
+                setTimeout(() => {
+                  videoContainer.style.opacity = "1";
+                  videoContainer.style.visibility = "visible";
+                }, 50);
+              }
+            }, 100);
+          }
+          break;
+        case "EXPAND_VIDEO_SCREEN":
+          if (is80sMode) {
+            console.log("MobileSidePanel: Video screen expansion requested");
+            // Use our new approach to integrate with iframe
+            if (event.data.expanded) {
+              expandVideoScreen();
+            } else {
+              collapseVideoScreen();
+            }
+          }
+          break;
+
+        case "SITEPAL_LOADED":
+          if (is80sMode && missionControlIframeRef.current) {
+            console.log("MobileSidePanel: SitePal loaded");
+            // Use our new approach to integrate with iframe
+            expandVideoScreen();
+          }
+          break;
         // ... rest of the cases like LAUNCH_MODE_TOGGLE, CONSTELLATION_TOGGLE etc.
         default:
           // Log unhandled message types
@@ -230,6 +491,9 @@ const MobileSidePanel = ({
     rocketModelVisible,
     toggleRocketModel,
     toggleConstellationVisibility,
+    expandVideoScreen,
+    collapseVideoScreen,
+    logVideoScreenState,
   ]);
 
   // Function to toggle call status
@@ -363,6 +627,93 @@ const MobileSidePanel = ({
     if (is80sMode) toggle80sMode();
     toggleMonsterMode();
   };
+
+  
+  // Add effect to monitor 80s mode changes
+  useEffect(() => {
+    console.log("80s Mode changed:", is80sMode);
+    setShowVaporwaveVideo(is80sMode);
+    
+    // When 80s mode is enabled, ensure video screen is expanded
+    if (is80sMode && missionControlIframeRef.current) {
+      // Give a moment for everything to initialize
+      setTimeout(() => {
+        // Directly use our updated approach to integrate with iframe's flow
+        expandVideoScreen();
+        
+        // Also send a message to the iframe to ensure it knows the video should be expanded
+        if (
+          missionControlIframeRef.current &&
+          missionControlIframeRef.current.contentWindow
+        ) {
+          missionControlIframeRef.current.contentWindow.postMessage(
+            { type: "EXPAND_VIDEO_SCREEN", expanded: true },
+            "*"
+          );
+        }
+      }, 200);
+    } else if (!is80sMode && missionControlIframeRef.current) {
+      // When 80s mode is disabled, collapse the video screen
+      setTimeout(() => {
+        collapseVideoScreen();
+        
+        // Also send a message to the iframe to ensure it knows the video should be collapsed
+        if (
+          missionControlIframeRef.current &&
+          missionControlIframeRef.current.contentWindow
+        ) {
+          missionControlIframeRef.current.contentWindow.postMessage(
+            { type: "EXPAND_VIDEO_SCREEN", expanded: false },
+            "*"
+          );
+        }
+      }, 200);
+    }
+  }, [is80sMode, expandVideoScreen, collapseVideoScreen]);
+
+  // Handle Tenor script loading
+  useEffect(() => {
+    if (is80sMode) {
+      const script = document.createElement("script");
+      script.src = "https://tenor.com/embed.js";
+      script.async = true;
+      script.id = "tenor-script";
+      document.body.appendChild(script);
+
+      return () => {
+        const existingScript = document.getElementById("tenor-script");
+        if (existingScript) {
+          document.body.removeChild(existingScript);
+        }
+      };
+    }
+  }, [is80sMode]);
+
+  // Add effect to update video position when drawer opens
+  useEffect(() => {
+    if (isOpen) {
+      // Wait for drawer to fully open before adjusting visuals
+      setTimeout(() => {
+        // Sync toggle states with the iframe
+        console.log("MobileSidePanel drawer opened, sending sync messages...");
+        sendMessageToMissionControl({
+          type: "SYNC_80S_STATE",
+          enabled: is80sMode, // Use the current prop value
+        });
+        sendMessageToMissionControl({
+          type: "SYNC_MUSIC_STATE",
+          enabled: showSpotify, // Use the current prop value
+        });
+        
+        // If in 80s mode, handle video expansion
+        if (is80sMode) {
+          expandVideoScreen();
+        }
+      }, 300); // Delay slightly to ensure iframe might be ready
+    }
+  }, [isOpen, is80sMode, showSpotify, expandVideoScreen]); // Add dependencies
+
+
 
   return (
     <>
@@ -629,6 +980,7 @@ const MobileSidePanel = ({
               justifyContent="center"
               // pb="70px"
             >
+              {/* Video overlay - not needed anymore since we're creating the video inside the iframe */}
               <iframe
                 ref={missionControlIframeRef}
                 src="/cyberpunk_mission_control.html"
@@ -636,15 +988,19 @@ const MobileSidePanel = ({
                   width: "100%",
                   maxWidth: "450px",
                   height: "100%",
-                  minHeight: "550px",
+                  minHeight: "650px", // Increased to accommodate expanded video screen
                   border: "none",
                   overflow: "visible",
                   display: "block",
                   backgroundColor: "transparent",
+                  position: "relative",
                 }}
                 title="Mission Control Panel Mobile"
                 onLoad={(e) => {
                   console.log("MobileSidePanel: iframe onLoad event fired.");
+                  // Store the reference to make it accessible
+                  setIframeReady(true);
+                  
                   // Pass Firebase config to iframe
                   const iframe = e.target;
                   iframe.contentWindow.FIREBASE_API_KEY =
@@ -659,6 +1015,18 @@ const MobileSidePanel = ({
                     process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID;
                   iframe.contentWindow.FIREBASE_APP_ID =
                     process.env.NEXT_PUBLIC_FIREBASE_APP_ID;
+
+                  // Send message to iframe to expand video screen immediately if in 80s mode
+                  if (is80sMode) {
+                    // Set the iframe reference first
+                    missionControlIframeRef.current = iframe;
+                    
+                    // Give iframe time to fully initialize
+                    setTimeout(() => {
+                      // Use our new approach to integrate with iframe
+                      expandVideoScreen();
+                    }, 300);
+                  }
                 }}
               />
             </Box>

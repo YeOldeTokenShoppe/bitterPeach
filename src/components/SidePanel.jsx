@@ -128,8 +128,14 @@ const SidePanel = ({
   // Add state to track if the iframe content has loaded
   const [isIframeLoaded, setIsIframeLoaded] = useState(false);
 
+  // Add state for vaporwave video overlay
+  const [showVaporwaveVideo, setShowVaporwaveVideo] = useState(false);
+
   // First, add a new ref to store the active microphone stream
   const microphoneStreamRef = useRef(null);
+
+  // Add a ref for the mission control iframe
+  const missionControlIframeRef = useRef(null);
 
   // Detect touch devices
   useEffect(() => {
@@ -512,6 +518,30 @@ const SidePanel = ({
       console.warn("Mission Control iframe not found");
     }
   };
+  const updateVideoPosition = useCallback(() => {
+    const iframe = missionControlIframeRef.current;
+    if (iframe && iframe.contentWindow) {
+      const offlineDisplay = 
+        iframe.contentDocument?.querySelector("#offline-display");
+      if (offlineDisplay) {
+        const rect = offlineDisplay.getBoundingClientRect();
+        const videoContainer = document.querySelector(".vaporwave-container");
+        if (videoContainer) {
+          // Set dimensions first
+          videoContainer.style.top = `${rect.top}px`;
+          videoContainer.style.left = `${rect.left}px`;
+          videoContainer.style.width = `${rect.width}px`;
+          videoContainer.style.height = `${rect.height}px`;
+          
+          // After a small delay, make it visible
+          setTimeout(() => {
+            videoContainer.style.opacity = "1";
+            videoContainer.style.visibility = "visible";
+          }, 50);
+        }
+      }
+    }
+  }, []);
 
   // Update the useEffect for message handling
   useEffect(() => {
@@ -664,6 +694,31 @@ const SidePanel = ({
           }
           break;
 
+        // Handle video-related messages to position the vaporwave video
+        case "RESIZE":
+        case "LAYOUT_CHANGE":
+          if (is80sMode) {
+            updateVideoPosition();
+          }
+          break;
+        case "EXPAND_VIDEO_SCREEN":
+          if (is80sMode) {
+            updateVideoPosition();
+          }
+          break;
+        case "SITEPAL_LOADED":
+          if (is80sMode && missionControlIframeRef.current) {
+            // Re-expand video screen after SitePal loads
+            missionControlIframeRef.current.contentWindow.postMessage(
+              {
+                type: "EXPAND_VIDEO_SCREEN",
+                expanded: true,
+              },
+              "*"
+            );
+          }
+          break;
+
         default:
           // Log unhandled message types
           if (event.data.type !== "FIREBASE_CONFIG_RESPONSE") {
@@ -686,6 +741,7 @@ const SidePanel = ({
     rocketModelVisible,
     toggleRocketModel,
     toggleConstellationVisibility,
+    updateVideoPosition,
   ]);
 
   // Sync all states with iframe
@@ -850,6 +906,110 @@ const SidePanel = ({
     });
   }, [rocketModelVisible]);
 
+  // Function to sync state to the iframe
+  const syncIframeState = useCallback(() => {
+    const iframe = missionControlIframeRef.current;
+    if (iframe && iframe.contentWindow) {
+      iframe.contentWindow.postMessage(
+        {
+          type: "SYNC_STATE",
+          isEightiesMode: is80sMode,
+          isMusicEnabled: showSpotify,
+          isLaunchMode: monsterMode,
+          isRocketModelVisible: rocketModelVisible,
+        },
+        "*"
+      );
+    }
+  }, [is80sMode, showSpotify, monsterMode, rocketModelVisible]);
+
+  // Sync state when iframe loads
+  const handleIframeLoad = useCallback(() => {
+    console.log("SidePanel: iframe loaded, syncing state");
+    // Wait a tick to ensure iframe JS is ready
+    setTimeout(() => {
+      syncIframeState();
+      
+      // Expand video screen immediately if in 80s mode
+      if (is80sMode && missionControlIframeRef.current) {
+        // First, ensure the video is hidden
+        const videoContainer = document.querySelector(".vaporwave-container");
+        if (videoContainer) {
+          videoContainer.style.opacity = "0";
+          videoContainer.style.visibility = "hidden";
+        }
+        
+        // Tell the iframe to expand the video area
+        missionControlIframeRef.current.contentWindow.postMessage(
+          {
+            type: "EXPAND_VIDEO_SCREEN",
+            expanded: true,
+          },
+          "*"
+        );
+        
+        // Allow time for the iframe to process before positioning the video
+        setTimeout(updateVideoPosition, 200);
+      }
+    }, 100);
+  }, [syncIframeState, is80sMode, updateVideoPosition]);
+
+  // Also sync state whenever relevant state changes (in case iframe reloads)
+  useEffect(() => {
+    syncIframeState();
+  }, [syncIframeState]);
+
+  // Add effect to monitor 80s mode changes
+  useEffect(() => {
+    console.log("SidePanel: 80s Mode changed:", is80sMode);
+    console.log("SidePanel: Video state:", showVaporwaveVideo);
+    setShowVaporwaveVideo(is80sMode);
+    
+    // When exiting 80s mode, ensure the video overlay is hidden immediately
+    if (!is80sMode) {
+      const videoContainer = document.querySelector(".vaporwave-container");
+      if (videoContainer) {
+        videoContainer.style.opacity = "0";
+        videoContainer.style.visibility = "hidden";
+      }
+    }
+  }, [is80sMode]);
+
+  // Handle Tenor script loading for 80s mode
+  useEffect(() => {
+    if (is80sMode) {
+      const script = document.createElement("script");
+      script.src = "https://tenor.com/embed.js";
+      script.async = true;
+      script.id = "tenor-script";
+      document.body.appendChild(script);
+
+      return () => {
+        const existingScript = document.getElementById("tenor-script");
+        if (existingScript) {
+          document.body.removeChild(existingScript);
+        }
+      };
+    }
+  }, [is80sMode]);
+
+  // Add effect to update video position when panel becomes visible
+  useEffect(() => {
+    if (isTextBoxVisible && is80sMode) {
+      // First, ensure the video is hidden
+      const videoContainer = document.querySelector(".vaporwave-container");
+      if (videoContainer) {
+        videoContainer.style.opacity = "0";
+        videoContainer.style.visibility = "hidden";
+      }
+      
+      // Wait for panel animation to complete
+      setTimeout(() => {
+        updateVideoPosition();
+      }, 300);
+    }
+  }, [isTextBoxVisible, is80sMode, updateVideoPosition]);
+
   return (
     <>
       {/* Toggle button for touch devices */}
@@ -909,7 +1069,45 @@ const SidePanel = ({
         overflow="hidden"
         backgroundColor="transparent"
       >
+        {/* Video overlay */}
+        {is80sMode && (
+          <Box
+            className="vaporwave-container"
+            position="absolute"
+            zIndex="5002"
+            overflow="hidden"
+            backgroundColor="black"
+            borderRadius="4px"
+            width="280px"
+            height="180px"
+            top="60px"
+            left="0"
+            opacity="0"
+            transition="opacity 0.3s ease-in"
+            visibility="hidden"
+          >
+            <video
+              autoPlay
+              loop
+              muted
+              playsInline
+              style={{
+                position: "absolute",
+                top: "0",
+                left: "0",
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                pointerEvents: "none",
+              }}
+            >
+              <source src="/vaporwave-sunset.mp4" type="video/mp4" />
+            </video>
+          </Box>
+        )}
+        
         <iframe
+          ref={missionControlIframeRef}
           src="/cyberpunk_mission_control.html"
           style={{
             width: "280px",
@@ -920,6 +1118,7 @@ const SidePanel = ({
             backgroundColor: "transparent",
           }}
           title="Mission Control Panel"
+          onLoad={handleIframeLoad}
         />
       </Box>
     </>

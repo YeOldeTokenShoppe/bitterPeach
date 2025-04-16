@@ -2,7 +2,8 @@
 import React, { useEffect, useState, useRef } from "react";
 import Loader from "./Loader";
 
-const frameUrl = "https://rl80.com";
+const frameUrl = "https://ourlady.io";
+const proxyBaseUrl = "https://us-central1-hailmary-3ff6c.cloudfunctions.net/proxy";
 
 const WordPressSlider = ({ setWordPressSliderLoaded }) => {
   const iframeRef = useRef(null);
@@ -13,16 +14,108 @@ const WordPressSlider = ({ setWordPressSliderLoaded }) => {
   const maxAttempts = 3;
   const contentCheckInterval = useRef(null);
 
+  // Function to inject proxy script into iframe
+  const injectProxyScript = () => {
+    const iframe = iframeRef.current;
+    if (!iframe || !iframe.contentDocument) return;
+
+    const script = iframe.contentDocument.createElement('script');
+    script.textContent = `
+      // Override XMLHttpRequest
+      const originalXHR = window.XMLHttpRequest;
+      window.XMLHttpRequest = function() {
+        const xhr = new originalXHR();
+        const originalOpen = xhr.open;
+        
+        xhr.open = function(method, url, ...args) {
+          if (url.includes('rl80.com') || url.includes('ourlady.io')) {
+            const proxiedUrl = '${proxyBaseUrl}/' + url.replace(/^https?:\\/\\//, '');
+            return originalOpen.call(this, method, proxiedUrl, ...args);
+          }
+          return originalOpen.call(this, method, url, ...args);
+        };
+        
+        return xhr;
+      };
+
+      // Override fetch
+      const originalFetch = window.fetch;
+      window.fetch = function(url, options) {
+        if (typeof url === 'string' && (url.includes('rl80.com') || url.includes('ourlady.io'))) {
+          const proxiedUrl = '${proxyBaseUrl}/' + url.replace(/^https?:\\/\\//, '');
+          return originalFetch(proxiedUrl, options);
+        }
+        return originalFetch(url, options);
+      };
+
+      // Override image src
+      const originalImage = window.Image;
+      window.Image = function() {
+        const img = new originalImage();
+        const originalSrc = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src');
+        
+        Object.defineProperty(img, 'src', {
+          get: function() {
+            return originalSrc.get.call(this);
+          },
+          set: function(url) {
+            if (url.includes('rl80.com') || url.includes('ourlady.io')) {
+              const proxiedUrl = '${proxyBaseUrl}/' + url.replace(/^https?:\\/\\//, '');
+              return originalSrc.set.call(this, proxiedUrl);
+            }
+            return originalSrc.set.call(this, url);
+          }
+        });
+        
+        return img;
+      };
+    `;
+    iframe.contentDocument.head.appendChild(script);
+  };
+
+  // Function to handle iframe content
+  const handleIframeContent = () => {
+    const iframe = iframeRef.current;
+    if (!iframe || !iframe.contentDocument) return;
+
+    // Find all elements with src or href attributes
+    const elements = iframe.contentDocument.querySelectorAll('[src], [href]');
+    elements.forEach(element => {
+      const url = element.src || element.href;
+      if (url && (url.includes('ourlady.io') || url.includes('rl80.com'))) {
+        const proxiedUrl = proxyResource(url);
+        if (element.src) element.src = proxiedUrl;
+        if (element.href) element.href = proxiedUrl;
+      }
+    });
+
+    // Find all elements with background-image style
+    const elementsWithBg = iframe.contentDocument.querySelectorAll('[style*="background-image"]');
+    elementsWithBg.forEach(element => {
+      const style = element.getAttribute('style');
+      const urlMatch = style.match(/url\(['"]?(https:\/\/[^'")]+)['"]?\)/);
+      if (urlMatch && (urlMatch[1].includes('ourlady.io') || urlMatch[1].includes('rl80.com'))) {
+        const proxiedUrl = proxyResource(urlMatch[1]);
+        element.style.backgroundImage = `url('${proxiedUrl}')`;
+      }
+    });
+  };
+
   useEffect(() => {
     // Function to handle iframe load event
     const handleIframeLoad = () => {
       console.log("✅ WordPress iframe loaded successfully");
       setIframeLoaded(true);
 
+      // Inject proxy script
+      injectProxyScript();
+
+      // Handle iframe content after load
+      handleIframeContent();
+
       // Start checking if content is actually ready
       startContentReadyCheck();
 
-      // We'll still notify parent that iframe is loaded, but with a note that content might not be fully ready
       if (setWordPressSliderLoaded) {
         setWordPressSliderLoaded(true);
       }
@@ -230,6 +323,8 @@ const WordPressSlider = ({ setWordPressSliderLoaded }) => {
           }}
           allowFullScreen
           scrolling="no"
+          sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+          referrerPolicy="no-referrer"
         />
       </div>
     </>

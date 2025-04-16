@@ -147,7 +147,7 @@
 
         /* When active, maintain original height */
         .video-display.active {
-          height: 180px;
+          height: 180px !important;
         }
 
         /* Add an indicator for the collapsed state */
@@ -160,6 +160,13 @@
           color: #67e8f9;
           font-size: 0.75rem;
           text-shadow: 0 0 5px #06b6d4;
+          opacity: 1;
+          transition: opacity 0.3s ease-out;
+        }
+
+        /* Hide the tap indicator when active */
+        .video-display.active::after {
+          opacity: 0;
         }
 
         /* Add expand/collapse indicators */
@@ -173,7 +180,7 @@
           opacity: 0.8;
           z-index: 20;
           pointer-events: none;
-          transition: transform 0.3s;
+          transition: transform 0.3s ease-out;
         }
 
         .video-display.active::before {
@@ -2980,6 +2987,55 @@
         const threeRedShadow = document.getElementById("threedy-shadow-red");
         const threeBlueShadow = document.getElementById("threedy-shadow-blue");
         const wireframeBackdrop = document.getElementById("wireframe-backdrop");
+        const videoFeed = document.getElementById("video-feed");
+        const deadAir = document.getElementById("deadAir");
+        const videoDisplay = document.querySelector(".video-display"); // Get video display element
+
+        // 80s mode vaporwave video effect (inject into #video-feed, not #offline-display)
+        if (videoFeed) {
+          let vaporVideo = videoFeed.querySelector('video[data-vaporwave]');
+          if (isActive) {
+            // Hide deadAir
+            if (deadAir) {
+              deadAir.style.display = 'none';
+              deadAir.pause && deadAir.pause();
+            }
+            // Add vaporwave video if not present
+            if (!vaporVideo) {
+              vaporVideo = document.createElement('video');
+              vaporVideo.setAttribute('src', '/vaporwave-sunset.mp4');
+              vaporVideo.setAttribute('loop', '');
+              vaporVideo.setAttribute('muted', '');
+              vaporVideo.setAttribute('autoplay', '');
+              vaporVideo.setAttribute('playsinline', '');
+              vaporVideo.setAttribute('webkit-playsinline', '');
+              vaporVideo.setAttribute('data-vaporwave', 'true');
+              vaporVideo.style.width = '100%';
+              vaporVideo.style.height = '100%';
+              vaporVideo.style.objectFit = 'cover';
+              vaporVideo.style.position = 'absolute';
+              vaporVideo.style.top = '0';
+              vaporVideo.style.left = '0';
+              vaporVideo.style.zIndex = '20';
+              vaporVideo.style.pointerEvents = 'none';
+              videoFeed.insertBefore(vaporVideo, videoFeed.firstChild); // Insert as first child
+              vaporVideo.play().catch(() => {});
+            } else {
+              vaporVideo.style.display = '';
+              vaporVideo.play().catch(() => {});
+            }
+          } else {
+            // Show deadAir
+            if (deadAir) {
+              deadAir.style.display = '';
+            }
+            // Remove vaporwave video if present
+            if (vaporVideo) {
+              vaporVideo.pause();
+              vaporVideo.remove();
+            }
+          }
+        }
 
         // Clear any previous intervals
         if (window.eightiesInterval) {
@@ -3035,6 +3091,14 @@
           // If music is active, notify the parent to use
           // Add class to body for additional styles
           document.body.classList.add("eighties-mode");
+
+          // Expand video display on mobile when activating 80s mode
+          if (videoDisplay && window.innerHeight <= 700) {
+             videoDisplay.classList.add("active", "touched"); // Add 'touched' to prevent auto-collapse/pulse
+             // Explicitly set height to ensure it overrides styles
+             videoDisplay.style.height = '180px';
+          }
+
         } else {
           eightiesToggle.classList.remove("active");
           if (missionControl) {
@@ -3077,6 +3141,13 @@
 
           // Remove eighties mode class from body
           document.body.classList.remove("eighties-mode");
+
+          // Collapse video display on mobile when deactivating 80s mode (if not in a call)
+          if (videoDisplay && window.innerHeight <= 700 && !isCallActive) {
+            videoDisplay.classList.remove("active");
+            // Reset height to allow CSS to control it
+            videoDisplay.style.height = '';
+          }
         }
 
         document.documentElement.style.setProperty(
@@ -3384,6 +3455,205 @@
           toggleRow.classList.remove("fullscreen");
         }
       });
+
+      // Add handler for video screen expansion messages
+      window.addEventListener("message", (event) => {
+        if (event.source === window.parent && event.data.type === "EXPAND_VIDEO_SCREEN") {
+          console.log("Received EXPAND_VIDEO_SCREEN message:", event.data.expanded);
+          const videoDisplay = document.querySelector(".video-display");
+          if (videoDisplay) {
+            if (event.data.expanded) {
+              console.log("Expanding video display");
+              // Add both active and touched classes to ensure proper expansion
+              videoDisplay.classList.add("active");
+              videoDisplay.classList.add("touched");
+              
+              // Force the height to be 180px for mobile
+              videoDisplay.style.height = "180px";
+              
+              // Also dispatch a resize event to ensure CSS media queries are applied
+              const resizeEvent = new Event('resize');
+              window.dispatchEvent(resizeEvent);
+              
+              // Add a small delay to ensure the height change takes effect
+              setTimeout(() => {
+                // Force a reflow to ensure the height change takes effect
+                videoDisplay.offsetHeight;
+              }, 50);
+            } else {
+              console.log("Collapsing video display");
+              videoDisplay.classList.remove("active");
+              // Keep the touched class to prevent the pulsing animation
+              // Reset the height to let CSS handle it
+              videoDisplay.style.height = "";
+            }
+          }
+        }
+      });
+
+      // Handle messages from parent window
+      window.addEventListener('message', function(event) {
+        if (event.data.type === 'EXPAND_VIDEO_SCREEN') {
+          const videoDisplay = document.querySelector('.video-display');
+          if (videoDisplay) {
+            if (event.data.expanded) {
+              videoDisplay.classList.add('active', 'touched');
+              videoDisplay.style.height = '180px';
+              // Force a reflow to ensure the height change takes effect
+              videoDisplay.offsetHeight;
+              window.dispatchEvent(new Event('resize'));
+            } else {
+              videoDisplay.classList.remove('active');
+              // Let the CSS handle the height transition
+              videoDisplay.style.height = '';
+              window.dispatchEvent(new Event('resize'));
+            }
+          }
+        }
+      });
+
+      // Initialize video display state
+      document.addEventListener('DOMContentLoaded', function() {
+        const videoDisplay = document.querySelector('.video-display');
+        if (videoDisplay) {
+          // Check if we're on a mobile screen
+          const isMobile = window.innerHeight <= 700;
+          
+          // Initialize state based on screen height and call status
+          if (isMobile) {
+            videoDisplay.classList.remove('active');
+          } else {
+            videoDisplay.classList.add('active');
+          }
+
+          // Add click handler for mobile
+          if (isMobile) {
+            videoDisplay.addEventListener('click', function() {
+              const isActive = this.classList.contains('active');
+              if (isActive) {
+                this.classList.remove('active');
+                this.style.height = '';
+              } else {
+                this.classList.add('active', 'touched');
+                this.style.height = '180px';
+              }
+              // Force a reflow
+              this.offsetHeight;
+              window.dispatchEvent(new Event('resize'));
+            });
+          }
+        }
+      });
+
+      // Handle messages from parent window
+      window.addEventListener('message', function(event) {
+        if (event.data.type === 'EXPAND_VIDEO_SCREEN') {
+          const videoDisplay = document.querySelector('.video-display');
+          if (videoDisplay) {
+            if (event.data.expanded) {
+              videoDisplay.classList.add('active', 'touched');
+              // Let CSS handle the height transition
+              videoDisplay.style.height = '';
+              // Force a reflow to ensure transitions work
+              videoDisplay.offsetHeight;
+              window.dispatchEvent(new Event('resize'));
+            } else {
+              videoDisplay.classList.remove('active');
+              // Let CSS handle the height transition
+              videoDisplay.style.height = '';
+              window.dispatchEvent(new Event('resize'));
+            }
+          }
+        }
+      });
+
+      // Add resize handler to adjust video display state
+      window.addEventListener('resize', function() {
+        const videoDisplay = document.querySelector('.video-display');
+        if (videoDisplay) {
+          const isMobile = window.innerHeight <= 700;
+          // Only remove 'active' on resize if mobile AND call is inactive AND 80s mode is OFF
+          if (isMobile && !isCallActive && !isEightiesMode) {
+            videoDisplay.classList.remove('active');
+            videoDisplay.style.height = ''; // Also reset height
+          } else if (!isMobile) {
+            // Always ensure it's active on non-mobile screens
+            videoDisplay.classList.add('active');
+            videoDisplay.style.height = ''; // Let CSS handle height on desktop
+          }
+          // If mobile and 80s mode is active, ensure it stays expanded
+          else if (isMobile && isEightiesMode) {
+              videoDisplay.classList.add('active', 'touched');
+              videoDisplay.style.height = '180px';
+          }
+        }
+      });
+
+      // Listen for synchronization messages from parent
+      window.addEventListener('message', function(event) {
+        if (!event.data || !event.data.type) return;
+        // Add origin check in production: if (event.origin !== 'YOUR_ORIGIN') return;
+
+        const type = event.data.type;
+        const enabled = event.data.enabled; // Expect a boolean
+
+        console.log('IFRAME received message:', event.data);
+
+        if (type === 'SYNC_80S_STATE') {
+          const eightiesToggle = document.getElementById('eighties-toggle');
+          if (eightiesToggle) {
+            // Only call updateEightiesUI if the state *actually* needs changing
+            if (typeof enabled === 'boolean' && enabled !== isEightiesMode) {
+              console.log(`Syncing 80s UI via updateEightiesUI to: ${enabled}`);
+              // Call the main UI update function. It handles the 'active' class
+              // and the internal isEightiesMode variable update.
+              updateEightiesUI(enabled);
+            }
+          }
+        } else if (type === 'SYNC_MUSIC_STATE') {
+          const musicToggle = document.getElementById('music-toggle');
+          if (musicToggle) {
+            const currentMusicState = musicToggle.classList.contains('active');
+            if (typeof enabled === 'boolean' && enabled !== currentMusicState) {
+              console.log(`Syncing music toggle visuals to: ${enabled}`);
+              // Directly toggle the class for music, as its click handler does
+              musicToggle.classList.toggle('active', enabled);
+            }
+          }
+        } else if (type === 'EXPAND_VIDEO_SCREEN') {
+           const videoDisplay = document.querySelector('.video-display');
+           if (videoDisplay) {
+             if (event.data.expanded) {
+               console.log("Expanding video display");
+               // Add both active and touched classes to ensure proper expansion
+               videoDisplay.classList.add("active");
+               videoDisplay.classList.add("touched");
+               
+               // Force the height to be 180px for mobile
+               videoDisplay.style.height = "180px";
+               
+               // Also dispatch a resize event to ensure CSS media queries are applied
+               const resizeEvent = new Event('resize');
+               window.dispatchEvent(resizeEvent);
+               
+               // Add a small delay to ensure the height change takes effect
+               setTimeout(() => {
+                 // Force a reflow to ensure the height change takes effect
+                 videoDisplay.offsetHeight;
+               }, 50);
+             } else {
+               console.log("Collapsing video display");
+               videoDisplay.classList.remove("active");
+               // Keep the touched class to prevent the pulsing animation
+               // Reset the height to let CSS handle it
+               videoDisplay.style.height = "";
+             }
+           }
+        }
+        // Add other message handlers if needed
+
+      });
+
     </script>
   </body>
 </html>
