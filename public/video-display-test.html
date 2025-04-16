@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Video Display Toggle Test</title>
+  <style>
+    body {
+      font-family: monospace;
+      background-color: #1e293b;
+      color: #67e8f9;
+      padding: 20px;
+    }
+    
+    .video-display {
+      height: 180px;
+      position: relative;
+      background: linear-gradient(45deg, #041c2c, #000);
+      overflow: hidden;
+      transition: height 0.3s ease-out;
+      width: 100%;
+      max-width: 450px;
+      margin: 0 auto;
+      border: 1px solid #134e4a;
+    }
+    
+    /* Media query for mobile screens */
+    @media (max-height: 700px) {
+      /* Default collapsed height on mobile when inactive */
+      .video-display:not(.active) {
+        height: 40px;
+      }
+
+      /* When active, maintain original height */
+      .video-display.active {
+        height: 180px !important;
+      }
+
+      /* Add an indicator for the collapsed state */
+      .video-display:not(.active)::after {
+        content: "Tap to expand";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: #67e8f9;
+        font-size: 0.75rem;
+        text-shadow: 0 0 5px #06b6d4;
+        opacity: 1;
+        transition: opacity 0.3s ease-out;
+      }
+
+      /* Hide the tap indicator when active */
+      .video-display.active::after {
+        opacity: 0;
+      }
+
+      /* Add expand/collapse indicators */
+      .video-display::before {
+        content: "▼";
+        position: absolute;
+        right: 8px;
+        top: 10px;
+        color: #67e8f9;
+        font-size: 0.7rem;
+        opacity: 0.8;
+        z-index: 20;
+        pointer-events: none;
+        transition: transform 0.3s ease-out;
+      }
+
+      .video-display.active::before {
+        transform: rotate(180deg);
+        top: 8px;
+      }
+
+      /* Add touch hint on first load */
+      .video-display:not(.touched):not(.active)::after {
+        animation: pulse 2s infinite;
+      }
+    }
+    
+    @keyframes pulse {
+      0% {
+        opacity: 1;
+      }
+      50% {
+        opacity: 0.5;
+      }
+      100% {
+        opacity: 1;
+      }
+    }
+    
+    .btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+      margin: 10px 0;
+      max-width: 450px;
+      margin: 0 auto;
+    }
+    
+    .btn {
+      background: #134e4a;
+      color: #67e8f9;
+      padding: 8px 16px;
+      border: none;
+      margin: 5px 0;
+      cursor: pointer;
+      flex-grow: 0;
+    }
+    
+    .btn-small {
+      padding: 4px 8px;
+      font-size: 0.8rem;
+    }
+    
+    pre {
+      background: #0f172a;
+      padding: 10px;
+      margin-top: 20px;
+      border: 1px solid #134e4a;
+      max-width: 450px;
+      margin: 20px auto;
+      overflow-x: auto;
+    }
+    
+    .settings {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 15px;
+      max-width: 450px;
+      margin: 15px auto;
+      background: #0f172a;
+      padding: 10px;
+      border: 1px solid #134e4a;
+    }
+    
+    .settings label {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+    }
+    
+    .control-group {
+      width: 100%;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px dashed #134e4a;
+    }
+    
+    h2 {
+      text-align: center;
+      font-size: 1rem;
+      margin: 5px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1 style="text-align: center;">Video Display Toggle Test</h1>
+  
+  <div class="video-display">
+    <div style="text-align: center; padding-top: 70px;">Video Content Area</div>
+  </div>
+  
+  <div class="btn-row">
+    <button class="btn" id="toggle-btn">Toggle Display</button>
+    <button class="btn" id="reset-btn">Reset Classes</button>
+    <button class="btn" id="send-event">Send Parent Event</button>
+  </div>
+  
+  <div class="settings">
+    <h2>Test Controls</h2>
+    
+    <label class="checkbox-label">
+      <input type="checkbox" id="call-active"> 
+      Call Active
+    </label>
+    
+    <label class="checkbox-label">
+      <input type="checkbox" id="eighties-mode"> 
+      80s Mode
+    </label>
+    
+    <div class="control-group">
+      <h2>Manual Height Control</h2>
+      <div class="btn-row">
+        <button class="btn btn-small" id="set-height-40">Set 40px</button>
+        <button class="btn btn-small" id="set-height-180">Set 180px</button>
+        <button class="btn btn-small" id="clear-height">Clear Height</button>
+      </div>
+    </div>
+    
+    <div class="control-group">
+      <h2>Class Controls</h2>
+      <div class="btn-row">
+        <button class="btn btn-small" id="add-active">Add .active</button>
+        <button class="btn btn-small" id="remove-active">Remove .active</button>
+        <button class="btn btn-small" id="add-touched">Add .touched</button>
+        <button class="btn btn-small" id="remove-touched">Remove .touched</button>
+      </div>
+    </div>
+    
+    <div class="control-group">
+      <h2>Simulate Browser</h2>
+      <div class="btn-row">
+        <button class="btn btn-small" id="sim-mobile">Simulate Mobile</button>
+        <button class="btn btn-small" id="sim-desktop">Simulate Desktop</button>
+      </div>
+    </div>
+  </div>
+  
+  <pre id="status"></pre>
+  
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const videoDisplay = document.querySelector('.video-display');
+      const toggleBtn = document.getElementById('toggle-btn');
+      const resetBtn = document.getElementById('reset-btn');
+      const status = document.getElementById('status');
+      const callActiveCheck = document.getElementById('call-active');
+      const eightiesModeCheck = document.getElementById('eighties-mode');
+      const sendEventBtn = document.getElementById('send-event');
+      
+      // Height control buttons
+      const setHeight40 = document.getElementById('set-height-40');
+      const setHeight180 = document.getElementById('set-height-180');
+      const clearHeight = document.getElementById('clear-height');
+      
+      // Class control buttons
+      const addActive = document.getElementById('add-active');
+      const removeActive = document.getElementById('remove-active');
+      const addTouched = document.getElementById('add-touched');
+      const removeTouched = document.getElementById('remove-touched');
+      
+      // Browser simulation
+      const simMobile = document.getElementById('sim-mobile');
+      const simDesktop = document.getElementById('sim-desktop');
+      
+      // State variables
+      let isCallActive = false;
+      let isEightiesMode = false;
+      
+      // Initial state
+      updateStatus();
+      
+      // Simple click handler for the video display
+      videoDisplay.addEventListener('click', function() {
+        console.log("Video display clicked");
+        this.classList.add('touched');
+        
+        // Only toggle if we're on mobile simulation and call isn't active
+        const isMobile = window.innerHeight <= 700;
+        
+        if (isMobile && !isCallActive) {
+          if (this.classList.contains('active')) {
+            this.classList.remove('active');
+            this.style.height = '';
+            console.log("Collapsed");
+          } else {
+            this.classList.add('active');
+            this.style.height = '180px';
+            console.log("Expanded");
+            
+            // Auto-collapse after 5 seconds if not in a call
+            if (!isCallActive) {
+              setTimeout(() => {
+                if (!isCallActive) {
+                  this.classList.remove('active');
+                  this.style.height = '';
+                  console.log("Auto-collapsing after timeout");
+                  updateStatus();
+                }
+              }, 5000);
+            }
+          }
+        } else {
+          console.log("Not toggling - not mobile or call is active");
+        }
+        
+        updateStatus();
+      });
+      
+      // Button to simulate clicking the display
+      toggleBtn.addEventListener('click', function() {
+        videoDisplay.click();
+      });
+      
+      // Reset button
+      resetBtn.addEventListener('click', function() {
+        videoDisplay.classList.remove('active', 'touched');
+        videoDisplay.style.height = '';
+        console.log("Reset classes and inline height");
+        updateStatus();
+      });
+      
+      // Call active toggle
+      callActiveCheck.addEventListener('change', function() {
+        isCallActive = this.checked;
+        console.log("Call active:", isCallActive);
+        
+        // If call becomes active, make sure video display is expanded
+        if (isCallActive) {
+          videoDisplay.classList.add('active');
+          videoDisplay.style.height = '180px';
+        } else if (window.innerHeight <= 700) {
+          // If call becomes inactive and we're on mobile, collapse
+          videoDisplay.classList.remove('active');
+          videoDisplay.style.height = '';
+        }
+        
+        updateStatus();
+      });
+      
+      // 80s mode toggle
+      eightiesModeCheck.addEventListener('change', function() {
+        isEightiesMode = this.checked;
+        console.log("80s mode:", isEightiesMode);
+        
+        // In 80s mode, always expand video display
+        if (isEightiesMode) {
+          videoDisplay.classList.add('active');
+          videoDisplay.style.height = '180px';
+        } else if (window.innerHeight <= 700 && !isCallActive) {
+          // If 80s mode off, on mobile, and call inactive, collapse
+          videoDisplay.classList.remove('active');
+          videoDisplay.style.height = '';
+        }
+        
+        updateStatus();
+      });
+      
+      // Send event to parent window (simulates iframe communication)
+      sendEventBtn.addEventListener('click', function() {
+        console.log("Sending message to parent frame");
+        
+        // Toggle the expanded state for the message
+        const expanded = !videoDisplay.classList.contains('active');
+        
+        window.parent.postMessage({
+          type: 'EXPAND_VIDEO_SCREEN',
+          expanded: expanded
+        }, '*');
+        
+        // Also listen for messages (to test if we're in an iframe)
+        console.log("Added message listener");
+      });
+      
+      // Listen for EXPAND_VIDEO_SCREEN messages (just for testing)
+      window.addEventListener('message', function(event) {
+        console.log("Received message:", event.data);
+        
+        if (event.data.type === 'EXPAND_VIDEO_SCREEN') {
+          console.log("Received EXPAND_VIDEO_SCREEN message:", event.data.expanded);
+          
+          if (event.data.expanded) {
+            console.log("Expanding video display via message");
+            videoDisplay.classList.add('active', 'touched');
+            videoDisplay.style.height = '180px';
+          } else {
+            console.log("Collapsing video display via message");
+            videoDisplay.classList.remove('active');
+            videoDisplay.style.height = '';
+          }
+          
+          updateStatus();
+        }
+      });
+      
+      // Height control handlers
+      setHeight40.addEventListener('click', function() {
+        videoDisplay.style.height = '40px';
+        updateStatus();
+      });
+      
+      setHeight180.addEventListener('click', function() {
+        videoDisplay.style.height = '180px';
+        updateStatus();
+      });
+      
+      clearHeight.addEventListener('click', function() {
+        videoDisplay.style.height = '';
+        updateStatus();
+      });
+      
+      // Class control handlers
+      addActive.addEventListener('click', function() {
+        videoDisplay.classList.add('active');
+        updateStatus();
+      });
+      
+      removeActive.addEventListener('click', function() {
+        videoDisplay.classList.remove('active');
+        updateStatus();
+      });
+      
+      addTouched.addEventListener('click', function() {
+        videoDisplay.classList.add('touched');
+        updateStatus();
+      });
+      
+      removeTouched.addEventListener('click', function() {
+        videoDisplay.classList.remove('touched');
+        updateStatus();
+      });
+      
+      // Browser simulation
+      simMobile.addEventListener('click', function() {
+        // Simulate being on a small screen
+        const mobileHeight = 650;
+        window.mockInnerHeight = mobileHeight;
+        
+        // Override window.innerHeight with our mock value
+        Object.defineProperty(window, 'innerHeight', {
+          get: function() {
+            return this.mockInnerHeight || 650;
+          }
+        });
+        
+        // Dispatch a resize event to trigger media queries
+        window.dispatchEvent(new Event('resize'));
+        
+        // Update display based on simulation
+        if (!isCallActive && !isEightiesMode) {
+          videoDisplay.classList.remove('active');
+          videoDisplay.style.height = '';
+        }
+        
+        updateStatus();
+      });
+      
+      simDesktop.addEventListener('click', function() {
+        // Simulate being on a large screen
+        const desktopHeight = 900;
+        window.mockInnerHeight = desktopHeight;
+        
+        // Override window.innerHeight with our mock value
+        Object.defineProperty(window, 'innerHeight', {
+          get: function() {
+            return this.mockInnerHeight || 900;
+          }
+        });
+        
+        // Dispatch a resize event to trigger media queries
+        window.dispatchEvent(new Event('resize'));
+        
+        // On desktop, always expand
+        videoDisplay.classList.add('active');
+        videoDisplay.style.height = '180px';
+        
+        updateStatus();
+      });
+      
+      // Update status display with detailed information
+      function updateStatus() {
+        const hasActive = videoDisplay.classList.contains('active');
+        const hasTouched = videoDisplay.classList.contains('touched');
+        const inlineHeight = videoDisplay.style.height;
+        const computedHeight = window.getComputedStyle(videoDisplay).height;
+        const isMobile = window.innerHeight <= 700;
+        
+        status.innerHTML = 
+          `Current state:\n` +
+          `.active: ${hasActive}\n` +
+          `.touched: ${hasTouched}\n` +
+          `inline height: ${inlineHeight || 'not set'}\n` +
+          `computed height: ${computedHeight}\n` +
+          `window height: ${window.innerHeight}px (${isMobile ? 'mobile' : 'desktop'})\n` +
+          `call active: ${isCallActive}\n` +
+          `80s mode: ${isEightiesMode}\n` +
+          `media query active: ${isMobile}\n` +
+          `time: ${new Date().toLocaleTimeString()}`;
+      }
+      
+      // Update status on resize
+      window.addEventListener('resize', updateStatus);
+    });
+  </script>
+</body>
+</html> 

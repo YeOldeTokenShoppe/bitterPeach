@@ -147,7 +147,7 @@
 
         /* When active, maintain original height */
         .video-display.active {
-          height: 180px !important;
+          height: 180px;
         }
 
         /* Add an indicator for the collapsed state */
@@ -160,13 +160,6 @@
           color: #67e8f9;
           font-size: 0.75rem;
           text-shadow: 0 0 5px #06b6d4;
-          opacity: 1;
-          transition: opacity 0.3s ease-out;
-        }
-
-        /* Hide the tap indicator when active */
-        .video-display.active::after {
-          opacity: 0;
         }
 
         /* Add expand/collapse indicators */
@@ -180,7 +173,7 @@
           opacity: 0.8;
           z-index: 20;
           pointer-events: none;
-          transition: transform 0.3s ease-out;
+          transition: transform 0.3s;
         }
 
         .video-display.active::before {
@@ -717,11 +710,11 @@
         scrollbar-width: none; /* Firefox */
       }
 
-      .control-button[data-action="signal"] {
+      .control-button[data-action="launch"] {
         position: relative;
       }
 
-      .control-button[data-action="signal"]:after {
+      .control-button[data-action="launch"]:after {
         content: "";
         position: absolute;
         top: -2px;
@@ -733,24 +726,24 @@
         transition: all 0.3s;
       }
 
-      .control-button[data-action="signal"].active {
+      .control-button[data-action="launch"].active {
         background-color: #450a0a;
         border-color: #dc2626;
       }
 
-      .control-button[data-action="signal"].active:after {
+      .control-button[data-action="launch"].active:after {
         background: linear-gradient(45deg, #dc2626, #450a0a);
         filter: blur(8px);
         opacity: 0.6;
         z-index: -1;
       }
 
-      .control-button[data-action="signal"] .button-indicator {
+      .control-button[data-action="launch"] .button-indicator {
         background-color: #dc2626;
         transition: all 0.3s;
       }
 
-      .control-button[data-action="signal"].active .button-indicator {
+      .control-button[data-action="launch"].active .button-indicator {
         animation: redPulse 2s infinite;
       }
 
@@ -1367,20 +1360,7 @@
       .initial-pulse {
         animation: connect-pulse 1.5s infinite ease-in-out;
       }
-
-      /* Signal button specific styles */
-      .control-button[data-action="signal"].initial-pulse {
-        border-color: #134e4a;
-        background-color: #0f172a;
-        box-shadow: 0 0 5px rgba(6, 182, 212, 0.3),
-          0 0 8px rgba(34, 211, 238, 0.2);
-      }
-
-      .control-button[data-action="signal"].initial-pulse .button-indicator {
-        background-color: #22d3ee;
-        box-shadow: 0 0 5px rgba(34, 211, 238, 0.5);
-      }
-      /* End Signal button styles */
+      /* End Connect Button Pulse */
 
       /* Add UN-MUTE button style */
       .call-button.unmute {
@@ -2148,27 +2128,27 @@
 
       <!-- Button Grid -->
       <div class="button-grid">
-        <button class="control-button" data-action="signal">
-          <span class="button-prefix">//COM</span>
-          <span class="button-label">SIGNAL</span>
-          <div class="button-indicator"></div>
-        </button>
-
-        <button class="control-button" data-action="ignition">
-          <span class="button-prefix">//PRE-FLIGHT</span>
-          <span class="button-label">IGNITION</span>
-          <div class="button-indicator"></div>
-        </button>
-
         <button class="control-button" data-action="launch">
           <span class="button-prefix">//SYS</span>
           <span class="button-label">LAUNCH</span>
           <div class="button-indicator"></div>
         </button>
 
+        <button class="control-button" data-action="orbit">
+          <span class="button-prefix">//NAV</span>
+          <span class="button-label">ORBIT</span>
+          <div class="button-indicator"></div>
+        </button>
+
+        <button class="control-button" data-action="signal">
+          <span class="button-prefix">//COM</span>
+          <span class="button-label">SIGNAL</span>
+          <div class="button-indicator"></div>
+        </button>
+
         <button class="control-button" data-action="return">
           <span class="button-prefix">//RTN</span>
-          <span class="button-label">HOME</span>
+          <span class="button-label">RETURN</span>
           <div class="button-indicator"></div>
         </button>
       </div>
@@ -2258,7 +2238,7 @@
             style="display: none"
           ></span>
         </div>
-        <div class="version-info">CYBERCORE_80</div>
+        <div class="version-info">CYBERCORE_77</div>
       </div>
     </div>
 
@@ -2356,6 +2336,12 @@
         deadAir.style.display = "none"; // Hide video initially
         deadAir.pause(); // Ensure video is paused initially
 
+        // Add initial pulse to CONNECT button
+        if (callButton) {
+          // Check if button exists
+          callButton.classList.add("initial-pulse");
+        }
+
         // Special handling for iOS
         if (isIOS || browserIsSafari) {
           console.log("iOS/Safari detected - applying special handling");
@@ -2441,6 +2427,11 @@
             { capture: true }
           );
         }
+
+        // Removed initial play attempt here, now paused by default
+        // deadAir
+        //   .play()
+        //   .catch((e) => console.log("Initial auto-play prevented:", e));
       });
 
       // --- Audio Priming for Mobile ---
@@ -2989,55 +2980,6 @@
         const threeRedShadow = document.getElementById("threedy-shadow-red");
         const threeBlueShadow = document.getElementById("threedy-shadow-blue");
         const wireframeBackdrop = document.getElementById("wireframe-backdrop");
-        const videoFeed = document.getElementById("video-feed");
-        const deadAir = document.getElementById("deadAir");
-        const videoDisplay = document.querySelector(".video-display"); // Get video display element
-
-        // 80s mode vaporwave video effect (inject into #video-feed, not #offline-display)
-        if (videoFeed) {
-          let vaporVideo = videoFeed.querySelector('video[data-vaporwave]');
-          if (isActive) {
-            // Hide deadAir
-            if (deadAir) {
-              deadAir.style.display = 'none';
-              deadAir.pause && deadAir.pause();
-            }
-            // Add vaporwave video if not present
-            if (!vaporVideo) {
-              vaporVideo = document.createElement('video');
-              vaporVideo.setAttribute('src', '/vaporwave-sunset.mp4');
-              vaporVideo.setAttribute('loop', '');
-              vaporVideo.setAttribute('muted', '');
-              vaporVideo.setAttribute('autoplay', '');
-              vaporVideo.setAttribute('playsinline', '');
-              vaporVideo.setAttribute('webkit-playsinline', '');
-              vaporVideo.setAttribute('data-vaporwave', 'true');
-              vaporVideo.style.width = '100%';
-              vaporVideo.style.height = '100%';
-              vaporVideo.style.objectFit = 'cover';
-              vaporVideo.style.position = 'absolute';
-              vaporVideo.style.top = '0';
-              vaporVideo.style.left = '0';
-              vaporVideo.style.zIndex = '20';
-              vaporVideo.style.pointerEvents = 'none';
-              videoFeed.insertBefore(vaporVideo, videoFeed.firstChild); // Insert as first child
-              vaporVideo.play().catch(() => {});
-            } else {
-              vaporVideo.style.display = '';
-              vaporVideo.play().catch(() => {});
-            }
-          } else {
-            // Show deadAir
-            if (deadAir) {
-              deadAir.style.display = '';
-            }
-            // Remove vaporwave video if present
-            if (vaporVideo) {
-              vaporVideo.pause();
-              vaporVideo.remove();
-            }
-          }
-        }
 
         // Clear any previous intervals
         if (window.eightiesInterval) {
@@ -3093,14 +3035,6 @@
           // If music is active, notify the parent to use
           // Add class to body for additional styles
           document.body.classList.add("eighties-mode");
-
-          // Expand video display on mobile when activating 80s mode
-          if (videoDisplay && window.innerHeight <= 700) {
-             videoDisplay.classList.add("active", "touched"); // Add 'touched' to prevent auto-collapse/pulse
-             // Explicitly set height to ensure it overrides styles
-             videoDisplay.style.height = '180px';
-          }
-
         } else {
           eightiesToggle.classList.remove("active");
           if (missionControl) {
@@ -3143,13 +3077,6 @@
 
           // Remove eighties mode class from body
           document.body.classList.remove("eighties-mode");
-
-          // Collapse video display on mobile when deactivating 80s mode (if not in a call)
-          if (videoDisplay && window.innerHeight <= 700 && !isCallActive) {
-            videoDisplay.classList.remove("active");
-            // Reset height to allow CSS to control it
-            videoDisplay.style.height = '';
-          }
         }
 
         document.documentElement.style.setProperty(
@@ -3224,17 +3151,16 @@
 
         // Handle specific actions
         switch (action) {
-          case "signal":
-            console.log("Signal broadcast initiated");
-            playOrientationVideo();
-            break;
-          case "ignition":
+          case "launch":
             console.log("Launch sequence initiated");
             // Send message to parent to toggle launch mode
             window.parent.postMessage({ type: "LAUNCH_MODE_TOGGLE" }, "*");
             break;
-          case "launch":
-            console.log("Launch sequence initiated");
+          case "orbit":
+            console.log("Orbit adjustment in progress");
+            break;
+          case "signal":
+            console.log("Signal broadcast initiated");
             break;
           case "return":
             console.log("Return sequence activated");
@@ -3248,312 +3174,8 @@
         }, 2000);
       }
 
-      // Function to play the orientation video
-      function playOrientationVideo() {
-        const videoFeed = document.getElementById("video-feed");
-        const deadAir = document.getElementById("deadAir");
-        const signalButton = document.querySelector('[data-action="signal"]');
-        const connectButton = document.getElementById("call-button");
-        const offlineDisplay = document.getElementById("offline-display");
-        
-        console.log("SIGNAL button clicked - attempting to play orientation video");
-        
-        // Remove pulse effect from SIGNAL button immediately when clicked
-        if (signalButton) {
-          signalButton.classList.remove("initial-pulse");
-        }
-        
-        // First, clean up any existing orientation videos to prevent multiple playbacks
-        const existingVideos = document.querySelectorAll('#orientation-video');
-        if (existingVideos.length > 0) {
-          console.log(`Found ${existingVideos.length} existing orientation videos - cleaning up`);
-          existingVideos.forEach(video => {
-            // Remove event listeners first to prevent error events during cleanup
-            video.onloadstart = null;
-            video.onloadedmetadata = null;
-            video.onloadeddata = null;
-            video.oncanplay = null;
-            video.oncanplaythrough = null;
-            video.onerror = null;
-            video.onended = null;
-            video.onplaying = null;
-            
-            // Stop playback
-            try {
-              video.pause();
-              // Don't set src to empty string as it can trigger error events
-              video.removeAttribute('src');
-              // Remove controls attribute if present
-              video.removeAttribute('controls');
-            } catch (e) {
-              console.log("Error during video cleanup:", e);
-            }
-            // Remove from DOM
-            video.remove();
-          });
-          
-          // Show offline display and deadAir video again
-          if (offlineDisplay) {
-            offlineDisplay.style.display = 'flex';
-            offlineDisplay.innerHTML = '<span>SYS//OFFLINE</span><div class="crosshair-h"></div><div class="crosshair-v"></div><div class="scanlines-overlay"></div>';
-          }
-          
-          if (deadAir) {
-            deadAir.style.display = '';
-          }
-          
-          return; // Exit function after stopping playback
-        }
-        
-        // Check if this is the first time viewing - we'll still play the video, but
-        // only set the CONNECT button to pulse on first viewing
-        const isFirstViewing = localStorage.getItem('orientationViewed') !== 'true';
-        console.log("First time viewing?", isFirstViewing);
-        
-        // Create orientation video element
-        const orientationVideo = document.createElement('video');
-        
-        // Add event listeners to track video loading progress
-        orientationVideo.addEventListener('loadstart', () => console.log('🔄 Video loadstart event fired'));
-        orientationVideo.addEventListener('loadedmetadata', () => console.log('🔄 Video loadedmetadata event fired'));
-        orientationVideo.addEventListener('loadeddata', () => console.log('🔄 Video loadeddata event fired'));
-        orientationVideo.addEventListener('canplay', () => console.log('✅ Video canplay event fired - ready to play'));
-        orientationVideo.addEventListener('canplaythrough', () => console.log('✅ Video canplaythrough event fired - can play without buffering'));
-        orientationVideo.addEventListener('error', (e) => {
-          // Only log real errors, not cleanup-related ones
-          if (orientationVideo.src && orientationVideo.src !== '') {
-            console.error('❌ Video error event:', e);
-          }
-        });
-        
-        // Set attributes AFTER adding event listeners
-        orientationVideo.setAttribute('id', 'orientation-video');
-        orientationVideo.setAttribute('playsinline', '');
-        orientationVideo.setAttribute('webkit-playsinline', '');
-        orientationVideo.setAttribute('muted', ''); // Add muted attribute to help with autoplay
-        orientationVideo.setAttribute('preload', 'auto'); // Preload the video
-        orientationVideo.style.width = '100%';
-        orientationVideo.style.height = '100%';
-        orientationVideo.style.objectFit = 'cover';
-        orientationVideo.style.position = 'absolute';
-        orientationVideo.style.top = '0';
-        orientationVideo.style.left = '0';
-        orientationVideo.style.zIndex = '50'; // Higher z-index to ensure visibility
-        orientationVideo.style.display = 'block'; // Ensure video is visible
-        orientationVideo.style.opacity = '1'; // Ensure video is visible
-        orientationVideo.style.backgroundColor = '#000'; // Add background to video
-
-        // Set source LAST to avoid error events during setup
-        orientationVideo.setAttribute('src', '/orientation.mp4');
-        
-        // Add video to the feed
-        videoFeed.appendChild(orientationVideo);
-        
-        // Hide other elements
-        if (deadAir) {
-          deadAir.style.display = 'none';
-          deadAir.pause();
-        }
-        
-        if (offlineDisplay) {
-          offlineDisplay.style.display = 'none';
-        }
-        
-        // Make sure video display is expanded
-        const videoDisplay = document.querySelector(".video-display");
-        if (videoDisplay) {
-          videoDisplay.classList.add("active", "touched");
-          // Explicitly set height to ensure it overrides styles
-          videoDisplay.style.height = '180px';
-        }
-        
-        // Handle iOS/Safari-specific autoplay issues
-        if (isIOS || browserIsSafari) {
-          // Try to unmute and play after user interaction
-          document.addEventListener('touchstart', function playVideoOnTouch() {
-            orientationVideo.muted = false;
-            orientationVideo.play().catch(err => {
-              console.error("Error playing orientation video on touch:", err);
-              // Fall back to muted playback if unmuted fails
-              orientationVideo.muted = true;
-              orientationVideo.play().catch(e => console.error("Fallback play failed:", e));
-            });
-            document.removeEventListener('touchstart', playVideoOnTouch);
-          }, { once: true });
-        }
-        
-        // Log that we're attempting to play the video
-        console.log("Attempting to play orientation video...");
-        
-        // Play the video and log success
-        orientationVideo.play()
-          .then(() => {
-            console.log("✅ Orientation video is playing successfully");
-            
-            // Add event listener for when video actually starts rendering frames
-            orientationVideo.addEventListener('playing', () => {
-              console.log("✅ Orientation video is rendering frames now");
-            });
-            
-          })
-          .catch(err => {
-            console.error("❌ Error playing orientation video:", err);
-            // Fallback to muted play if unmuted fails (common on mobile)
-            orientationVideo.muted = true;
-            orientationVideo.play().catch(e => {
-              console.error("❌ Fallback muted play failed:", e);
-              // If all else fails, show a message
-              if (offlineDisplay) {
-                offlineDisplay.style.display = 'flex';
-                offlineDisplay.innerHTML = '<span>TAP TO PLAY ORIENTATION</span>';
-                offlineDisplay.style.cursor = 'pointer';
-                offlineDisplay.style.zIndex = '30';
-                offlineDisplay.addEventListener('click', function playOnClick() {
-                  orientationVideo.play().catch(err => console.error("❌ Play on click failed:", err));
-                  offlineDisplay.style.display = 'none';
-                  offlineDisplay.removeEventListener('click', playOnClick);
-                });
-              }
-            });
-          });
-        
-        // Log video properties to help debug
-        console.log("Video properties:", {
-          src: orientationVideo.src,
-          muted: orientationVideo.muted,
-          readyState: orientationVideo.readyState,
-          zIndex: orientationVideo.style.zIndex,
-          display: orientationVideo.style.display,
-          opacity: orientationVideo.style.opacity
-        });
-        
-        // When video ends, remove it and transfer pulse effect to CONNECT button
-        orientationVideo.addEventListener('ended', () => {
-          console.log("Orientation video finished");
-          
-          // Remove event listeners first to prevent error events during cleanup
-          orientationVideo.onloadstart = null;
-          orientationVideo.onloadedmetadata = null;
-          orientationVideo.onloadeddata = null;
-          orientationVideo.oncanplay = null;
-          orientationVideo.oncanplaythrough = null;
-          orientationVideo.onerror = null;
-          orientationVideo.onplaying = null;
-          
-          // Remove the video with proper cleanup
-          try {
-            orientationVideo.pause();
-            // Don't set src to empty string or call load() as it can trigger error events
-            orientationVideo.removeAttribute('src');
-          } catch (e) {
-            console.log("Error cleaning up video:", e);
-          }
-          orientationVideo.remove();
-          
-          // Show offline display again
-          if (offlineDisplay) {
-            offlineDisplay.style.display = 'flex';
-            // Restore original content if it was changed
-            offlineDisplay.innerHTML = '<span>SYS//OFFLINE</span><div class="crosshair-h"></div><div class="crosshair-v"></div><div class="scanlines-overlay"></div>';
-          }
-          
-          // Show deadAir again
-          if (deadAir) {
-            deadAir.style.display = '';
-          }
-          
-          // Only add pulse to CONNECT button on first viewing
-          if (isFirstViewing && connectButton) {
-            connectButton.classList.add("initial-pulse");
-            
-            // Mark orientation as viewed (only on first viewing)
-            localStorage.setItem('orientationViewed', 'true');
-          }
-        });
-      }
-
       // At the end of the file, add this script to resize the container
       document.addEventListener("DOMContentLoaded", function () {
-        console.log("DOMContentLoaded event fired - initializing button states");
-        
-        // Check for reset parameter to clear orientation viewed state (for testing)
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get("resetOrientation") === "true") {
-          localStorage.removeItem('orientationViewed');
-          console.log("Orientation viewed state has been reset for testing");
-        }
-        
-        // Force reset orientation state for testing - comment out in production
-        localStorage.removeItem('orientationViewed');
-        
-        // Make sure button states are properly initialized
-        const signalButton = document.querySelector('[data-action="signal"]');
-        const connectButton = document.getElementById("call-button");
-        
-        const orientationViewed = localStorage.getItem('orientationViewed') === 'true';
-        
-        // Debug indicator for orientation state
-        console.log(`Orientation video status: ${orientationViewed ? "viewed" : "not viewed yet"}`);
-        
-        // Clear any existing pulse classes first
-        if (signalButton) signalButton.classList.remove("initial-pulse");
-        if (connectButton) connectButton.classList.remove("initial-pulse");
-        
-        // Then apply the correct pulse class based on state
-        if (orientationViewed) {
-          // If orientation has been viewed, pulse the CONNECT button
-          if (connectButton) {
-            connectButton.classList.add("initial-pulse");
-            console.log("Adding pulse to CONNECT button");
-          }
-        } else {
-          // If orientation hasn't been viewed, pulse the SIGNAL button
-          if (signalButton) {
-            signalButton.classList.add("initial-pulse");
-            console.log("Adding pulse to SIGNAL button");
-          }
-        }
-        
-        // Simple video display expansion handling (like previous version)
-        const videoDisplay = document.querySelector('.video-display');
-        if (videoDisplay) {
-          // Initialize the display state based on screen height
-          if (window.innerHeight <= 700 && !isCallActive) {
-            videoDisplay.classList.remove("active");
-          } else {
-            videoDisplay.classList.add("active");
-          }
-          
-          // Simple click handler for toggling
-          videoDisplay.addEventListener('click', function() {
-            console.log("Video display clicked");
-            // Add touched class to stop pulsing animation
-            this.classList.add('touched');
-            
-            // Simple toggle for active class
-            if (this.classList.contains('active')) {
-              // Only collapse if we're on mobile and not in a call
-              if (window.innerHeight <= 700 && !isCallActive) {
-                this.classList.remove('active');
-                console.log("Collapsing video display");
-              }
-            } else {
-              this.classList.add('active');
-              console.log("Expanding video display");
-              
-              // Auto-collapse after 5 seconds if not in a call and on mobile
-              if (window.innerHeight <= 700 && !isCallActive) {
-                setTimeout(() => {
-                  if (!isCallActive) {
-                    this.classList.remove('active');
-                    console.log("Auto-collapsing video display");
-                  }
-                }, 5000);
-              }
-            }
-          });
-        }
-        
         // Function to adjust height to fill viewport
         function adjustHeight() {
           const missionControl = document.querySelector(".mission-control");
@@ -3568,108 +3190,43 @@
         window.addEventListener("resize", adjustHeight);
       });
 
-      // Remove all previous DOMContentLoaded handlers for video display and use this single function
-      function initVideoDisplayToggle() {
-        console.log("Initializing video display toggle behavior");
-        
-        // Clean up any existing click handlers by cloning and replacing
+      // Add click handler for collapsed video display
+      document.addEventListener("DOMContentLoaded", function () {
         const videoDisplay = document.querySelector(".video-display");
-        if (!videoDisplay) return;
-        
-        const newVideoDisplay = videoDisplay.cloneNode(true);
-        videoDisplay.parentNode.replaceChild(newVideoDisplay, videoDisplay);
-        
-        // Check if we're on a mobile screen
-        const isMobile = window.innerHeight <= 700;
-        
-        // Initialize state based on screen height and call status
-        if (isMobile && !isCallActive && !isEightiesMode) {
-          newVideoDisplay.classList.remove('active');
-          newVideoDisplay.style.height = '';
-        } else {
-          newVideoDisplay.classList.add('active');
-          // Let CSS handle height on desktop
-          newVideoDisplay.style.height = isMobile ? '180px' : '';
-        }
-        
-        // Add the core click handler that toggles between states
-        newVideoDisplay.addEventListener('click', function(e) {
-          console.log("Video display clicked");
-          
-          // Don't toggle if any videos are playing
-          const orientationVideo = document.getElementById('orientation-video');
-          if (orientationVideo) {
-            console.log("Ignoring click while orientation video is playing");
-            return;
-          }
-          
-          // Only toggle on mobile and when not in a call
-          if (!isMobile || isCallActive) {
-            console.log("Not toggling - not mobile or call is active");
-            return;
-          }
-          
-          // Add touched class to prevent animation
-          this.classList.add('touched');
-          
-          // Toggle active state
-          const isCurrentlyActive = this.classList.contains('active');
-          console.log("Current state:", isCurrentlyActive ? "active" : "inactive");
-          
-          if (isCurrentlyActive) {
-            // Collapse
-            this.classList.remove('active');
-            this.style.height = '';
-            console.log("Collapsing video display");
+        if (videoDisplay) {
+          // Initialize the display state based on screen height and call state
+          if (window.innerHeight <= 700 && !isCallActive) {
+            videoDisplay.classList.remove("active");
           } else {
-            // Expand
-            this.classList.add('active');
-            this.style.height = '180px';
-            console.log("Expanding video display");
-            
-            // Auto-collapse after timeout if not in a call
-            if (!isCallActive) {
+            videoDisplay.classList.add("active");
+          }
+
+          videoDisplay.addEventListener("click", function () {
+            // Add a "touched" class to stop the pulsing animation
+            this.classList.add("touched");
+
+            // Only trigger expansion if in collapsed state on mobile
+            if (
+              window.innerHeight <= 700 &&
+              !this.classList.contains("active") &&
+              !isCallActive
+            ) {
+              this.classList.add("active");
+              // Auto-collapse after 5 seconds if no call initiated
               setTimeout(() => {
                 if (!isCallActive) {
-                  this.classList.remove('active');
-                  this.style.height = '';
-                  console.log("Auto-collapsing video display after timeout");
+                  this.classList.remove("active");
                 }
               }, 5000);
+            } else if (
+              window.innerHeight <= 700 &&
+              this.classList.contains("active") &&
+              !isCallActive
+            ) {
+              // Allow collapsing when clicked if already expanded and not in a call
+              this.classList.remove("active");
             }
-          }
-          
-          // Force a reflow to ensure transitions work properly
-          this.offsetHeight;
-          window.dispatchEvent(new Event('resize'));
-        });
-        
-        console.log("Video display toggle initialized");
-        return newVideoDisplay;
-      }
-
-      // Replace all the individual video display initialization code with this handler
-      window.addEventListener('resize', function() {
-        const videoDisplay = document.querySelector('.video-display');
-        if (!videoDisplay) return;
-        
-        const isMobile = window.innerHeight <= 700;
-        
-        // Only remove 'active' on resize if mobile AND call is inactive AND 80s mode is OFF
-        if (isMobile && !isCallActive && !isEightiesMode) {
-          // Only collapse if not already collapsed (to avoid flickering)
-          if (videoDisplay.classList.contains('active')) {
-            videoDisplay.classList.remove('active');
-            videoDisplay.style.height = '';
-            console.log("Collapsing video display on resize");
-          }
-        } else {
-          // Always ensure it's active on non-mobile screens
-          if (!videoDisplay.classList.contains('active')) {
-            videoDisplay.classList.add('active');
-            videoDisplay.style.height = isMobile ? '180px' : '';
-            console.log("Expanding video display on resize");
-          }
+          });
         }
       });
 
@@ -3794,33 +3351,6 @@
               );
             }
           }
-          
-          // Handle video screen expansion messages
-          if (data.type === "EXPAND_VIDEO_SCREEN") {
-            console.log("Received EXPAND_VIDEO_SCREEN message:", data.expanded);
-            const videoDisplay = document.querySelector(".video-display");
-            if (videoDisplay) {
-              if (data.expanded) {
-                console.log("Expanding video display via message");
-                // Add both active and touched classes to ensure proper expansion
-                videoDisplay.classList.add("active");
-                videoDisplay.classList.add("touched");
-                
-                // Force the height to be 180px for mobile
-                videoDisplay.style.height = "180px";
-                
-                // Force a reflow to ensure the height change takes effect
-                videoDisplay.offsetHeight;
-                window.dispatchEvent(new Event('resize'));
-              } else {
-                console.log("Collapsing video display via message");
-                videoDisplay.classList.remove("active");
-                // Keep the touched class to prevent the pulsing animation
-                // Reset the height to let CSS handle it
-                videoDisplay.style.height = "";
-              }
-            }
-          }
         }
       });
 
@@ -3854,150 +3384,6 @@
           toggleRow.classList.remove("fullscreen");
         }
       });
-
-      // Add handler for video screen expansion messages
-      window.addEventListener("message", (event) => {
-        if (event.source === window.parent && event.data.type === "EXPAND_VIDEO_SCREEN") {
-          console.log("Received EXPAND_VIDEO_SCREEN message:", event.data.expanded);
-          const videoDisplay = document.querySelector(".video-display");
-          if (videoDisplay) {
-            if (event.data.expanded) {
-              console.log("Expanding video display");
-              // Add both active and touched classes to ensure proper expansion
-              videoDisplay.classList.add("active");
-              videoDisplay.classList.add("touched");
-              
-              // Force the height to be 180px for mobile
-              videoDisplay.style.height = "180px";
-              
-              // Also dispatch a resize event to ensure CSS media queries are applied
-              const resizeEvent = new Event('resize');
-              window.dispatchEvent(resizeEvent);
-              
-              // Add a small delay to ensure the height change takes effect
-              setTimeout(() => {
-                // Force a reflow to ensure the height change takes effect
-                videoDisplay.offsetHeight;
-              }, 50);
-            } else {
-              console.log("Collapsing video display");
-              videoDisplay.classList.remove("active");
-              // Keep the touched class to prevent the pulsing animation
-              // Reset the height to let CSS handle it
-              videoDisplay.style.height = "";
-            }
-          }
-        }
-      });
-
-      // Handle messages from parent window
-      window.addEventListener('message', function(event) {
-        if (event.data.type === 'EXPAND_VIDEO_SCREEN') {
-          const videoDisplay = document.querySelector('.video-display');
-          if (videoDisplay) {
-            if (event.data.expanded) {
-              videoDisplay.classList.add('active', 'touched');
-              videoDisplay.style.height = '180px';
-              // Force a reflow to ensure the height change takes effect
-              videoDisplay.offsetHeight;
-              window.dispatchEvent(new Event('resize'));
-            } else {
-              videoDisplay.classList.remove('active');
-              // Let the CSS handle the height transition
-              videoDisplay.style.height = '';
-              window.dispatchEvent(new Event('resize'));
-            }
-          }
-        }
-      });
-
-      // Add resize handler to adjust video display state
-      window.addEventListener('resize', function() {
-        const videoDisplay = document.querySelector('.video-display');
-        if (videoDisplay) {
-          const isMobile = window.innerHeight <= 700;
-          // Only remove 'active' on resize if mobile AND call is inactive AND 80s mode is OFF
-          if (isMobile && !isCallActive && !isEightiesMode) {
-            videoDisplay.classList.remove('active');
-            videoDisplay.style.height = ''; // Also reset height
-          } else if (!isMobile) {
-            // Always ensure it's active on non-mobile screens
-            videoDisplay.classList.add('active');
-            videoDisplay.style.height = ''; // Let CSS handle height on desktop
-          }
-          // If mobile and 80s mode is active, ensure it stays expanded
-          else if (isMobile && isEightiesMode) {
-              videoDisplay.classList.add('active', 'touched');
-              videoDisplay.style.height = '180px';
-          }
-        }
-      });
-
-      // Listen for synchronization messages from parent
-      window.addEventListener('message', function(event) {
-        if (!event.data || !event.data.type) return;
-        // Add origin check in production: if (event.origin !== 'YOUR_ORIGIN') return;
-
-        const type = event.data.type;
-        const enabled = event.data.enabled; // Expect a boolean
-
-        console.log('IFRAME received message:', event.data);
-
-        if (type === 'SYNC_80S_STATE') {
-          const eightiesToggle = document.getElementById('eighties-toggle');
-          if (eightiesToggle) {
-            // Only call updateEightiesUI if the state *actually* needs changing
-            if (typeof enabled === 'boolean' && enabled !== isEightiesMode) {
-              console.log(`Syncing 80s UI via updateEightiesUI to: ${enabled}`);
-              // Call the main UI update function. It handles the 'active' class
-              // and the internal isEightiesMode variable update.
-              updateEightiesUI(enabled);
-            }
-          }
-        } else if (type === 'SYNC_MUSIC_STATE') {
-          const musicToggle = document.getElementById('music-toggle');
-          if (musicToggle) {
-            const currentMusicState = musicToggle.classList.contains('active');
-            if (typeof enabled === 'boolean' && enabled !== currentMusicState) {
-              console.log(`Syncing music toggle visuals to: ${enabled}`);
-              // Directly toggle the class for music, as its click handler does
-              musicToggle.classList.toggle('active', enabled);
-            }
-          }
-        } else if (type === 'EXPAND_VIDEO_SCREEN') {
-           const videoDisplay = document.querySelector('.video-display');
-           if (videoDisplay) {
-             if (event.data.expanded) {
-               console.log("Expanding video display");
-               // Add both active and touched classes to ensure proper expansion
-               videoDisplay.classList.add("active");
-               videoDisplay.classList.add("touched");
-               
-               // Force the height to be 180px for mobile
-               videoDisplay.style.height = "180px";
-               
-               // Also dispatch a resize event to ensure CSS media queries are applied
-               const resizeEvent = new Event('resize');
-               window.dispatchEvent(resizeEvent);
-               
-               // Add a small delay to ensure the height change takes effect
-               setTimeout(() => {
-                 // Force a reflow to ensure the height change takes effect
-                 videoDisplay.offsetHeight;
-               }, 50);
-             } else {
-               console.log("Collapsing video display");
-               videoDisplay.classList.remove("active");
-               // Keep the touched class to prevent the pulsing animation
-               // Reset the height to let CSS handle it
-               videoDisplay.style.height = "";
-             }
-           }
-        }
-        // Add other message handlers if needed
-
-      });
-
     </script>
   </body>
 </html>

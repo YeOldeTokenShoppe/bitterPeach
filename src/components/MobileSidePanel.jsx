@@ -861,7 +861,7 @@ const MobileSidePanel = ({
             ∞
           </Text>
 
-          <Box
+          {/* <Box
             position="absolute"
             top="-3px"
             right="-10px"
@@ -877,7 +877,7 @@ const MobileSidePanel = ({
                 "100%": { opacity: 1 },
               },
             }}
-          />
+          /> */}
         </Box>
       </Button>
 

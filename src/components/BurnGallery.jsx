@@ -131,6 +131,7 @@ function BurnGallery({
   const [clerkUserData, setClerkUserData] = useState(null);
   const [rocketModelVisible, setRocketModelVisible] = useState(false);
   const [isConstellationVisible, setIsConstellationVisible] = useState(false);
+  const [constellationsVisible, setConstellationsVisible] = useState(true);
 
   const toggleConstellationVisibility = useCallback(() => {
     setIsConstellationVisible((prev) => !prev);
@@ -372,6 +373,7 @@ function BurnGallery({
               rocketModelVisible={rocketModelVisible}
               toggleRocketModel={toggleRocketModel}
               toggleConstellationVisibility={toggleConstellationVisibility}
+              isConstellationsVisible={constellationsVisible}
             />
           ) : (
             <SidePanel
@@ -384,6 +386,7 @@ function BurnGallery({
               rocketModelVisible={rocketModelVisible}
               toggleRocketModel={toggleRocketModel}
               toggleConstellationVisibility={toggleConstellationVisibility}
+               isConstellationsVisible={constellationsVisible} 
             />
           ))}
         {/* <Box
