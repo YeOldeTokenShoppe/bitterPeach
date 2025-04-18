@@ -3661,6 +3661,23 @@
         // Handle specific actions
         switch (action) {
           case "signal":
+            // --- Start: Prime audio context on signal click ---
+            try {
+              const tempContext = new (window.AudioContext || window.webkitAudioContext)();
+              // Create a dummy buffer source node - this alone might be enough
+              const bufferSource = tempContext.createBufferSource();
+              bufferSource.connect(tempContext.destination);
+              // Resume context if needed (especially after page load)
+              tempContext.resume().then(() => {
+                 console.log("AudioContext primed on START HERE click.");
+                 // Close the context after a brief moment to release resources
+                 setTimeout(() => tempContext.close(), 500);
+              }).catch(e => console.warn("AudioContext resume failed on prime:", e));
+            } catch (e) {
+              console.warn("AudioContext priming failed:", e);
+            }
+            // --- End: Prime audio context ---
+
             // Check if orientation video is already playing
             const orientationVideo = document.getElementById('orientation-video');
             
@@ -5111,11 +5128,58 @@
             document.removeEventListener('touchstart', playVideoOnTouch);
           }, { once: true });
         }
+
+        // Log that we're attempting to play the video (unmuted)
+        console.log("Attempting to play orientation video (unmuted)...");
+        orientationVideo.muted = false; // Ensure muted property is false
+
+        // Play the video and log success
+        orientationVideo.play()
+          .then(() => {
+            console.log("✅ Orientation video playing successfully");
+            
+            // Add event listener for when video actually starts rendering frames
+            orientationVideo.addEventListener('playing', () => {
+              console.log("✅ Orientation video is rendering frames now");
+            });
+            
+          })
+          .catch(err => {
+            console.error("❌ Error playing orientation video:", err);
+            // Fallback to muted play if unmuted fails (common on mobile)
+            orientationVideo.muted = true;
+            orientationVideo.play().catch(e => {
+              console.error("❌ Fallback muted play failed:", e);
+              // If all else fails, show a message
+              if (offlineDisplay) {
+                offlineDisplay.style.display = 'flex';
+                offlineDisplay.innerHTML = '<span>TAP TO PLAY ORIENTATION</span>';
+                offlineDisplay.style.cursor = 'pointer';
+                offlineDisplay.style.zIndex = '60';
+                offlineDisplay.addEventListener('click', function playOnClick() {
+                  videoElement.play().catch(err => console.error("❌ Play on click failed:", err));
+                  offlineDisplay.style.display = 'none';
+                  offlineDisplay.removeEventListener('click', playOnClick);
+                });
+              }
+            });
+          });
+        
+        // Log video properties to help debug
+        console.log("Video properties:", {
+          src: orientationVideo.src,
+          muted: orientationVideo.muted,
+          readyState: orientationVideo.readyState,
+          zIndex: orientationVideo.style.zIndex,
+          display: orientationVideo.style.display,
+          opacity: orientationVideo.style.opacity
+        });
       }
 
       // Helper function to handle video play errors
       function handleVideoPlayError(videoElement, offlineDisplay) {
-        // Try with muted playback
+        // Try with muted playback if unmuted failed
+        console.warn("Unmuted playback failed, attempting muted fallback...");
         videoElement.muted = true;
         videoElement.play().catch(e => {
           console.error("❌ Fallback muted play failed:", e);
