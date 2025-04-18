@@ -135,7 +135,7 @@ function Model({
   const mouseDownPosition = useRef(null);
   const mouseDownTimer = useRef(null);
   const HOLD_THRESHOLD = 800; // milliseconds to hold before placing candle
-  const MOVE_THRESHOLD = 25; // pixels of movement allowed while holding
+  const MOVE_THRESHOLD = 35; // pixels of movement allowed while holding
 
   // Add a ref to hold the candle placement function to avoid circular references
   const placeCandleFunc = useRef(null);
@@ -188,82 +188,80 @@ function Model({
     };
   }, []);
 
-  // Create simplified floor click handler
-  const handleFloorMouseDown = useCallback((event) => {
+  // NEW POINTER HANDLERS for Long Press
+  const handlePointerDown = useCallback((event) => {
     event.stopPropagation();
-    console.log("[handleFloorMouseDown] Started"); // Log start
-    mouseIsDownRef.current = true;
-    mouseDownTime.current = Date.now();
-    const point = event.point?.clone();
-    mouseDownPosition.current = {
-      x: event.nativeEvent?.clientX || event.clientX || 0,
-      y: event.nativeEvent?.clientY || event.clientY || 0,
-      point: point
-    };
-    candlePlacedRef.current = false;
-    
-    console.log("[handleFloorMouseDown] Setting timeout for placement..."); // Log before timeout
-    holdTimeoutRef.current = setTimeout(() => {
-      console.log("[Timeout Callback] Fired"); // Log when timeout runs
-      console.log("  - mouseIsDownRef.current:", mouseIsDownRef.current);
-      console.log("  - !candlePlacedRef.current:", !candlePlacedRef.current);
-      console.log("  - placeCandleFunc.current:", !!placeCandleFunc.current); // Log if function exists
-      console.log("  - mouseDownPosition.current?.point:", !!mouseDownPosition.current?.point); // Log if point exists
-
-      // Ensure mouse is still down and candle hasn't been placed yet
-      if (mouseIsDownRef.current && !candlePlacedRef.current && placeCandleFunc.current && mouseDownPosition.current?.point) {
-        console.log("[Timeout Callback] Conditions met, calling placeCandleFunc"); // Log before placement
-        placeCandleFunc.current(mouseDownPosition.current.point);
-        candlePlacedRef.current = true;
-      } else {
-        console.log("[Timeout Callback] Conditions NOT met, candle not placed."); // Log if conditions fail
+    // Check the intersections provided by the event
+    let floorIntersection = null;
+    for (const intersection of event.intersections) {
+      const obj = intersection.object;
+      if (obj.isMesh && (obj.name === "Floor" || obj.name === "Floor2.002" || obj.name.includes("Floor2") || obj.name.includes("goldCircuit"))) {
+        floorIntersection = intersection;
+        break; // Found the first floor intersection
       }
-    }, HOLD_THRESHOLD);
-    
-    const handleMoveWhileHolding = (moveEvent) => {
-      if (!mouseDownPosition.current) return;
-      const clientX = moveEvent.clientX || moveEvent.touches?.[0]?.clientX || 0;
-      const clientY = moveEvent.clientY || moveEvent.touches?.[0]?.clientY || 0;
-      const dx = clientX - mouseDownPosition.current.x;
-      const dy = clientY - mouseDownPosition.current.y;
-      const distance = Math.sqrt(dx*dx + dy*dy);
-      if (distance > MOVE_THRESHOLD) {
-        console.log("[handleMoveWhileHolding] Movement threshold exceeded, clearing timeout."); // Log move clear
-        mouseIsDownRef.current = false;
-        window.removeEventListener('mousemove', handleMoveWhileHolding);
-        window.removeEventListener('mouseup', handleUpAfterHolding);
-        window.removeEventListener('touchmove', handleMoveWhileHolding);
-        window.removeEventListener('touchend', handleUpAfterHolding);
-        if (holdTimeoutRef.current) {
-          console.log("[handleMoveWhileHolding] Clearing timeout on mouse move."); // Log move clear
-          clearTimeout(holdTimeoutRef.current);
-          holdTimeoutRef.current = null;
+    }
+
+    if (floorIntersection) {
+      // A floor was pressed
+      console.log("[handlePointerDown] Floor pressed");
+      mouseIsDownRef.current = true;
+      mouseDownTime.current = Date.now();
+      // Use the point from the actual floor intersection
+      mouseDownPosition.current = { x: event.clientX, y: event.clientY, point: floorIntersection.point.clone() }; 
+      candlePlacedRef.current = false;
+
+      console.log("[handlePointerDown] Setting timeout for placement...");
+      holdTimeoutRef.current = setTimeout(() => {
+        console.log("[Timeout Callback] Fired");
+        console.log("  - mouseIsDownRef.current:", mouseIsDownRef.current);
+        console.log("  - !candlePlacedRef.current:", !candlePlacedRef.current);
+        console.log("  - placeCandleFunc.current:", !!placeCandleFunc.current);
+        console.log("  - mouseDownPosition.current?.point:", !!mouseDownPosition.current?.point);
+
+        if (mouseIsDownRef.current && !candlePlacedRef.current && placeCandleFunc.current && mouseDownPosition.current?.point) {
+          console.log("[Timeout Callback] Conditions met, calling placeCandleFunc");
+          placeCandleFunc.current(mouseDownPosition.current.point);
+          candlePlacedRef.current = true;
+        } else {
+          console.log("[Timeout Callback] Conditions NOT met, candle not placed.");
         }
-        mouseDownPosition.current = null;
-      }
-    };
+      }, HOLD_THRESHOLD);
+    }
+  }, [HOLD_THRESHOLD]);
 
-    const handleUpAfterHolding = (upEvent) => {
-      // Ensure mouse is marked as up before stopping indicator
-      mouseIsDownRef.current = false; 
-      window.removeEventListener('mousemove', handleMoveWhileHolding);
-      window.removeEventListener('mouseup', handleUpAfterHolding);
-      window.removeEventListener('touchmove', handleMoveWhileHolding);
-      window.removeEventListener('touchend', handleUpAfterHolding);
+  const handlePointerMove = useCallback((event) => {
+    if (!mouseIsDownRef.current || !mouseDownPosition.current) return;
+
+    const clientX = event.clientX;
+    const clientY = event.clientY;
+    const dx = clientX - mouseDownPosition.current.x;
+    const dy = clientY - mouseDownPosition.current.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    if (distance > MOVE_THRESHOLD) {
+      console.log("[handlePointerMove] Movement threshold exceeded, clearing timeout.");
+      mouseIsDownRef.current = false;
       if (holdTimeoutRef.current) {
-        console.log("[handleUpAfterHolding] Clearing timeout on mouse up."); // Log mouseup clear
         clearTimeout(holdTimeoutRef.current);
         holdTimeoutRef.current = null;
       }
-      mouseDownPosition.current = null;
-    };
+      mouseDownPosition.current = null; // Reset position data
+    }
+  }, [MOVE_THRESHOLD]);
 
-    window.addEventListener('mousemove', handleMoveWhileHolding);
-    window.addEventListener('mouseup', handleUpAfterHolding);
-    window.addEventListener('touchmove', handleMoveWhileHolding);
-    window.addEventListener('touchend', handleUpAfterHolding);
-  }, [MOVE_THRESHOLD, HOLD_THRESHOLD]);
-  
+  const handlePointerUp = useCallback((event) => {
+    if (!mouseIsDownRef.current) return; // Only process if mouse was down
+    event.stopPropagation();
+    console.log("[handlePointerUp] Pointer up");
+    mouseIsDownRef.current = false;
+    if (holdTimeoutRef.current) {
+      console.log("[handlePointerUp] Clearing timeout on pointer up.");
+      clearTimeout(holdTimeoutRef.current);
+      holdTimeoutRef.current = null;
+    }
+    mouseDownPosition.current = null; // Reset position data
+  }, []);
+
   // Function to actually place the candle
   const placeCandleAtPoint = useCallback((point) => {
     console.log("[placeCandleAtPoint] Function called with point:", point); // Log start of placement function
@@ -383,7 +381,7 @@ function Model({
   }, [placeCandleAtPoint]);
 
   // Replace the old handleFloorClick with the mouse down handler
-  const handleFloorClick = handleFloorMouseDown;
+  // const handleFloorClick = handlePointerDown; // No longer needed as we use direct pointer handlers
   
   // Clean up any timers on unmount
   useEffect(() => {
@@ -400,48 +398,7 @@ function Model({
     (event) => {
       event.stopPropagation();
 
-
-      // Check if this is a floor or floor-like object first to show indicator immediately
-      if (
-        event.object.name === "Floor" ||
-        event.object.name === "Floor2.002" ||
-        event.object.name.includes("Floor2") ||
-        event.object.name.includes("goldCircuit")
-      ) {
-        // This is a floor click, immediately start the hold timer
-        handleFloorMouseDown(event);
-        return;
-      }
-
-      // For all candle or other object clicks, continue with regular logic
-      // Check if the click goes through one of our floor objects
-      const raycaster = new THREE.Raycaster();
-      raycaster.set(event.ray.origin, event.ray.direction);
-      
-      // Find all floor objects
-      const floors = [];
-      gltf.scene.traverse((obj) => {
-        if (
-          obj.isMesh &&
-          (obj.name === "Floor" ||
-            obj.name === "Floor2.002" ||
-            obj.name.includes("Floor2") ||
-            obj.name.includes("goldCircuit"))
-        ) {
-          floors.push(obj);
-        }
-      });
-      
-      // Check if ray intersects any floor
-      const floorHits = raycaster.intersectObjects(floors, false);
-      if (floorHits.length > 0) {
-        // This is a floor hit, treat as floor click
-        const floorEvent = {...event, object: floorHits[0].object, point: floorHits[0].point};
-        handleFloorMouseDown(floorEvent);
-        return;
-      }
-
-      // Not a floor hit, continue with regular candle detection
+      // Only handle clicks on VCANDLEs now
       const getEventCoordinates = () => {
         // Check if it's a touch event
         if (event.nativeEvent.touches && event.nativeEvent.touches.length > 0) {
@@ -511,7 +468,7 @@ function Model({
         }
       }
     },
-    [camera, modelRef, handleFloorMouseDown, onCandleClick, gltf.scene]
+    [camera, modelRef, onCandleClick]
   );
   
   // Add a function to show the user how many candles are available
@@ -1446,6 +1403,10 @@ function Model({
         position={[0, -20, 0]}
         rotation={rotation}
         onClick={handleCandleClick}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerLeave={handlePointerUp}
       />
       <primitive ref={candleModelRef} object={new THREE.Group()} />
       <DarkClouds />
