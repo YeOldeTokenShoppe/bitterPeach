@@ -139,7 +139,7 @@ function HolographicStatue({ onLoad }) {
 
       // Create an anchor group with initial position
       const anchorGroup = new THREE.Group();
-      const basePosition = [-0.5, 5.0, -0.9];
+      const basePosition = [-0.3, 4.3, -.3];
       anchorGroup.position.set(...basePosition);
       initialY.current = basePosition[1];
 

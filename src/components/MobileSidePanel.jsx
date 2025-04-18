@@ -25,11 +25,7 @@ const MobileSidePanel = ({
   toggleRocketModel,
   toggleConstellationVisibility,
 }) => {
-  console.log("--- MobileSidePanel RENDERED ---", {
-    is80sMode,
-    showSpotify,
-    rocketModelVisible,
-  });
+
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [activeCall, setActiveCall] = useState(false);
   const [currentStation, setCurrentStation] = useState("LUNAR BASE ALPHA");
@@ -49,7 +45,7 @@ const MobileSidePanel = ({
 
   // Function to toggle rocket model visibility - now uses the prop function
   const handleRocketModelToggle = () => {
-    console.log("MobileSidePanel: Toggling rocket model");
+
     toggleRocketModel();
     // Send message to iframe
     if (missionControlIframeRef.current) {
@@ -73,34 +69,7 @@ const MobileSidePanel = ({
         const videoScreen = iframe.contentDocument.querySelector(".video-screen");
         const videoContainer = iframe.contentDocument.querySelector(".video-container");
         
-        console.log("Video Screen State:", {
-          videoArea: videoArea ? {
-            display: videoArea.style.display,
-            height: videoArea.style.height,
-            maxHeight: videoArea.style.maxHeight,
-            classes: videoArea.className,
-            computedHeight: window.getComputedStyle(videoArea).height
-          } : null,
-          offlineDisplay: offlineDisplay ? {
-            display: offlineDisplay.style.display,
-            height: offlineDisplay.style.height,
-            maxHeight: offlineDisplay.style.maxHeight,
-            classes: offlineDisplay.className,
-            computedHeight: window.getComputedStyle(offlineDisplay).height
-          } : null,
-          videoScreen: videoScreen ? {
-            display: videoScreen.style.display,
-            height: videoScreen.style.height,
-            maxHeight: videoScreen.style.maxHeight,
-            computedHeight: window.getComputedStyle(videoScreen).height
-          } : null,
-          videoContainer: videoContainer ? {
-            display: videoContainer.style.display,
-            height: videoContainer.style.height,
-            maxHeight: videoContainer.style.maxHeight,
-            computedHeight: window.getComputedStyle(videoContainer).height
-          } : null
-        });
+        
       }
     } catch (error) {
       console.error("Error logging video screen state:", error);
@@ -140,7 +109,7 @@ const MobileSidePanel = ({
       const iframe = missionControlIframeRef.current;
       if (!iframe || !iframe.contentDocument) return;
 
-      console.log("Expanding video display and adding vaporwave video...");
+
       
       // 1. First, grab the key elements
       const videoDisplay = iframe.contentDocument.querySelector(".video-display");
@@ -150,7 +119,7 @@ const MobileSidePanel = ({
       
       // 2. Add 'active' class to video-display - THIS IS THE KEY STEP
       if (videoDisplay) {
-        console.log("Adding 'active' class to video-display");
+
         videoDisplay.classList.add("active");
         videoDisplay.classList.add("touched"); // Add touched class to prevent pulsing
         
@@ -174,7 +143,7 @@ const MobileSidePanel = ({
         let vaporVideo = videoFeed.querySelector('video[data-vaporwave]');
         
         if (!vaporVideo) {
-          console.log("Creating new vaporwave video element");
+      
           vaporVideo = iframe.contentDocument.createElement('video');
           vaporVideo.setAttribute('data-vaporwave', 'true');
           vaporVideo.setAttribute('src', '/vaporwave-sunset.mp4');
@@ -198,7 +167,7 @@ const MobileSidePanel = ({
           vaporVideo.play().catch(err => console.warn("Could not autoplay video:", err));
         } else {
           // Update existing video
-          console.log("Updating existing vaporwave video");
+
           vaporVideo.style.display = "block";
           vaporVideo.play().catch(err => console.warn("Could not play video:", err));
         }
@@ -227,7 +196,7 @@ const MobileSidePanel = ({
         videoDisplay.offsetHeight;
       }
       
-      console.log("Video display expansion and vaporwave video setup complete");
+
     } catch (error) {
       console.error("Error in expandVideoScreen:", error);
     }
@@ -238,7 +207,7 @@ const MobileSidePanel = ({
       const iframe = missionControlIframeRef.current;
       if (!iframe || !iframe.contentDocument) return;
       
-      console.log("Collapsing video display...");
+
       
       // 1. Get the video display element
       const videoDisplay = iframe.contentDocument.querySelector(".video-display");
@@ -247,7 +216,7 @@ const MobileSidePanel = ({
       
       // 2. Remove the 'active' class to collapse it
       if (videoDisplay) {
-        console.log("Removing 'active' class from video-display");
+
         videoDisplay.classList.remove("active");
         // Keep the touched class to prevent the pulsing animation
       }
@@ -256,7 +225,7 @@ const MobileSidePanel = ({
       if (videoFeed) {
         const vaporVideo = videoFeed.querySelector('video[data-vaporwave]');
         if (vaporVideo) {
-          console.log("Removing vaporwave video");
+ 
           vaporVideo.pause();
           vaporVideo.style.display = "none";
           // Optionally remove it entirely
@@ -276,7 +245,7 @@ const MobileSidePanel = ({
         "*"
       );
       
-      console.log("Video display collapse complete");
+
     } catch (error) {
       console.error("Error in collapseVideoScreen:", error);
     }
@@ -290,11 +259,11 @@ const MobileSidePanel = ({
         while (messageQueueRef.current.length > 0) {
           const queuedMessage = messageQueueRef.current.shift();
           iframe.contentWindow.postMessage(queuedMessage, "*");
-          console.log("Sent QUEUED message TO iframe:", queuedMessage);
+  
         }
         // Send the current message
         iframe.contentWindow.postMessage(message, "*");
-        console.log("Sent message TO iframe:", message);
+
       } catch (error) {
         console.error("Error sending message to iframe:", error);
       }
@@ -307,10 +276,7 @@ const MobileSidePanel = ({
 
   // Effect to send SYNC messages TO iframe when props change
   useEffect(() => {
-    console.log(
-      "MobileSidePanel: showSpotify prop changed (queuing if needed):",
-      showSpotify
-    );
+
     sendMessageToMissionControl({
       type: "SYNC_MUSIC_STATE",
       enabled: showSpotify,
@@ -318,10 +284,7 @@ const MobileSidePanel = ({
   }, [showSpotify]); // Re-run when showSpotify changes
 
   useEffect(() => {
-    console.log(
-      "MobileSidePanel: is80sMode prop changed (queuing if needed):",
-      is80sMode
-    );
+
     sendMessageToMissionControl({
       type: "SYNC_80S_STATE",
       enabled: is80sMode,
@@ -330,10 +293,7 @@ const MobileSidePanel = ({
 
   // Effect to sync rocket model state with iframe
   useEffect(() => {
-    console.log(
-      "MobileSidePanel: rocketModelVisible prop changed (queuing if needed):",
-      rocketModelVisible
-    );
+
     sendMessageToMissionControl({
       type: "SYNC_ROCKET_MODEL_STATE",
       enabled: rocketModelVisible,
@@ -348,14 +308,12 @@ const MobileSidePanel = ({
       // Add origin check for security in production
       // if (event.origin !== 'YOUR_EXPECTED_PARENT_ORIGIN') return;
 
-      console.log("MobileSidePanel: Message received from iframe:", event.data);
+  
 
       switch (event.data.type) {
         // --- Handle iframe readiness ---
         case "IFRAME_READY":
-          console.log(
-            "***** MobileSidePanel: Received IFRAME_READY signal! Setting iframeReady to true. *****"
-          );
+
           setIframeReady(true);
           // Attempt to send any queued messages now
           sendMessageToMissionControl({ type: "FLUSH_QUEUE" }); // Send a dummy message to trigger flush
@@ -364,16 +322,11 @@ const MobileSidePanel = ({
 
         // ... other cases like SITEPAL_*, EIGHTIES_MODE_CHANGE, MUSIC_TOGGLE ...
         case "EIGHTIES_MODE_CHANGE":
-          console.log(
-            "MobileSidePanel: Handling EIGHTIES_MODE_CHANGE from iframe"
-          );
+
           toggle80sMode(); // Call the function from gallery.js
           break;
         case "MUSIC_TOGGLE":
-          console.log(
-            "MobileSidePanel: Handling MUSIC_TOGGLE from iframe",
-            event.data.enabled
-          );
+
           if (typeof event.data.enabled === "boolean") {
             setShowSpotify(event.data.enabled); // Call the function from gallery.js
           } else {
@@ -383,10 +336,7 @@ const MobileSidePanel = ({
           }
           break;
         case "ROCKET_MODEL_TOGGLE":
-          console.log(
-            "MobileSidePanel: Handling ROCKET_MODEL_TOGGLE from iframe",
-            event.data.enabled
-          );
+ 
           if (typeof event.data.enabled === "boolean" && toggleRocketModel) {
             // Only toggle if the current state doesn't match the desired state
             if (rocketModelVisible !== event.data.enabled) {
@@ -399,7 +349,7 @@ const MobileSidePanel = ({
           }
           break;
         case "LAUNCH_MODE_TOGGLE":
-          console.log("Launch mode toggle requested");
+     
           if (is80sMode) {
             toggle80sMode();
           }
@@ -416,10 +366,7 @@ const MobileSidePanel = ({
           }
           break;
         case "CONSTELLATION_TOGGLE":
-          console.log(
-            "MobileSidePanel: Received CONSTELLATION_TOGGLE message, enabled:",
-            event.data.enabled
-          );
+
           if (toggleConstellationVisibility) {
             toggleConstellationVisibility();
           } else {
@@ -453,7 +400,7 @@ const MobileSidePanel = ({
           break;
         case "EXPAND_VIDEO_SCREEN":
           if (is80sMode) {
-            console.log("MobileSidePanel: Video screen expansion requested");
+
             // Use our new approach to integrate with iframe
             if (event.data.expanded) {
               expandVideoScreen();
@@ -465,24 +412,21 @@ const MobileSidePanel = ({
 
         case "SITEPAL_LOADED":
           if (is80sMode && missionControlIframeRef.current) {
-            console.log("MobileSidePanel: SitePal loaded");
+     
             // Use our new approach to integrate with iframe
             expandVideoScreen();
           }
           break;
         // ... rest of the cases like LAUNCH_MODE_TOGGLE, CONSTELLATION_TOGGLE etc.
         case "NAVIGATE_TO_HOME":
-          console.log("MobileSidePanel: Received NAVIGATE_TO_HOME message, redirecting to home page");
+
           router.push("/home");
           break;
         default:
           // Log unhandled message types
           if (event.data.type !== "FIREBASE_CONFIG_RESPONSE") {
             // Avoid logging the config response itself
-            console.log(
-              "MobileSidePanel: Unhandled message type from iframe:",
-              event.data.type
-            );
+ 
           }
           break;
       }
@@ -639,7 +583,7 @@ const MobileSidePanel = ({
   
   // Add effect to monitor 80s mode changes
   useEffect(() => {
-    console.log("80s Mode changed:", is80sMode);
+
     setShowVaporwaveVideo(is80sMode);
     
     // When 80s mode is enabled, ensure video screen is expanded
@@ -703,7 +647,7 @@ const MobileSidePanel = ({
       // Wait for drawer to fully open before adjusting visuals
       setTimeout(() => {
         // Sync toggle states with the iframe
-        console.log("MobileSidePanel drawer opened, sending sync messages...");
+
         sendMessageToMissionControl({
           type: "SYNC_80S_STATE",
           enabled: is80sMode, // Use the current prop value
@@ -1005,7 +949,7 @@ const MobileSidePanel = ({
                 }}
                 title="Mission Control Panel Mobile"
                 onLoad={(e) => {
-                  console.log("MobileSidePanel: iframe onLoad event fired.");
+            
                   // Store the reference to make it accessible
                   setIframeReady(true);
                   

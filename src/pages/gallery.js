@@ -1,16 +1,11 @@
 import React, { useState, useEffect, Suspense } from "react";
 import dynamic from "next/dynamic";
-import BurnGallery from "../components/BurnGallery";
 import NavBar from "../components/NavBar.client";
 import Communion3 from "../components/Communion3";
 import Loader from "../components/Loader";
 import { X } from "lucide-react";
 
-// Dynamically import heavy components
-// const BurnGalleryDynamic = dynamic(() => import("../components/BurnGallery"), {
-//   ssr: false,
-//   loading: () => <Loader />,
-// });
+
 
 // Dynamically import both music players
 const MusicPlayer2 = dynamic(() => import("../components/MusicPlayer2"), {
@@ -171,12 +166,7 @@ export default function GalleryPage() {
       }
     }
 
-    console.log(
-      "Gallery: 80's mode toggled to",
-      newMode,
-      "showSpotify:",
-      showSpotify
-    );
+   
   };
 
   // Handle close for music player
@@ -285,10 +275,7 @@ export default function GalleryPage() {
 
         // Handle request for current music state
         if (event.data.type === "REQUEST_MUSIC_STATE") {
-          console.log(
-            "Received request for music state, current state:",
-            showSpotify
-          );
+  
 
           // Get iframe reference
           const iframe = getMissionControlIframe();
@@ -328,7 +315,7 @@ export default function GalleryPage() {
     const syncMissionControl = () => {
       const iframe = getMissionControlIframe();
       if (iframe && iframe.contentWindow) {
-        console.log("Mission control iframe found, syncing state");
+
 
         // Send initial state sync
         iframe.contentWindow.postMessage(

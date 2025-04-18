@@ -338,7 +338,7 @@ const SidePanel = ({
           const docSnap = await getDoc(docRef);
 
           if (docSnap.exists()) {
-            console.log("User already exists in Firestore:", docSnap.data());
+        
           } else {
             await setDoc(docRef, userData, { merge: true });
           }
@@ -440,12 +440,7 @@ const SidePanel = ({
         const iframe = sitepalIframeRef.current;
         if (iframe) {
           const rect = iframe.getBoundingClientRect();
-          console.log("Iframe dimensions:", {
-            width: rect.width,
-            height: rect.height,
-            top: rect.top,
-            left: rect.left,
-          });
+
 
           // Ensure iframe has proper dimensions
           if (rect.width === 0 || rect.height === 0) {
@@ -476,7 +471,7 @@ const SidePanel = ({
   const fullMicCleanup = () => {
     // Clean up microphone tracks if any
     if (microphoneStreamRef.current) {
-      console.log("Stopping microphone tracks...");
+
       microphoneStreamRef.current.getTracks().forEach((track) => {
         track.stop();
       });
@@ -496,7 +491,7 @@ const SidePanel = ({
     );
     if (iframe && iframe.contentWindow) {
       try {
-        console.log("Sending message to Mission Control iframe:", message);
+    
         iframe.contentWindow.postMessage(message, "*"); // Use specific origin in production
 
         // Add special handling for SitePal mic activation if still needed
@@ -545,7 +540,7 @@ const SidePanel = ({
       // Add origin check for security in production
       // if (event.origin !== 'YOUR_EXPECTED_PARENT_ORIGIN') return;
 
-      console.log("SidePanel: Message received from iframe:", event.data);
+
 
       // ---> REMOVE Log here <---
       // console.log(
@@ -554,7 +549,7 @@ const SidePanel = ({
 
       switch (event.data.type) {
         case "REQUEST_FIREBASE_CONFIG":
-          console.log("Iframe requested Firebase config.");
+   
           // Construct config from environment variables
           const firebaseConfig = {
             apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -572,19 +567,17 @@ const SidePanel = ({
             type: "FIREBASE_CONFIG_RESPONSE",
             config: firebaseConfig,
           });
-          console.log(
-            "Sent Firebase config to iframe via sendMessageToIframe."
-          );
+      
           break;
 
         case "EIGHTIES_MODE_CHANGE": // Received from iframe toggle
-          console.log("80s mode toggle requested by iframe");
+ 
           toggle80sMode(); // Call the function passed via props
           break;
 
         // Add new case for rocket model toggle
         case "TOGGLE_ROCKET_MODEL":
-          console.log("SidePanel: Received TOGGLE_ROCKET_MODEL message");
+
           handleRocketModelToggle();
           break;
 
@@ -632,11 +625,11 @@ const SidePanel = ({
 
         // Existing SitePal messages
         case "SITEPAL_READY":
-          console.log("SitePal is ready");
+
           setIsIframeLoaded(true);
           break;
         case "SITEPAL_STATE_CHANGE":
-          console.log("SitePal state changed:", event.data.isListening);
+
           setIsMuted(!event.data.isListening);
           break;
         case "SITEPAL_ERROR":
@@ -645,7 +638,7 @@ const SidePanel = ({
 
         // Existing messages we might need to keep
         case "LAUNCH_MODE_TOGGLE": // Assuming this is still relevant
-          console.log("Launch mode toggle requested");
+   
           if (is80sMode) {
             toggle80sMode();
           }
@@ -670,15 +663,12 @@ const SidePanel = ({
 
         // IFRAME_MUSIC_STATE might be useful for debugging
         case "IFRAME_MUSIC_STATE":
-          console.log("Received iframe music state:", event.data);
+ 
           break;
 
         // ---> ADD: Handle Constellation Toggle <---
         case "CONSTELLATION_TOGGLE":
-          console.log(
-            "SidePanel: Received CONSTELLATION_TOGGLE message, enabled:", // REMOVE marker
-            event.data.enabled
-          );
+   
           if (toggleConstellationVisibility) {
             toggleConstellationVisibility();
           } else {
@@ -690,7 +680,7 @@ const SidePanel = ({
 
         // Handle navigation to home page
         case "NAVIGATE_TO_HOME":
-          console.log("SidePanel: Received NAVIGATE_TO_HOME message, redirecting to home page");
+
           router.push("/home");
           break;
 
@@ -723,9 +713,7 @@ const SidePanel = ({
           // Log unhandled message types
           if (event.data.type !== "FIREBASE_CONFIG_RESPONSE") {
             // Avoid logging the config response itself
-            console.log(
-              `SidePanel: Unhandled message type from iframe: '${event.data.type}'` // Keep this for unknown messages
-            );
+    
           }
           break;
       }
@@ -833,7 +821,7 @@ const SidePanel = ({
         });
 
         setIsMuted(false); // Update parent component state optimistically
-        console.log("Mic activation messages sent to iframe");
+
       } catch (error) {
         console.error("Error sending mic activation messages:", error);
       }
@@ -889,7 +877,7 @@ const SidePanel = ({
 
   // Add a function to handle rocket model toggle
   const handleRocketModelToggle = () => {
-    console.log("SidePanel: Toggling rocket model");
+
     toggleRocketModel();
 
     // Send message to iframe
@@ -926,7 +914,7 @@ const SidePanel = ({
 
   // Sync state when iframe loads
   const handleIframeLoad = useCallback(() => {
-    console.log("SidePanel: iframe loaded, syncing state");
+
     // Wait a tick to ensure iframe JS is ready
     setTimeout(() => {
       syncIframeState();
@@ -962,8 +950,7 @@ const SidePanel = ({
 
   // Add effect to monitor 80s mode changes
   useEffect(() => {
-    console.log("SidePanel: 80s Mode changed:", is80sMode);
-    console.log("SidePanel: Video state:", showVaporwaveVideo);
+
     setShowVaporwaveVideo(is80sMode);
     
     // When exiting 80s mode, ensure the video overlay is hidden immediately

@@ -15,13 +15,13 @@ function ConstellationModel({ isVisible = true }) {
   const { scene: starCandlesScene } = useGLTF("/starCandles.glb");
   const groupRef = useRef();
 
-  console.log("ConstellationModel rendered with isVisible:", isVisible);
+
 
   // Set up the models when they load
   useEffect(() => {
     // Ensure all scenes are loaded
     if (!marketScene || !whaleScene || !starCandlesScene) return;
-    console.log("Setting up constellation models with isVisible:", isVisible);
+
 
     // Create copies to avoid modifying cached originals
     const marketClone = marketScene.clone();
@@ -30,10 +30,10 @@ function ConstellationModel({ isVisible = true }) {
 
     // Helper function to process models
     const processModel = (modelScene, namePrefix = "", initialVisible = true, position = [0, 0, 0], scale = [1, 1, 1]) => {
-      console.log(`Processing model: ${namePrefix || 'market'}`);
+
       modelScene.traverse((child) => {
         if (child.isMesh) {
-          console.log(`Mesh: ${child.name}`);
+
           // Configure all meshes for better rendering in background
           child.castShadow = false;
           child.receiveShadow = false;
@@ -50,7 +50,7 @@ function ConstellationModel({ isVisible = true }) {
             ) {
               child.material.transparent = true;
               child.material.opacity = 0.015; // Keep lines consistently faint
-              console.log(`Set constant opacity for ${child.name}`);
+       
             }
 
             // Scale down red/green stars
@@ -71,10 +71,7 @@ function ConstellationModel({ isVisible = true }) {
              }
           }
 
-          // Set initial visibility based on the prop
-          console.log(
-            `Found object: ${child.name}, setting initial visible to ${initialVisible}`
-          );
+
           child.visible = initialVisible;
         }
       });
@@ -117,7 +114,7 @@ function ConstellationModel({ isVisible = true }) {
            }
          });
       });
-      console.log("Cleaned up constellation models");
+
     };
   }, [marketScene, whaleScene, starCandlesScene, isVisible]); // Depend on scenes and isVisible for initial setup
 
@@ -125,12 +122,12 @@ function ConstellationModel({ isVisible = true }) {
   useEffect(() => {
     if (!groupRef.current) return;
 
-    console.log("Updating visibility of ALL constellation objects to:", isVisible);
+
 
     groupRef.current.traverse((child) => {
       // Check if it's a Mesh directly within the group or within the added scenes
       if (child.isMesh) {
-         console.log(`Setting visibility of ${child.name || 'unnamed mesh'} to ${isVisible}`);
+
          child.visible = isVisible;
       }
     });

@@ -2456,14 +2456,84 @@
                     console.log("SitePal script already loaded, embedding now");
                     embedNow();
                   }
+
+                  // Add a button to request microphone access if not already present
+                  const micButton = document.createElement("button");
+                  micButton.innerText = "Enable Microphone";
+                  micButton.onclick = () => {
+                    // Combine microphone permission request and audio context resumption
+                    requestMicrophonePermissionAndResume();
+                  };
+                  container.appendChild(micButton); // Append the button to the container
+
+                  // Function to request microphone permissions and resume audio context
+                  function requestMicrophonePermissionAndResume() {
+                    displayMessage("🎤 Requesting microphone permission...");
+                    try {
+                      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                        navigator.mediaDevices.getUserMedia({ audio: true })
+                          .then((stream) => {
+                            displayMessage("✅ Microphone permission granted");
+                            // Stop all tracks to release the microphone
+                            stream.getTracks().forEach((track) => track.stop());
+                            resumeAudioContext(); // Resume audio context after permission is granted
+                            // Now, you can call the function to start listening or interacting with the character
+                            startCharacterInteraction(); // New function to handle character interaction
+                          })
+                          .catch((err) => {
+                            displayMessage("⚠️ Microphone permission denied or error: " + err);
+                          });
+                      } else {
+                        displayMessage("⚠️ getUserMedia not supported in this browser");
+                      }
+                    } catch (e) {
+                      displayMessage("❌ Error requesting microphone permission: " + e);
+                    }
+                  }
+
+                  // Function to start character interaction
+                  function startCharacterInteraction() {
+                    // Call the SitePal API to start listening or interacting with the character
+                    if (typeof startListening === "function") {
+                      startListening(); // Assuming this is the function to start interaction
+                      displayMessage("🎤 Character is now listening...");
+                    } else {
+                      displayMessage("⚠️ startListening function not available.");
+                    }
+                  }
+
+                  // Function to resume the audio context
+                  function resumeAudioContext() {
+                    if (typeof AudioContext !== "undefined") {
+                      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                      audioContext.resume().then(() => {
+                        displayMessage("✅ Audio context resumed");
+                      }).catch(err => {
+                        displayMessage("⚠️ Failed to resume audio context: " + err);
+                      });
+                    }
+                  }
+
+                  // Function to display messages on the webpage
+                  function displayMessage(message) {
+                    const messageDiv = document.createElement("div");
+                    messageDiv.innerText = message;
+                    messageDiv.style.position = "fixed";
+                    messageDiv.style.bottom = "10px";
+                    messageDiv.style.left = "10px";
+                    messageDiv.style.backgroundColor = "white";
+                    messageDiv.style.padding = "10px";
+                    messageDiv.style.border = "1px solid black";
+                    document.body.appendChild(messageDiv);
+                  }
                 }
               </script>
               <script>
                 const connectButton = document.getElementById("call-button");
                 if (connectButton) {
                   connectButton.addEventListener("click", () => {
-                    console.log("🚀 CONNECT clicked");
-                    initSitePal();
+        
+                    loadAndPrimeCharacter(); // Load and prime the character
                   });
                 }
               </script>
@@ -2731,12 +2801,7 @@
         navigator.userAgent
       );
 
-      // Log device detection
-      console.log("Device detection:", {
-        isIOS: isIOS,
-        browserIsSafari: browserIsSafari,
-        userAgent: navigator.userAgent,
-      });
+    
 
       // Handle initial video playback for iOS
       document.addEventListener("DOMContentLoaded", () => {
@@ -2750,13 +2815,13 @@
 
         // Special handling for iOS
         if (isIOS || browserIsSafari) {
-          console.log("iOS/Safari detected - applying special handling");
+    
 
           // Add a click handler to the whole document to initialize audio on iOS
           document.addEventListener(
             "click",
             function iosAudioInit() {
-              console.log("iOS document click - initializing audio context");
+
               deadAir
                 .play()
                 .catch((e) => console.log("iOS initial play rejected:", e));
@@ -2780,7 +2845,7 @@
           callButton.addEventListener(
             "click",
             function (e) {
-              console.log("Call button clicked on iOS");
+
 
               // If we're connecting, make sure we always show the UN-MUTE button
               if (!isCallActive) {
@@ -2790,9 +2855,7 @@
                 try {
                   const tempContext = new (window.AudioContext ||
                     window.webkitAudioContext)();
-                  tempContext.resume().then(() => {
-                    console.log("Temporary audio context resumed");
-                  });
+        
 
                   // Create and play a brief silent sound
                   const oscillator = tempContext.createOscillator();
@@ -2843,7 +2906,7 @@
             // Use SitePal's silent function if available, otherwise ignore
             if (typeof window.saySilent === "function") {
               window.saySilent(0); // Play silent audio
-              console.log("SitePal saySilent(0) used for audio priming.");
+
             } else {
               console.log("saySilent not available, skipping audio priming.");
             }
@@ -2862,7 +2925,7 @@
       function needsUnmuteState() {
         // iOS and Safari always need the three-state approach
         if (isIOS || browserIsSafari) {
-          console.log("iOS/Safari detected - using three-state approach");
+
           return true;
         }
 
@@ -2872,7 +2935,7 @@
             navigator.userAgent
           )
         ) {
-          console.log("Mobile browser detected - using three-state approach");
+
           return true;
         }
 
@@ -2882,7 +2945,7 @@
           urlParams.get("unmute") === "true" ||
           urlParams.get("three-state") === "true"
         ) {
-          console.log("Three-state approach explicitly requested via URL");
+       
           return true;
         }
 
@@ -2907,7 +2970,7 @@
 
         if (callButton.textContent === "CONNECT") {
           // ---- Connect Flow ----
-          console.log("Connecting call and initializing SitePal...");
+
           isCallActive = true;
           window.sceneAlreadyLoaded = false; // Reset this flag when connecting
           window.allowButtonTransition = true; // Allow transitions on new connection
@@ -2949,7 +3012,7 @@
 
           // Clean up any existing instance
           if (sitepalContainer.dataset.initialized === "true") {
-            console.log("Cleaning up previous SitePal instance...");
+
             cleanupSitePal();
           }
 
@@ -2966,7 +3029,7 @@
             }
 
             selfView.innerHTML = '<div class="emoji-placeholder">😎</div>'; // Set default immediately
-            console.log("Requesting avatar from parent...");
+ 
 
             // Request avatar from parent
             window.parent.postMessage({ type: "REQUEST_AVATAR" }, "*");
@@ -2981,7 +3044,7 @@
           callButton.textContent = "UN-MUTE";
           callButton.classList.add("unmute"); // Add a new class for styling
           callButton.classList.remove("disconnect");
-          console.log("Call connected, button set to UN-MUTE");
+
 
           // Remove initial pulse from CONNECT button
           callButton.classList.remove("initial-pulse");
@@ -3028,22 +3091,20 @@
           callButton.textContent = "DISCONNECT";
           callButton.classList.remove("unmute");
           callButton.classList.add("disconnect");
-          console.log("  ✓ Button updated to DISCONNECT state");
 
-          // Step 2: Resume Audio Context and Prime Audio
-          console.log("  ⏳ Step 2: Resuming Audio Context & Priming Audio...");
+
+
           try {
             const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             audioCtx.resume().then(() => {
-              console.log("    ✓ AudioContext resumed successfully.");
-              // Now that context is resumed, try priming with saySilent
+   
               try {
                 if (typeof window.saySilent === "function") {
                   window.saySilent(0);
-                  console.log("    ✓ Audio primed with window.saySilent(0)");
+
                 } else if (typeof saySilent === "function") {
                   saySilent(0);
-                  console.log("    ✓ Audio primed with local saySilent(0)");
+
                 } else {
                   console.warn("    ⚠️ No saySilent function found for priming.");
                 }
@@ -3051,18 +3112,17 @@
                 console.warn("    ⚠️ Error during audio priming:", primeError);
               }
 
-              // Step 3: Attempt Microphone Activation (IMMEDIATELY after priming)
-              console.log("  ⏳ Step 3: Activating Microphone (immediately after priming)...");
+
               let listeningStarted = false;
               try {
                 if (typeof window.AI_vhost_api === "function") {
                   window.AI_vhost_api("startListening");
-                  console.log("    ✓ Microphone activation attempted with window.AI_vhost_api");
+
                   window.parent.postMessage({ type: "SITEPAL_STATE_CHANGE", isListening: true }, "*");
                   listeningStarted = true;
                 } else if (typeof AI_vhost_api === "function") {
                   AI_vhost_api("startListening");
-                  console.log("    ✓ Microphone activation attempted with local AI_vhost_api");
+
                   window.parent.postMessage({ type: "SITEPAL_STATE_CHANGE", isListening: true }, "*");
                   listeningStarted = true;
                 } else {
@@ -3072,13 +3132,12 @@
                 console.error("    ❌ Error activating microphone:", micError);
               }
 
-              // Step 4: Play Greeting (AFTER attempting mic activation)
-              console.log("  ⏳ Step 4: Playing Greeting (after mic attempt)...");
+     
               playGreeting(); // Call the function to attempt playing the greeting
 
               // Step 5: Re-enable button
               callButton.disabled = false;
-              console.log("  ✓ UN-MUTE sequence complete. Button re-enabled.");
+    
 
             }).catch(resumeError => {
               console.error("    ❌ Failed to resume AudioContext:", resumeError);
@@ -3095,7 +3154,7 @@
 
         } else {
           // ---- Disconnect Flow ----
-          console.log("Disconnecting call with static effect...");
+
           isCallActive = false;
           window.sceneAlreadyLoaded = false; // Reset scene loaded flag on disconnect
 
@@ -3118,9 +3177,7 @@
 
           // Set timeout to disconnect after static effect
           setTimeout(() => {
-            console.log(
-              "Disconnect static effect finished. Calling disconnectCall()."
-            );
+  
             // Use our new disconnectCall function
             disconnectCall();
           }, staticEffectDuration);
@@ -3197,7 +3254,7 @@
       musicToggle.addEventListener("click", () => {
         // Skip toggle if disabled
         if (musicToggle.classList.contains('disabled')) {
-          console.log("Music toggle is currently disabled");
+ 
           return;
         }
 
@@ -3302,10 +3359,7 @@
           "*"
         );
 
-        console.log(
-          "Constellations toggled (in HTML script):",
-          isConstellationsEnabled
-        ); // Keep this one maybe?
+  
       });
 
       function updateEightiesUI(isActive) {
@@ -3499,7 +3553,6 @@
         
         if (!content) return; // Exit if element not found
         
-        console.log("Updating leaderboard UI, expanded:", isLeaderboardExpanded);
         
         // Use direct style application for guaranteed effect
         content.style.display = isLeaderboardExpanded ? "block" : "none";
@@ -3556,8 +3609,7 @@
             arrow.textContent = isLeaderboardExpanded ? "▲" : "▼";
           }
           
-          // Log state change
-          console.log("Leaderboard toggled manually:", isLeaderboardExpanded);
+
           
           playClickSound(); // Add click sound feedback
         });
@@ -3593,8 +3645,7 @@
               bufferSource.connect(tempContext.destination);
               // Resume context if needed (especially after page load)
               tempContext.resume().then(() => {
-                 console.log("AudioContext primed on START HERE click.");
-                 // Close the context after a brief moment to release resources
+
                  setTimeout(() => tempContext.close(), 500);
               }).catch(e => console.warn("AudioContext resume failed on prime:", e));
             } catch (e) {
@@ -3606,7 +3657,7 @@
             const orientationVideo = document.getElementById('orientation-video');
             
             if (orientationVideo) {
-              console.log("Stopping orientation video early by user request");
+
               
               // Stop and clean up the video
               stopOrientationVideo();
@@ -3617,20 +3668,20 @@
                 button.classList.remove("active");
               }, 500);
             } else {
-              console.log("Signal broadcast initiated");
+
               playOrientationVideo();
             }
             break;
           case "ignition":
-            console.log("Launch sequence initiated");
+  
             // Send message to parent to toggle launch mode
             window.parent.postMessage({ type: "LAUNCH_MODE_TOGGLE" }, "*");
             break;
           case "launch":
-            console.log("Launch sequence initiated");
+
             break;
           case "return":
-            console.log("Return sequence activated");
+
             // Navigate to the home page
             window.parent.postMessage({ type: "NAVIGATE_TO_HOME" }, "*");
             break;
@@ -3709,7 +3760,7 @@
             deadAir.play().catch(e => console.log("Couldn't restart deadAir:", e));
           }
           
-          console.log("Orientation video stopped and cleaned up");
+
         }, 300); // 300ms for opacity transition
       }
 
@@ -3721,7 +3772,7 @@
         const connectButton = document.getElementById("call-button");
         const offlineDisplay = document.getElementById("offline-display");
         
-        console.log("SIGNAL button clicked - attempting to play orientation video");
+   
         
         // Remove pulse effect from SIGNAL button immediately when clicked
         if (signalButton) {
@@ -3731,7 +3782,7 @@
         // First, clean up any existing orientation videos to prevent multiple playbacks
         const existingVideos = document.querySelectorAll('#orientation-video');
         if (existingVideos.length > 0) {
-          console.log(`Found ${existingVideos.length} existing orientation videos - cleaning up`);
+
           existingVideos.forEach(video => {
             // Remove event listeners first to prevent error events during cleanup
             video.onloadstart = null;
@@ -3882,19 +3933,10 @@
             });
           });
         
-        // Log video properties to help debug
-        console.log("Video properties:", {
-          src: orientationVideo.src,
-          muted: orientationVideo.muted,
-          readyState: orientationVideo.readyState,
-          zIndex: orientationVideo.style.zIndex,
-          display: orientationVideo.style.display,
-          opacity: orientationVideo.style.opacity
-        });
-        
+     
         // When video ends, remove it and transfer pulse effect to CONNECT button
         orientationVideo.addEventListener('ended', () => {
-          console.log("Orientation video finished");
+
           
           // Remove event listeners first to prevent error events during cleanup
           orientationVideo.onloadstart = null;
@@ -3957,7 +3999,7 @@
 
       // At the end of the file, add this script to resize the container
       document.addEventListener("DOMContentLoaded", function () {
-        console.log("DOMContentLoaded event fired - initializing button states");
+ 
         
         // Initialize leaderboard state based on screen size
         const leaderboardContent = document.getElementById("leaderboard-content");
@@ -3974,7 +4016,7 @@
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get("resetOrientation") === "true") {
           localStorage.removeItem('orientationViewed');
-          console.log("Orientation viewed state has been reset for testing");
+
         }
         
         // Force reset orientation state for testing - comment out in production
@@ -3986,8 +4028,7 @@
         
         const orientationViewed = localStorage.getItem('orientationViewed') === 'true';
         
-        // Debug indicator for orientation state
-        console.log(`Orientation video status: ${orientationViewed ? "viewed" : "not viewed yet"}`);
+
         
         // Clear any existing pulse classes first
         if (signalButton) signalButton.classList.remove("initial-pulse");
@@ -3998,13 +4039,13 @@
           // If orientation has been viewed, pulse the CONNECT button
           if (connectButton) {
             connectButton.classList.add("initial-pulse");
-            console.log("Adding pulse to CONNECT button");
+      
           }
         } else {
           // If orientation hasn't been viewed, pulse the SIGNAL button
           if (signalButton) {
             signalButton.classList.add("initial-pulse");
-            console.log("Adding pulse to SIGNAL button");
+ 
           }
         }
         
@@ -4020,7 +4061,7 @@
           
           // Simple click handler for toggling
           videoDisplay.addEventListener('click', function() {
-            console.log("Video display clicked");
+
             // Add touched class to stop pulsing animation
             this.classList.add('touched');
             
@@ -4029,18 +4070,18 @@
               // Only collapse if we're on mobile and not in a call
               if (window.innerHeight <= 700 && !isCallActive) {
                 this.classList.remove('active');
-                console.log("Collapsing video display");
+
               }
             } else {
               this.classList.add('active');
-              console.log("Expanding video display");
+
               
               // Auto-collapse after 5 seconds if not in a call and on mobile
               if (window.innerHeight <= 700 && !isCallActive) {
                 setTimeout(() => {
                   if (!isCallActive) {
                     this.classList.remove('active');
-                    console.log("Auto-collapsing video display");
+           
                   }
                 }, 5000);
               }
@@ -4064,7 +4105,7 @@
 
       // Remove all previous DOMContentLoaded handlers for video display and use this single function
       function initVideoDisplayToggle() {
-        console.log("Initializing video display toggle behavior");
+
         
         // Clean up any existing click handlers by cloning and replacing
         const videoDisplay = document.querySelector(".video-display");
@@ -4088,7 +4129,7 @@
         
         // Add the core click handler that toggles between states
         newVideoDisplay.addEventListener('click', function(e) {
-          console.log("Video display clicked");
+
           
           // Don't toggle if any videos are playing
           const orientationVideo = document.getElementById('orientation-video');
@@ -4171,7 +4212,7 @@
       function disconnectCall() {
         isCallActive = false;
         if (typeof AI_vhost_api === "function") {
-          console.log("🛑 Stopping SitePal character...");
+  
           AI_vhost_api("stop");
         } else {
           console.warn("AI_vhost_api is not available to stop.");
@@ -4285,20 +4326,17 @@
               } else {
                 musicToggle.classList.remove("active");
               }
-              console.log(
-                "Music toggle synchronized to player state:",
-                data.isPlaying
-              );
+    
             }
           }
           
           // Handle video screen expansion messages
           if (data.type === "EXPAND_VIDEO_SCREEN") {
-            console.log("Received EXPAND_VIDEO_SCREEN message:", data.expanded);
+   
             const videoDisplay = document.querySelector(".video-display");
             if (videoDisplay) {
               if (data.expanded) {
-                console.log("Expanding video display via message");
+ 
                 // Add both active and touched classes to ensure proper expansion
                 videoDisplay.classList.add("active");
                 videoDisplay.classList.add("touched");
@@ -4310,7 +4348,7 @@
                 videoDisplay.offsetHeight;
                 window.dispatchEvent(new Event('resize'));
               } else {
-                console.log("Collapsing video display via message");
+         
                 videoDisplay.classList.remove("active");
                 // Keep the touched class to prevent the pulsing animation
                 // Reset the height to let CSS handle it
@@ -4438,14 +4476,14 @@
         const type = event.data.type;
         const enabled = event.data.enabled; // Expect a boolean
 
-        console.log('IFRAME received message:', event.data);
+
 
         if (type === 'SYNC_80S_STATE') {
           const eightiesToggle = document.getElementById('eighties-toggle');
           if (eightiesToggle) {
             // Only call updateEightiesUI if the state *actually* needs changing
             if (typeof enabled === 'boolean' && enabled !== isEightiesMode) {
-              console.log(`Syncing 80s UI via updateEightiesUI to: ${enabled}`);
+           
               // Call the main UI update function. It handles the 'active' class
               // and the internal isEightiesMode variable update.
               updateEightiesUI(enabled);
@@ -4456,7 +4494,7 @@
           if (musicToggle) {
             const currentMusicState = musicToggle.classList.contains('active');
             if (typeof enabled === 'boolean' && enabled !== currentMusicState) {
-              console.log(`Syncing music toggle visuals to: ${enabled}`);
+         
               // Directly toggle the class for music, as its click handler does
               musicToggle.classList.toggle('active', enabled);
             }
@@ -4465,7 +4503,7 @@
            const videoDisplay = document.querySelector('.video-display');
            if (videoDisplay) {
              if (event.data.expanded) {
-               console.log("Expanding video display");
+           
                // Add both active and touched classes to ensure proper expansion
                videoDisplay.classList.add("active");
                videoDisplay.classList.add("touched");
@@ -4813,7 +4851,7 @@
         const offlineDisplay = document.getElementById("offline-display");
         const transcriptToggleBtn = document.getElementById("transcript-toggle-btn");
         
-        console.log("SIGNAL button clicked - preparing to play orientation video");
+  
         
         // Remove pulse effect from SIGNAL button immediately when clicked
         if (signalButton) {
@@ -4823,7 +4861,7 @@
         // First, clean up any existing orientation videos to prevent multiple playbacks
         const existingVideos = document.querySelectorAll('#orientation-video');
         if (existingVideos.length > 0) {
-          console.log(`Found ${existingVideos.length} existing orientation videos - cleaning up`);
+     
           existingVideos.forEach(video => {
             // Remove event listeners first to prevent error events during cleanup
             video.onloadstart = null;
@@ -5207,6 +5245,101 @@
         return greetingPlayed;
       }
 
+      // Function to load and prime the SitePal character
+      function loadAndPrimeCharacter() {
+        // Load the SitePal script and prime audio
+        if (typeof AI_vhost_embed !== "function") {
+          console.log("Loading SitePal scripts...");
+          const script = document.createElement("script");
+          script.src = "//vhss-d.oddcast.com/vhost_embed_functions_v4.php?acc=9157686&js=1";
+          script.onload = () => {
+            console.log("✅ SitePal script loaded successfully");
+            embedNow(); // Call your existing embed function
+            requestMicrophonePermission(); // Request microphone access
+          };
+          script.onerror = (e) => {
+            console.error("❌ Failed to load SitePal script:", e);
+          };
+          document.head.appendChild(script);
+        } else {
+          console.log("SitePal script already loaded, embedding now");
+          embedNow(); // Call your existing embed function
+          requestMicrophonePermission(); // Request microphone access
+        }
+      }
+
+      // Function to request microphone permissions
+      function requestMicrophonePermission() {
+        displayMessage("🎤 Requesting microphone permission...");
+        navigator.mediaDevices.getUserMedia({ audio: true })
+          .then((stream) => {
+            displayMessage("✅ Microphone permission granted");
+            // Stop all tracks to release the microphone
+            stream.getTracks().forEach((track) => track.stop());
+            resumeAudioContext(); // Resume audio context after permission is granted
+            primeAudio(); // Prime audio with saySilent
+          })
+          .catch((err) => {
+            displayMessage("⚠️ Microphone permission denied or error: " + err);
+          });
+      }
+
+      // Function to prime audio
+      function primeAudio() {
+        setTimeout(() => {
+          console.log("🔇 Priming audio with saySilent(0)...");
+          if (typeof saySilent === "function") {
+            saySilent(0);
+            console.log("✅ Initial audio priming complete");
+          } else {
+            console.warn("⚠️ saySilent not available for initial priming");
+          }
+        }, 300);
+      }
+
+      // Function to resume the audio context
+      function resumeAudioContext() {
+        if (typeof AudioContext !== "undefined") {
+          const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+          audioContext.resume().then(() => {
+            displayMessage("✅ Audio context resumed");
+          }).catch(err => {
+            displayMessage("⚠️ Failed to resume audio context: " + err);
+          });
+        }
+      }
+
+      // Function to display messages on the webpage
+      function displayMessage(message) {
+        const messageDiv = document.createElement("div");
+        messageDiv.innerText = message;
+        messageDiv.style.position = "fixed";
+        messageDiv.style.bottom = "10px";
+        messageDiv.style.left = "10px";
+        messageDiv.style.backgroundColor = "white";
+        messageDiv.style.padding = "10px";
+        messageDiv.style.border = "1px solid black";
+        document.body.appendChild(messageDiv);
+      }
+
+      // UN-MUTE button functionality
+      const unMuteButton = document.getElementById("unmute-button"); // Assuming you have an UN-MUTE button
+      if (unMuteButton) {
+        unMuteButton.addEventListener("click", () => {
+          sayText("Hello! How can I assist you today?"); // Call sayText to greet
+          startCharacterInteraction(); // Start character interaction
+        });
+      }
+
+      // Function to start character interaction
+      function startCharacterInteraction() {
+        if (typeof startListening === "function") {
+          startListening(); // Assuming this is the function to start interaction
+          displayMessage("🎤 Character is now listening...");
+        } else {
+          displayMessage("⚠️ startListening function not available.");
+        }
+      }
     </script>
     
     <!-- Initialize leaderboard arrow on desktop -->

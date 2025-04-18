@@ -135,23 +135,17 @@ function Model({
   const mouseDownPosition = useRef(null);
   const mouseDownTimer = useRef(null);
   const HOLD_THRESHOLD = 800; // milliseconds to hold before placing candle
-  const MOVE_THRESHOLD = 10; // pixels of movement allowed while holding
-  const [showHoldIndicator, setShowHoldIndicator] = useState(false);
-  const [holdProgress, setHoldProgress] = useState(0);
+  const MOVE_THRESHOLD = 25; // pixels of movement allowed while holding
 
   // Add a ref to hold the candle placement function to avoid circular references
   const placeCandleFunc = useRef(null);
-  const holdTimerRef = useRef(null);
 
-  // Notify parent component about hold state changes - make this more immediate
-  useEffect(() => {
-    if (onHoldStateChange) {
-      onHoldStateChange({
-        showIndicator: showHoldIndicator,
-        progress: holdProgress
-      });
-    }
-  }, [showHoldIndicator, holdProgress, onHoldStateChange]);
+  // Add these refs at the top of the component (with other refs)
+  const holdTimeoutRef = useRef(null);
+  const candlePlacedRef = useRef(false);
+
+  // Add this ref with the others at the top
+  const mouseIsDownRef = useRef(false);
 
   // Add this function to optimize texture loading without changing geometry
   const loadOptimizedTexture = (url, onLoad) => {
@@ -194,145 +188,88 @@ function Model({
     };
   }, []);
 
-  // Remove dependency on state updates for hold indicator
-  // Instead, directly call parent callback when needed
-  const startHoldIndicator = useCallback(() => {
-    if (!onHoldStateChange) return;
-    
-    console.log("Starting hold indicator");
-    
-    // Immediately show the indicator with 0 progress
-    onHoldStateChange({
-      showIndicator: true,
-      progress: 0
-    });
-    
-    // Start timer to update progress
-    const startTime = Date.now();
-    
-    // Clear any existing timer first
-    if (holdTimerRef.current) {
-      clearInterval(holdTimerRef.current);
-    }
-    
-    // Create new timer
-    holdTimerRef.current = setInterval(() => {
-      const elapsed = Date.now() - startTime;
-      const progress = Math.min(elapsed / HOLD_THRESHOLD, 1);
-      
-      // Update parent directly
-      onHoldStateChange({
-        showIndicator: true,
-        progress: progress
-      });
-      
-      // If complete, clear interval
-      if (progress >= 1) {
-        clearInterval(holdTimerRef.current);
-        holdTimerRef.current = null;
-      }
-    }, 16);
-  }, [onHoldStateChange, HOLD_THRESHOLD]);
-  
-  const stopHoldIndicator = useCallback(() => {
-    // Clear timer
-    if (holdTimerRef.current) {
-      clearInterval(holdTimerRef.current);
-      holdTimerRef.current = null;
-    }
-    
-    // Hide indicator
-    if (onHoldStateChange) {
-      onHoldStateChange({
-        showIndicator: false,
-        progress: 0
-      });
-    }
-  }, [onHoldStateChange]);
-
   // Create simplified floor click handler
   const handleFloorMouseDown = useCallback((event) => {
     event.stopPropagation();
-    console.log("Floor mouse down", event);
-    
-    // Record start time and position
+    console.log("[handleFloorMouseDown] Started"); // Log start
+    mouseIsDownRef.current = true;
     mouseDownTime.current = Date.now();
-    
-    // Store point for candle placement
     const point = event.point?.clone();
-    
-    // Store for mouse move detection
     mouseDownPosition.current = {
       x: event.nativeEvent?.clientX || event.clientX || 0,
       y: event.nativeEvent?.clientY || event.clientY || 0,
       point: point
     };
+    candlePlacedRef.current = false;
     
-    // Start showing indicator immediately
-    startHoldIndicator();
+    console.log("[handleFloorMouseDown] Setting timeout for placement..."); // Log before timeout
+    holdTimeoutRef.current = setTimeout(() => {
+      console.log("[Timeout Callback] Fired"); // Log when timeout runs
+      console.log("  - mouseIsDownRef.current:", mouseIsDownRef.current);
+      console.log("  - !candlePlacedRef.current:", !candlePlacedRef.current);
+      console.log("  - placeCandleFunc.current:", !!placeCandleFunc.current); // Log if function exists
+      console.log("  - mouseDownPosition.current?.point:", !!mouseDownPosition.current?.point); // Log if point exists
+
+      // Ensure mouse is still down and candle hasn't been placed yet
+      if (mouseIsDownRef.current && !candlePlacedRef.current && placeCandleFunc.current && mouseDownPosition.current?.point) {
+        console.log("[Timeout Callback] Conditions met, calling placeCandleFunc"); // Log before placement
+        placeCandleFunc.current(mouseDownPosition.current.point);
+        candlePlacedRef.current = true;
+      } else {
+        console.log("[Timeout Callback] Conditions NOT met, candle not placed."); // Log if conditions fail
+      }
+    }, HOLD_THRESHOLD);
     
-    // Set up mouse move and up listeners
     const handleMoveWhileHolding = (moveEvent) => {
       if (!mouseDownPosition.current) return;
-      
-      // Get position
       const clientX = moveEvent.clientX || moveEvent.touches?.[0]?.clientX || 0;
       const clientY = moveEvent.clientY || moveEvent.touches?.[0]?.clientY || 0;
-      
-      // Check distance
       const dx = clientX - mouseDownPosition.current.x;
       const dy = clientY - mouseDownPosition.current.y;
       const distance = Math.sqrt(dx*dx + dy*dy);
-      
-      // Cancel if moved too far
       if (distance > MOVE_THRESHOLD) {
-        stopHoldIndicator();
-        mouseDownPosition.current = null;
-        
-        // Clean up listeners
+        console.log("[handleMoveWhileHolding] Movement threshold exceeded, clearing timeout."); // Log move clear
+        mouseIsDownRef.current = false;
         window.removeEventListener('mousemove', handleMoveWhileHolding);
         window.removeEventListener('mouseup', handleUpAfterHolding);
         window.removeEventListener('touchmove', handleMoveWhileHolding);
         window.removeEventListener('touchend', handleUpAfterHolding);
+        if (holdTimeoutRef.current) {
+          console.log("[handleMoveWhileHolding] Clearing timeout on mouse move."); // Log move clear
+          clearTimeout(holdTimeoutRef.current);
+          holdTimeoutRef.current = null;
+        }
+        mouseDownPosition.current = null;
       }
     };
-    
+
     const handleUpAfterHolding = (upEvent) => {
-      // Remove listeners
+      // Ensure mouse is marked as up before stopping indicator
+      mouseIsDownRef.current = false; 
       window.removeEventListener('mousemove', handleMoveWhileHolding);
       window.removeEventListener('mouseup', handleUpAfterHolding);
       window.removeEventListener('touchmove', handleMoveWhileHolding);
       window.removeEventListener('touchend', handleUpAfterHolding);
-      
-      // Stop indicator
-      stopHoldIndicator();
-      
-      // Check if we've held long enough
-      if (!mouseDownPosition.current) return;
-      
-      const holdTime = Date.now() - mouseDownTime.current;
-      
-      if (holdTime >= HOLD_THRESHOLD && placeCandleFunc.current && mouseDownPosition.current.point) {
-        // Place candle
-        placeCandleFunc.current(mouseDownPosition.current.point);
+      if (holdTimeoutRef.current) {
+        console.log("[handleUpAfterHolding] Clearing timeout on mouse up."); // Log mouseup clear
+        clearTimeout(holdTimeoutRef.current);
+        holdTimeoutRef.current = null;
       }
-      
-      // Reset
       mouseDownPosition.current = null;
     };
-    
-    // Add listeners
+
     window.addEventListener('mousemove', handleMoveWhileHolding);
     window.addEventListener('mouseup', handleUpAfterHolding);
     window.addEventListener('touchmove', handleMoveWhileHolding);
     window.addEventListener('touchend', handleUpAfterHolding);
-  }, [startHoldIndicator, stopHoldIndicator, MOVE_THRESHOLD, HOLD_THRESHOLD]);
+  }, [MOVE_THRESHOLD, HOLD_THRESHOLD]);
   
   // Function to actually place the candle
   const placeCandleAtPoint = useCallback((point) => {
+    console.log("[placeCandleAtPoint] Function called with point:", point); // Log start of placement function
     // Check if we've reached the candle limit
     if (candleCount >= maxFloorCandles) {
-      console.log(`Maximum candles reached (${maxFloorCandles})`);
+      console.log("[placeCandleAtPoint] Candle limit reached."); // Log limit reached
       return;
     }
 
@@ -451,9 +388,9 @@ function Model({
   // Clean up any timers on unmount
   useEffect(() => {
     return () => {
-      if (holdTimerRef.current) {
-        clearInterval(holdTimerRef.current);
-        holdTimerRef.current = null;
+      if (holdTimeoutRef.current) {
+        clearTimeout(holdTimeoutRef.current);
+        holdTimeoutRef.current = null;
       }
     };
   }, []);
@@ -462,7 +399,7 @@ function Model({
   const handleCandleClick = useCallback(
     (event) => {
       event.stopPropagation();
-      console.log("Candle click", event);
+
 
       // Check if this is a floor or floor-like object first to show indicator immediately
       if (
@@ -713,7 +650,7 @@ function Model({
   // Add console logging to track progress
   useEffect(() => {
     if (progress === 100 && setIsModelLoaded) {
-      console.log("Model: Progress is 100%, setting isModelLoaded to true");
+
       // Add a small delay to ensure everything is rendered
       const timer = setTimeout(() => {
         setIsModelLoaded(true);
@@ -726,10 +663,10 @@ function Model({
   // Ensure the model is displayed even if candles aren't fully loaded
   useEffect(() => {
     if (progress === 100 && setIsModelLoaded) {
-      console.log("Model: Setting up force load timer");
+
       // Force isModelLoaded to true after a reasonable timeout (e.g., 5 seconds)
       const forceLoadTimer = setTimeout(() => {
-        console.log("Model: Force loading after timeout");
+
         setIsModelLoaded(true);
       }, 5000); // Reduced from 10 seconds to 5 seconds
 
