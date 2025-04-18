@@ -10,8 +10,8 @@ export function useFirestoreResults() {
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const fetchedResults = querySnapshot.docs.map((doc) => ({
         id: doc.id, // 🔍 Check this format
-        userName: doc.data().userName || "Anonymous",
-        image: doc.data().image,
+        userName: doc.data().username || "Anonymous",
+        image: doc.data().image_url,
         message: doc.data().message,
         burnedAmount: doc.data().burnedAmount || 1,
         staked: doc.data().staked || false,

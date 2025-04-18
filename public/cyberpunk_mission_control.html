@@ -806,8 +806,18 @@
       .eighties-active .button-prefix,
       .eighties-active .status-label {
         font-family: "Press Start 2P", cursive;
-        font-size: 0.6rem;
-        line-height: 1.5;
+        font-size: 0.6rem !important; /* Ensure override */
+        line-height: 1.5 !important; /* Ensure override */
+        text-shadow: 0 0 3px #d946ef !important;
+      }
+
+      /* Keep button-prefix smaller in 80s mode */
+      .eighties-active .button-prefix {
+        font-family: "Press Start 2P", cursive;
+        font-size: 0.5rem !important;
+        line-height: 1.3 !important;
+        opacity: 0.8;
+        text-shadow: 0 0 3px #d946ef !important;
       }
 
       .eighties-active .control-button {
@@ -1824,9 +1834,353 @@
           height: 18px;
         }
       }
+
+      /* Transcript section styles */
+      .transcript-container {
+        width: 100%;
+        max-width: 450px;
+        background: #0f172a;
+        border: 1px solid #134e4a;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-bottom: 16px;
+        transition: all 0.3s ease;
+        position: relative;
+      }
+
+      .transcript-toggle-btn {
+        position: relative;
+        background: #1f2937;
+        color: #67e8f9;
+        border: 1px solid #134e4a;
+        border-radius: 4px;
+        width: auto;
+        height: auto;
+        padding: 4px 8px;
+        font-size: 0.75rem;
+        font-family: monospace;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        z-index: 101;
+        transition: all 0.3s ease;
+      }
+
+      .transcript-toggle-btn:hover {
+        background: #374151;
+        box-shadow: 0 0 5px rgba(6, 182, 212, 0.5);
+      }
+
+      .transcript-toggle-btn.active {
+        color: #f87171;
+        border-color: #7f1d1d;
+        box-shadow: 0 0 5px rgba(220, 38, 38, 0.3);
+      }
+
+      .transcript-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 6px 10px;
+        background-color: #1f2937;
+        border-bottom: 1px solid #134e4a;
+        cursor: pointer;
+      }
+
+      .transcript-title {
+        font-size: 0.75rem;
+        margin: 0;
+        color: #67e8f9;
+      }
+
+      .language-selector {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .language-selector select {
+        background-color: #1f2937;
+        color: #22d3ee;
+        font-size: 0.75rem;
+        font-family: monospace;
+        padding: 2px 4px;
+        border: 1px solid #134e4a;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+
+      .transcript-content {
+        padding: 8px 10px;
+        max-height: 120px;
+        overflow-y: auto;
+        line-height: 1.5;
+        font-size: 0.75rem;
+        transition: max-height 0.3s ease, padding 0.3s ease;
+      }
+
+      .transcript-content.collapsed {
+        max-height: 0;
+        padding-top: 0;
+        padding-bottom: 0;
+        overflow: hidden;
+      }
+
+      .transcript-segment {
+        padding: 3px 0;
+        transition: background-color 0.3s ease;
+      }
+
+      .transcript-segment.active {
+        background-color: rgba(6, 182, 212, 0.1);
+        border-left: 2px solid #06b6d4;
+        padding-left: 8px;
+        margin-left: -8px;
+      }
+
+      /* Hide scrollbar for Chrome, Safari and Opera */
+      .transcript-content::-webkit-scrollbar {
+        width: 4px;
+      }
+
+      .transcript-content::-webkit-scrollbar-track {
+        background: #1f2937;
+      }
+
+      .transcript-content::-webkit-scrollbar-thumb {
+        background: #134e4a;
+        border-radius: 2px;
+      }
+
+      /* Transcript toggle icon animation */
+      .transcript-expand-icon {
+        transition: transform 0.3s ease;
+      }
+
+      .transcript-expand-icon.collapsed {
+        transform: rotate(-90deg);
+      }
+
+      /* 80s mode transcript styles */
+      .eighties-active .transcript-container {
+        border-color: #d946ef;
+        box-shadow: 0 0 8px rgba(217, 70, 239, 0.3);
+      }
+
+      .eighties-active .transcript-header {
+        background-color: #0f172a;
+        border-bottom: 1px solid #d946ef;
+      }
+
+      .eighties-active .transcript-title,
+      .eighties-active .language-selector select {
+        font-family: "Press Start 2P", cursive;
+        font-size: 0.55rem;
+      }
+
+      .eighties-active .transcript-content {
+        font-family: "Press Start 2P", cursive;
+        font-size: 0.55rem;
+        line-height: 1.8;
+      }
+
+      .eighties-active .transcript-segment.active {
+        background-color: rgba(217, 70, 239, 0.1);
+        border-left: 2px solid #d946ef;
+      }
+
+      .eighties-active .transcript-toggle-btn {
+        font-family: "Press Start 2P", cursive;
+        font-size: 0.55rem;
+        background-color: #0f172a;
+        border: 1px solid #d946ef;
+        color: #22d3ee;
+        box-shadow: 0 0 3px rgba(217, 70, 239, 0.4);
+      }
+
+      .eighties-active .transcript-toggle-btn:hover {
+        background-color: #2a1786;
+      }
+
+      .eighties-active .transcript-toggle-btn.active {
+        border-color: #22d3ee;
+        color: #d946ef;
+        box-shadow: 0 0 8px rgba(34, 211, 238, 0.6);
+      }
+
+      /* 3D mode transcript styles */
+      .threedy-mode .transcript-container {
+        border-left: 1px solid #ff0040;
+        border-right: 1px solid #00b4ff;
+        box-shadow: -2px 0 5px rgba(255, 0, 64, 0.2),
+          2px 0 5px rgba(0, 180, 255, 0.2);
+      }
+
+      .threedy-mode .transcript-title,
+      .threedy-mode .language-selector select {
+        text-shadow: -1px 0 #ff0040, 1px 0 #00b4ff;
+      }
+
+      .threedy-mode .transcript-toggle-btn {
+        border-left: 1px solid #ff0040;
+        border-right: 1px solid #00b4ff;
+        box-shadow: -1px 0 3px rgba(255, 0, 64, 0.2),
+          1px 0 3px rgba(0, 180, 255, 0.2);
+        text-shadow: -1px 0 #ff0040, 1px 0 #00b4ff;
+      }
+
+      .threedy-mode .transcript-toggle-btn:hover {
+        box-shadow: -2px 0 5px rgba(255, 0, 64, 0.4),
+          2px 0 5px rgba(0, 180, 255, 0.4);
+      }
+
+      /* Mobile-specific adjustments */
+      @media (max-width: 480px) {
+        .transcript-content {
+          max-height: 100px;
+          font-size: 0.7rem;
+        }
+        
+        .language-selector select {
+          font-size: 0.7rem;
+          padding: 2px 4px;
+        }
+        
+        .transcript-container {
+          margin-bottom: 12px;
+        }
+        
+        /* Further reduce transcript font size in 80s mode on mobile */
+        .eighties-active .transcript-title,
+        .eighties-active .language-selector select,
+        .eighties-active .transcript-content {
+          font-size: 0.5rem;
+        }
+      }
+
+      /* Keep button-prefix smaller in 80s mode with higher specificity */
+      .mission-control.eighties-active .button-prefix {
+        font-family: "Press Start 2P", cursive !important;
+        font-size: 0.5rem !important;
+        line-height: 1.3 !important;
+        opacity: 0.8 !important;
+        text-shadow: 0 0 3px #d946ef !important;
+        letter-spacing: 0 !important;
+      }
+
+      /* Medium and larger screens - leaderboard expanded by default */
+      @media (min-width: 768px) {
+        #leaderboard-content {
+          display: block !important;
+        }
+      }
+
+      /* Mobile-specific adjustments */
+
+      /* By default, leaderboard is displayed */
+      #leaderboard-content {
+        display: block;
+      }
+      
+      /* Only hide on mobile screens */
+      @media (max-width: 767px) {
+        #leaderboard-content {
+          display: none;
+        }
+        
+        /* Arrow points down when collapsed */
+        #leaderboard-arrow {
+          content: "▼";
+        }
+      }
+
+      /* Stronger pulsing effect for SIGNAL button */
+      @keyframes signal-pulse {
+        0% {
+          box-shadow: 0 0 5px rgba(6, 182, 212, 0.3), 0 0 8px rgba(34, 211, 238, 0.2);
+          border-color: #134e4a;
+          transform: scale(1);
+        }
+        50% {
+          box-shadow: 0 0 15px rgba(6, 182, 212, 0.7), 0 0 20px rgba(34, 211, 238, 0.5);
+          border-color: #22d3ee;
+          transform: scale(1.03);
+        }
+        100% {
+          box-shadow: 0 0 5px rgba(6, 182, 212, 0.3), 0 0 8px rgba(34, 211, 238, 0.2);
+          border-color: #134e4a;
+          transform: scale(1);
+        }
+      }
+
+      /* Pulsing effect for transcript CC button */
+      @keyframes cc-pulse {
+        0% {
+          box-shadow: 0 0 3px rgba(6, 182, 212, 0.2);
+          transform: scale(1);
+        }
+        50% {
+          box-shadow: 0 0 10px rgba(6, 182, 212, 0.6);
+          transform: scale(1.1);
+        }
+        100% {
+          box-shadow: 0 0 3px rgba(6, 182, 212, 0.2);
+          transform: scale(1);
+        }
+      }
+
+      .control-button[data-action="signal"].initial-pulse {
+        animation: signal-pulse 1.5s infinite ease-in-out;
+      }
+
+      .transcript-toggle-btn.pulse-attention {
+        animation: cc-pulse 1.5s infinite ease-in-out;
+      }
+
+      /* Loading indicator styles */
+      .video-loading-indicator {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 55;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: #67e8f9;
+        font-family: monospace;
+        text-align: center;
+      }
+
+      .loading-spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid rgba(6, 182, 212, 0.3);
+        border-radius: 50%;
+        border-top-color: #67e8f9;
+        animation: spin 1s linear infinite;
+        margin-bottom: 10px;
+      }
+
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+
+      /* Disabled toggle styles */
+      .toggle-switch.disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        pointer-events: none;
+      }
+
+      .toggle-label.disabled {
+        opacity: 0.5;
+      }
     </style>
   </head>
-  <body>
+  <body onload="if(window.innerWidth >= 768) { document.getElementById('leaderboard-content').style.display = 'block'; document.getElementById('leaderboard-arrow').textContent = '▲'; }">
     <div class="scan-lines" id="scan-lines"></div>
     <div class="color-shift color-shift-red" id="color-shift-red"></div>
     <div class="color-shift color-shift-blue" id="color-shift-blue"></div>
@@ -1856,7 +2210,7 @@
               webkit-playsinline
               style="width: 100%; height: 100%; object-fit: cover"
             >
-              <source src="/deadAir.mp4" type="video/mp4" />
+              <source src="/1.mp4" type="video/mp4" />
             </video>
             <!-- Add Offline Display -->
             <div id="offline-display">
@@ -2016,7 +2370,7 @@
                           // Try embedding again
                           try {
                             playerDiv.innerHTML = "";
-                            AI_vhost_embed(280, 180, 9157686, 244, 0, 1);
+                            AI_vhost_embed(280, 180, 9157686, 255, 0, 1);
                             console.log(
                               "🔄 Attempted to reload SitePal character"
                             );
@@ -2028,7 +2382,7 @@
                     }, 5000);
 
                     console.log("📱 Calling AI_vhost_embed to load SitePal...");
-                    AI_vhost_embed(280, 180, 9157686, 244, 0, 1);
+                    AI_vhost_embed(280, 180, 9157686, 255, 0, 1);
                   }
 
                   // Set up a backup timeout in case scene loaded doesn't fire
@@ -2143,6 +2497,34 @@
             <option>ORBITAL STATION</option>
             <option>EARTH HQ</option>
           </select>
+          <button class="transcript-toggle-btn" id="transcript-toggle-btn" style="display: none;">CC</button>
+        </div>
+      </div>
+
+      <!-- Transcript Section - Added below video call but above button grid -->
+      <div class="transcript-container" id="transcript-container" style="display: none;">
+        <div class="transcript-header" id="transcript-header">
+          <h3 class="transcript-title">Video Transcript</h3>
+          <div class="language-selector">
+            <select id="language-select">
+              <option value="en">English</option>
+              <option value="es">Español</option>
+              <option value="fr">Français</option>
+              <option value="de">Deutsch</option>
+              <option value="ja">日本語</option>
+              <option value="zh">中文</option>
+              <option value="ko">한국어</option>
+              <option value="pt">Português</option>
+              <option value="ru">Русский</option>
+              <option value="hi">हिंदी</option>
+              <option value="ar">العربية</option>
+              <option value="vi">Tiếng Việt</option>
+            </select>
+            <span class="transcript-expand-icon">▼</span>
+          </div>
+        </div>
+        <div class="transcript-content" id="transcript-content">
+          <!-- Transcript content will be populated dynamically via JavaScript -->
         </div>
       </div>
 
@@ -2150,7 +2532,7 @@
       <div class="button-grid">
         <button class="control-button" data-action="signal">
           <span class="button-prefix">//COM</span>
-          <span class="button-label">SIGNAL</span>
+          <span class="button-label">START HERE</span>
           <div class="button-indicator"></div>
         </button>
 
@@ -2167,8 +2549,8 @@
         </button>
 
         <button class="control-button" data-action="return">
-          <span class="button-prefix">//RTN</span>
-          <span class="button-label">HOME</span>
+          <span class="button-prefix">//HOME</span>
+          <span class="button-label">EMERGENCY <br />EXIT</span>
           <div class="button-indicator"></div>
         </button>
       </div>
@@ -2203,13 +2585,12 @@
         <div class="leaderboard-container">
           <button id="leaderboard-toggle" class="leaderboard-header">
             <span>L34D3RBOARD//v1.2</span>
-            <span id="leaderboard-arrow">▼</span>
+            <span id="leaderboard-arrow">▲</span>
           </button>
 
           <div
             id="leaderboard-content"
             class="leaderboard-content"
-            style="display: none"
           >
             <div class="leaderboard-header-row">
               <span>USER_ID</span>
@@ -2266,7 +2647,11 @@
     <!-- <script src="constellation-toggle.js"></script> -->
 
     <script>
-      // DOM elements
+      // Initialize variables for DOM elements
+      const videoDisplay = document.querySelector(".video-display");
+      const toggleBtn = document.getElementById("toggle-btn");
+      const resetBtn = document.getElementById("reset-btn");
+      const status = document.getElementById("status");
       const callButton = document.getElementById("call-button");
       const callStatus = document.getElementById("call-status");
       const videoFeed = document.getElementById("video-feed");
@@ -2291,6 +2676,14 @@
       const leaderboardArrow = document.getElementById("leaderboard-arrow");
       const controlButtons = document.querySelectorAll(".control-button");
 
+      // Set initial leaderboard state based on screen size
+      let isLeaderboardExpanded = true; // Always expanded by default
+      if (window.innerWidth < 768) {
+        isLeaderboardExpanded = false; // Only collapsed on mobile
+        if (leaderboardArrow) leaderboardArrow.textContent = "▼";
+        if (leaderboardContent) leaderboardContent.style.display = "none";
+      }
+
       // Helper function to load scripts
       function loadScript(src) {
         return new Promise((resolve, reject) => {
@@ -2305,7 +2698,6 @@
       // State
       let isCallActive = false;
       let isEightiesMode = false;
-      let isLeaderboardExpanded = false; // Add leaderboard state variable
 
       // Music toggle starts off by default
       musicToggle.classList.remove("active");
@@ -2505,7 +2897,7 @@
       window.needsUnmuteFlow = /iPhone|iPad|iPod|Android|Mobile/i.test(
         navigator.userAgent
       );
-      const videoDisplay = document.querySelector(".video-display");
+
       // Toggle call - Refactored Logic with special iOS handling
       callButton.addEventListener("click", () => {
         console.log(
@@ -2520,6 +2912,9 @@
           window.sceneAlreadyLoaded = false; // Reset this flag when connecting
           window.allowButtonTransition = true; // Allow transitions on new connection
           window.greetingPlayed = false; // Reset greeting flag
+
+          // Disable music and 80s mode toggles during SitePal session
+          disableToggles();
 
           // Reset flag in case needsUnmuteState changes (e.g., browser change)
           window.needsUnmuteFlow = needsUnmuteState();
@@ -2678,7 +3073,7 @@
 
             if (windowSayText) {
               try {
-                window.sayText("Hello, I am ready to assist you.", 8, 1, 6);
+                window.sayText("Hello, I am ready to assist you.", 9, 1, 7);
                 greetingPlayed = true;
                 console.log("✅ Greeting played successfully");
               } catch (e) {
@@ -2704,7 +3099,7 @@
 
             if (!greetingPlayed && localSayText) {
               try {
-                sayText("Hello, I am ready to assist you.", 8, 1, 6);
+                sayText("Hello, I am ready to assist you.", 9, 1, 7);
                 greetingPlayed = true;
                 console.log("✅ Greeting played with local sayText");
               } catch (e) {
@@ -2780,6 +3175,9 @@
           isCallActive = false;
           window.sceneAlreadyLoaded = false; // Reset scene loaded flag on disconnect
 
+          // Re-enable toggles when disconnecting
+          enableToggles();
+
           // Start brief static effect
           const deadAir = document.getElementById("deadAir");
           const staticEffectDuration = 1500; // ms
@@ -2812,6 +3210,12 @@
 
       // Toggle 80s mode
       eightiesToggle.addEventListener("click", () => {
+        // Skip toggle if disabled
+        if (eightiesToggle.classList.contains('disabled')) {
+          console.log("80s mode toggle is currently disabled");
+          return;
+        }
+
         const toggleRow = document.querySelector(".toggle-row.mobile-inline");
 
         // Toggle the isEightiesMode state
@@ -2867,6 +3271,12 @@
 
       // Toggle music
       musicToggle.addEventListener("click", () => {
+        // Skip toggle if disabled
+        if (musicToggle.classList.contains('disabled')) {
+          console.log("Music toggle is currently disabled");
+          return;
+        }
+
         // Toggle the active state visually
         musicToggle.classList.toggle("active");
 
@@ -2917,20 +3327,15 @@
 
       // Toggle constellations
       constellationToggle.addEventListener("click", () => {
-        // console.log("Constellation toggle clicked!");
-        // console.log("Element before toggle:", constellationToggle);
-        // console.log("Class list BEFORE:", constellationToggle.classList.toString());
+        // We don't need to disable constellation toggle during video/calls
+        // so no need to check for disabled state here
 
         // Toggle the active state visually
         constellationToggle.classList.toggle("active");
 
-        // console.log("Class list AFTER:", constellationToggle.classList.toString());
-
         // Get the current state
         const isConstellationsEnabled =
           constellationToggle.classList.contains("active");
-
-        // console.log("isConstellationsEnabled state:", isConstellationsEnabled);
 
         // Play toggle sound
         try {
@@ -3164,16 +3569,29 @@
       // Notify parent that music should be hidden
 
       function updateLeaderboardUI() {
-        if (isLeaderboardExpanded) {
-          leaderboardContent.style.display = "block";
-          leaderboardArrow.textContent = "▲";
-        } else {
-          leaderboardContent.style.display = "none";
-          leaderboardArrow.textContent = "▼";
-        }
+        // Get fresh references to the elements
+        const content = document.getElementById("leaderboard-content");
+        const arrow = document.getElementById("leaderboard-arrow");
+        
+        if (!content) return; // Exit if element not found
+        
+        console.log("Updating leaderboard UI, expanded:", isLeaderboardExpanded);
+        
+        // Use direct style application for guaranteed effect
+        content.style.display = isLeaderboardExpanded ? "block" : "none";
+        if (arrow) arrow.textContent = isLeaderboardExpanded ? "▲" : "▼";
       }
 
       updateLeaderboardUI(); // Initialize leaderboard state
+
+      // Also update leaderboard state on window resize
+      window.addEventListener("resize", function() {
+        // Only auto-adjust the leaderboard expansion state if the user hasn't manually toggled it yet
+        if (!window.leaderboardManuallyToggled) {
+          isLeaderboardExpanded = window.innerWidth >= 768;
+          updateLeaderboardUI();
+        }
+      });
 
       // Apply appropriate UI state based on URL parameters
       const urlParams = new URLSearchParams(window.location.search);
@@ -3197,8 +3615,26 @@
       const leaderboardToggle = document.getElementById("leaderboard-toggle");
       if (leaderboardToggle) {
         leaderboardToggle.addEventListener("click", () => {
+          // Toggle state
           isLeaderboardExpanded = !isLeaderboardExpanded;
-          updateLeaderboardUI();
+          window.leaderboardManuallyToggled = true; // Mark that user manually toggled
+          
+          // Get direct reference to content
+          const content = document.getElementById("leaderboard-content");
+          const arrow = document.getElementById("leaderboard-arrow");
+          
+          // Apply change directly without going through updateLeaderboardUI
+          if (content) {
+            content.style.display = isLeaderboardExpanded ? "block" : "none";
+          }
+          
+          if (arrow) {
+            arrow.textContent = isLeaderboardExpanded ? "▲" : "▼";
+          }
+          
+          // Log state change
+          console.log("Leaderboard toggled manually:", isLeaderboardExpanded);
+          
           playClickSound(); // Add click sound feedback
         });
       }
@@ -3225,8 +3661,24 @@
         // Handle specific actions
         switch (action) {
           case "signal":
-            console.log("Signal broadcast initiated");
-            playOrientationVideo();
+            // Check if orientation video is already playing
+            const orientationVideo = document.getElementById('orientation-video');
+            
+            if (orientationVideo) {
+              console.log("Stopping orientation video early by user request");
+              
+              // Stop and clean up the video
+              stopOrientationVideo();
+              
+              // Provide user feedback
+              button.classList.add("active");
+              setTimeout(() => {
+                button.classList.remove("active");
+              }, 500);
+            } else {
+              console.log("Signal broadcast initiated");
+              playOrientationVideo();
+            }
             break;
           case "ignition":
             console.log("Launch sequence initiated");
@@ -3238,14 +3690,86 @@
             break;
           case "return":
             console.log("Return sequence activated");
+            // Navigate to the home page
+            window.parent.postMessage({ type: "NAVIGATE_TO_HOME" }, "*");
             break;
         }
 
-        // Remove active states after animation
+        // Remove active states after animation (except for signal when stopping video)
+        if (!(action === "signal" && document.getElementById('orientation-video'))) {
+          setTimeout(() => {
+            button.classList.remove("active");
+            indicator.classList.remove("active");
+          }, 2000);
+        }
+      }
+
+      // Function to stop orientation video and clean up
+      function stopOrientationVideo() {
+        const orientationVideo = document.getElementById('orientation-video');
+        const deadAir = document.getElementById("deadAir");
+        const offlineDisplay = document.getElementById("offline-display");
+        const transcriptToggleBtn = document.getElementById("transcript-toggle-btn");
+        const loadingIndicator = document.querySelector('.video-loading-indicator');
+        const transcriptContainer = document.getElementById('transcript-container');
+        
+        if (!orientationVideo) return;
+        
+        // First stop video playback
+        orientationVideo.pause();
+        
+        // Remove CC button pulse animation and hide it
+        if (transcriptToggleBtn) {
+          transcriptToggleBtn.classList.remove('pulse-attention');
+          transcriptToggleBtn.style.display = 'none';
+        }
+        
+        // Hide transcript if visible
+        if (transcriptContainer && transcriptContainer.style.display !== 'none') {
+          transcriptContainer.style.display = 'none';
+        }
+        
+        // Clear transcript interval
+        if (window.transcriptInterval) {
+          clearInterval(window.transcriptInterval);
+          window.transcriptInterval = null;
+        }
+        
+        // Re-enable the toggles
+        if (typeof enableToggles === 'function' && !isCallActive) {
+          enableToggles();
+        }
+        
+        // Remove loading indicator if present
+        if (loadingIndicator) {
+          loadingIndicator.remove();
+        }
+        
+        // Start a quick fade-out transition
+        orientationVideo.style.opacity = '0';
+        orientationVideo.style.transition = 'opacity 0.3s ease-in-out';
+        
+        // After fade transition completes, remove the video and clean up
         setTimeout(() => {
-          button.classList.remove("active");
-          indicator.classList.remove("active");
-        }, 2000);
+          // Clean up video resources
+          orientationVideo.removeAttribute('src');
+          orientationVideo.load(); // Force browser to release resources
+          orientationVideo.remove();
+          
+          // Show offline display again
+          if (offlineDisplay) {
+            offlineDisplay.style.display = 'flex';
+            offlineDisplay.innerHTML = '<span>SYS//OFFLINE</span><div class="crosshair-h"></div><div class="crosshair-v"></div><div class="scanlines-overlay"></div>';
+          }
+          
+          // Show deadAir again
+          if (deadAir) {
+            deadAir.style.display = '';
+            deadAir.play().catch(e => console.log("Couldn't restart deadAir:", e));
+          }
+          
+          console.log("Orientation video stopped and cleaned up");
+        }, 300); // 300ms for opacity transition
       }
 
       // Function to play the orientation video
@@ -3460,6 +3984,24 @@
           // Show deadAir again
           if (deadAir) {
             deadAir.style.display = '';
+            deadAir.play();
+          }
+          
+          // Hide transcript toggle button and content when video ends
+          if (transcriptToggleBtn) {
+            transcriptToggleBtn.style.display = 'none';
+            transcriptToggleBtn.classList.remove('active');
+          }
+          
+          // Hide transcript container if visible
+          if (transcriptContainer && transcriptContainer.style.display !== 'none') {
+            transcriptContainer.style.display = 'none';
+          }
+          
+          // Clear transcript interval
+          if (transcriptInterval) {
+            clearInterval(transcriptInterval);
+            transcriptInterval = null;
           }
           
           // Only add pulse to CONNECT button on first viewing
@@ -3475,6 +4017,17 @@
       // At the end of the file, add this script to resize the container
       document.addEventListener("DOMContentLoaded", function () {
         console.log("DOMContentLoaded event fired - initializing button states");
+        
+        // Initialize leaderboard state based on screen size
+        const leaderboardContent = document.getElementById("leaderboard-content");
+        const leaderboardArrow = document.getElementById("leaderboard-arrow");
+        if (leaderboardContent && window.innerWidth >= 768) {
+          leaderboardContent.style.display = "block";
+          if (leaderboardArrow) {
+            leaderboardArrow.textContent = "▲";
+          }
+          isLeaderboardExpanded = true;
+        }
         
         // Check for reset parameter to clear orientation viewed state (for testing)
         const urlParams = new URLSearchParams(window.location.search);
@@ -3682,6 +4235,9 @@
         } else {
           console.warn("AI_vhost_api is not available to stop.");
         }
+
+        // Re-enable toggles when disconnecting
+        enableToggles();
 
         // Hide SitePal container
         const container = document.getElementById("sitepal-container");
@@ -3998,6 +4554,716 @@
 
       });
 
+      // Add transcript functionality
+      // Sample transcript data - would normally be loaded from a separate file
+      const transcriptData = {
+        en: [
+          { time: 0, text: "Greetings and welcome, Earthling. I have pre-recorded this communication as your orientation." },
+          { time: 7, text: "For your amusement, double-click to fire projectiles at the moons. Don't worry - this won't harm or break anything." },
+          { time: 15, text: "Next, please note that A SINGLE long click on the floor of the scene will instantiate a green candle there which may serve as an offering to Our Lady of Perpetual Profit." },
+          { time: 24, text: "Candles will melt in 1 hour." },
+          { time: 27, text: "Also, please observe the special votive candles which surround Our Lady. These represent the highly revered 'Illumin80'." },
+          { time: 36, text: "They are the top token stakers. Click once on one of these candles to inspect it closely." },
+          { time: 43, text: "Finally, you may click the connect button immediately below me to speak to me in real time." },
+          { time: 49, text: "I can guide you in acquiring RL80 tokens and embarking on special missions." },
+          { time: 55, text: "Be aware that there may be small delays in my response due to the great distance between us." },
+          { time: 61, text: "Goodbye for now." }
+        ],
+        es: [
+          { time: 0, text: "Saludos y bienvenido, Terrícola. He pregrabado esta comunicación como tu orientación." },
+          { time: 7, text: "Para divertirte, haz doble clic para disparar proyectiles a las lunas. No te preocupes, esto no dañará ni romperá nada." },
+          { time: 15, text: "A continuación, ten en cuenta que UN SOLO clic en el suelo de la escena producirá allí una vela verde que puede servir como ofrenda a Nuestra Señora del Beneficio Perpetuo." },
+          { time: 24, text: "Las velas se derretirán en 1 hora." },
+          { time: 27, text: "Además, observa las velas votivas especiales que rodean a Nuestra Señora. Estas representan a los altamente venerados 'Illumin80'." },
+          { time: 36, text: "Son los principales poseedores de tokens. Haz clic una vez en una de estas velas para inspeccionarla de cerca." },
+          { time: 43, text: "Finalmente, puedes hacer clic en el botón de conexión inmediatamente debajo de mí para hablar conmigo en tiempo real." },
+          { time: 49, text: "Puedo guiarte para adquirir tokens RL80 y embarcarte en misiones especiales." },
+          { time: 55, text: "Ten en cuenta que puede haber pequeños retrasos en mi respuesta debido a la gran distancia entre nosotros." },
+          { time: 61, text: "Adiós por ahora." }
+        ],
+        fr: [
+          { time: 0, text: "Salutations et bienvenue, Terrien. J'ai préenregistré cette communication comme votre orientation." },
+          { time: 7, text: "Pour vous amuser, double-cliquez pour tirer des projectiles sur les lunes. Ne vous inquiétez pas - cela n'endommagera ni ne cassera rien." },
+          { time: 15, text: "Ensuite, veuillez noter qu'UN SEUL clic sur le sol de la scène produira une bougie verte qui pourra servir d'offrande à Notre-Dame du Profit Perpétuel." },
+          { time: 24, text: "Les bougies fondront en 1 heure." },
+          { time: 27, text: "Veuillez également observer lesbougies votives spéciales qui entourent Notre-Dame. Elles représentent les très estimés 'Illumin80'." },
+          { time: 36, text: "Ce sont les principaux détenteurs de jetons. Cliquez une fois sur l'une de ces bougies pour l'examiner de près." },
+          { time: 43, text: "Enfin, vous pouvez cliquer sur le bouton de connexion juste en dessous de moi pour me parler en temps réel." },
+          { time: 49, text: "Je peux vous guider dans l'acquisition de jetons RL80 et rejoindre les Illumin80." },
+          { time: 55, text: "Sachez qu'il peut y avoir de petits délais dans ma réponse en raison de la grande distance entre nous." },
+          { time: 61, text: "Au revoir pour l'instant." }
+        ],
+        de: [
+          { time: 0, text: "Grüße und willkommen, Erdling. Ich habe diese Kommunikation als Ihre Orientierung vorab aufgezeichnet." },
+          { time: 7, text: "Zum Vergnügen können Sie mit einem Doppelklick Projektile auf die Monde abfeuern. Keine Sorge - dies wird nichts beschädigen oder kaputt machen." },
+          { time: 15, text: "Beachten Sie als Nächstes, dass EIN EINZIGER Klick auf den Boden der Szene dort eine grüne Kerze erzeugt, die als Opfergabe für Unsere Liebe Frau vom Immerwährenden Profit dienen kann." },
+          { time: 24, text: "Kerzen schmelzen in 1 Stunde." },
+          { time: 27, text: "Beobachten Sie bitte auch die speziellen Votivkerzen, die Unsere Liebe Frau umgeben. Diese repräsentieren die hochgeschätzten 'Illumin80'." },
+          { time: 36, text: "Sie sind die wichtigsten Token-Besitzer. Klicken Sie einmal auf eine dieser Kerzen, um sie genau zu betrachten." },
+          { time: 43, text: "Schließlich können Sie auf die Verbindungstaste direkt unter mir klicken, um in Echtzeit mit mir zu sprechen." },
+          { time: 49, text: "Ich kann Sie beim Erwerb von RL80-Tokens und bei besonderen Missionen unterstützen." },
+          { time: 55, text: "Beachten Sie, dass es aufgrund der großen Entfernung zwischen uns zu kleinen Verzögerungen bei meiner Antwort kommen kann." },
+          { time: 61, text: "Auf Wiedersehen für jetzt." }
+        ],
+        ja: [
+          { time: 0, text: "ご挨拶申し上げます、地球人の皆様。これはあなたのためのオリエンテーションとして事前に録音されたコミュニケーションです。" },
+          { time: 7, text: "楽しみのために、ダブルクリックして月に投射物を発射してください。心配しないでください - これは何も傷つけたり壊したりすることはありません。" },
+          { time: 15, text: "次に、シーンの床を一回クリックすると、そこに緑色のキャンドルが現れ、永久利益の聖母への供物として役立つことを覚えておいてください。" },
+          { time: 24, text: "キャンドルは1時間で溶けます。" },
+          { time: 27, text: "また、聖母を囲む特別な奉納キャンドルを観察してください。これらは非常に尊敬される「イルミン80」を表しています。" },
+          { time: 36, text: "彼らは主要なトークン保有者です。これらのキャンドルのいずれかを一度クリックして、近くで観察してください。" },
+          { time: 43, text: "最後に、私のすぐ下にある接続ボタンをクリックして、リアルタイムで私と話すことができます。" },
+          { time: 49, text: "RL80トークンの取得と特別なミッションへの参加についてご案内します。" },
+          { time: 55, text: "私たちの間の大きな距離のため、私の応答に小さな遅延があるかもしれないことにご注意ください。" },
+          { time: 61, text: "さようなら、また会いましょう。" }
+        ],
+        zh: [
+          { time: 0, text: "问候并欢迎，地球人。我已预先录制了这段通讯作为您的入门指导。" },
+          { time: 7, text: "为了娱乐，双击可向月球发射投射物。别担心 - 这不会造成任何伤害或破坏。" },
+          { time: 15, text: "接下来，请注意在场景地板上单击一次将会在那里产生一根绿色蜡烛，可作为永恒利润圣母的供品。" },
+          { time: 24, text: "蜡烛将在1小时内融化。" },
+          { time: 27, text: "另外，请观察围绕永恒利润圣母的特殊供奉蜡烛。这些代表着备受尊敬的'光明80'。" },
+          { time: 36, text: "他们是主要的代币持有者。单击其中一支蜡烛可以近距离检查它。" },
+          { time: 43, text: "最后，您可以点击我正下方的连接按钮与我实时交谈。" },
+          { time: 49, text: "我可以指导您获取RL80代币并参与特殊任务。" },
+          { time: 55, text: "请注意，由于我们之间的距离较远，我的回应可能会有短暂的延迟。" },
+          { time: 61, text: "暂时告别。" }
+        ],
+        ko: [
+          { time: 0, text: "환영합니다, 지구인 여러분. 이 통신은 귀하의 오리엔테이션을 위해 사전에 녹음되었습니다." },
+          { time: 7, text: "재미를 위해 더블클릭으로 달에 발사체를 발사할 수 있습니다. 걱정하지 마세요 - 이것은 아무것도 손상시키거나 파괴하지 않습니다." },
+          { time: 15, text: "다음으로, 장면의 바닥을 한 번 클릭하면 그곳에 녹색 양초가 생성되어 영원한 이익의 성모님께 바칠 수 있습니다." },
+          { time: 24, text: "양초는 1시간 후에 녹습니다." },
+          { time: 27, text: "또한, 성모님을 둘러싸고 있는 특별한 봉헌 양초들을 관찰해 주세요. 이것들은 매우 존경받는 '일루민80'을 나타냅니다." },
+          { time: 36, text: "그들은 주요 토큰 보유자입니다. 이 양초들 중 하나를 한 번 클릭하여 자세히 살펴보세요." },
+          { time: 43, text: "마지막으로, 제 바로 아래에 있는 연결 버튼을 클릭하여 실시간으로 저와 대화할 수 있습니다." },
+          { time: 49, text: "RL80 토큰 획득과 특별한 미션 참여를 안내해 드릴 수 있습니다." },
+          { time: 55, text: "우리 사이의 거리가 멀기 때문에 제 응답에 약간의 지연이 있을 수 있다는 점을 참고해 주세요." },
+          { time: 61, text: "안녕히 가세요." }
+        ],
+        pt: [
+          { time: 0, text: "Saudações e bem-vindo, Terrestre. Gravei esta comunicação como sua orientação." },
+          { time: 7, text: "Para seu entretenimento, dê um duplo clique para disparar projéteis nas luas. Não se preocupe - isso não causará danos nem quebrará nada." },
+          { time: 15, text: "Em seguida, observe que UM ÚNICO clique no chão da cena irá criar uma vela verde que pode servir como oferenda para Nossa Senhora do Lucro Perpétuo." },
+          { time: 24, text: "As velas derreterão em 1 hora." },
+          { time: 27, text: "Além disso, observe as velas votivas especiais que cercam Nossa Senhora. Estas representam os altamente reverenciados 'Illumin80'." },
+          { time: 36, text: "Eles são os principais detentores de tokens. Clique uma vez em uma dessas velas para inspecioná-la de perto." },
+          { time: 43, text: "Por fim, você pode clicar no botão de conexão logo abaixo de mim para falar comigo em tempo real." },
+          { time: 49, text: "Posso guiá-lo na aquisição de tokens RL80 e em missões especiais." },
+          { time: 55, text: "Esteja ciente de que pode haver pequenos atrasos em minha resposta devido à grande distância entre nós." },
+          { time: 61, text: "Até breve." }
+        ],
+        ru: [
+          { time: 0, text: "Приветствую вас, Землянин. Я предварительно записал это сообщение как вашу ориентацию." },
+          { time: 7, text: "Для развлечения дважды щелкните, чтобы стрелять снарядами в луны. Не беспокойтесь - это не причинит вреда и ничего не сломает." },
+          { time: 15, text: "Далее обратите внимание, что ОДНО нажатие на пол сцены создаст там зеленую свечу, которая может служить подношением Нашей Госпоже Вечной Прибыли." },
+          { time: 24, text: "Свечи растают через 1 час." },
+          { time: 27, text: "Также обратите внимание на особые вотивные свечи, окружающие Нашу Госпожу. Они представляют высокочтимых 'Illumin80'." },
+          { time: 36, text: "Они являются основными держателями токенов. Щелкните один раз по одной из этих свечей, чтобы рассмотреть её поближе." },
+          { time: 43, text: "Наконец, вы можете нажать на кнопку подключения прямо подо мной, чтобы поговорить со мной в реальном времени." },
+          { time: 49, text: "Я могу помочь вам приобрести токены RL80 и участвовать в специальных миссиях." },
+          { time: 55, text: "Имейте в виду, что могут быть небольшие задержки в моем ответе из-за большого расстояния между нами." },
+          { time: 61, text: "До свидания." }
+        ],
+        hi: [
+          { time: 0, text: "नमस्कार और स्वागत है, पृथ्वीवासी। मैंने यह संचार आपके अभिविन्यास के लिए पहले से रिकॉर्ड किया है।" },
+          { time: 7, text: "मनोरंजन के लिए, चंद्रमा पर प्रक्षेप्य छोड़ने के लिए डबल-क्लिक करें। चिंता न करें - यह किसी को नुकसान नहीं पहुंचाएगा और कुछ नहीं तोड़ेगा।" },
+          { time: 15, text: "अगला, ध्यान दें कि दृश्य के फर्श पर एक क्लिक वहां एक हरी मोमबत्ती बनाएगा जो शाश्वत लाभ की हमारी महिला को अर्पण के रूप में काम कर सकती है।" },
+          { time: 24, text: "मोमबत्तियां 1 घंटे में पिघल जाएंगी।" },
+          { time: 27, text: "साथ ही, हमारी महिला के चारों ओर विशेष वोटिव मोमबत्तियों को देखें। ये अत्यधिक सम्मानित 'इल्यूमिन80' का प्रतिनिधित्व करती हैं।" },
+          { time: 36, text: "वे शीर्ष टोकन धारक हैं। इनमें से किसी एक मोमबत्ती पर एक बार क्लिक करके उसे करीब से देखें।" },
+          { time: 43, text: "अंत में, आप मेरे साथ वास्तविक समय में बात करने के लिए मेरे ठीक नीचे कनेक्ट बटन पर क्लिक कर सकते हैं।" },
+          { time: 49, text: "मैं आपको RL80 टोकन प्राप्त करने और विशेष मिशनों में शामिल होने में मार्गदर्शन कर सकता हूं।" },
+          { time: 55, text: "ध्यान दें कि हमारे बीच की बड़ी दूरी के कारण मेरे जवाब में छोटी देरी हो सकती है।" },
+          { time: 61, text: "अलविदा।" }
+        ],
+        ar: [
+          { time: 0, text: "تحياتي ومرحباً، أيها الأرضي. لقد سجلت هذا التواصل مسبقاً كتوجيه لك." },
+          { time: 7, text: "للترفيه، انقر نقراً مزدوجاً لإطلاق المقذوفات على الأقمار. لا تقلق - لن يضر هذا بأي شيء أو يكسر شيئاً." },
+          { time: 15, text: "التالي، لاحظ أن نقرة واحدة على أرضية المشهد ستنشئ شمعة خضراء هناك يمكن أن تكون قرباناً لسيدتنا الربح الدائم." },
+          { time: 24, text: "ستذوب الشموع في ساعة واحدة." },
+          { time: 27, text: "أيضاً، لاحظ الشموع الخاصة التي تحيط بسيدتنا. هذه تمثل 'إلومين80' المحترمين." },
+          { time: 36, text: "هم حاملي الرموز الرئيسيين. انقر مرة واحدة على إحدى هذه الشموع لفحصها عن قرب." },
+          { time: 43, text: "أخيراً، يمكنك النقر على زر الاتصال مباشرة تحتي للتحدث معي في الوقت الفعلي." },
+          { time: 49, text: "يمكنني توجيهك في الحصول على رموز RL80 والمشاركة في المهام الخاصة." },
+          { time: 55, text: "كن على علم أنه قد تكون هناك تأخيرات صغيرة في استجابتي بسبب المسافة الكبيرة بيننا." },
+          { time: 61, text: "مع السلامة." }
+        ],
+        vi: [
+          { time: 0, text: "Chào mừng và hoan nghênh, Người Trái Đất. Tôi đã ghi âm sẵn thông điệp này làm hướng dẫn cho bạn." },
+          { time: 7, text: "Để giải trí, nhấp đúp chuột để bắn đạn vào các mặt trăng. Đừng lo lắng - điều này sẽ không gây hại hay làm hỏng bất cứ thứ gì." },
+          { time: 15, text: "Tiếp theo, hãy lưu ý rằng MỘT lần nhấp vào sàn của cảnh sẽ tạo ra một ngọn nến xanh lá ở đó, có thể dùng làm lễ vật dâng lên Đức Mẹ của Lợi Nhuận Vĩnh Cửu." },
+          { time: 24, text: "Nến sẽ tan chảy trong 1 giờ." },
+          { time: 27, text: "Ngoài ra, hãy quan sát những ngọn nến cầu nguyện đặc biệt bao quanh Đức Mẹ. Những ngọn nến này đại diện cho 'Illumin80' được tôn kính." },
+          { time: 36, text: "Họ là những người nắm giữ token hàng đầu. Nhấp một lần vào một trong những ngọn nến này để xem xét kỹ." },
+          { time: 43, text: "Cuối cùng, bạn có thể nhấp vào nút kết nối ngay bên dưới tôi để nói chuyện với tôi trong thời gian thực." },
+          { time: 49, text: "Tôi có thể hướng dẫn bạn trong việc có được token RL80 và tham gia vào các nhiệm vụ đặc biệt." },
+          { time: 55, text: "Xin lưu ý rằng có thể có độ trễ nhỏ trong phản hồi của tôi do khoảng cách lớn giữa chúng ta." },
+          { time: 61, text: "Tạm biệt." }
+        ]
+      };
+
+      // Transcript elements and state
+      const transcriptContainer = document.getElementById('transcript-container');
+      const transcriptToggleBtn = document.getElementById('transcript-toggle-btn');
+      const transcriptHeader = document.getElementById('transcript-header');
+      const transcriptContent = document.getElementById('transcript-content');
+      const languageSelect = document.getElementById('language-select');
+      const transcriptExpandIcon = document.querySelector('.transcript-expand-icon');
+      
+      let isTranscriptVisible = false;
+      let isTranscriptCollapsed = false;
+      let currentLanguage = 'en';
+      let currentSegmentIndex = 0;
+      let transcriptInterval = null;
+
+      // Initialize transcript functionality
+      function initTranscript() {
+        // Show the transcript toggle button when video is playing
+        transcriptToggleBtn.style.display = 'flex';
+        
+        // Set up event listeners
+        transcriptToggleBtn.addEventListener('click', toggleTranscriptVisibility);
+        transcriptHeader.addEventListener('click', toggleTranscriptCollapse);
+        languageSelect.addEventListener('change', function() {
+          currentLanguage = this.value;
+          loadTranscript(currentLanguage);
+        });
+        
+        // Load initial transcript
+        loadTranscript(currentLanguage);
+      }
+
+      // Toggle transcript visibility
+      function toggleTranscriptVisibility() {
+        isTranscriptVisible = !isTranscriptVisible;
+        
+        if (isTranscriptVisible) {
+          transcriptContainer.style.display = 'block';
+          transcriptToggleBtn.classList.add('active');
+          // Start the transcript highlight simulation if not already running
+          if (!transcriptInterval) {
+            currentSegmentIndex = 0;
+            startTranscriptHighlight();
+          }
+        } else {
+          transcriptContainer.style.display = 'none';
+          transcriptToggleBtn.classList.remove('active');
+          // Stop the highlight simulation when hidden
+          if (transcriptInterval) {
+            clearInterval(transcriptInterval);
+            transcriptInterval = null;
+          }
+        }
+      }
+
+      // Toggle transcript collapse/expand
+      function toggleTranscriptCollapse() {
+        isTranscriptCollapsed = !isTranscriptCollapsed;
+        
+        if (isTranscriptCollapsed) {
+          transcriptContent.classList.add('collapsed');
+          transcriptExpandIcon.classList.add('collapsed');
+        } else {
+          transcriptContent.classList.remove('collapsed');
+          transcriptExpandIcon.classList.remove('collapsed');
+        }
+      }
+
+      // Load transcript in selected language
+      function loadTranscript(language) {
+        // Clear current transcript
+        transcriptContent.innerHTML = '';
+        
+        // Get transcript data for selected language or fall back to English
+        const transcript = transcriptData[language] || transcriptData.en;
+        
+        // Create transcript segments
+        transcript.forEach((segment, index) => {
+          const segmentElement = document.createElement('div');
+          segmentElement.classList.add('transcript-segment');
+          segmentElement.setAttribute('data-time', segment.time);
+          segmentElement.textContent = segment.text;
+          
+          // Highlight the first segment by default
+          if (index === 0) {
+            segmentElement.classList.add('active');
+          }
+          
+          transcriptContent.appendChild(segmentElement);
+        });
+      }
+
+      // Start transcript highlight simulation
+      function startTranscriptHighlight() {
+        // Clear any existing interval
+        if (transcriptInterval) {
+          clearInterval(transcriptInterval);
+        }
+        
+        // Set up new interval
+        transcriptInterval = setInterval(() => {
+          // Skip if transcript is not visible or collapsed
+          if (!isTranscriptVisible || isTranscriptCollapsed) return;
+          
+          const segments = document.querySelectorAll('.transcript-segment');
+          if (segments.length === 0) return;
+          
+          // Clear active class from all segments
+          segments.forEach(segment => segment.classList.remove('active'));
+          
+          // Add active class to current segment
+          segments[currentSegmentIndex].classList.add('active');
+          
+          // Auto-scroll to keep active segment visible
+          const activeSegment = segments[currentSegmentIndex];
+          const containerRect = transcriptContent.getBoundingClientRect();
+          const segmentRect = activeSegment.getBoundingClientRect();
+          
+          if (segmentRect.bottom > containerRect.bottom || segmentRect.top < containerRect.top) {
+            activeSegment.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+          
+          // Advance to next segment
+          currentSegmentIndex = (currentSegmentIndex + 1) % segments.length;
+        }, 5000); // Change active segment every 5 seconds
+      }
+
+      // Show transcript when orientation video is playing
+      function showTranscriptForOrientationVideo() {
+        const orientationVideo = document.getElementById('orientation-video');
+        
+        if (orientationVideo) {
+          // Initialize transcript when orientation video starts playing
+          initTranscript();
+          
+          // Optional: Auto-show transcript for orientation video
+          // setTimeout(() => {
+          //   if (!isTranscriptVisible) {
+          //     toggleTranscriptVisibility();
+          //   }
+          // }, 1000);
+          
+          // Clean up when video ends
+          orientationVideo.addEventListener('ended', function() {
+            // Hide transcript toggle button when video ends
+            transcriptToggleBtn.style.display = 'none';
+            
+            // Hide transcript if visible
+            if (isTranscriptVisible) {
+              toggleTranscriptVisibility();
+            }
+            
+            // Clear highlight interval
+            if (transcriptInterval) {
+              clearInterval(transcriptInterval);
+              transcriptInterval = null;
+            }
+          });
+        }
+      }
+
+      // Function to play the orientation video - modified to add transcript
+      function playOrientationVideo() {
+        const videoFeed = document.getElementById("video-feed");
+        const deadAir = document.getElementById("deadAir");
+        const signalButton = document.querySelector('[data-action="signal"]');
+        const connectButton = document.getElementById("call-button");
+        const offlineDisplay = document.getElementById("offline-display");
+        const transcriptToggleBtn = document.getElementById("transcript-toggle-btn");
+        
+        console.log("SIGNAL button clicked - preparing to play orientation video");
+        
+        // Remove pulse effect from SIGNAL button immediately when clicked
+        if (signalButton) {
+          signalButton.classList.remove("initial-pulse");
+        }
+        
+        // First, clean up any existing orientation videos to prevent multiple playbacks
+        const existingVideos = document.querySelectorAll('#orientation-video');
+        if (existingVideos.length > 0) {
+          console.log(`Found ${existingVideos.length} existing orientation videos - cleaning up`);
+          existingVideos.forEach(video => {
+            // Remove event listeners first to prevent error events during cleanup
+            video.onloadstart = null;
+            video.onloadedmetadata = null;
+            video.onloadeddata = null;
+            video.oncanplay = null;
+            video.oncanplaythrough = null;
+            video.onerror = null;
+            video.onended = null;
+            video.onplaying = null;
+            
+            // Stop playback
+            try {
+              video.pause();
+              video.removeAttribute('src');
+              video.load(); // Force browser to release resources
+              video.remove();
+            } catch (e) {
+              console.log("Error during video cleanup:", e);
+            }
+          });
+          
+          // Show offline display and deadAir video again
+          if (offlineDisplay) {
+            offlineDisplay.style.display = 'flex';
+            offlineDisplay.innerHTML = '<span>SYS//OFFLINE</span><div class="crosshair-h"></div><div class="crosshair-v"></div><div class="scanlines-overlay"></div>';
+          }
+          
+          if (deadAir) {
+            deadAir.style.display = '';
+          }
+          
+          return; // Exit function after stopping playback
+        }
+        
+        // Check if this is the first time viewing - we'll still play the video, but
+        // only set the CONNECT button to pulse on first viewing
+        const isFirstViewing = localStorage.getItem('orientationViewed') !== 'true';
+        console.log("First time viewing?", isFirstViewing);
+        
+        // Create loading indicator
+        const loadingIndicator = document.createElement('div');
+        loadingIndicator.className = 'video-loading-indicator';
+        loadingIndicator.innerHTML = `
+          <div class="loading-spinner"></div>
+          <div>LOADING TRANSMISSION</div>
+        `;
+        videoFeed.appendChild(loadingIndicator);
+        
+        // Hide deadAir and offline display during loading
+        if (deadAir) {
+          deadAir.style.display = 'none';
+        }
+        
+        if (offlineDisplay) {
+          offlineDisplay.style.display = 'none';
+        }
+        
+        // Make sure video display is expanded
+        const videoDisplay = document.querySelector(".video-display");
+        if (videoDisplay) {
+          videoDisplay.classList.add("active", "touched");
+          videoDisplay.style.height = '180px';
+        }
+        
+        // Create orientation video element
+        const orientationVideo = document.createElement('video');
+        
+        // Add event listeners to track video loading progress
+        orientationVideo.addEventListener('loadstart', () => console.log('🔄 Video loadstart event fired'));
+        orientationVideo.addEventListener('loadedmetadata', () => console.log('🔄 Video loadedmetadata event fired'));
+        orientationVideo.addEventListener('loadeddata', () => console.log('🔄 Video loadeddata event fired'));
+        
+        // When video can play, prepare for delayed start
+        orientationVideo.addEventListener('canplay', () => {
+          console.log('✅ Video canplay event fired - preparing for delayed start');
+          
+          // Disable music and 80s mode toggles during video playback
+          disableToggles();
+          
+          // Add a 1.5 second delay before showing and playing the video
+          // This helps ensure audio is ready and synced
+          setTimeout(() => {
+            // Remove loading indicator
+            if (loadingIndicator.parentNode) {
+              loadingIndicator.remove();
+            }
+            
+            // Show the video with fade-in effect
+            orientationVideo.style.opacity = '1';
+            
+            // Initialize transcript for the orientation video
+            showTranscriptForOrientationVideo();
+            
+            // Show and animate the CC button
+            if (transcriptToggleBtn) {
+              transcriptToggleBtn.style.display = 'flex';
+              transcriptToggleBtn.classList.add('pulse-attention');
+            }
+            
+            // Start playing
+            orientationVideo.play()
+              .then(() => {
+                console.log("✅ Orientation video playing after delay");
+              })
+              .catch(err => {
+                console.error("❌ Error playing orientation video after delay:", err);
+                // Handle play error
+                handleVideoPlayError(orientationVideo, offlineDisplay);
+              });
+          }, 1500); // 1.5 second delay
+        });
+        
+        orientationVideo.addEventListener('error', (e) => {
+          console.error('❌ Video error event:', e);
+          // Remove loading indicator and show error message
+          if (loadingIndicator.parentNode) {
+            loadingIndicator.innerHTML = `
+              <div>ERROR LOADING VIDEO</div>
+              <div style="font-size: 0.8em; margin-top: 5px;">Tap to retry</div>
+            `;
+            loadingIndicator.style.cursor = 'pointer';
+            loadingIndicator.addEventListener('click', () => playOrientationVideo());
+          }
+        });
+        
+        // When video ends, properly clean up
+        orientationVideo.addEventListener('ended', () => {
+          console.log("Orientation video finished - cleaning up");
+          
+          // Re-enable the toggles when video ends (but only if SitePal isn't active)
+          if (!isCallActive) {
+            enableToggles();
+          }
+          
+          // Remove CC button pulse animation and hide it
+          if (transcriptToggleBtn) {
+            transcriptToggleBtn.classList.remove('pulse-attention');
+            transcriptToggleBtn.style.display = 'none';
+          }
+          
+          // Hide transcript if visible
+          const transcriptContainer = document.getElementById('transcript-container');
+          if (transcriptContainer && transcriptContainer.style.display !== 'none') {
+            transcriptContainer.style.display = 'none';
+          }
+          
+          // Clear transcript interval
+          if (window.transcriptInterval) {
+            clearInterval(window.transcriptInterval);
+            window.transcriptInterval = null;
+          }
+          
+          // Start a fade-out transition
+          orientationVideo.style.opacity = '0';
+          
+          // After fade transition completes, remove the video and clean up
+          setTimeout(() => {
+            // Clean up video resources
+            orientationVideo.pause();
+            orientationVideo.removeAttribute('src');
+            orientationVideo.load(); // Force browser to release resources
+            orientationVideo.remove();
+            
+            // Show offline display again
+            if (offlineDisplay) {
+              offlineDisplay.style.display = 'flex';
+              offlineDisplay.innerHTML = '<span>SYS//OFFLINE</span><div class="crosshair-h"></div><div class="crosshair-v"></div><div class="scanlines-overlay"></div>';
+            }
+            
+            // Show deadAir again
+            if (deadAir) {
+              deadAir.style.display = '';
+              deadAir.play().catch(e => console.log("Couldn't restart deadAir:", e));
+            }
+            
+            // Only add pulse to CONNECT button on first viewing
+            if (isFirstViewing && connectButton) {
+              connectButton.classList.add("initial-pulse");
+              
+              // Mark orientation as viewed (only on first viewing)
+              localStorage.setItem('orientationViewed', 'true');
+            }
+          }, 500); // 500ms for opacity transition
+        });
+        
+        // Set attributes for the video
+        orientationVideo.setAttribute('id', 'orientation-video');
+        orientationVideo.setAttribute('playsinline', '');
+        orientationVideo.setAttribute('webkit-playsinline', '');
+        orientationVideo.setAttribute('muted', ''); // Add muted attribute to help with autoplay
+        orientationVideo.setAttribute('preload', 'auto'); 
+        orientationVideo.style.width = '100%';
+        orientationVideo.style.height = '100%';
+        orientationVideo.style.objectFit = 'cover';
+        orientationVideo.style.position = 'absolute';
+        orientationVideo.style.top = '0';
+        orientationVideo.style.left = '0';
+        orientationVideo.style.zIndex = '50'; 
+        orientationVideo.style.display = 'block';
+        orientationVideo.style.opacity = '0'; // Start hidden, will fade in
+        orientationVideo.style.transition = 'opacity 0.5s ease-in-out';
+        orientationVideo.style.backgroundColor = '#000';
+
+        // Consider Firebase Storage URL for potentially faster loading
+        // You can replace this with your Firebase Storage URL
+        const useFirebase = true; // Set to true to use Firebase Storage
+        const firebaseUrl = 'https://firebasestorage.googleapis.com/v0/b/hailmary-3ff6c.firebasestorage.app/o/videos%2Forientation.mp4?alt=media&token=1a7cd750-da21-4355-ade9-2ac6372cd0bb';
+        
+        // Set source - either Firebase or local
+        orientationVideo.setAttribute('src', useFirebase ? firebaseUrl : '/orientation.mp4');
+        
+        // Add video to the feed
+        videoFeed.appendChild(orientationVideo);
+        
+        // Handle iOS/Safari-specific autoplay issues
+        if (isIOS || browserIsSafari) {
+          document.addEventListener('touchstart', function playVideoOnTouch() {
+            if (orientationVideo.paused) {
+              orientationVideo.play().catch(err => {
+                console.error("Error playing on touch:", err);
+                orientationVideo.muted = true;
+                orientationVideo.play().catch(e => console.error("Fallback play failed:", e));
+              });
+            }
+            document.removeEventListener('touchstart', playVideoOnTouch);
+          }, { once: true });
+        }
+      }
+
+      // Helper function to handle video play errors
+      function handleVideoPlayError(videoElement, offlineDisplay) {
+        // Try with muted playback
+        videoElement.muted = true;
+        videoElement.play().catch(e => {
+          console.error("❌ Fallback muted play failed:", e);
+          
+          // If all else fails, show a tap-to-play message
+          if (offlineDisplay) {
+            offlineDisplay.style.display = 'flex';
+            offlineDisplay.innerHTML = '<span>TAP TO PLAY ORIENTATION</span>';
+            offlineDisplay.style.cursor = 'pointer';
+            offlineDisplay.style.zIndex = '60';
+            offlineDisplay.addEventListener('click', function playOnClick() {
+              videoElement.play().catch(err => console.error("❌ Play on click failed:", err));
+              offlineDisplay.style.display = 'none';
+              offlineDisplay.removeEventListener('click', playOnClick);
+            });
+          }
+        });
+      }
+
+      // Function to show and animate the transcript for orientation video
+      function showTranscriptForOrientationVideo() {
+        const transcriptToggleBtn = document.getElementById("transcript-toggle-btn");
+        const transcriptContainer = document.getElementById('transcript-container');
+        
+        // Display CC button
+        if (transcriptToggleBtn) {
+          transcriptToggleBtn.style.display = 'flex';
+          transcriptToggleBtn.classList.add('pulse-attention');
+        }
+        
+        // Initialize transcript
+        initTranscript();
+        
+        // Automatically show transcript after 2 seconds to draw attention to it
+        setTimeout(() => {
+          if (transcriptToggleBtn && !isTranscriptVisible) {
+            toggleTranscriptVisibility();
+          }
+        }, 2000);
+        
+        // Monitor for video end
+        const orientationVideo = document.getElementById('orientation-video');
+        if (orientationVideo) {
+          orientationVideo.addEventListener('ended', function() {
+            // Stop pulsing and hide CC button
+            if (transcriptToggleBtn) {
+              transcriptToggleBtn.classList.remove('pulse-attention');
+              transcriptToggleBtn.style.display = 'none';
+            }
+            
+            // Hide transcript if visible
+            if (isTranscriptVisible) {
+              toggleTranscriptVisibility();
+            }
+            
+            // Clear highlight interval
+            if (window.transcriptInterval) {
+              clearInterval(window.transcriptInterval);
+              window.transcriptInterval = null;
+            }
+          });
+        }
+      }
+
+    </script>
+    
+    <!-- Initialize leaderboard arrow on desktop -->
+    <script>
+      // Set leaderboard arrow on page load for desktop
+      document.addEventListener('DOMContentLoaded', function() {
+        const arrow = document.getElementById('leaderboard-arrow');
+        if (arrow && window.innerWidth >= 768) {
+          arrow.textContent = '▲';
+        }
+      });
+    </script>
+    
+    <!-- Immediate execution script for leaderboard -->
+    <script>
+      // Run immediately after page parsing
+      (function() {
+        if (window.innerWidth >= 768) {
+          const content = document.getElementById('leaderboard-content');
+          const arrow = document.getElementById('leaderboard-arrow');
+          
+          if (content) content.style.display = 'block';
+          if (arrow) arrow.textContent = '▲';
+          
+          if (typeof isLeaderboardExpanded !== 'undefined') {
+            isLeaderboardExpanded = true;
+          }
+          
+          console.log('Leaderboard expanded for desktop via immediate script');
+        }
+      })();
+    </script>
+
+    <!-- Toggle control functions in a proper script tag -->
+    <script>
+      // Function to disable music and 80s toggles
+      function disableToggles() {
+        const musicToggle = document.getElementById("music-toggle");
+        const eightiesToggle = document.getElementById("eighties-toggle");
+        const musicLabel = musicToggle?.closest('.toggle-group')?.querySelector('.toggle-label');
+        const eightiesLabel = eightiesToggle?.closest('.toggle-group')?.querySelector('.toggle-label');
+        
+        // Disable the toggle switches
+        if (musicToggle) {
+          musicToggle.classList.add('disabled');
+          musicToggle.setAttribute('data-disabled', 'true');
+        }
+        
+        if (eightiesToggle) {
+          eightiesToggle.classList.add('disabled');
+          eightiesToggle.setAttribute('data-disabled', 'true');
+        }
+        
+        // Also dim the labels
+        if (musicLabel) musicLabel.classList.add('disabled');
+        if (eightiesLabel) eightiesLabel.classList.add('disabled');
+        
+        console.log("Toggles disabled during media playback");
+      }
+
+      // Function to re-enable music and 80s toggles
+      function enableToggles() {
+        const musicToggle = document.getElementById("music-toggle");
+        const eightiesToggle = document.getElementById("eighties-toggle");
+        const musicLabel = musicToggle?.closest('.toggle-group')?.querySelector('.toggle-label');
+        const eightiesLabel = eightiesToggle?.closest('.toggle-group')?.querySelector('.toggle-label');
+        
+        // Re-enable the toggle switches
+        if (musicToggle && musicToggle.getAttribute('data-disabled') === 'true') {
+          musicToggle.classList.remove('disabled');
+          musicToggle.removeAttribute('data-disabled');
+        }
+        
+        if (eightiesToggle && eightiesToggle.getAttribute('data-disabled') === 'true') {
+          eightiesToggle.classList.remove('disabled');
+          eightiesToggle.removeAttribute('data-disabled');
+        }
+        
+        // Also restore the labels
+        if (musicLabel) musicLabel.classList.remove('disabled');
+        if (eightiesLabel) eightiesLabel.classList.remove('disabled');
+        
+        console.log("Toggles re-enabled");
+      }
     </script>
   </body>
 </html>

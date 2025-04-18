@@ -25,6 +25,20 @@ export default function Page() {
     // Add any other critical images
   ];
 
+  useEffect(() => {
+    const handleIframeMessage = (event: MessageEvent) => {
+      // Only accept messages from the trusted iframe origin
+      if (event.origin !== "https://ourlady.io") return;
+  
+      if (event.data?.type === "redirect-home") {
+        window.location.href = "/home"; // Or use full path if needed
+      }
+    };
+  
+    window.addEventListener("message", handleIframeMessage);
+    return () => window.removeEventListener("message", handleIframeMessage);
+  }, []);
+
   // Handle responsive layout
   useEffect(() => {
     const checkMobile = () => {

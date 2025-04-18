@@ -163,6 +163,112 @@
       font-size: 1rem;
       margin: 5px 0;
     }
+
+    /* Transcript area styles */
+    .transcript-container {
+      max-width: 450px;
+      margin: 20px auto;
+      background: #0f172a;
+      border: 1px solid #134e4a;
+      border-radius: 4px;
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+
+    .transcript-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      background: #1f2937;
+      border-bottom: 1px solid #134e4a;
+      cursor: pointer;
+    }
+
+    .transcript-header h3 {
+      margin: 0;
+      font-size: 0.9rem;
+      color: #67e8f9;
+    }
+
+    .language-selector {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .language-selector select {
+      background: #134e4a;
+      color: #67e8f9;
+      border: none;
+      padding: 4px 8px;
+      font-family: monospace;
+      font-size: 0.75rem;
+      border-radius: 2px;
+      cursor: pointer;
+    }
+
+    .transcript-content {
+      padding: 12px;
+      max-height: 200px;
+      overflow-y: auto;
+      line-height: 1.5;
+      font-size: 0.85rem;
+    }
+
+    .transcript-content.collapsed {
+      max-height: 0;
+      padding: 0 12px;
+    }
+
+    /* Style for the transcript text highlight on active part */
+    .transcript-segment {
+      padding: 3px 0;
+      transition: background-color 0.3s ease;
+    }
+
+    .transcript-segment.active {
+      background-color: rgba(6, 182, 212, 0.1);
+      border-left: 2px solid #06b6d4;
+      padding-left: 8px;
+      margin-left: -8px;
+    }
+
+    /* Hide scrollbar for Chrome, Safari and Opera */
+    .transcript-content::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .transcript-content::-webkit-scrollbar-track {
+      background: #1f2937;
+    }
+
+    .transcript-content::-webkit-scrollbar-thumb {
+      background: #134e4a;
+      border-radius: 3px;
+    }
+
+    /* Animate expand/collapse arrow */
+    .transcript-toggle {
+      transition: transform 0.3s ease;
+    }
+
+    .transcript-toggle.collapsed {
+      transform: rotate(-90deg);
+    }
+
+    /* Responsive design for transcript area */
+    @media (max-width: 480px) {
+      .transcript-content {
+        max-height: 150px;
+        font-size: 0.8rem;
+      }
+      
+      .language-selector select {
+        font-size: 0.7rem;
+        padding: 2px 4px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -176,6 +282,27 @@
     <button class="btn" id="toggle-btn">Toggle Display</button>
     <button class="btn" id="reset-btn">Reset Classes</button>
     <button class="btn" id="send-event">Send Parent Event</button>
+  </div>
+  
+  <!-- Transcript Section -->
+  <div class="transcript-container">
+    <div class="transcript-header" id="transcript-header">
+      <h3>Video Transcript</h3>
+      <div class="language-selector">
+        <select id="language-select">
+          <option value="en">English</option>
+          <option value="es">Español</option>
+          <option value="fr">Français</option>
+          <option value="de">Deutsch</option>
+          <option value="ja">日本語</option>
+          <option value="zh">中文</option>
+        </select>
+        <span class="transcript-toggle">▼</span>
+      </div>
+    </div>
+    <div class="transcript-content" id="transcript-content">
+      <!-- Transcript segments will be populated dynamically -->
+    </div>
   </div>
   
   <div class="settings">
@@ -246,12 +373,73 @@
       const simMobile = document.getElementById('sim-mobile');
       const simDesktop = document.getElementById('sim-desktop');
       
+      // Transcript elements
+      const transcriptHeader = document.getElementById('transcript-header');
+      const transcriptContent = document.getElementById('transcript-content');
+      const languageSelect = document.getElementById('language-select');
+      const transcriptToggle = document.querySelector('.transcript-toggle');
+      
       // State variables
       let isCallActive = false;
       let isEightiesMode = false;
+      let isTranscriptCollapsed = false;
+      let currentLanguage = 'en';
+      
+      // Sample transcript data - this would normally come from an API or separate file
+      const transcriptData = {
+        en: [
+          { time: 0, text: "Welcome to the Cyberpunk Mission Control Panel orientation video." },
+          { time: 5, text: "This interface allows you to communicate with our advanced AI assistant and access critical mission data." },
+          { time: 12, text: "To begin, click the SIGNAL button to view this orientation." },
+          { time: 18, text: "Then use the CONNECT button to establish a secure channel with mission control." },
+          { time: 24, text: "The video display area can be expanded or collapsed by tapping on it when in mobile view." },
+          { time: 32, text: "For the best experience, enable 80s Mode using the toggle in the control panel." }
+        ],
+        es: [
+          { time: 0, text: "Bienvenido al video de orientación del Panel de Control de Misión Cyberpunk." },
+          { time: 5, text: "Esta interfaz te permite comunicarte con nuestro asistente de IA avanzado y acceder a datos críticos de la misión." },
+          { time: 12, text: "Para comenzar, haz clic en el botón SEÑAL para ver esta orientación." },
+          { time: 18, text: "Luego usa el botón CONECTAR para establecer un canal seguro con el control de misión." },
+          { time: 24, text: "El área de visualización de video puede expandirse o contraerse tocándola en vista móvil." },
+          { time: 32, text: "Para la mejor experiencia, activa el Modo 80s usando el interruptor en el panel de control." }
+        ],
+        fr: [
+          { time: 0, text: "Bienvenue dans la vidéo d'orientation du Panneau de Contrôle de Mission Cyberpunk." },
+          { time: 5, text: "Cette interface vous permet de communiquer avec notre assistant IA avancé et d'accéder aux données critiques de la mission." },
+          { time: 12, text: "Pour commencer, cliquez sur le bouton SIGNAL pour voir cette orientation." },
+          { time: 18, text: "Utilisez ensuite le bouton CONNECTER pour établir un canal sécurisé avec le contrôle de mission." },
+          { time: 24, text: "La zone d'affichage vidéo peut être agrandie ou réduite en appuyant dessus en vue mobile." },
+          { time: 32, text: "Pour une meilleure expérience, activez le Mode Années 80 à l'aide du commutateur dans le panneau de contrôle." }
+        ],
+        de: [
+          { time: 0, text: "Willkommen zum Orientierungsvideo der Cyberpunk-Missionskontrolltafel." },
+          { time: 5, text: "Diese Schnittstelle ermöglicht es Ihnen, mit unserem fortschrittlichen KI-Assistenten zu kommunizieren und auf kritische Missionsdaten zuzugreifen." },
+          { time: 12, text: "Klicken Sie zum Starten auf die SIGNAL-Taste, um diese Orientierung anzuzeigen." },
+          { time: 18, text: "Verwenden Sie dann die VERBINDEN-Taste, um einen sicheren Kanal zur Missionskontrolle herzustellen." },
+          { time: 24, text: "Der Videoanzeigebereich kann durch Tippen in der mobilen Ansicht erweitert oder verkleinert werden." },
+          { time: 32, text: "Für die beste Erfahrung aktivieren Sie den 80er-Modus mit dem Schalter im Bedienfeld." }
+        ],
+        ja: [
+          { time: 0, text: "サイバーパンク・ミッションコントロールパネルのオリエンテーションビデオへようこそ。" },
+          { time: 5, text: "このインターフェースでは、高度なAIアシスタントと通信し、重要なミッションデータにアクセスできます。" },
+          { time: 12, text: "まず、SIGNALボタンをクリックして、このオリエンテーションを表示します。" },
+          { time: 18, text: "次に、CONNECTボタンを使用して、ミッションコントロールとの安全なチャネルを確立します。" },
+          { time: 24, text: "ビデオ表示エリアは、モバイルビューでタップすることで展開または折りたたむことができます。" },
+          { time: 32, text: "最高の体験を得るには、コントロールパネルのトグルを使用して80年代モードを有効にします。" }
+        ],
+        zh: [
+          { time: 0, text: "欢迎观看赛博朋克任务控制面板的介绍视频。" },
+          { time: 5, text: "此界面使您能够与我们的高级AI助手通信并访问关键任务数据。" },
+          { time: 12, text: "要开始，请点击信号按钮查看此介绍。" },
+          { time: 18, text: "然后使用连接按钮与任务控制建立安全通道。" },
+          { time: 24, text: "视频显示区域可以通过在移动视图中点击来展开或折叠。" },
+          { time: 32, text: "为获得最佳体验，请使用控制面板中的开关启用80年代模式。" }
+        ]
+      };
       
       // Initial state
       updateStatus();
+      loadTranscript(currentLanguage);
       
       // Simple click handler for the video display
       videoDisplay.addEventListener('click', function() {
@@ -483,6 +671,85 @@
       
       // Update status on resize
       window.addEventListener('resize', updateStatus);
+      
+      // Transcript functionality
+      
+      // Toggle transcript visibility
+      transcriptHeader.addEventListener('click', function() {
+        isTranscriptCollapsed = !isTranscriptCollapsed;
+        
+        if (isTranscriptCollapsed) {
+          transcriptContent.classList.add('collapsed');
+          transcriptToggle.classList.add('collapsed');
+        } else {
+          transcriptContent.classList.remove('collapsed');
+          transcriptToggle.classList.remove('collapsed');
+        }
+      });
+      
+      // Handle language change
+      languageSelect.addEventListener('change', function() {
+        currentLanguage = this.value;
+        loadTranscript(currentLanguage);
+      });
+      
+      // Load transcript in selected language
+      function loadTranscript(language) {
+        // Clear current transcript
+        transcriptContent.innerHTML = '';
+        
+        // Get transcript data for selected language or fall back to English
+        const transcript = transcriptData[language] || transcriptData.en;
+        
+        // Create transcript segments
+        transcript.forEach((segment, index) => {
+          const segmentElement = document.createElement('div');
+          segmentElement.classList.add('transcript-segment');
+          segmentElement.setAttribute('data-time', segment.time);
+          segmentElement.textContent = segment.text;
+          
+          // Highlight the first segment by default
+          if (index === 0) {
+            segmentElement.classList.add('active');
+          }
+          
+          transcriptContent.appendChild(segmentElement);
+        });
+      }
+      
+      // Simulate video progress to highlight different transcript segments
+      // In a real implementation, this would sync with actual video playback time
+      let currentSegmentIndex = 0;
+      const simulateVideoProgress = setInterval(() => {
+        // Skip simulation if transcript is collapsed
+        if (isTranscriptCollapsed) return;
+        
+        const segments = document.querySelectorAll('.transcript-segment');
+        if (segments.length === 0) return;
+        
+        // Clear active class from all segments
+        segments.forEach(segment => segment.classList.remove('active'));
+        
+        // Add active class to current segment
+        segments[currentSegmentIndex].classList.add('active');
+        
+        // Auto-scroll to keep active segment visible
+        const activeSegment = segments[currentSegmentIndex];
+        const containerRect = transcriptContent.getBoundingClientRect();
+        const segmentRect = activeSegment.getBoundingClientRect();
+        
+        if (segmentRect.bottom > containerRect.bottom || segmentRect.top < containerRect.top) {
+          activeSegment.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        
+        // Advance to next segment
+        currentSegmentIndex = (currentSegmentIndex + 1) % segments.length;
+      }, 5000); // Change active segment every 5 seconds
+      
+      // Clean up interval on page unload
+      window.addEventListener('beforeunload', () => {
+        clearInterval(simulateVideoProgress);
+      });
     });
   </script>
 </body>

@@ -23,7 +23,7 @@ const RotatingBadge = ({ setBadgeLoaded }) => {
   }, []);
 
   return (
-    <div className="badge" ref={badgeRef}>
+    <div className="badge" translate="no" class="notranslate" ref={badgeRef}>
       {/* <span className="badge__char" style={{ color: "#e1b67e" }}>
         {" "}
       </span> */}

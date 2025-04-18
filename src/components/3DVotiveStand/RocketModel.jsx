@@ -162,8 +162,8 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode }) {
   // Debug function to log user data
   useEffect(() => {
     console.log("RocketModel received userData:", userData);
-    if (userData && userData.imageUrl) {
-      console.log("User has an avatar image URL:", userData.imageUrl);
+    if (userData && userData.image_url) {
+      console.log("User has an avatar image URL:", userData.image_url);
     } else {
       console.log("User does not have an avatar image URL");
     }
@@ -247,8 +247,8 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode }) {
       riderMesh.material = riderMaterial;
 
       // Check if user data exists and has an image URL
-      if (userData && userData.imageUrl) {
-        console.log("Loading user avatar from:", userData.imageUrl);
+      if (userData && userData.image_url) {
+        console.log("Loading user avatar from:", userData.image_url);
 
         // Create a texture loader
         const textureLoader = new THREE.TextureLoader();
@@ -256,7 +256,7 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode }) {
         // Load the user's avatar image with explicit crossOrigin setting
         textureLoader.setCrossOrigin("anonymous");
         textureLoader.load(
-          userData.imageUrl,
+          userData.image_url,
           (texture) => {
             console.log("User avatar texture loaded successfully");
             applyTextureToMesh(texture, riderMesh);

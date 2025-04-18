@@ -10,12 +10,122 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const { Webhook } = require("svix");
+const jwt = require('jsonwebtoken');
+const jwksClient = require('jwks-rsa');
 
 // Initialize Firebase Admin
 admin.initializeApp();
 
 // Initialize Firestore
 const db = admin.firestore();
+
+// Set up the JWKS client for your new Clerk domain
+const clerkJwksClient = jwksClient({
+  jwksUri: 'https://neutral-urchin-8.clerk.accounts.dev/.well-known/jwks.json',
+  cache: true,
+  rateLimit: true,
+});
+
+// Function to get the signing key from Clerk's JWKS
+const getClerkSigningKey = (header, callback) => {
+  clerkJwksClient.getSigningKey(header.kid, (err, key) => {
+    if (err) return callback(err);
+    const signingKey = key.publicKey || key.rsaPublicKey;
+    callback(null, signingKey);
+  });
+};
+
+// Create a Cloud Function that verifies a Clerk JWT and returns a Firebase custom token
+exports.createFirebaseToken = functions.https.onCall(async (data, context) => {
+  try {
+    // Get the Clerk JWT token from the request
+    const { clerkToken } = data;
+    
+    if (!clerkToken) {
+      throw new functions.https.HttpsError(
+        'invalid-argument',
+        'The function must be called with a "clerkToken" argument.'
+      );
+    }
+    
+    // Verify the Clerk JWT
+    return new Promise((resolve, reject) => {
+      jwt.verify(
+        clerkToken,
+        getClerkSigningKey,
+        {
+          issuer: 'https://neutral-urchin-8.clerk.accounts.dev',
+          algorithms: ['RS256'],
+        },
+        async (err, decoded) => {
+          if (err) {
+            console.error('Error verifying Clerk token:', err);
+            reject(new functions.https.HttpsError('unauthenticated', 'Invalid token'));
+            return;
+          }
+          
+          try {
+            // Extract user information from the decoded token
+            const userId = decoded.sub;
+            
+            // Log the full decoded token to see what's available
+            console.log('Decoded Clerk token:', decoded);
+            
+            // Log specific fields we're looking for
+            console.log('Clerk token fields:', {
+              sub: decoded.sub || 'missing',
+              imageUrl: decoded.imageUrl || 'missing',
+              image_url: decoded.image_url || 'missing',
+              username: decoded.username || 'missing',
+              name: decoded.name || 'missing',
+              firstName: decoded.firstName || 'missing',
+              avatarUrl: decoded.avatarUrl || 'missing',
+              picture: decoded.picture || 'missing',
+              profile: typeof decoded.profile === 'object' ? 'present' : 'missing',
+              externalAccounts: decoded.externalAccounts ? 'present' : 'missing',
+              discordOAuth: decoded.oauth_discord ? 'present' : 'missing',
+              hasDiscord: decoded.has_discord === true
+            });
+            
+            // Extract additional claims from the token
+            const email = decoded.email || null;
+            const name = decoded.name || null;
+            const imageUrl = decoded.imageUrl || null;
+            const username = decoded.username || null;
+            
+            // Check for Discord data
+            const discordData = {};
+            if (decoded.oauth_discord) {
+              discordData.discordId = decoded.oauth_discord.id || null;
+              discordData.discordUsername = decoded.oauth_discord.username || null;
+              discordData.discordAvatar = decoded.oauth_discord.avatar || null;
+              console.log('Found Discord data:', discordData);
+            }
+            
+            // Create a custom token for Firebase Auth with all the claims
+            const firebaseToken = await admin.auth().createCustomToken(userId, {
+              clerk_user_id: userId,
+              email,
+              name,
+              imageUrl,
+              username,
+              discordData: Object.keys(discordData).length > 0 ? discordData : null
+            });
+            
+            // Return the Firebase token to the client
+            resolve({ firebaseToken });
+          } catch (error) {
+            console.error('Error creating Firebase token:', error);
+            reject(new functions.https.HttpsError('internal', 'Failed to create Firebase token'));
+          }
+        }
+      );
+    });
+  } catch (error) {
+    console.error('Error in createFirebaseToken:', error);
+    throw new functions.https.HttpsError('internal', 'Internal server error');
+  }
+});
 
 // Fetch Image Data Function
 exports.fetchImageData = functions.https.onRequest(async (req, res) => {

@@ -38,6 +38,7 @@ import { client } from "../utilities/client";
 import { Stake } from "./3DVotiveStand/Stake";
 import dynamic from "next/dynamic";
 import Image from "next/image";
+import { getUserImageUrl, getUsername, createUserData } from "../utilities/clerkHelpers";
 
 const SidePanel = ({
   onButtonClick,
@@ -58,7 +59,7 @@ const SidePanel = ({
   const [sitepalLoaded, setSitepalLoaded] = useState(false);
   const sitepalContainerRef = useRef(null);
   const panelRef = useRef(null);
-  const hotzoneSize = 20;
+  const hotzoneSize = 25;
 
   // Menu state for hamburger menu
   const [menuOpen, setMenuOpen] = useState(false);
@@ -103,7 +104,7 @@ const SidePanel = ({
   const [debounceTimer, setDebounceTimer] = useState(null);
 
   // Update panel width based on screen size and orientation
-  const [panelWidth, setPanelWidth] = useState("280px");
+  const [panelWidth, setPanelWidth] = useState("320px");
 
   // Add state for video call functionality
   const [activeCall, setActiveCall] = useState(false);
@@ -320,15 +321,8 @@ const SidePanel = ({
   // Save user data to Firestore
   useEffect(() => {
     if (isLoaded && isSignedIn && user) {
-      const userData = {
-        username:
-          user.username ||
-          user.firstName ||
-          user.emailAddresses[0]?.emailAddress ||
-          "Anonymous",
-        profileImage: user.imageUrl || null,
-        userId: user.id,
-      };
+      // Use helper functions to create user data
+      const userData = createUserData(user);
 
       const saveUserDataToFirestore = async () => {
         try {
@@ -694,6 +688,12 @@ const SidePanel = ({
           }
           break;
 
+        // Handle navigation to home page
+        case "NAVIGATE_TO_HOME":
+          console.log("SidePanel: Received NAVIGATE_TO_HOME message, redirecting to home page");
+          router.push("/home");
+          break;
+
         // Handle video-related messages to position the vaporwave video
         case "RESIZE":
         case "LAYOUT_CHANGE":
@@ -742,6 +742,7 @@ const SidePanel = ({
     toggleRocketModel,
     toggleConstellationVisibility,
     updateVideoPosition,
+    router,
   ]);
 
   // Sync all states with iframe
@@ -1048,7 +1049,7 @@ const SidePanel = ({
           position="fixed"
           top="0"
           right="0"
-          width={`${hotzoneSize}px`}
+          width="25%"
           height="100%"
           zIndex="4999"
           pointerEvents="none"
@@ -1061,7 +1062,7 @@ const SidePanel = ({
         position="fixed"
         top="0"
         right="0"
-        width="280px"
+        width="320px"
         height="100%"
         zIndex="5000"
         transform={isTextBoxVisible ? "translateX(0)" : "translateX(100%)"}
@@ -1078,7 +1079,7 @@ const SidePanel = ({
             overflow="hidden"
             backgroundColor="black"
             borderRadius="4px"
-            width="280px"
+            width="320px"
             height="180px"
             top="60px"
             left="0"
@@ -1110,7 +1111,7 @@ const SidePanel = ({
           ref={missionControlIframeRef}
           src="/cyberpunk_mission_control.html"
           style={{
-            width: "280px",
+            width: "320px",
             height: "100%",
             border: "none",
             overflow: "hidden",

@@ -67,6 +67,7 @@ function Model({
   monsterMode,
   cameraControlsRef,
   onCandleClick,
+  onHoldStateChange,
 }) {
   // STATE VARIABLES - consolidated in one place
   const [modelUrl, setModelUrl] = useState("/altar88.glb");
@@ -123,6 +124,35 @@ function Model({
   const flickerIntensity = useRef(0.5); // Controls how much the flame flickers
   const flickerSpeed = useRef(1.5); // Controls how fast the flame flickers
 
+  // Add these variables for click timing
+  const lastClickTime = useRef(0);
+  const clickTimeout = useRef(null);
+  const pendingFloorClick = useRef(null);
+  const DOUBLE_CLICK_THRESHOLD = 300; // milliseconds
+
+  // Add these variables for click-and-hold
+  const mouseDownTime = useRef(0);
+  const mouseDownPosition = useRef(null);
+  const mouseDownTimer = useRef(null);
+  const HOLD_THRESHOLD = 800; // milliseconds to hold before placing candle
+  const MOVE_THRESHOLD = 10; // pixels of movement allowed while holding
+  const [showHoldIndicator, setShowHoldIndicator] = useState(false);
+  const [holdProgress, setHoldProgress] = useState(0);
+
+  // Add a ref to hold the candle placement function to avoid circular references
+  const placeCandleFunc = useRef(null);
+  const holdTimerRef = useRef(null);
+
+  // Notify parent component about hold state changes - make this more immediate
+  useEffect(() => {
+    if (onHoldStateChange) {
+      onHoldStateChange({
+        showIndicator: showHoldIndicator,
+        progress: holdProgress
+      });
+    }
+  }, [showHoldIndicator, holdProgress, onHoldStateChange]);
+
   // Add this function to optimize texture loading without changing geometry
   const loadOptimizedTexture = (url, onLoad) => {
     // Check cache first
@@ -164,38 +194,294 @@ function Model({
     };
   }, []);
 
-  // Modify your handleFloorClick for better candle placement
-  // while preserving your existing logic
-  const handleFloorClick = useCallback(
+  // Remove dependency on state updates for hold indicator
+  // Instead, directly call parent callback when needed
+  const startHoldIndicator = useCallback(() => {
+    if (!onHoldStateChange) return;
+    
+    console.log("Starting hold indicator");
+    
+    // Immediately show the indicator with 0 progress
+    onHoldStateChange({
+      showIndicator: true,
+      progress: 0
+    });
+    
+    // Start timer to update progress
+    const startTime = Date.now();
+    
+    // Clear any existing timer first
+    if (holdTimerRef.current) {
+      clearInterval(holdTimerRef.current);
+    }
+    
+    // Create new timer
+    holdTimerRef.current = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / HOLD_THRESHOLD, 1);
+      
+      // Update parent directly
+      onHoldStateChange({
+        showIndicator: true,
+        progress: progress
+      });
+      
+      // If complete, clear interval
+      if (progress >= 1) {
+        clearInterval(holdTimerRef.current);
+        holdTimerRef.current = null;
+      }
+    }, 16);
+  }, [onHoldStateChange, HOLD_THRESHOLD]);
+  
+  const stopHoldIndicator = useCallback(() => {
+    // Clear timer
+    if (holdTimerRef.current) {
+      clearInterval(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+    
+    // Hide indicator
+    if (onHoldStateChange) {
+      onHoldStateChange({
+        showIndicator: false,
+        progress: 0
+      });
+    }
+  }, [onHoldStateChange]);
+
+  // Create simplified floor click handler
+  const handleFloorMouseDown = useCallback((event) => {
+    event.stopPropagation();
+    console.log("Floor mouse down", event);
+    
+    // Record start time and position
+    mouseDownTime.current = Date.now();
+    
+    // Store point for candle placement
+    const point = event.point?.clone();
+    
+    // Store for mouse move detection
+    mouseDownPosition.current = {
+      x: event.nativeEvent?.clientX || event.clientX || 0,
+      y: event.nativeEvent?.clientY || event.clientY || 0,
+      point: point
+    };
+    
+    // Start showing indicator immediately
+    startHoldIndicator();
+    
+    // Set up mouse move and up listeners
+    const handleMoveWhileHolding = (moveEvent) => {
+      if (!mouseDownPosition.current) return;
+      
+      // Get position
+      const clientX = moveEvent.clientX || moveEvent.touches?.[0]?.clientX || 0;
+      const clientY = moveEvent.clientY || moveEvent.touches?.[0]?.clientY || 0;
+      
+      // Check distance
+      const dx = clientX - mouseDownPosition.current.x;
+      const dy = clientY - mouseDownPosition.current.y;
+      const distance = Math.sqrt(dx*dx + dy*dy);
+      
+      // Cancel if moved too far
+      if (distance > MOVE_THRESHOLD) {
+        stopHoldIndicator();
+        mouseDownPosition.current = null;
+        
+        // Clean up listeners
+        window.removeEventListener('mousemove', handleMoveWhileHolding);
+        window.removeEventListener('mouseup', handleUpAfterHolding);
+        window.removeEventListener('touchmove', handleMoveWhileHolding);
+        window.removeEventListener('touchend', handleUpAfterHolding);
+      }
+    };
+    
+    const handleUpAfterHolding = (upEvent) => {
+      // Remove listeners
+      window.removeEventListener('mousemove', handleMoveWhileHolding);
+      window.removeEventListener('mouseup', handleUpAfterHolding);
+      window.removeEventListener('touchmove', handleMoveWhileHolding);
+      window.removeEventListener('touchend', handleUpAfterHolding);
+      
+      // Stop indicator
+      stopHoldIndicator();
+      
+      // Check if we've held long enough
+      if (!mouseDownPosition.current) return;
+      
+      const holdTime = Date.now() - mouseDownTime.current;
+      
+      if (holdTime >= HOLD_THRESHOLD && placeCandleFunc.current && mouseDownPosition.current.point) {
+        // Place candle
+        placeCandleFunc.current(mouseDownPosition.current.point);
+      }
+      
+      // Reset
+      mouseDownPosition.current = null;
+    };
+    
+    // Add listeners
+    window.addEventListener('mousemove', handleMoveWhileHolding);
+    window.addEventListener('mouseup', handleUpAfterHolding);
+    window.addEventListener('touchmove', handleMoveWhileHolding);
+    window.addEventListener('touchend', handleUpAfterHolding);
+  }, [startHoldIndicator, stopHoldIndicator, MOVE_THRESHOLD, HOLD_THRESHOLD]);
+  
+  // Function to actually place the candle
+  const placeCandleAtPoint = useCallback((point) => {
+    // Check if we've reached the candle limit
+    if (candleCount >= maxFloorCandles) {
+      console.log(`Maximum candles reached (${maxFloorCandles})`);
+      return;
+    }
+
+    // Create a deep clone of the original candle model
+    const newCandle = candle.scene.clone();
+    
+    // IMPROVED FLOOR PLACEMENT LOGIC
+    // Always use raycasting for more accurate placement regardless of floor type
+    const raycaster = new THREE.Raycaster();
+    // Start raycast from 5 units above the click point
+    const rayStart = new THREE.Vector3(point.x, point.y + 5, point.z);
+    const rayDir = new THREE.Vector3(0, -1, 0);
+    raycaster.set(rayStart, rayDir);
+
+    // Get all floor objects for testing
+    const floors = [];
+    gltf.scene.traverse((obj) => {
+      if (
+        obj.isMesh &&
+        (obj.name === "Floor" ||
+          obj.name === "Floor2.002" ||
+          obj.name.includes("Floor2") ||
+          obj.name.includes("goldCircuit"))
+      ) {
+        floors.push(obj);
+      }
+    });
+
+    // Find all intersections
+    const hits = raycaster.intersectObjects(floors, false);
+
+    // Place candle at exact intersection point with small offset
+    if (hits.length > 0) {
+      // Filter hits by normal to get upward-facing surfaces
+      const up = new THREE.Vector3(0, 1, 0);
+      const validHits = hits.filter((hit) => {
+        // Only include if the face has an upward-facing normal
+        return hit.face && hit.face.normal.dot(up) > 0.5;
+      });
+
+      if (validHits.length > 0) {
+        // Sort by distance (closest first)
+        validHits.sort((a, b) => a.distance - b.distance);
+        const exactPoint = validHits[0].point.clone();
+
+        // Add a small but consistent offset to prevent z-fighting
+        exactPoint.y += 0.02;
+
+        // Use the exact intersection point
+        newCandle.position.copy(exactPoint);
+
+        // Store floor normal to help with candle orientation
+        const floorNormal = validHits[0].face.normal.clone();
+        newCandle.userData.floorNormal = floorNormal;
+      } else {
+        // Fallback if no valid hit
+        point.y += 0.05;
+        newCandle.position.copy(point);
+      }
+    } else {
+      // Complete fallback for no hits at all
+      point.y += 0.05;
+      newCandle.position.copy(point);
+    }
+
+    // Add random rotation for visual interest
+    newCandle.rotation.y = Math.random() * Math.PI * 2;
+
+    // Use a consistent scale for all candles
+    const fixedScale = 0.7;
+    newCandle.scale.set(fixedScale, fixedScale, fixedScale);
+
+    // Calculate a consistent melting rate for this candle - TESTING SPEED
+    const meltingRate = 1 / (1 * 60 * 60); 
+
+    // Apply melting properties to each child
+    newCandle.traverse((child) => {
+      // Store the original scale for reference during melting
+      child.userData.originalScale = child.scale.clone();
+      // Add melting flag and progress tracker
+      child.userData.isMelting = true;
+      child.userData.meltingProgress = 0;
+      // Use the same melting rate for all parts of the candle
+      child.userData.meltingRate = meltingRate;
+    });
+
+    // Mark as a candle for cleanup later
+    newCandle.userData = {
+      ...newCandle.userData,
+      isCandle: true,
+      candleId: `placed_candle_${candleCount}`,
+      placedAt: new Date(),
+      // Add melting properties to the parent as well
+      isMelting: true,
+      meltingProgress: 0,
+      originalScale: newCandle.scale.clone(),
+      // Use the same melting rate calculated above
+      meltingRate: meltingRate,
+    };
+
+    // Add the candle to the scene
+    scene.add(newCandle);
+
+    // Increment the candle counter
+    setCandleCount((prev) => prev + 1);
+  }, [candle, candleCount, gltf, scene, maxFloorCandles]);
+  
+  // Store the function in the ref after it's created
+  useEffect(() => {
+    placeCandleFunc.current = placeCandleAtPoint;
+  }, [placeCandleAtPoint]);
+
+  // Replace the old handleFloorClick with the mouse down handler
+  const handleFloorClick = handleFloorMouseDown;
+  
+  // Clean up any timers on unmount
+  useEffect(() => {
+    return () => {
+      if (holdTimerRef.current) {
+        clearInterval(holdTimerRef.current);
+        holdTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  // Update handleCandleClick to work with the new system
+  const handleCandleClick = useCallback(
     (event) => {
       event.stopPropagation();
+      console.log("Candle click", event);
 
-      // // Check if we've reached the candle limit
-      // if (candleCount >= maxFloorCandles) {
-      //   console.log(`Maximum candles reached (${maxFloorCandles})`);
-      //   return;
-      // }
+      // Check if this is a floor or floor-like object first to show indicator immediately
+      if (
+        event.object.name === "Floor" ||
+        event.object.name === "Floor2.002" ||
+        event.object.name.includes("Floor2") ||
+        event.object.name.includes("goldCircuit")
+      ) {
+        // This is a floor click, immediately start the hold timer
+        handleFloorMouseDown(event);
+        return;
+      }
 
-      // Get the intersection point
-      const point = event.point.clone();
-      const floorObject = event.object;
-
-      // Create a deep clone of the original candle model
-      const newCandle = candle.scene.clone();
-      // if (!newCandle) {
-      //   console.error("Failed to clone candle model");
-      //   return;
-      // }
-
-      // IMPROVED FLOOR PLACEMENT LOGIC
-      // Always use raycasting for more accurate placement regardless of floor type
+      // For all candle or other object clicks, continue with regular logic
+      // Check if the click goes through one of our floor objects
       const raycaster = new THREE.Raycaster();
-      // Start raycast from 5 units above the click point
-      const rayStart = new THREE.Vector3(point.x, point.y + 5, point.z);
-      const rayDir = new THREE.Vector3(0, -1, 0);
-      raycaster.set(rayStart, rayDir);
-
-      // Get all floor objects for testing
+      raycaster.set(event.ray.origin, event.ray.direction);
+      
+      // Find all floor objects
       const floors = [];
       gltf.scene.traverse((obj) => {
         if (
@@ -208,96 +494,89 @@ function Model({
           floors.push(obj);
         }
       });
-
-      // Find all intersections
-      const hits = raycaster.intersectObjects(floors, false);
-
-      // Place candle at exact intersection point with small offset
-      if (hits.length > 0) {
-        // Filter hits by normal to get upward-facing surfaces
-        const up = new THREE.Vector3(0, 1, 0);
-        const validHits = hits.filter((hit) => {
-          // Only include if the face has an upward-facing normal
-          return hit.face && hit.face.normal.dot(up) > 0.5;
-        });
-
-        if (validHits.length > 0) {
-          // Sort by distance (closest first)
-          validHits.sort((a, b) => a.distance - b.distance);
-          const exactPoint = validHits[0].point.clone();
-
-          // Add a small but consistent offset to prevent z-fighting
-          exactPoint.y += 0.02;
-
-          // Use the exact intersection point
-          newCandle.position.copy(exactPoint);
-
-          // Store floor normal to help with candle orientation
-          const floorNormal = validHits[0].face.normal.clone();
-          newCandle.userData.floorNormal = floorNormal;
-
-          // Align candle to floor normal if not perfectly flat
-          if (Math.abs(floorNormal.y - 1.0) > 0.01) {
-            // This would align the candle to non-flat surfaces
-            // Only implement if you have sloped surfaces
-            // For now just log it
-            // console.log("Placed on non-flat surface:", floorNormal);
-          }
-        } else {
-          // Fallback if no valid hit
-          point.y += 0.05;
-          newCandle.position.copy(point);
-        }
-      } else {
-        // Complete fallback for no hits at all
-        point.y += 0.05;
-        newCandle.position.copy(point);
+      
+      // Check if ray intersects any floor
+      const floorHits = raycaster.intersectObjects(floors, false);
+      if (floorHits.length > 0) {
+        // This is a floor hit, treat as floor click
+        const floorEvent = {...event, object: floorHits[0].object, point: floorHits[0].point};
+        handleFloorMouseDown(floorEvent);
+        return;
       }
 
-      // Add random rotation for visual interest
-      newCandle.rotation.y = Math.random() * Math.PI * 2;
+      // Not a floor hit, continue with regular candle detection
+      const getEventCoordinates = () => {
+        // Check if it's a touch event
+        if (event.nativeEvent.touches && event.nativeEvent.touches.length > 0) {
+          const touch = event.nativeEvent.touches[0];
+          const bounds = event.nativeEvent.target.getBoundingClientRect();
+          return {
+            x: ((touch.clientX - bounds.left) / bounds.width) * 2 - 1,
+            y: -((touch.clientY - bounds.top) / bounds.height) * 2 + 1,
+          };
+        }
 
-      // Use a consistent scale for all candles
-      const fixedScale = 0.7;
-      newCandle.scale.set(fixedScale, fixedScale, fixedScale);
-
-      // Calculate a consistent melting rate for this candle - TESTING SPEED
-      const meltingRate = 1 / (1 * 10 * 60); // 15-25 seconds for testing
-
-      // Apply melting properties to each child
-      newCandle.traverse((child) => {
-        // Store the original scale for reference during melting
-        child.userData.originalScale = child.scale.clone();
-        // Add melting flag and progress tracker
-        child.userData.isMelting = true;
-        child.userData.meltingProgress = 0;
-        // Use the same melting rate for all parts of the candle
-        child.userData.meltingRate = meltingRate;
-      });
-
-      // Mark as a candle for cleanup later
-      newCandle.userData = {
-        ...newCandle.userData,
-        isCandle: true,
-        candleId: `placed_candle_${candleCount}`,
-        placedAt: new Date(),
-        // Add melting properties to the parent as well
-        isMelting: true,
-        meltingProgress: 0,
-        originalScale: newCandle.scale.clone(),
-        // Use the same melting rate calculated above
-        meltingRate: meltingRate,
+        // Mouse event
+        return {
+          x:
+            (event.nativeEvent.offsetX / event.nativeEvent.target.clientWidth) *
+              2 -
+            1,
+          y:
+            -(
+              event.nativeEvent.offsetY / event.nativeEvent.target.clientHeight
+            ) *
+              2 +
+            1,
+        };
       };
 
-      // Add the candle to the scene
-      scene.add(newCandle);
+      const coords = getEventCoordinates();
+      const mouse = new THREE.Vector2(coords.x, coords.y);
 
-      // Increment the candle counter
-      setCandleCount((prev) => prev + 1);
+      const candleRaycaster = new THREE.Raycaster();
+      candleRaycaster.setFromCamera(mouse, camera);
+
+      // Find all VCANDLE objects and their children
+      const intersectableObjects = [];
+      if (modelRef.current) {
+        modelRef.current.traverse((object) => {
+          if (object.name.startsWith("VCANDLE")) {
+            intersectableObjects.push(object);
+            // Also include children for better click detection
+            object.children.forEach((child) => {
+              if (
+                child.name.includes("Label1") ||
+                child.name.includes("wax") ||
+                child.name.includes("glass")
+              ) {
+                intersectableObjects.push(child);
+              }
+            });
+          }
+        });
+      }
+
+      const intersects = candleRaycaster.intersectObjects(intersectableObjects, true);
+      if (intersects.length > 0) {
+        let candleParent = intersects[0].object;
+        while (candleParent && !candleParent.name.startsWith("VCANDLE")) {
+          candleParent = candleParent.parent;
+        }
+
+        if (candleParent && candleParent.userData.hasUser) {
+          // Call the onCandleClick prop with the candle data
+          onCandleClick({
+            ...candleParent.userData,
+            candleId: candleParent.name,
+            candleTimestamp: Date.now(),
+          });
+        }
+      }
     },
-    [candle, candleCount, gltf, scene, maxFloorCandles]
+    [camera, modelRef, handleFloorMouseDown, onCandleClick, gltf.scene]
   );
-
+  
   // Add a function to show the user how many candles are available
   const getRemainingCandleCount = useCallback(() => {
     return maxFloorCandles - candleCount;
@@ -852,95 +1131,6 @@ function Model({
     }
   }, [gltf.scene]);
 
-  // Modify the handleCandleClick function to handle touch events better
-  const handleCandleClick = useCallback(
-    (event) => {
-      event.stopPropagation();
-
-      // Skip if it's a floor click
-      if (
-        event.object.name === "Floor" ||
-        event.object.name === "Floor2.002" ||
-        event.object.name.includes("Floor2") ||
-        event.object.name.includes("goldCircuit")
-      ) {
-        handleFloorClick(event);
-        return;
-      }
-
-      // Improved handling for mobile/touch events
-      const getEventCoordinates = () => {
-        // Check if it's a touch event
-        if (event.nativeEvent.touches && event.nativeEvent.touches.length > 0) {
-          const touch = event.nativeEvent.touches[0];
-          const bounds = event.nativeEvent.target.getBoundingClientRect();
-          return {
-            x: ((touch.clientX - bounds.left) / bounds.width) * 2 - 1,
-            y: -((touch.clientY - bounds.top) / bounds.height) * 2 + 1,
-          };
-        }
-
-        // Mouse event
-        return {
-          x:
-            (event.nativeEvent.offsetX / event.nativeEvent.target.clientWidth) *
-              2 -
-            1,
-          y:
-            -(
-              event.nativeEvent.offsetY / event.nativeEvent.target.clientHeight
-            ) *
-              2 +
-            1,
-        };
-      };
-
-      const coords = getEventCoordinates();
-      const mouse = new THREE.Vector2(coords.x, coords.y);
-
-      const raycaster = new THREE.Raycaster();
-      raycaster.setFromCamera(mouse, camera);
-
-      // Find all VCANDLE objects and their children
-      const intersectableObjects = [];
-      if (modelRef.current) {
-        modelRef.current.traverse((object) => {
-          if (object.name.startsWith("VCANDLE")) {
-            intersectableObjects.push(object);
-            // Also include children for better click detection
-            object.children.forEach((child) => {
-              if (
-                child.name.includes("Label1") ||
-                child.name.includes("wax") ||
-                child.name.includes("glass")
-              ) {
-                intersectableObjects.push(child);
-              }
-            });
-          }
-        });
-      }
-
-      const intersects = raycaster.intersectObjects(intersectableObjects, true);
-      if (intersects.length > 0) {
-        let candleParent = intersects[0].object;
-        while (candleParent && !candleParent.name.startsWith("VCANDLE")) {
-          candleParent = candleParent.parent;
-        }
-
-        if (candleParent && candleParent.userData.hasUser) {
-          // Call the onCandleClick prop with the candle data
-          onCandleClick({
-            ...candleParent.userData,
-            candleId: candleParent.name,
-            candleTimestamp: Date.now(),
-          });
-        }
-      }
-    },
-    [camera, modelRef, handleFloorClick, onCandleClick]
-  );
-
   // Add this effect for simple performance monitoring
   useEffect(() => {
     const checkPerformance = () => {
@@ -1076,13 +1266,22 @@ function Model({
   }, [gltf, progress, setupFlameFlickering]);
 
   // Add flame flickering animation using useFrame
-  useFrame((state, delta) => {
+  useFrame((_, delta) => {
     // Create a temporary Box3 for candle melting updates
     const tempBox = new THREE.Box3();
 
-    // Handle candle melting using tempBox
-    scene.traverse((child) => {
-      if (child.userData?.isCandle && child.userData?.isMelting) {
+    // Make sure scene exists before traversing
+    if (!scene) return;
+
+    // Create a copy of the children to avoid modification during iteration
+    const sceneChildren = [...scene.children];
+    
+    // Handle candle melting using tempBox with a safer approach
+    sceneChildren.forEach((child) => {
+      // Safety check for child
+      if (!child || !child.userData) return;
+      
+      if (child.userData.isCandle && child.userData.isMelting) {
         child.userData.meltingProgress += delta * child.userData.meltingRate;
         const MIN_SCALE = 0.2;
         const percentageRemaining = Math.max(
@@ -1118,20 +1317,13 @@ function Model({
           child.position.y -= bottomDrift;
         }
 
+        // Direct removal when reaching minimum scale instead of fading
         if (percentageRemaining <= MIN_SCALE + 0.05) {
-          child.traverse((part) => {
-            if (part.material && part.material.opacity !== undefined) {
-              part.material.transparent = true;
-              part.material.opacity = Math.max(
-                0,
-                (MIN_SCALE + 0.1 - percentageRemaining) * 10
-              );
-              if (part.material.opacity <= 0.05) {
-                scene.remove(child);
-                setCandleCount((prev) => Math.max(0, prev - 1));
-              }
-            }
-          });
+          // Make sure the child still exists in the scene before removing
+          if (scene && scene.children.includes(child)) {
+            scene.remove(child);
+            setCandleCount((prev) => Math.max(0, prev - 1));
+          }
         }
       }
     });

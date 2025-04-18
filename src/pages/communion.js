@@ -7,7 +7,7 @@ import { Heading } from "@chakra-ui/react";
 import gsap from "gsap";
 import Loader from "../components/Loader";
 import dynamic from "next/dynamic";
-import GoldCards from "../components/3DVotiveStand/GoldCards";
+import Header from "../components/Header";
 // import { zIndex } from "html2canvas/dist/types/css/property-descriptors/z-index";
 
 export default function CommunionPage() {
@@ -15,7 +15,7 @@ export default function CommunionPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [carouselLoaded, setCarouselLoaded] = useState(false);
   const [communionLoaded, setCommunionLoaded] = useState(false);
-  const [goldCardsLoaded, setGoldCardsLoaded] = useState(false);
+  const [goldCardsLoaded, setGoldCardsLoaded] = useState(true);
   const [allImagesLoaded, setAllImagesLoaded] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [loadingStage, setLoadingStage] = useState("initializing");
@@ -96,12 +96,15 @@ export default function CommunionPage() {
       setLoadingStage("loading carousel");
     } else if (!allImagesLoaded) {
       setLoadingStage("loading images");
-    } else if (loadingProgress < 100) {
+    } else if (!communionLoaded) {
       setLoadingStage("finalizing");
     } else {
       setLoadingStage("complete");
     }
-  }, [carouselLoaded, allImagesLoaded, loadingProgress]);
+    
+    // Log each stage change for debugging
+    console.log(`🔄 Loading stage updated: ${loadingStage}`);
+  }, [carouselLoaded, allImagesLoaded, communionLoaded, loadingStage]);
 
   // Preload all critical images
   useEffect(() => {
@@ -167,13 +170,25 @@ export default function CommunionPage() {
     return () => clearTimeout(timeoutId);
   }, [isLoading]);
 
+  // Add explicit check to ensure loader is shown immediately on page load
+  useEffect(() => {
+    console.log("🔍 Current loading state:", { 
+      isLoading, 
+      showContent, 
+      contentOpacity,
+      carouselLoaded,
+      allImagesLoaded,
+      communionLoaded,
+      loadingProgress
+    });
+  }, [isLoading, showContent, contentOpacity, carouselLoaded, allImagesLoaded, communionLoaded, loadingProgress]);
+
   // Handle transition from loading to content
   useEffect(() => {
     if (
       carouselLoaded &&
       allImagesLoaded &&
-      communionLoaded &&
-      goldCardsLoaded
+      communionLoaded
     ) {
       console.log(
         "✅ All components and images loaded, showing communion page"
@@ -215,9 +230,19 @@ export default function CommunionPage() {
     carouselLoaded,
     allImagesLoaded,
     communionLoaded,
-    goldCardsLoaded,
     loadingProgress,
   ]);
+
+  // Initialize loading state properly
+  useEffect(() => {
+    // Start with loader visible and content hidden
+    setIsLoading(true);
+    setShowContent(false);
+    setContentOpacity(0);
+    
+    // This ensures the loader is visible before any component loading begins
+    console.log("🔄 Initializing loader");
+  }, []);
 
   const [isLargeScreen, setIsLargeScreen] = useState(false);
   const canvasRef = useRef(null);
@@ -372,11 +397,12 @@ export default function CommunionPage() {
 
   return (
     <>
+ 
       {/* Loader */}
       {isLoading && (
         <div
           style={{
-            position: "absolute",
+            position: "fixed",
             top: 0,
             left: 0,
             right: 0,
@@ -388,7 +414,8 @@ export default function CommunionPage() {
             backgroundColor: "#1b1724",
             zIndex: 50,
             transition: "opacity 0.5s ease-out",
-            opacity: isLoading ? 1 : 0,
+            opacity: 1,
+            pointerEvents: "all"
           }}
         >
           <Loader progress={loadingProgress} />
@@ -420,8 +447,13 @@ export default function CommunionPage() {
             minHeight: "100vh",
             overflow: "hidden",
             position: "relative",
+
           }}
         >
+          <div style={{zIndex: 100}}>
+           <Header />
+           </div>
+
           <canvas
             ref={canvasRef}
             style={{
@@ -429,7 +461,7 @@ export default function CommunionPage() {
               top: 0,
               left: 0,
               width: "100%",
-              height: "100%",
+              height: "120vh",
               zIndex: 0,
             }}
           ></canvas>
@@ -521,6 +553,7 @@ export default function CommunionPage() {
                 pointerEvents: "none",
                 willChange: "transform",
                 isolation: "isolate",
+                translate: "no",
               }}
             >
               <img

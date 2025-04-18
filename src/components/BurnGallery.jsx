@@ -50,6 +50,7 @@ import styled from "styled-components";
 import Candle from "../components/Candle";
 import { useUser, useClerk } from "@clerk/nextjs";
 import { Canvas } from "@react-three/fiber";
+import { getUserImageUrl, getUsername, createUserData } from "../utilities/clerkHelpers";
 
 import ThreeDVotiveStand from "./3DVotiveStand/index";
 
@@ -210,7 +211,7 @@ function BurnGallery({
   //   }
   // }, [isChandelierVisible]);
 
-  const avatarUrl = user ? user.imageUrl : "/defaultAvatar.png";
+  const avatarUrl = user ? getUserImageUrl(user) : "/defaultAvatar.png";
 
   // const handleOpenBurnModal = () => {
   //   if (!user) {
@@ -264,12 +265,7 @@ function BurnGallery({
   // Update user data when Clerk user changes
   useEffect(() => {
     if (isLoaded && isSignedIn && user) {
-      setClerkUserData({
-        userId: user.id,
-        username: user.username || user.firstName || "Anonymous",
-        imageUrl: user.imageUrl,
-        email: user.emailAddresses?.[0]?.emailAddress,
-      });
+      setClerkUserData(createUserData(user));
     } else {
       setClerkUserData(null);
     }

@@ -5,6 +5,11 @@ import Loader from "./Loader";
 const frameUrl = "https://ourlady.io";
 const proxyBaseUrl = "https://us-central1-hailmary-3ff6c.cloudfunctions.net/proxy";
 
+// Helper function to proxy resource URLs (missing in original code)
+const proxyResource = (url) => {
+  return `${proxyBaseUrl}/${url.replace(/^https?:\/\//, '')}`;
+};
+
 const WordPressSlider = ({ setWordPressSliderLoaded }) => {
   const iframeRef = useRef(null);
   const [iframeLoaded, setIframeLoaded] = useState(false);
@@ -69,6 +74,32 @@ const WordPressSlider = ({ setWordPressSliderLoaded }) => {
         
         return img;
       };
+
+      // Add click event listener to all links in the iframe
+      document.addEventListener('click', function(e) {
+        // Find closest anchor tag from the clicked element
+        let target = e.target;
+        while (target && target.tagName !== 'A') {
+          target = target.parentElement;
+        }
+        
+        // If it's a link
+        if (target && target.tagName === 'A') {
+          const href = target.getAttribute('href');
+          
+          // Check if it's a link to rl80.com/home or similar
+          if (href && (href.includes('rl80.com/home') || href.includes('/home'))) {
+            e.preventDefault(); // Prevent default navigation
+            
+            // Send message to parent window
+            window.parent.postMessage({
+              type: 'redirect-home'
+            }, '*');  // In production, specify exact target origin for security
+            
+            return false;
+          }
+        }
+      }, true);
     `;
     iframe.contentDocument.head.appendChild(script);
   };
@@ -252,13 +283,14 @@ const WordPressSlider = ({ setWordPressSliderLoaded }) => {
     <>
       <div
         style={{
-          width: "100%",
+          width: "100vw",
           height: "100vh",
           overflow: "hidden",
           margin: 0,
           padding: 0,
           zIndex: 1,
           position: "relative",
+          maxWidth: "100%",
         }}
       >
         {iframeError && loadingAttempts >= maxAttempts && (
@@ -323,7 +355,8 @@ const WordPressSlider = ({ setWordPressSliderLoaded }) => {
           }}
           allowFullScreen
           scrolling="no"
-          sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+
+          sandbox="allow-scripts allow-same-origin allow-top-navigation-by-user-activation"
           referrerPolicy="no-referrer"
         />
       </div>

@@ -44,6 +44,49 @@ import StarField from "./StarField";
 
 const scene = new THREE.Scene();
 
+// Add HoldIndicator component here
+const HoldIndicator = ({ showIndicator, progress }) => {
+  if (!showIndicator) return null;
+  
+  return (
+    <div 
+      style={{
+        position: 'absolute',
+        left: '50%',
+        bottom: '20%',
+        transform: 'translateX(-50%)',
+        backgroundColor: 'rgba(0,0,0,0.7)',
+        padding: '10px',
+        borderRadius: '5px',
+        color: 'white',
+        zIndex: 1000,
+        pointerEvents: 'none',
+      }}
+    >
+      <div>Hold to place candle</div>
+      <div 
+        style={{
+          width: '100%',
+          height: '5px',
+          backgroundColor: 'rgba(255,255,255,0.3)',
+          marginTop: '5px',
+          borderRadius: '2px',
+          overflow: 'hidden',
+        }}
+      >
+        <div 
+          style={{
+            width: `${progress * 100}%`,
+            height: '100%',
+            backgroundColor: progress >= 1 ? '#4CAF50' : 'white',
+            transition: 'width 0.1s linear',
+          }}
+        />
+      </div>
+    </div>
+  );
+};
+
 // Lazy load scene components
 
 function ThreeDVotiveStand({
@@ -68,6 +111,12 @@ function ThreeDVotiveStand({
   const [showDebugOverlay, setShowDebugOverlay] = useState(false); // Debug overlay toggle
   const [currentDpr, setCurrentDpr] = useState(1); // Start with lower DPI until we determine device/network
   const [networkType, setNetworkType] = useState("");
+
+  // Add state for hold indicator
+  const [holdState, setHoldState] = useState({
+    showIndicator: false,
+    progress: 0
+  });
 
   const results = useFirestoreResults();
   // const [userData, setUserData] = useState([]);
@@ -418,6 +467,12 @@ function ThreeDVotiveStand({
   //   console.log("Toggled constellation visibility to:", !isConstellationVisible);
   // }, []);
 
+  // Handle hold state changes from Model component
+  const handleHoldStateChange = useCallback((state) => {
+    console.log("Hold state changed:", state);
+    setHoldState(state);
+  }, []);
+
   const handleCandleClick = useCallback((candleData) => {
     console.log("Candle clicked:", candleData);
     setSelectedCandleData(candleData);
@@ -478,6 +533,7 @@ function ThreeDVotiveStand({
           is80sMode={is80sMode}
           showSpotify={showSpotify}
           monsterMode={monsterMode}
+          onHoldStateChange={handleHoldStateChange}
         />
 
         {/* Remove the conditional rendering - don't tie to is80sMode */}
@@ -507,7 +563,7 @@ function ThreeDVotiveStand({
               setIsStatueLoaded={setIsStatueLoaded}
             />
           ) : (
-            rocketModelVisible && <RocketModel is80sMode={is80sMode} />
+            rocketModelVisible && <RocketModel is80sMode={is80sMode} userData={userData} />
           )}
         </Suspense>
         <Suspense fallback={null}>
@@ -540,6 +596,12 @@ function ThreeDVotiveStand({
           }}
         />
       )}
+
+      {/* Add the HoldIndicator here, outside of the Canvas */}
+      <HoldIndicator 
+        showIndicator={holdState.showIndicator} 
+        progress={holdState.progress} 
+      />
     </div>
   );
 }

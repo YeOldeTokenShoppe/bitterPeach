@@ -39,6 +39,7 @@ function MyApp({ Component, pageProps }) {
   const isScenePage = router.pathname === "/scene";
   const isRocketPage = router.pathname === "/rocket";
 
+
   useEffect(() => {
     // Ensure theme is forced to "dark"
     const html = document.documentElement;
@@ -46,7 +47,7 @@ function MyApp({ Component, pageProps }) {
     html.style.colorScheme = "dark";
 
     // Add appropriate class to the body
-    document.body.classList.remove("gallery-page", "scene-page", "rocket-page");
+    document.body.classList.remove("gallery-page", "scene-page", "rocket-page", "index-page", "communion-page");
 
     if (isGalleryPage) {
       document.body.classList.add("gallery-page");
@@ -54,8 +55,13 @@ function MyApp({ Component, pageProps }) {
       document.body.classList.add("scene-page");
     } else if (isRocketPage) {
       document.body.classList.add("rocket-page");
+    } else if (isIndexPage) {
+      document.body.classList.add("index-page");
     }
-  }, [isGalleryPage, isScenePage, isRocketPage, router.pathname]);
+    else if (isCommunionPage) {
+      document.body.classList.add("communion-page");
+    }
+  }, [isGalleryPage, isScenePage, isRocketPage, isIndexPage, isCommunionPage, router.pathname]);
 
   // Set specific background colors for special pages
   useEffect(() => {
@@ -67,6 +73,12 @@ function MyApp({ Component, pageProps }) {
       body.style.backgroundColor = "#0d0d0d";
     } else if (isRocketPage) {
       body.style.backgroundColor = ""; // Assuming rocket has its own background
+    } else if (isIndexPage) {
+      body.style.backgroundColor = "#1b1724";
+      body.style.maxWidth = "100vw";
+      body.style.padding = "0";
+      body.style.margin = "0";
+      body.style.overflow = "hidden";
     } else {
       body.style.backgroundColor = "#1b1724"; // Default for most pages
     }
@@ -74,8 +86,14 @@ function MyApp({ Component, pageProps }) {
     return () => {
       // Cleanup function to reset background when component unmounts
       body.style.backgroundColor = "";
+      if (isIndexPage) {
+        body.style.maxWidth = "";
+        body.style.padding = "";
+        body.style.margin = "";
+        body.style.overflow = "";
+      }
     };
-  }, [isGalleryPage, isScenePage, isRocketPage, router.pathname]);
+  }, [isGalleryPage, isScenePage, isRocketPage, isIndexPage, isCommunionPage, router.pathname]);
 
   // Dynamically choose the theme
   const special = isGalleryPage
@@ -87,7 +105,7 @@ function MyApp({ Component, pageProps }) {
   let HeaderComponent = null;
   if (isGalleryPage) {
     HeaderComponent = Header3;
-  } else if (!(isIndexPage || isScenePage || isRocketPage)) {
+  } else if (!(isIndexPage || isScenePage || isRocketPage || isCommunionPage)) {
     HeaderComponent = Header;
   }
 
@@ -111,11 +129,12 @@ function MyApp({ Component, pageProps }) {
             <div
               className={`${isGalleryPage ? "gallery-page" : ""} ${
                 isScenePage ? "scene-page" : ""
-              }`.trim()} // Dynamically add class names
+              } ${isIndexPage ? "index-page" : ""}`.trim()} // Dynamically add class names
               style={{
-                width: isGalleryPage || isScenePage ? "100%" : "auto",
-                margin: isGalleryPage || isScenePage ? "0" : "auto",
+                width: isGalleryPage || isScenePage || isIndexPage ? "100%" : "auto",
+                margin: isGalleryPage || isScenePage || isIndexPage ? "0" : "auto",
                 paddingTop: "0", // Removed padding since header now scrolls with the page
+                maxWidth: isIndexPage ? "100vw" : "auto",
               }}
             >
               {/* Render the Header dynamically */}

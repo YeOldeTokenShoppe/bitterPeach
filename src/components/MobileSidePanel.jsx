@@ -12,6 +12,7 @@ import {
   HStack,
 } from "@chakra-ui/react";
 import { useUser } from "@clerk/nextjs";
+import { useRouter } from "next/router";
 
 const MobileSidePanel = ({
   is80sMode,
@@ -43,6 +44,8 @@ const MobileSidePanel = ({
   const [connectionPhase, setConnectionPhase] = useState(0);
   const [isMuted, setIsMuted] = useState(true);
   const microphoneStreamRef = useRef(null);
+
+  const router = useRouter();
 
   // Function to toggle rocket model visibility - now uses the prop function
   const handleRocketModelToggle = () => {
@@ -468,6 +471,10 @@ const MobileSidePanel = ({
           }
           break;
         // ... rest of the cases like LAUNCH_MODE_TOGGLE, CONSTELLATION_TOGGLE etc.
+        case "NAVIGATE_TO_HOME":
+          console.log("MobileSidePanel: Received NAVIGATE_TO_HOME message, redirecting to home page");
+          router.push("/home");
+          break;
         default:
           // Log unhandled message types
           if (event.data.type !== "FIREBASE_CONFIG_RESPONSE") {
@@ -494,6 +501,7 @@ const MobileSidePanel = ({
     expandVideoScreen,
     collapseVideoScreen,
     logVideoScreenState,
+    router,
   ]);
 
   // Function to toggle call status

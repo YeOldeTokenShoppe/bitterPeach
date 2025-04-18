@@ -82,7 +82,9 @@ function ConstellationModel({ isVisible = true }) {
 
     return () => {
       // Clean up
-      groupRef.current.remove(constellationScene);
+      if (groupRef.current) {
+        groupRef.current.remove(constellationScene);
+      }
       constellationScene.traverse((child) => {
         if (child.geometry) child.geometry.dispose();
         if (child.material) {

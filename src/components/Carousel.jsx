@@ -44,6 +44,8 @@ import { useAuth } from "@clerk/nextjs"; // Add this line if it's missing
 import EmojiPicker from "emoji-picker-react";
 import { Theme } from "emoji-picker-react";
 import { EmojiStyle } from "emoji-picker-react";
+import { getUserImageUrl, getUsername, createUserData } from "../utilities/clerkHelpers";
+
 const Carousel = ({ images, setCarouselLoaded }) => {
   const [loadedImages, setLoadedImages] = useState(new Set());
   const [visibleImagesLoaded, setVisibleImagesLoaded] = useState(false);
@@ -177,14 +179,44 @@ const Carousel = ({ images, setCarouselLoaded }) => {
     }
   }, [router.asPath]);
 
-  const signIntoFirebase = async () => {
+  const signIntoFirebase = async (retryCount = 0, maxRetries = 3) => {
     try {
       const token = await getToken({ template: "integration_firebase" });
+      console.log("Got token from Clerk:", token ? "Token received" : "No token");
 
-      const userCredentials = await signInWithCustomToken(auth, token);
+      try {
+        const userCredentials = await signInWithCustomToken(auth, token);
+        console.log("Firebase user credentials:", userCredentials.user.uid);
 
-      setFirebaseUser(userCredentials.user);
-      return userCredentials.user;
+        setFirebaseUser(userCredentials.user);
+        return userCredentials.user;
+      } catch (authError) {
+        console.error(`Firebase auth error (attempt ${retryCount + 1}/${maxRetries}):`, authError.code, authError.message);
+        
+        // Handle specific Firebase auth errors
+        if (authError.code === 'auth/internal-error-encountered' || 
+            authError.code === 'auth/the-service-is-currently-unavailable') {
+          
+          if (retryCount < maxRetries) {
+            // Wait for exponential backoff time before retrying
+            const backoffTime = Math.min(1000 * Math.pow(2, retryCount), 10000);
+            console.log(`Retrying Firebase auth in ${backoffTime}ms...`);
+            
+            await new Promise(resolve => setTimeout(resolve, backoffTime));
+            return signIntoFirebase(retryCount + 1, maxRetries);
+          } else {
+            console.error(`Maximum retry attempts (${maxRetries}) reached for Firebase authentication`);
+            showPopupMessage(
+              "We're having trouble connecting to our services. Please try again later.",
+              null,
+              handleClosePopup,
+              true
+            );
+          }
+        }
+        
+        throw authError; // Re-throw for other error types
+      }
     } catch (error) {
       console.error("Error signing into Firebase:", error);
       return null;
@@ -192,7 +224,19 @@ const Carousel = ({ images, setCarouselLoaded }) => {
   };
 
   useEffect(() => {
-    if (isLoaded && isSignedIn && user && !firebaseUser) {
+    if (isLoaded && isSignedIn && user) {
+      // Added verbose logging
+      console.log('Clerk user object full structure:', JSON.stringify(user, null, 2));
+      console.log('Clerk user properties:', {
+        id: user.id,
+        username: user.username || 'missing',
+        firstName: user.firstName || 'missing',
+        imageUrl: user.imageUrl || 'missing',
+        image_url: user.image_url || 'missing',
+        hasImage: !!user.imageUrl || !!user.image_url,
+        emailAddresses: user.emailAddresses?.length || 0
+      });
+      
       signIntoFirebase().then((firebaseUser) => {
         if (firebaseUser) {
           fetchUserProfile(firebaseUser.uid);
@@ -208,14 +252,13 @@ const Carousel = ({ images, setCarouselLoaded }) => {
       const userDocRef = doc(db, "users", userId);
       const userDoc = await getDoc(userDocRef);
 
-      const userData = {
-        userId,
-        imageUrl: user.imageUrl || "./defaultAvatar.png",
-        username: user.username || "Anonymous",
-        email: user.emailAddresses[0]?.emailAddress || null,
-        provider: user.provider || null,
-        identifier: user.externalId || user.id,
-      };
+      // Log user object to debug
+      console.log("Clerk user object:", user);
+      
+      // Use the helper function to create standardized user data
+      const userData = createUserData(user);
+      
+      console.log("Saving user data to Firestore:", userData);
 
       if (!userDoc.exists()) {
         await setDoc(userDocRef, userData, { merge: true });
@@ -254,14 +297,17 @@ const Carousel = ({ images, setCarouselLoaded }) => {
       const waitlistSnapshot = await getDocs(waitlistQuery);
 
       // if (!waitlistSnapshot.empty) {
-
       //   return;
       // }
 
+      // Use the helper functions to get user image and username
+      const imageUrl = getUserImageUrl(user);
+      const username = getUsername(user);
+
       await addDoc(waitlistRef, {
         userId: user.id,
-        username: user.username,
-        imageUrl: user.imageUrl,
+        username: username,
+        imageUrl: imageUrl,
         timestamp: serverTimestamp(),
       });
 
@@ -425,8 +471,8 @@ const Carousel = ({ images, setCarouselLoaded }) => {
 
       const riderData = {
         userId: user.id,
-        username: user.username || "Anonymous",
-        imageUrl: user.imageUrl || "/defaultAvatar.png",
+        username: getUsername(user) || "Anonymous",
+        imageUrl: getUserImageUrl(user) || "/defaultAvatar.png",
         timestamp: serverTimestamp() || new Date(), // Add fallback
       };
 
@@ -509,8 +555,8 @@ const Carousel = ({ images, setCarouselLoaded }) => {
         beastId,
         message: newMessage,
         userId: user.id,
-        username: user.username || "Anonymous",
-        imageUrl: user.imageUrl || "/defaultAvatar.png",
+        username: getUsername(user) || "Anonymous",
+        imageUrl: getUserImageUrl(user) || "/defaultAvatar.png",
         timestamp: serverTimestamp(),
       };
 
@@ -1405,64 +1451,53 @@ const Carousel = ({ images, setCarouselLoaded }) => {
           />
         )}
       </div>
-      <Box
-        width="80%"
-        display="flex"
-        flexDirection="column"
-        alignItems="center"
-        justifyContent="center"
-        textAlign="center"
-        padding="1rem"
-        zIndex={-1}
-        marginTop="20rem"
-        gap=".9rem"
-        style={{
-          visibility: isRiding ? "hidden" : "visible", // Toggle visibility
-          height: isRiding ? "0" : "auto", // Maintain layout space when hidden
-          overflow: "hidden", // Prevent any content from showing if hidden
-          transition: "visibility 0s, height 0.3s ease-in-out", // Smooth transition
-        }}
-      >
+      {/* Ride or Die content box */}
+      <div style={{ 
+          backgroundColor: "#1b1724", 
+          width: "80%", 
+          borderRadius: "8px",
+          padding: "20px",
+          boxShadow: "0 0 10px rgba(225, 182, 126, 0.2)",
+          marginTop: "20rem",
+          visibility: isRiding ? "hidden" : "visible",
+          height: isRiding ? "0" : "auto",
+          overflow: "hidden",
+          transition: "visibility 0s, height 0.3s ease-in-out", 
+          zIndex: 1,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          textAlign: "center"
+        }}>
         <Text
           fontSize="2rem"
           fontWeight="bold"
           fontFamily="Oleo Script"
           lineHeight="1"
           color="#c48901"
-          marginBottom="-.5rem"
+          marginBottom="1rem"
+          textAlign="center"
+          width="100%"
         >
-          RL80 Tokens Are Your Ticket to Ride!
+          RL80: Your Hail Mary for the Markets
         </Text>
-        <Text
-          as="h2"
-          fontSize="2.5rem"
-          fontWeight="bold"
-          fontFamily="Oleo Script"
-          lineHeight="1"
-          marginBottom="-.5rem"
-        ></Text>
-        <Text>
-          {" "}
-          Charter a ride on the charts and careen carefree with the ups and
+
+        <Text  
+          fontSize="1.5rem"
+          // fontWeight="bold"
+          fontFamily="Roboto"
+          lineHeight="1.2"
+          textAlign="center"
+          width="100%"
+          color="white"
+        >
+          They say fortune favors the bold. Charter a ride on the charts and careen carefree with the ups and
           downs of the crypto market. Must be at least 36&quot; tall and hold
-          RL80 or PY80 reward tokens. 10 minutes per ride. Your username and
-          avatar will be displayed live! Click on any available beast to ride.
+          RL80 or NFIN80 reward tokens. 10 minutes per ride. Your username and
+          avatar will be displayed live! Say Hi to Stay High! Messages are not saved. Click on any available beast to ride.
         </Text>
-      </Box>
-      {waitlist.length > 0 && (
-        <div className="waitlist-container">
-          <h4>Waiting List</h4>
-          <ul>
-            {waitlist.map((user, index) => (
-              <li key={user.id}>
-                <img src={user.imageUrl} alt={user.username} width="30" />
-                <span>{user.username}</span>
-                <span>Wait Time: {calculateWaitTime(index + 1)}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      </div>
     </div>
   );
 };
