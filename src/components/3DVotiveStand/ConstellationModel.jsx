@@ -28,22 +28,47 @@ function ConstellationModel({ isVisible = false }) {
 
     // Helper function to process models
     const processModel = (modelScene, namePrefix = "", position = [0, 0, 0], scale = [1, 1, 1]) => {
+      // First pass: identify all stars and ensure they're visible
       modelScene.traverse((child) => {
-        if (child.isMesh) {
+        if (child.isMesh && (child.name.startsWith("RedStar") || child.name.startsWith("GreenStar"))) {
+          // Force stars to be visible
+          child.visible = true;
+          
+          // Set appropriate scale and opacity
+          child.scale.set(0.12, 0.12, 0.12);
+          if (child.material) {
+            child.material.transparent = true;
+            // Special treatment for whale's stars
+            if (modelScene === whaleClone) {
+              child.material.opacity = 1;
+              child.scale.set(1, 1, 1);
+              
+              // Add a custom property to identify Whale stars
+              child.userData.isWhaleStar = true;
+            } else if (modelScene === marketClone) {
+              // Add a custom property to identify Bear stars
+              child.userData.isBearStar = true;
+              child.material.opacity = 0.15;
+            } else {
+              child.material.opacity = 0.01;
+            }
+          }
+        }
+      });
+
+      // Second pass: handle all other meshes
+      modelScene.traverse((child) => {
+        if (child.isMesh && !child.name.startsWith("RedStar") && !child.name.startsWith("GreenStar")) {
           // Configure all meshes for better rendering in background
           child.castShadow = false;
           child.receiveShadow = false;
           child.renderOrder = -1; // Render behind other objects
+          
+          // For all other meshes, respect the isVisible prop
           child.visible = isVisible;
-
           if (child.material) {
             child.material.transparent = true;
-            
-            // Handle specific opacity settings based on mesh type
-            if (child.name.startsWith("RedStar") || child.name.startsWith("GreenStar")) {
-              child.scale.set(0.12, 0.12, 0.12);
-              child.material.opacity = isVisible ? 0.002 : 0;
-            } else if (child.name.startsWith("Bear")) {
+            if (child.name.startsWith("Bear")) {
               child.material.opacity = isVisible ? 0.15 : 0;
             } else if (modelScene === starCandlesClone) {
               child.material.opacity = isVisible ? 0.1 : 0;
@@ -60,6 +85,17 @@ function ConstellationModel({ isVisible = false }) {
       modelScene.position.set(...position);
       modelScene.scale.set(...scale);
       groupRef.current.add(modelScene);
+    };
+
+    // Helper function to get the full path of an object in the scene
+    const getObjectPath = (object) => {
+      const path = [];
+      let current = object;
+      while (current) {
+        path.unshift(current.name || 'unnamed');
+        current = current.parent;
+      }
+      return path.join(' > ');
     };
 
     // Process and position each model
@@ -100,20 +136,48 @@ function ConstellationModel({ isVisible = false }) {
   useEffect(() => {
     if (!groupRef.current) return;
 
+    // First pass: identify all stars and ensure they're visible
     groupRef.current.traverse((child) => {
-      if (child.isMesh) {
-        child.visible = isVisible;
+      if (child.isMesh && (child.name.startsWith("RedStar") || child.name.startsWith("GreenStar"))) {
+        // Force stars to be visible
+        child.visible = true;
         
+        // Set appropriate scale and opacity
+        if (child.parent && child.parent.name.includes("Whale")) {
+          child.scale.set(0.4, 0.4, 0.4);
+          if (child.material) {
+            child.material.transparent = true;
+            child.material.opacity = 1;
+          }
+        } else if (child.parent && child.parent.name.includes("Bear")) {
+          child.scale.set(0.12, 0.12, 0.12);
+          if (child.material) {
+            child.material.transparent = true;
+            child.material.opacity = 0.15;
+          }
+        } else {
+          child.scale.set(0.12, 0.12, 0.12);
+          if (child.material) {
+            child.material.transparent = true;
+            child.material.opacity = 0.05;
+          }
+        }
+      }
+    });
+
+    // Second pass: handle all other meshes
+    groupRef.current.traverse((child) => {
+      if (child.isMesh && !child.name.startsWith("RedStar") && !child.name.startsWith("GreenStar")) {
+        // For all other meshes, respect the isVisible prop
+        child.visible = isVisible;
         if (child.material) {
           child.material.transparent = true;
-          if (child.name.startsWith("RedStar") || child.name.startsWith("GreenStar")) {
-            child.material.opacity = isVisible ? 0.002 : 0;
-          } else if (child.name.startsWith("Bear")) {
+          if (child.name.startsWith("Bear")) {
             child.material.opacity = isVisible ? 0.15 : 0;
           } else if (child.name.includes("StarCandles")) {
             child.material.opacity = isVisible ? 0.1 : 0;
           } else if (child.name.includes("Whale")) {
-            child.material.opacity = isVisible ? 0.15 : 0;
+            child.material.opacity = isVisible ? 0.1 : 0;
           } else {
             child.material.opacity = isVisible ? 0.008 : 0;
           }
@@ -121,6 +185,68 @@ function ConstellationModel({ isVisible = false }) {
       }
     });
   }, [isVisible]);
+
+  // Force all stars to be visible on every render
+  useEffect(() => {
+    if (!groupRef.current) return;
+    
+    // This effect runs on every render to ensure all stars are always visible
+    const forceAllStarsVisible = () => {
+      // Check if groupRef.current exists before trying to traverse it
+      if (!groupRef.current) return;
+      
+      // First, find all parent objects and ensure they're visible
+      groupRef.current.traverse((child) => {
+        if (child.name && (child.name.includes("Whale") || child.name.includes("Bear") || child.name.includes("StarCandles"))) {
+          // Make sure the parent is visible
+          child.visible = true;
+        }
+      });
+      
+      // Then, ensure all stars are visible
+      groupRef.current.traverse((child) => {
+        if (child.isMesh && (child.name.startsWith("RedStar") || child.name.startsWith("GreenStar"))) {
+          // Force all stars to be visible
+          child.visible = true;
+          if (child.material) {
+            child.material.transparent = true;
+            
+            // Set appropriate opacity based on parent
+            if (child.parent && child.parent.name.includes("Whale")) {
+              child.material.opacity = 1;
+              child.scale.set(0.4, 0.4, 0.4);
+            } else if (child.parent && child.parent.name.includes("Bear")) {
+              child.material.opacity = 0.15;
+              child.scale.set(0.12, 0.12, 0.12);
+            } else {
+              child.material.opacity = 0.05;
+              child.scale.set(0.12, 0.12, 0.12);
+            }
+          }
+        }
+      });
+    };
+    
+    // Run immediately
+    forceAllStarsVisible();
+    
+    // Use requestAnimationFrame for better performance
+    let animationFrameId;
+    const animate = () => {
+      forceAllStarsVisible();
+      animationFrameId = requestAnimationFrame(animate);
+    };
+    
+    // Start the animation loop
+    animationFrameId = requestAnimationFrame(animate);
+    
+    // Clean up on unmount
+    return () => {
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
+    };
+  }, []);
 
   return <group ref={groupRef} />;
 }

@@ -268,7 +268,7 @@ function HolographicStatue({ onLoad }) {
         initialY.current + Math.sin(state.clock.elapsedTime * 0.5) * 0.1;
 
       // Apply rotation to the rotation group
-      groupRef.current.rotation.rotation.y += delta * 0.1;
+      groupRef.current.rotation.rotation.y += delta * 0.2;
 
       // Keep your existing shader update logic
       statueRef.current.traverse((child) => {

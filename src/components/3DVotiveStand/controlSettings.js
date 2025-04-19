@@ -1,7 +1,7 @@
 export const CONTROL_SETTINGS = {
   default: {
     enableRotate: true,
-    rotateSpeed: 0.5,
+    rotateSpeed: 0.2,
     autoRotate: true,
     enableDamping: true,
     dampingFactor: 0.03,

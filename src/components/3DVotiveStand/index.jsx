@@ -118,6 +118,9 @@ function ThreeDVotiveStand({
     progress: 0
   });
 
+  // Add ref for MoonScene
+  const moonSceneRef = useRef();
+
   const results = useFirestoreResults();
   // const [userData, setUserData] = useState([]);
   // // Add in index.jsx
@@ -307,11 +310,34 @@ function ThreeDVotiveStand({
   // Update the parent component when model is loaded (only once)
   useEffect(() => {
     if (isModelLoaded && !hasNotifiedParentRef.current) {
-      console.log("ThreeDVotiveStand: Model loaded, notifying parent");
-      setIsLoading(true); // Notify BurnGallery that everything is loaded
-      hasNotifiedParentRef.current = true; // Set flag to prevent further notifications
+      console.log("ThreeDVotiveStand: Model loaded. Delaying parent notification...");
+      // Wait slightly longer than the MoonScene spawn delay before notifying the parent
+      const notificationTimer = setTimeout(() => {
+        console.log("ThreeDVotiveStand: Notifying parent to hide preloader.");
+        setIsLoading(true); // Notify parent (e.g., BurnGallery)
+
+        // --- UPDATED: Delay triggering moon spawn --- 
+        // Add a short delay after hiding the preloader before spawning moons
+        const spawnDelayTimer = setTimeout(() => {
+          if (moonSceneRef.current) {
+            console.log("ThreeDVotiveStand: Triggering initial moon spawn after delay.");
+            moonSceneRef.current.triggerInitialSpawn();
+          }
+        }, 3000); // 2-second delay AFTER preloader is hidden
+        // --- End UPDATED ---
+
+        hasNotifiedParentRef.current = true;
+
+        // Clean up inner timer if outer timer's cleanup is called before inner fires
+        // (Though unlikely with these timings, it's good practice)
+        return () => clearTimeout(spawnDelayTimer);
+
+      }, 5700); // Keep existing delay for hiding preloader
+
+      // Ensure outer timer is cleared if component unmounts before firing
+      return () => clearTimeout(notificationTimer);
     }
-  }, [isModelLoaded, setIsLoading]);
+  }, [isModelLoaded, setIsLoading]); // Keep dependencies
 
   // Add a fallback timer to ensure loading completes even if there's an issue
   useEffect(() => {
@@ -323,7 +349,7 @@ function ThreeDVotiveStand({
         setIsLoading(true);
         hasNotifiedParentRef.current = true;
       }
-    }, 8000); // 8 second fallback
+    }, 10000); // Increased fallback to 10 seconds just in case
 
     return () => clearTimeout(fallbackTimer);
   }, [setIsLoading]);
@@ -540,7 +566,11 @@ function ThreeDVotiveStand({
         {/* Only render if explicitly enabled later */}
 
         <Suspense fallback={null}>
-          <MoonScene modelRef={modelRef} onSpawnReady={onSpawnReady} />
+          <MoonScene
+            ref={moonSceneRef}
+            modelRef={modelRef}
+            onSpawnReady={onSpawnReady}
+          />
         </Suspense>
 
         {/* Conditionally render HolographicStatue or RocketModel based on monsterMode */}

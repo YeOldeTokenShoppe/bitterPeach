@@ -1434,7 +1434,7 @@ const Carousel = ({ images, setCarouselLoaded }) => {
           textAlign="center"
           width="100%"
         >
-          RL80: Your Hail Mary for the Markets
+          Ride or Die: RL80 is Your Hail Mary for the Markets
         </Text>
 
         <Text  

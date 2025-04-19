@@ -1,17 +1,16 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { TextureLoader } from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
-const MoonScene = ({
+const MoonScene = forwardRef(({
   modelRef,
   modelCenter,
   onControlsCreated,
-  // initialTarget = [0, -10, 0],
   onSpawnReady,
-}) => {
+}, ref) => {
   const { scene, camera, gl } = useThree();
   const controlsRef = useRef();
   const moonsRef = useRef([]);
@@ -1120,18 +1119,13 @@ const MoonScene = ({
     return () => window.removeEventListener("pointerdown", handlePointerDown);
   }, [camera]);
 
-  // Initialize scene
+  // Initialize scene and physics (but don't spawn moons yet)
   useEffect(() => {
     const startSimulation = async () => {
       await initPhysics();
       setupScene();
 
-      // Delayed moon spawning to ensure physics is ready
-      setTimeout(() => {
-        for (let i = 0; i < 4; i++) {
-          spawnMoon();
-        }
-      }, 100);
+      // NOTE: Removed moon spawning from here
     };
 
     startSimulation();
@@ -1144,7 +1138,27 @@ const MoonScene = ({
 
       // Clean up animation mixers
     };
-  }, []);
+  }, []); // Keep dependencies minimal
+
+  // Expose the spawn function via useImperativeHandle
+  useImperativeHandle(ref, () => ({
+    triggerInitialSpawn: () => {
+      // Check if physics is ready before spawning
+      if (isPhysicsInitialized.current && ammoRef.current) {
+        console.log("MoonScene: triggerInitialSpawn called, spawning moons...");
+        // Spawn the initial set of moons
+        for (let i = 0; i < 4; i++) {
+          spawnMoon();
+        }
+        // Call onSpawnReady if provided (optional)
+        if (onSpawnReady) {
+          onSpawnReady();
+        }
+      } else {
+        console.warn("MoonScene: triggerInitialSpawn called, but physics not ready.");
+      }
+    }
+  }));
 
   // Add model to physics when it's available and physics is initialized
   useEffect(() => {
@@ -1247,6 +1261,6 @@ const MoonScene = ({
   });
 
   // Add this to your existing useEffect that handles model loading
-};
+});
 
 export default MoonScene;
