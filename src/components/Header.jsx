@@ -19,6 +19,7 @@ import { signInWithCustomToken } from "firebase/auth"; // Import Firebase auth m
 import { db, auth } from "../utilities/firebaseClient"; // Import Firestore and Auth setup
 import RotatingBadge2 from "./RotatingBadge2";
 import { debounce } from "lodash";
+import { getUserImageUrl } from "../utilities/clerkHelpers"; // <-- IMPORT ADDED
 
 function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -431,7 +432,17 @@ function Header() {
               >
                 <SignedIn>
                   <SignOutButton redirectUrl={currentPath}>
-                    <UserButton afterSignOutUrl={currentPath} />
+                    <img
+                      src={getUserImageUrl(user)}
+                      alt={user?.username || "User avatar"}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                        borderRadius: "10%",
+                        cursor: "pointer",
+                      }}
+                    />
                   </SignOutButton>
                 </SignedIn>
 

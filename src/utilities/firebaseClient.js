@@ -20,16 +20,7 @@ import {
 import { getAuth, signInWithCustomToken } from "firebase/auth";
 import { getStorage, ref, getDownloadURL, uploadBytes } from "firebase/storage";
 
-// Log the environment variables for debugging (don't log in production)
-console.log("Firebase Config Keys Present:", {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ? "Yes" : "No",
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ? "Yes" : "No",
-  databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL ? "Yes" : "No",
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ? "Yes" : "No",
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ? "Yes" : "No",
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ? "Yes" : "No",
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID ? "Yes" : "No",
-});
+
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,

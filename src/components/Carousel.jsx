@@ -44,8 +44,6 @@ import { useAuth } from "@clerk/nextjs"; // Add this line if it's missing
 import EmojiPicker from "emoji-picker-react";
 import { Theme } from "emoji-picker-react";
 import { EmojiStyle } from "emoji-picker-react";
-import { getUserImageUrl, getUsername, createUserData } from "../utilities/clerkHelpers";
-
 const Carousel = ({ images, setCarouselLoaded }) => {
   const [loadedImages, setLoadedImages] = useState(new Set());
   const [visibleImagesLoaded, setVisibleImagesLoaded] = useState(false);
@@ -179,44 +177,14 @@ const Carousel = ({ images, setCarouselLoaded }) => {
     }
   }, [router.asPath]);
 
-  const signIntoFirebase = async (retryCount = 0, maxRetries = 3) => {
+  const signIntoFirebase = async () => {
     try {
       const token = await getToken({ template: "integration_firebase" });
-      console.log("Got token from Clerk:", token ? "Token received" : "No token");
 
-      try {
-        const userCredentials = await signInWithCustomToken(auth, token);
-        console.log("Firebase user credentials:", userCredentials.user.uid);
+      const userCredentials = await signInWithCustomToken(auth, token);
 
-        setFirebaseUser(userCredentials.user);
-        return userCredentials.user;
-      } catch (authError) {
-        console.error(`Firebase auth error (attempt ${retryCount + 1}/${maxRetries}):`, authError.code, authError.message);
-        
-        // Handle specific Firebase auth errors
-        if (authError.code === 'auth/internal-error-encountered' || 
-            authError.code === 'auth/the-service-is-currently-unavailable') {
-          
-          if (retryCount < maxRetries) {
-            // Wait for exponential backoff time before retrying
-            const backoffTime = Math.min(1000 * Math.pow(2, retryCount), 10000);
-            console.log(`Retrying Firebase auth in ${backoffTime}ms...`);
-            
-            await new Promise(resolve => setTimeout(resolve, backoffTime));
-            return signIntoFirebase(retryCount + 1, maxRetries);
-          } else {
-            console.error(`Maximum retry attempts (${maxRetries}) reached for Firebase authentication`);
-            showPopupMessage(
-              "We're having trouble connecting to our services. Please try again later.",
-              null,
-              handleClosePopup,
-              true
-            );
-          }
-        }
-        
-        throw authError; // Re-throw for other error types
-      }
+      setFirebaseUser(userCredentials.user);
+      return userCredentials.user;
     } catch (error) {
       console.error("Error signing into Firebase:", error);
       return null;
@@ -224,19 +192,7 @@ const Carousel = ({ images, setCarouselLoaded }) => {
   };
 
   useEffect(() => {
-    if (isLoaded && isSignedIn && user) {
-      // Added verbose logging
-      console.log('Clerk user object full structure:', JSON.stringify(user, null, 2));
-      console.log('Clerk user properties:', {
-        id: user.id,
-        username: user.username || 'missing',
-        firstName: user.firstName || 'missing',
-        imageUrl: user.imageUrl || 'missing',
-        image_url: user.image_url || 'missing',
-        hasImage: !!user.imageUrl || !!user.image_url,
-        emailAddresses: user.emailAddresses?.length || 0
-      });
-      
+    if (isLoaded && isSignedIn && user && !firebaseUser) {
       signIntoFirebase().then((firebaseUser) => {
         if (firebaseUser) {
           fetchUserProfile(firebaseUser.uid);
@@ -252,13 +208,14 @@ const Carousel = ({ images, setCarouselLoaded }) => {
       const userDocRef = doc(db, "users", userId);
       const userDoc = await getDoc(userDocRef);
 
-      // Log user object to debug
-      console.log("Clerk user object:", user);
-      
-      // Use the helper function to create standardized user data
-      const userData = createUserData(user);
-      
-      console.log("Saving user data to Firestore:", userData);
+      const userData = {
+        userId,
+        imageUrl: user.imageUrl || "./defaultAvatar.png",
+        username: user.username || "Anonymous",
+        email: user.emailAddresses[0]?.emailAddress || null,
+        provider: user.provider || null,
+        identifier: user.externalId || user.id,
+      };
 
       if (!userDoc.exists()) {
         await setDoc(userDocRef, userData, { merge: true });
@@ -297,17 +254,14 @@ const Carousel = ({ images, setCarouselLoaded }) => {
       const waitlistSnapshot = await getDocs(waitlistQuery);
 
       // if (!waitlistSnapshot.empty) {
+
       //   return;
       // }
 
-      // Use the helper functions to get user image and username
-      const imageUrl = getUserImageUrl(user);
-      const username = getUsername(user);
-
       await addDoc(waitlistRef, {
         userId: user.id,
-        username: username,
-        imageUrl: imageUrl,
+        username: user.username,
+        imageUrl: user.imageUrl,
         timestamp: serverTimestamp(),
       });
 
@@ -471,8 +425,8 @@ const Carousel = ({ images, setCarouselLoaded }) => {
 
       const riderData = {
         userId: user.id,
-        username: getUsername(user) || "Anonymous",
-        imageUrl: getUserImageUrl(user) || "/defaultAvatar.png",
+        username: user.username || "Anonymous",
+        imageUrl: user.imageUrl || "/defaultAvatar.png",
         timestamp: serverTimestamp() || new Date(), // Add fallback
       };
 
@@ -555,8 +509,8 @@ const Carousel = ({ images, setCarouselLoaded }) => {
         beastId,
         message: newMessage,
         userId: user.id,
-        username: getUsername(user) || "Anonymous",
-        imageUrl: getUserImageUrl(user) || "/defaultAvatar.png",
+        username: user.username || "Anonymous",
+        imageUrl: user.imageUrl || "/defaultAvatar.png",
         timestamp: serverTimestamp(),
       };
 

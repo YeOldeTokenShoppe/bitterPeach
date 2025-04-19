@@ -1,4 +1,6 @@
 // pages/api/DexscreenerAPI.js
+import fetch from 'node-fetch'; // Add this import for Node.js environment
+
 export default async function handler(req, res) {
   const chainId = "ethereum"; // Example: Ethereum chain
   const pairAddresses = "0xA43fe16908251ee70EF74718545e4FE6C5cCEc9f"; // Example: Pair address
@@ -28,6 +30,7 @@ export default async function handler(req, res) {
       sells,
     });
   } catch (error) {
+    console.error("API Error:", error);
     res.status(500).json({ error: error.message });
   }
 }

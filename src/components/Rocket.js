@@ -3,10 +3,11 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { gsap } from "gsap";
 import { useUser, SignedIn, SignedOut } from "@clerk/nextjs";
+import { getUserImageUrl } from "../utilities/clerkHelpers";
 
 const RocketSimulator = () => {
   const { user } = useUser(); // Access the logged-in user
-  const userAvatarUrl = user ? user.imageUrl : "/brett.jpg";
+  const userAvatarUrl = getUserImageUrl(user, "/brett.jpg");
   const containerRef = useRef(null);
   const [countdown, setCountdown] = useState(10);
   let currentFace = 1; // Track the current face
@@ -210,16 +211,29 @@ const RocketSimulator = () => {
 
     // Load the texture for the first face
     const textureLoader = new THREE.TextureLoader();
-    const userAvatarUrl = user ? user.imageUrl : "/brett.jpg";
+    console.log("[Rocket.js useEffect] Attempting to load texture from URL:", userAvatarUrl);
 
     const faceTexture1 = textureLoader.load(
       userAvatarUrl,
-      () => console.log("Avatar texture loaded successfully:", userAvatarUrl),
+      (loadedTexture) => {
+        console.log("Avatar texture loaded successfully:", userAvatarUrl);
+        if (faceMesh1 && faceMesh1.material) {
+          faceMesh1.material.map = loadedTexture;
+          faceMesh1.material.needsUpdate = true;
+          console.log("[Rocket.js useEffect] Updated faceMesh1 material map.");
+        }
+      },
       undefined,
       (err) => {
         console.error("Error loading avatar texture:", err);
         // Optional: Load a fallback texture if needed
-        textureLoader.load("/brett.jpg");
+        // Consider loading the fallback texture *here* and updating the map similarly
+        // textureLoader.load("/brett.jpg", (fallbackTexture) => {
+        //   if (faceMesh1 && faceMesh1.material) {
+        //     faceMesh1.material.map = fallbackTexture;
+        //     faceMesh1.material.needsUpdate = true;
+        //   }
+        // });
       }
     );
     // const faceTexture2 = textureLoader.load("/face.jpg"); // Replace with your first image path

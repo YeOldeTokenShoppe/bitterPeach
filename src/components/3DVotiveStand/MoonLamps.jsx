@@ -23,6 +23,9 @@ const MoonScene = ({
   const [textureLoaded, setTextureLoaded] = useState(false);
   const [textureError, setTextureError] = useState(false);
 
+  // Add this state near the top of MoonScene component
+  const [isMobile, setIsMobile] = useState(false);
+
   const maxProjectiles = 50; // Increased from 20 to 50 for more projectiles
   const projectileLifespan = 60000; // Increased to 60 seconds (1 minute) for much longer visibility
   const projectilePoolRef = useRef([]);
@@ -89,6 +92,16 @@ const MoonScene = ({
     }
   }, [camera, gl.domElement, modelCenter, onControlsCreated]);
 
+  // Add this useEffect for resize detection
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768); // Adjust breakpoint if needed
+    };
+    checkMobile(); // Initial check
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   // Add a new useEffect specifically to force camera positioning
   useEffect(() => {
     // Ensure camera positioning takes effect after a slight delay
@@ -97,19 +110,29 @@ const MoonScene = ({
       if (camera && controlsRef.current) {
         const targetPosition = modelCenter || new THREE.Vector3(0, 5, 0);
 
-        // Very dramatic position for testing
-        camera.position.set(0, 0, 80);
+        // --- Apply different settings based on isMobile ---
+        if (isMobile) {
+          camera.fov = 50; // Smaller FOV for mobile (adjust as needed)
+          camera.position.set(0, 0, 20); // Closer position for mobile (adjust as needed)
+          console.log("Applying MOBILE camera settings:", { fov: camera.fov, pos: camera.position });
+        } else {
+          camera.fov = 35; // Original desktop FOV
+          camera.position.set(0, 0, 80); // Original desktop position
+          console.log("Applying DESKTOP camera settings:", { fov: camera.fov, pos: camera.position });
+        }
+        // --- End changes ---
+
         controlsRef.current.target.copy(targetPosition);
         camera.lookAt(targetPosition);
-        camera.updateProjectionMatrix();
+        camera.updateProjectionMatrix(); // Important after changing fov or position
         controlsRef.current.update();
 
-        console.log("Camera position forced to:", camera.position);
+        // console.log("Camera position forced to:", camera.position); // Keep or remove original log
       }
-    }, 500);
+    }, 500); // Keep the delay
 
     return () => clearTimeout(timer);
-  }, [camera, modelCenter]);
+  }, [camera, modelCenter, isMobile]); // Add isMobile to dependency array
 
   useEffect(() => {
     const loader = new THREE.CubeTextureLoader();

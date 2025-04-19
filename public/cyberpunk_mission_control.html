@@ -2181,6 +2181,62 @@
       .toggle-label.disabled {
         opacity: 0.5;
       }
+
+      /* Add stronger UN-MUTE button pulse animation */
+      @keyframes connect-pulse {
+        0% {
+          box-shadow: 0 0 5px rgba(6, 182, 212, 0.3),
+            0 0 8px rgba(34, 211, 238, 0.2);
+          border-color: #134e4a;
+          transform: scale(1);
+        }
+        50% {
+          box-shadow: 0 0 15px rgba(6, 182, 212, 0.8),
+            0 0 20px rgba(34, 211, 238, 0.6);
+          border-color: #22d3ee;
+          transform: scale(1.05);
+        }
+        100% {
+          box-shadow: 0 0 5px rgba(6, 182, 212, 0.3),
+            0 0 8px rgba(34, 211, 238, 0.2);
+          border-color: #134e4a;
+          transform: scale(1);
+        }
+      }
+
+      /* Enhance the 80s mode UN-MUTE button animation */
+      @keyframes eighties-pulse {
+        0% {
+          box-shadow: 0 0 3px rgba(217, 70, 239, 0.4);
+          border-color: #d946ef;
+          transform: scale(1);
+        }
+        100% {
+          box-shadow: 0 0 15px rgba(34, 211, 238, 0.9);
+          border-color: #22d3ee;
+          transform: scale(1.08);
+        }
+      }
+
+      /* Add text contrast to make UN-MUTE more visible */
+      .call-button.unmute {
+        color: #22d3ee;
+        border-color: #0e7490;
+        box-shadow: 0 0 10px rgba(6, 182, 212, 0.5);
+        animation: connect-pulse 1.2s infinite ease-in-out; /* Faster animation (1.2s instead of 1.5s) */
+        font-weight: bold; /* Make text bolder */
+        text-shadow: 0 0 5px rgba(34, 211, 238, 0.7); /* Add glow to text */
+      }
+
+      /* Enhance 80s mode unmute button */
+      .eighties-active .call-button.unmute {
+        border-color: #22d3ee;
+        color: #d946ef;
+        box-shadow: 0 0 8px rgba(34, 211, 238, 0.6);
+        animation: eighties-pulse 1.2s infinite alternate;
+        font-weight: bold;
+        text-shadow: 0 0 8px rgba(217, 70, 239, 0.9);
+      }
     </style>
   </head>
   <body onload="if(window.innerWidth >= 768) { document.getElementById('leaderboard-content').style.display = 'block'; document.getElementById('leaderboard-arrow').textContent = '▲'; }">
@@ -2978,6 +3034,12 @@
           window.sceneAlreadyLoaded = false; // Reset this flag when connecting
           window.allowButtonTransition = true; // Allow transitions on new connection
           window.greetingPlayed = false; // Reset greeting flag
+
+          // Stop pulsing of START HERE button when CONNECT is clicked
+          const signalButton = document.querySelector('[data-action="signal"]');
+          if (signalButton) {
+            signalButton.classList.remove("initial-pulse");
+          }
 
           // Disable music and 80s mode toggles during SitePal session
           disableToggles();
@@ -4813,7 +4875,7 @@
           
           // Advance to next segment
           currentSegmentIndex = (currentSegmentIndex + 1) % segments.length;
-        }, 5000); // Change active segment every 5 seconds
+        }, 3000); // Change active segment every 3 seconds (changed from 5 seconds)
       }
 
       // Show transcript when orientation video is playing
