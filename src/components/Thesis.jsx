@@ -11,7 +11,7 @@ function Thesis({ setThesisLoaded }) {
 
   const thesisImages = useMemo(
     () => [
-      "/s8ntgr81.png",
+      "/saintG8R.gif",
       // Add any other critical images used in the Thesis component
     ],
     []
@@ -151,7 +151,7 @@ function Thesis({ setThesisLoaded }) {
             </div> */}
             <Skeleton isLoaded={imageLoaded}>
               <Image
-                src="/s8ntgr81.png"
+                src="/saintG8R.gif"
                 alt="crier"
                 height="441"
                 width="423"

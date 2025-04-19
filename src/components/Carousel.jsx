@@ -1449,7 +1449,7 @@ const Carousel = ({ images, setCarouselLoaded }) => {
           They say fortune favors the bold. Charter a ride on the charts and careen carefree with the ups and
           downs of the crypto market. Must be at least 36&quot; tall and hold
           RL80 or NFIN80 reward tokens. 10 minutes per ride. Your username and
-          avatar will be displayed live! Say Hi to Stay High! Messages are not saved. Click on any available beast to ride.
+          avatar will be displayed live! Messages are not saved. Click on any available beast to ride.
         </Text>
       </div>
     </div>

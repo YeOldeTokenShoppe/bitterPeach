@@ -103,7 +103,7 @@ function ThreeDVotiveStand({
   userData,
   setIsStatueLoaded,
   rocketModelVisible,
-  isConstellationVisible,
+  isConstellationsVisible,
   toggleConstellationVisibility,
 }) {
   const [showFloatingViewer, setShowFloatingViewer] = useState(false);
@@ -575,7 +575,7 @@ function ThreeDVotiveStand({
 
         {/* Add the constellation model before the star field */}
         <Suspense fallback={null}>
-          <ConstellationModel isVisible={isConstellationVisible} />
+          <ConstellationModel isVisible={isConstellationsVisible} />
         </Suspense>
 
         {/* Render the stars last */}

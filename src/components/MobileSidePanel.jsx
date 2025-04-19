@@ -24,6 +24,7 @@ const MobileSidePanel = ({
   rocketModelVisible,
   toggleRocketModel,
   toggleConstellationVisibility,
+  isConstellationsVisible,
 }) => {
 
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -308,18 +309,25 @@ const MobileSidePanel = ({
       // Add origin check for security in production
       // if (event.origin !== 'YOUR_EXPECTED_PARENT_ORIGIN') return;
 
-  
-
       switch (event.data.type) {
-        // --- Handle iframe readiness ---
         case "IFRAME_READY":
-
+          console.log("Mobile: Received IFRAME_READY message");
           setIframeReady(true);
-          // Attempt to send any queued messages now
-          sendMessageToMissionControl({ type: "FLUSH_QUEUE" }); // Send a dummy message to trigger flush
           break;
-        // --- End Handle iframe readiness ---
-
+          
+        case "REQUEST_STATE":
+          if (missionControlIframeRef.current) {
+            console.log("Mobile: Received REQUEST_STATE, sending current state");
+            missionControlIframeRef.current.contentWindow.postMessage(
+              {
+                type: "SYNC_STATE",
+                isConstellationsEnabled: isConstellationsVisible
+              },
+              "*"
+            );
+          }
+          break;
+          
         // ... other cases like SITEPAL_*, EIGHTIES_MODE_CHANGE, MUSIC_TOGGLE ...
         case "EIGHTIES_MODE_CHANGE":
 
@@ -366,13 +374,26 @@ const MobileSidePanel = ({
           }
           break;
         case "CONSTELLATION_TOGGLE":
-
+          console.log("Mobile received CONSTELLATION_TOGGLE message");
           if (toggleConstellationVisibility) {
+            // Call the toggle function
             toggleConstellationVisibility();
-          } else {
-            console.error(
-              "MobileSidePanel: toggleConstellationVisibility function not received as prop"
-            );
+            
+            // Send a sync message back to ensure state consistency
+            if (missionControlIframeRef.current) {
+              const newState = !isConstellationsVisible;
+              console.log("Mobile sending SYNC_STATE with:", newState);
+              // Add a small delay to ensure state has been updated
+              setTimeout(() => {
+                missionControlIframeRef.current.contentWindow.postMessage(
+                  {
+                    type: "SYNC_STATE",
+                    isConstellationsEnabled: newState
+                  },
+                  "*"
+                );
+              }, 50);
+            }
           }
           break;
         case "RESIZE":
@@ -442,11 +463,35 @@ const MobileSidePanel = ({
     rocketModelVisible,
     toggleRocketModel,
     toggleConstellationVisibility,
+    isConstellationsVisible,
+    showSpotify,
     expandVideoScreen,
     collapseVideoScreen,
     logVideoScreenState,
     router,
   ]);
+
+  // Update the drawer open effect to handle state sync more robustly
+  useEffect(() => {
+    if (isOpen) {
+      // When drawer opens, reset iframe ready state
+      setIframeReady(false);
+      
+      // Wait for drawer animation to complete
+      setTimeout(() => {
+        if (missionControlIframeRef.current) {
+          console.log("Mobile: Drawer opened, requesting state sync");
+          // Request state sync from iframe
+          missionControlIframeRef.current.contentWindow.postMessage(
+            {
+              type: "REQUEST_STATE"
+            },
+            "*"
+          );
+        }
+      }, 300);
+    }
+  }, [isOpen]);
 
   // Function to toggle call status
   const toggleCall = (e) => {
@@ -665,7 +710,55 @@ const MobileSidePanel = ({
     }
   }, [isOpen, is80sMode, showSpotify, expandVideoScreen]); // Add dependencies
 
+  // Update the iframe onLoad handler
+  const handleIframeLoad = (e) => {
+    console.log("Mobile: Iframe loaded");
+    const iframe = e.target;
+    
+    // Pass Firebase config to iframe
+    iframe.contentWindow.FIREBASE_API_KEY = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
+    iframe.contentWindow.FIREBASE_AUTH_DOMAIN = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN;
+    iframe.contentWindow.FIREBASE_PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+    iframe.contentWindow.FIREBASE_STORAGE_BUCKET = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
+    iframe.contentWindow.FIREBASE_MESSAGING_SENDER_ID = process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID;
+    iframe.contentWindow.FIREBASE_APP_ID = process.env.NEXT_PUBLIC_FIREBASE_APP_ID;
 
+    // Set iframe ready state
+    setIframeReady(true);
+    
+    // Send initial state sync
+    if (missionControlIframeRef.current) {
+      console.log("Mobile: Sending initial state sync");
+      missionControlIframeRef.current.contentWindow.postMessage(
+        {
+          type: "SYNC_STATE",
+          isConstellationsEnabled: isConstellationsVisible
+        },
+        "*"
+      );
+      missionControlIframeRef.current.contentWindow.postMessage(
+        {
+          type: "SYNC_80S_STATE",
+          enabled: is80sMode
+        },
+        "*"
+      );
+      missionControlIframeRef.current.contentWindow.postMessage(
+        {
+          type: "SYNC_MUSIC_STATE",
+          enabled: showSpotify
+        },
+        "*"
+      );
+      missionControlIframeRef.current.contentWindow.postMessage(
+        {
+          type: "SYNC_ROCKET_MODEL_STATE",
+          enabled: rocketModelVisible
+        },
+        "*"
+      );
+    }
+  };
 
   return (
     <>
@@ -948,38 +1041,7 @@ const MobileSidePanel = ({
                   position: "relative",
                 }}
                 title="Mission Control Panel Mobile"
-                onLoad={(e) => {
-            
-                  // Store the reference to make it accessible
-                  setIframeReady(true);
-                  
-                  // Pass Firebase config to iframe
-                  const iframe = e.target;
-                  iframe.contentWindow.FIREBASE_API_KEY =
-                    process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
-                  iframe.contentWindow.FIREBASE_AUTH_DOMAIN =
-                    process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN;
-                  iframe.contentWindow.FIREBASE_PROJECT_ID =
-                    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
-                  iframe.contentWindow.FIREBASE_STORAGE_BUCKET =
-                    process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
-                  iframe.contentWindow.FIREBASE_MESSAGING_SENDER_ID =
-                    process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID;
-                  iframe.contentWindow.FIREBASE_APP_ID =
-                    process.env.NEXT_PUBLIC_FIREBASE_APP_ID;
-
-                  // Send message to iframe to expand video screen immediately if in 80s mode
-                  if (is80sMode) {
-                    // Set the iframe reference first
-                    missionControlIframeRef.current = iframe;
-                    
-                    // Give iframe time to fully initialize
-                    setTimeout(() => {
-                      // Use our new approach to integrate with iframe
-                      expandVideoScreen();
-                    }, 300);
-                  }
-                }}
+                onLoad={handleIframeLoad}
               />
             </Box>
           </Box>

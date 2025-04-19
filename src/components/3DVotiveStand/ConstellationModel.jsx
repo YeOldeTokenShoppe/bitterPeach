@@ -7,14 +7,14 @@ useGLTF.preload("/marketFight.glb");
 useGLTF.preload("/whale.glb");
 useGLTF.preload("/starCandles.glb");
 
-function ConstellationModel({ isVisible = true }) {
+function ConstellationModel({ isVisible = false }) {
   const { camera } = useThree();
   // Load all three models
   const { scene: marketScene } = useGLTF("/marketFight.glb");
   const { scene: whaleScene } = useGLTF("/whale.glb");
   const { scene: starCandlesScene } = useGLTF("/starCandles.glb");
   const groupRef = useRef();
-  const whaleModelRef = useRef(); // Add ref to store whale model reference
+  const whaleModelRef = useRef();
 
   // Set up the models when they load
   useEffect(() => {
@@ -27,110 +27,58 @@ function ConstellationModel({ isVisible = true }) {
     const starCandlesClone = starCandlesScene.clone();
 
     // Helper function to process models
-    const processModel = (modelScene, namePrefix = "", initialVisible = true, position = [0, 0, 0], scale = [1, 1, 1]) => {
+    const processModel = (modelScene, namePrefix = "", position = [0, 0, 0], scale = [1, 1, 1]) => {
       modelScene.traverse((child) => {
         if (child.isMesh) {
           // Configure all meshes for better rendering in background
           child.castShadow = false;
           child.receiveShadow = false;
           child.renderOrder = -1; // Render behind other objects
+          child.visible = isVisible;
 
-          // Handle specific logic for the original market/constellation model
-          if (modelScene === marketClone) {
-             // Add opacity to constellation lines and stars (always slightly visible)
-            if (
-              child.material &&
-              !child.name.startsWith("RedStar") &&
-              !child.name.startsWith("GreenStar") &&
-              !child.name.startsWith("Bear")
-            ) {
-              child.material.transparent = true;
-              child.material.opacity = 0.008; // Reduced opacity for more subtle appearance
-            }
-
-            // Scale down and adjust opacity for red/green stars
-            if (child.name.startsWith("RedStar") || child.name.startsWith("GreenStar")) {
-               child.scale.set(0.12, 0.12, 0.12); // Slightly smaller scale
-               if (child.material) {
-                 child.material.transparent = true;
-                 child.material.opacity = 0.015; // Very subtle opacity for stars
-               }
-            }
-
-            // Set opacity for Bear object
-            if (child.name.startsWith("Bear")) {
-              if (child.material) {
-                child.material.transparent = true;
-                child.material.opacity = 0.015; // Match the dimmer appearance of Whale and StarCandles
-              }
-            }
-
-            // Set initial visibility based on the mesh type
-            if (child.name.startsWith("Bear") || child.name.startsWith("StarCandles")) {
-              child.visible = isVisible; // Toggle visibility for Bear and StarCandles
-            } else {
-              child.visible = true; // Always visible for other elements
-            }
-          }
-
-          // Handle visibility and appearance for StarCandles model
-          if (modelScene === starCandlesClone) {
-            if (child.material) {
-              child.material.transparent = true;
-              child.material.opacity = 0.01; // Very subtle opacity for star candles
-            }
-          }
-
-          // Handle visibility for Whale model
-          if (modelScene === whaleClone) {
-            child.visible = isVisible; // Toggle visibility for Whale
-            if (child.material) {
-              child.material.transparent = true;
-              child.material.opacity = 0.015; // Subtle opacity for whale
-            }
-          }
-
-          // Ensure material exists and set transparency if needed for visibility toggling
           if (child.material) {
-            // Check if material is an array
-            if (Array.isArray(child.material)) {
-              child.material.forEach(mat => {
-                mat.transparent = true; // Enable transparency for potential visibility changes
-              });
+            child.material.transparent = true;
+            
+            // Handle specific opacity settings based on mesh type
+            if (child.name.startsWith("RedStar") || child.name.startsWith("GreenStar")) {
+              child.scale.set(0.12, 0.12, 0.12);
+              child.material.opacity = isVisible ? 0.002 : 0;
+            } else if (child.name.startsWith("Bear")) {
+              child.material.opacity = isVisible ? 0.15 : 0;
+            } else if (modelScene === starCandlesClone) {
+              child.material.opacity = isVisible ? 0.1 : 0;
+            } else if (modelScene === whaleClone) {
+              child.material.opacity = isVisible ? 0.15 : 0;
             } else {
-              child.material.transparent = true; // Enable transparency for potential visibility changes
+              child.material.opacity = isVisible ? 0.008 : 0;
             }
           }
         }
       });
+
       // Set model's position and scale relative to the group
       modelScene.position.set(...position);
       modelScene.scale.set(...scale);
-      groupRef.current.add(modelScene); // Add processed model to the main group
+      groupRef.current.add(modelScene);
     };
 
     // Process and position each model
-    processModel(marketClone, "Market", isVisible, [10, 0, 0], [1, 1, 1]); // Center
-    processModel(whaleClone, "Whale", isVisible, [18, -1, 34], [1, 1, 1]); // Position left, slightly up/back, smaller scale
-    processModel(starCandlesClone, "StarCandles", isVisible, [-10, 3, 27], [1.3,1.3, 1.3]); // Position right, higher up, slightly larger scale
+    processModel(marketClone, "Market", [10, 0, 0], [1, 1, 1]);
+    processModel(whaleClone, "Whale", [18, -1, 34], [1, 1, 1]);
+    processModel(starCandlesClone, "StarCandles", [-10, 3, 27], [1.3, 1.3, 1.3]);
 
-    // Store whale model reference
+    // Store whale model reference and set its rotation
     whaleModelRef.current = whaleClone;
+    whaleClone.rotation.y = Math.PI / 4;
+    whaleClone.rotation.x = Math.PI / 12;
 
-    // Add rotation to the whale model
-    whaleClone.rotation.y = Math.PI / 4; // Rotate 45 degrees around Y axis
-    whaleClone.rotation.x = Math.PI / 12; // Rotate 15 degrees around X axis
-
-    // Position the entire constellation group far behind the main scene
+    // Position the entire constellation group
     groupRef.current.position.z = -300;
-    // Scale down the entire group to be more subtle
     groupRef.current.scale.set(30, 30, 30);
-    // groupRef.current.rotation.y = 0; // Optional rotation
 
     return () => {
       // Clean up all models
-      const scenesToRemove = [marketClone, whaleClone, starCandlesClone];
-      scenesToRemove.forEach(scene => {
+      [marketClone, whaleClone, starCandlesClone].forEach(scene => {
         if (groupRef.current) {
           groupRef.current.remove(scene);
         }
@@ -138,7 +86,7 @@ function ConstellationModel({ isVisible = true }) {
           if (child.geometry) child.geometry.dispose();
           if (child.material) {
             if (Array.isArray(child.material)) {
-              child.material.forEach((material) => material.dispose());
+              child.material.forEach(material => material.dispose());
             } else {
               child.material.dispose();
             }
@@ -146,26 +94,33 @@ function ConstellationModel({ isVisible = true }) {
         });
       });
     };
-  }, [marketScene, whaleScene, starCandlesScene, isVisible]); // Depend on scenes and isVisible for initial setup
+  }, [marketScene, whaleScene, starCandlesScene, isVisible]);
 
-  // Update visibility of ALL objects whenever isVisible changes
+  // Update visibility whenever isVisible changes
   useEffect(() => {
     if (!groupRef.current) return;
 
     groupRef.current.traverse((child) => {
-      // Check if it's a Mesh directly within the group or within the added scenes
       if (child.isMesh) {
-        // Handle visibility based on the mesh type
-        if (child.name.startsWith("Bear") || child.name.startsWith("StarCandles")) {
-          child.visible = isVisible; // Toggle visibility for Bear and StarCandles
-        } else if (whaleModelRef.current && child.parent === whaleModelRef.current) {
-          child.visible = isVisible; // Toggle visibility for Whale
-        } else {
-          child.visible = true; // Always visible for other elements
+        child.visible = isVisible;
+        
+        if (child.material) {
+          child.material.transparent = true;
+          if (child.name.startsWith("RedStar") || child.name.startsWith("GreenStar")) {
+            child.material.opacity = isVisible ? 0.002 : 0;
+          } else if (child.name.startsWith("Bear")) {
+            child.material.opacity = isVisible ? 0.15 : 0;
+          } else if (child.name.includes("StarCandles")) {
+            child.material.opacity = isVisible ? 0.1 : 0;
+          } else if (child.name.includes("Whale")) {
+            child.material.opacity = isVisible ? 0.15 : 0;
+          } else {
+            child.material.opacity = isVisible ? 0.008 : 0;
+          }
         }
       }
     });
-  }, [isVisible]); // Only depend on isVisible for visibility updates
+  }, [isVisible]);
 
   return <group ref={groupRef} />;
 }

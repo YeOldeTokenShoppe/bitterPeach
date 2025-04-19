@@ -131,16 +131,28 @@ function BurnGallery({
   const [monsterMode, setMonsterMode] = useState(false);
   const [clerkUserData, setClerkUserData] = useState(null);
   const [rocketModelVisible, setRocketModelVisible] = useState(false);
-  const [isConstellationVisible, setIsConstellationVisible] = useState(false);
-  const [constellationsVisible, setConstellationsVisible] = useState(true);
+  const [isConstellationsVisible, setIsConstellationsVisible] = useState(false);
 
   const toggleConstellationVisibility = useCallback(() => {
-    setIsConstellationVisible((prev) => !prev);
-    console.log(
-      "BurnGallery: Toggled constellation visibility to:",
-      !isConstellationVisible
-    );
-  }, [isConstellationVisible]);
+    setIsConstellationsVisible((prev) => {
+      const newState = !prev;
+      console.log("BurnGallery: Toggled constellation visibility to:", newState);
+      
+      // Send sync message to iframe
+      const iframe = document.querySelector('iframe[src*="cyberpunk_mission_control.html"]');
+      if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.postMessage(
+          {
+            type: "SYNC_STATE",
+            isConstellationsEnabled: newState
+          },
+          "*"
+        );
+      }
+      
+      return newState;
+    });
+  }, []);
 
   const setSpawnFunction = useCallback((func) => {
     spawnMonsterFunctionRef.current = func;
@@ -197,6 +209,20 @@ function BurnGallery({
       setCurrentPath(path);
     }
   }, [router.asPath]);
+
+  // Add effect to sync initial state with iframe
+  useEffect(() => {
+    const iframe = document.querySelector('iframe[src*="cyberpunk_mission_control.html"]');
+    if (iframe && iframe.contentWindow) {
+      iframe.contentWindow.postMessage(
+        {
+          type: "SYNC_STATE",
+          isConstellationsEnabled: isConstellationsVisible
+        },
+        "*"
+      );
+    }
+  }, [isConstellationsVisible]);
 
   // useEffect(() => {
   //   if (isChandelierVisible) {
@@ -348,7 +374,7 @@ function BurnGallery({
                 userData={clerkUserData}
                 setIsStatueLoaded={setIsStatueLoaded}
                 rocketModelVisible={rocketModelVisible}
-                isConstellationVisible={isConstellationVisible}
+                isConstellationsVisible={isConstellationsVisible}
                 toggleConstellationVisibility={toggleConstellationVisibility}
               />
             ) : null}
@@ -369,7 +395,7 @@ function BurnGallery({
               rocketModelVisible={rocketModelVisible}
               toggleRocketModel={toggleRocketModel}
               toggleConstellationVisibility={toggleConstellationVisibility}
-              isConstellationsVisible={constellationsVisible}
+              isConstellationsVisible={isConstellationsVisible}
             />
           ) : (
             <SidePanel
@@ -382,7 +408,7 @@ function BurnGallery({
               rocketModelVisible={rocketModelVisible}
               toggleRocketModel={toggleRocketModel}
               toggleConstellationVisibility={toggleConstellationVisibility}
-               isConstellationsVisible={constellationsVisible} 
+              isConstellationsVisible={isConstellationsVisible}
             />
           ))}
         {/* <Box
