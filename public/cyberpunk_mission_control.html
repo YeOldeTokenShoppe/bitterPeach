@@ -3093,12 +3093,51 @@
               return;
             }
 
-            selfView.innerHTML = '<div class="emoji-placeholder">😎</div>'; // Set default immediately
+            // Set a temporary placeholder
+            selfView.innerHTML = '<div class="avatar-placeholder" style="width: 100%; height: 100%; background-color: #333; display: flex; justify-content: center; align-items: center; color: #888; font-size: 2rem;">?</div>';
  
+            // --- Add listener for avatar response from parent --- 
+            function receiveAvatarUrl(event) {
+              // Optional: Add origin check for security in production
+              // if (event.origin !== 'YOUR_REACT_APP_ORIGIN') return;
+
+              if (event.data && event.data.type === "AVATAR_RESPONSE") {
+                const avatarUrl = event.data.avatarUrl;
+                console.log("[Iframe] Received avatar URL from parent:", avatarUrl);
+
+                if (avatarUrl) {
+                  const img = document.createElement("img");
+                  img.src = avatarUrl;
+                  img.alt = "User Avatar";
+                  img.style.width = "100%";
+                  img.style.height = "100%";
+                  img.style.objectFit = "cover"; // Ensure image covers the div
+                  img.onerror = () => {
+                    console.error("[Iframe] Failed to load avatar image:", avatarUrl);
+                    selfView.innerHTML = '<div class="avatar-placeholder" style="width: 100%; height: 100%; background-color: #333; display: flex; justify-content: center; align-items: center; color: #888; font-size: 2rem;">!</div>'; // Error state
+                  };
+                  selfView.innerHTML = ''; // Clear placeholder
+                  selfView.appendChild(img);
+                } else {
+                  console.log("[Iframe] No valid avatar URL received from parent.");
+                  // Keep placeholder or show a different one
+                   selfView.innerHTML = '<div class="avatar-placeholder" style="width: 100%; height: 100%; background-color: #333; display: flex; justify-content: center; align-items: center; color: #888; font-size: 2rem;">X</div>'; // Indicate missing avatar
+                }
+                // Clean up listener after receiving the response (optional, depends if you expect multiple updates)
+                // window.removeEventListener('message', receiveAvatarUrl);
+              }
+            }
+            window.addEventListener('message', receiveAvatarUrl);
+            // --- End listener ---
 
             // Request avatar from parent
+            console.log("[Iframe] Requesting avatar from parent window...");
             window.parent.postMessage({ type: "REQUEST_AVATAR" }, "*");
           }
+
+          // Ensure initSitePal calls updateSelfView *after* the element might exist
+          // Or ensure updateSelfView is called at the appropriate time after DOM ready
+          // Example: document.addEventListener('DOMContentLoaded', updateSelfView);
 
           selfView.style.display = "block";
           updateSelfView();

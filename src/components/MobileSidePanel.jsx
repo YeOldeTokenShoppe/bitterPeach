@@ -13,6 +13,7 @@ import {
 } from "@chakra-ui/react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/router";
+import { getUserImageUrl } from "../utilities/clerkHelpers";
 
 const MobileSidePanel = ({
   is80sMode,
@@ -309,147 +310,156 @@ const MobileSidePanel = ({
       // Add origin check for security in production
       // if (event.origin !== 'YOUR_EXPECTED_PARENT_ORIGIN') return;
 
-      switch (event.data.type) {
-        case "IFRAME_READY":
-          console.log("Mobile: Received IFRAME_READY message");
-          setIframeReady(true);
-          break;
-          
-        case "REQUEST_STATE":
-          if (missionControlIframeRef.current) {
-            console.log("Mobile: Received REQUEST_STATE, sending current state");
-            missionControlIframeRef.current.contentWindow.postMessage(
-              {
-                type: "SYNC_STATE",
-                isConstellationsEnabled: isConstellationsVisible
-              },
-              "*"
-            );
-          }
-          break;
-          
-        // ... other cases like SITEPAL_*, EIGHTIES_MODE_CHANGE, MUSIC_TOGGLE ...
-        case "EIGHTIES_MODE_CHANGE":
+      if (event.data && event.data.type === 'REQUEST_AVATAR') {
+        console.log("[Parent MobileSidePanel] Received REQUEST_AVATAR from iframe.");
 
-          toggle80sMode(); // Call the function from gallery.js
-          break;
-        case "MUSIC_TOGGLE":
-
-          if (typeof event.data.enabled === "boolean") {
-            setShowSpotify(event.data.enabled); // Call the function from gallery.js
-          } else {
-            console.warn(
-              "MUSIC_TOGGLE message received without boolean 'enabled' property."
-            );
-          }
-          break;
-        case "ROCKET_MODEL_TOGGLE":
- 
-          if (typeof event.data.enabled === "boolean" && toggleRocketModel) {
-            // Only toggle if the current state doesn't match the desired state
-            if (rocketModelVisible !== event.data.enabled) {
-              toggleRocketModel();
-            }
-          } else {
-            console.warn(
-              "ROCKET_MODEL_TOGGLE message received without boolean 'enabled' property or toggleRocketModel function not provided."
-            );
-          }
-          break;
-        case "LAUNCH_MODE_TOGGLE":
-     
-          if (is80sMode) {
-            toggle80sMode();
-          }
-
-          if (monsterMode) {
-            // If monster mode is active, toggle it off and hide rocket
-            toggleMonsterMode();
-          } else {
-            // If monster mode is not active, turn it on and show rocket
-            toggleMonsterMode();
-            if (!rocketModelVisible) {
-              toggleRocketModel();
-            }
-          }
-          break;
-        case "CONSTELLATION_TOGGLE":
-          console.log("Mobile received CONSTELLATION_TOGGLE message");
-          if (toggleConstellationVisibility) {
-            // Call the toggle function
-            toggleConstellationVisibility();
-            
-            // Send a sync message back to ensure state consistency
-            if (missionControlIframeRef.current) {
-              const newState = !isConstellationsVisible;
-              console.log("Mobile sending SYNC_STATE with:", newState);
-              // Add a small delay to ensure state has been updated
-              setTimeout(() => {
+        if (missionControlIframeRef.current && missionControlIframeRef.current.contentWindow) {
+          const avatarUrl = isSignedIn ? getUserImageUrl(user) : null; // Get the best URL or null if signed out
+           console.log("[Parent MobileSidePanel] Sending AVATAR_RESPONSE with URL:", avatarUrl);
+          missionControlIframeRef.current.contentWindow.postMessage({
+            type: 'AVATAR_RESPONSE',
+            avatarUrl: avatarUrl
+          }, '*'); // Use specific origin instead of '*' in production
+        } else {
+           console.warn("[Parent MobileSidePanel] Iframe ref or contentWindow not available.");
+        }
+      }
+      else if (event.data && event.data.type) {
+          // Handle other message types (IFRAME_READY, REQUEST_STATE, etc.)
+           switch (event.data.type) {
+            case "IFRAME_READY":
+              console.log("Mobile: Received IFRAME_READY message");
+              setIframeReady(true);
+              break;
+              
+            case "REQUEST_STATE":
+              if (missionControlIframeRef.current) {
+                console.log("Mobile: Received REQUEST_STATE, sending current state");
                 missionControlIframeRef.current.contentWindow.postMessage(
                   {
                     type: "SYNC_STATE",
-                    isConstellationsEnabled: newState
+                    isConstellationsEnabled: isConstellationsVisible
                   },
                   "*"
                 );
-              }, 50);
-            }
-          }
-          break;
-        case "RESIZE":
-        case "LAYOUT_CHANGE":
-          if (is80sMode) {
-            // First hide video
-            const videoContainer = document.querySelector(".vaporwave-container");
-            if (videoContainer) {
-              videoContainer.style.opacity = "0";
-              videoContainer.style.visibility = "hidden";
-            }
-            
-            // Wait a bit before updating position
-            setTimeout(() => {
-              updateVideoPosition();
-              // Show video after position update
-              if (videoContainer) {
-                setTimeout(() => {
-                  videoContainer.style.opacity = "1";
-                  videoContainer.style.visibility = "visible";
-                }, 50);
               }
-            }, 100);
-          }
-          break;
-        case "EXPAND_VIDEO_SCREEN":
-          if (is80sMode) {
+              break;
+              
+            // ... other cases like SITEPAL_*, EIGHTIES_MODE_CHANGE, MUSIC_TOGGLE ...
+            case "EIGHTIES_MODE_CHANGE":
+              toggle80sMode(); // Call the function from gallery.js
+              break;
+            case "MUSIC_TOGGLE":
+              if (typeof event.data.enabled === "boolean") {
+                setShowSpotify(event.data.enabled); // Call the function from gallery.js
+              } else {
+                console.warn(
+                  "MUSIC_TOGGLE message received without boolean 'enabled' property."
+                );
+              }
+              break;
+            case "ROCKET_MODEL_TOGGLE":
+              if (typeof event.data.enabled === "boolean" && toggleRocketModel) {
+                // Only toggle if the current state doesn't match the desired state
+                if (rocketModelVisible !== event.data.enabled) {
+                  toggleRocketModel();
+                }
+              } else {
+                console.warn(
+                  "ROCKET_MODEL_TOGGLE message received without boolean 'enabled' property or toggleRocketModel function not provided."
+                );
+              }
+              break;
+            case "LAUNCH_MODE_TOGGLE":
+              if (is80sMode) {
+                toggle80sMode();
+              }
 
-            // Use our new approach to integrate with iframe
-            if (event.data.expanded) {
-              expandVideoScreen();
-            } else {
-              collapseVideoScreen();
-            }
-          }
-          break;
+              if (monsterMode) {
+                // If monster mode is active, toggle it off and hide rocket
+                toggleMonsterMode();
+              } else {
+                // If monster mode is not active, turn it on and show rocket
+                toggleMonsterMode();
+                if (!rocketModelVisible) {
+                  toggleRocketModel();
+                }
+              }
+              break;
+            case "CONSTELLATION_TOGGLE":
+              console.log("Mobile received CONSTELLATION_TOGGLE message");
+              if (toggleConstellationVisibility) {
+                // Call the toggle function
+                toggleConstellationVisibility();
+                
+                // Send a sync message back to ensure state consistency
+                if (missionControlIframeRef.current) {
+                  const newState = !isConstellationsVisible;
+                  console.log("Mobile sending SYNC_STATE with:", newState);
+                  // Add a small delay to ensure state has been updated
+                  setTimeout(() => {
+                    missionControlIframeRef.current.contentWindow.postMessage(
+                      {
+                        type: "SYNC_STATE",
+                        isConstellationsEnabled: newState
+                      },
+                      "*"
+                    );
+                  }, 50);
+                }
+              }
+              break;
+            case "RESIZE":
+            case "LAYOUT_CHANGE":
+              if (is80sMode) {
+                // First hide video
+                const videoContainer = document.querySelector(".vaporwave-container");
+                if (videoContainer) {
+                  videoContainer.style.opacity = "0";
+                  videoContainer.style.visibility = "hidden";
+                }
+                
+                // Wait a bit before updating position
+                setTimeout(() => {
+                  updateVideoPosition();
+                  // Show video after position update
+                  if (videoContainer) {
+                    setTimeout(() => {
+                      videoContainer.style.opacity = "1";
+                      videoContainer.style.visibility = "visible";
+                    }, 50);
+                  }
+                }, 100);
+              }
+              break;
+            case "EXPAND_VIDEO_SCREEN":
+              if (is80sMode) {
+                // Use our new approach to integrate with iframe
+                if (event.data.expanded) {
+                  expandVideoScreen();
+                } else {
+                  collapseVideoScreen();
+                }
+              }
+              break;
 
-        case "SITEPAL_LOADED":
-          if (is80sMode && missionControlIframeRef.current) {
-     
-            // Use our new approach to integrate with iframe
-            expandVideoScreen();
+            case "SITEPAL_LOADED":
+              if (is80sMode && missionControlIframeRef.current) {
+                // Use our new approach to integrate with iframe
+                expandVideoScreen();
+              }
+              break;
+            // ... rest of the cases like LAUNCH_MODE_TOGGLE, CONSTELLATION_TOGGLE etc.
+            case "NAVIGATE_TO_HOME":
+              router.push("/home");
+              break;
+            default:
+              // Log unhandled message types
+              if (event.data.type !== "FIREBASE_CONFIG_RESPONSE") {
+                // Avoid logging the config response itself
+              }
+              break;
           }
-          break;
-        // ... rest of the cases like LAUNCH_MODE_TOGGLE, CONSTELLATION_TOGGLE etc.
-        case "NAVIGATE_TO_HOME":
-
-          router.push("/home");
-          break;
-        default:
-          // Log unhandled message types
-          if (event.data.type !== "FIREBASE_CONFIG_RESPONSE") {
-            // Avoid logging the config response itself
- 
-          }
-          break;
       }
     };
 
@@ -469,6 +479,9 @@ const MobileSidePanel = ({
     collapseVideoScreen,
     logVideoScreenState,
     router,
+    user,
+    isSignedIn,
+    updateVideoPosition
   ]);
 
   // Update the drawer open effect to handle state sync more robustly

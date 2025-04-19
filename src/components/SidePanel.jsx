@@ -540,9 +540,25 @@ const SidePanel = ({
       // Add origin check for security in production
       // if (event.origin !== 'YOUR_EXPECTED_PARENT_ORIGIN') return;
 
+      // ---> ADD: Handle Avatar Request FIRST <--- 
+      if (event.data && event.data.type === 'REQUEST_AVATAR') {
+        console.log("[Parent SidePanel] Received REQUEST_AVATAR from iframe.");
 
+        if (missionControlIframeRef.current && missionControlIframeRef.current.contentWindow) {
+          const avatarUrl = isSignedIn ? getUserImageUrl(user) : null; // Get the best URL or null if signed out
+           console.log("[Parent SidePanel] Sending AVATAR_RESPONSE with URL:", avatarUrl);
+          missionControlIframeRef.current.contentWindow.postMessage({
+            type: 'AVATAR_RESPONSE',
+            avatarUrl: avatarUrl
+          }, '*'); // Use specific origin instead of '*' in production
+        } else {
+           console.warn("[Parent SidePanel] Iframe ref or contentWindow not available.");
+        }
+        return; // Exit after handling avatar request
+      }
+      // --- End Avatar Request Handling ---
 
-      // ---> REMOVE Log here <---
+      // ---> Keep Existing Logic Below <--- 
       // console.log(
       //   `SidePanel: Switching on event.data.type: '${event.data.type}'`
       // );
@@ -731,6 +747,8 @@ const SidePanel = ({
     toggleConstellationVisibility,
     updateVideoPosition,
     router,
+    user,
+    isSignedIn,
   ]);
 
   // Sync all states with iframe
