@@ -10,6 +10,7 @@ const MoonScene = forwardRef(({
   modelCenter,
   onControlsCreated,
   onSpawnReady,
+  rocketModelVisible,
 }, ref) => {
   const { scene, camera, gl } = useThree();
   const controlsRef = useRef();
@@ -109,15 +110,25 @@ const MoonScene = forwardRef(({
       if (camera && controlsRef.current) {
         const targetPosition = modelCenter || new THREE.Vector3(0, 5, 0);
 
-        // --- Apply different settings based on isMobile ---
+        // --- Apply different settings based on isMobile and rocketModelVisible ---
         if (isMobile) {
-          camera.fov = 50; // Smaller FOV for mobile (adjust as needed)
-          camera.position.set(0, 0, 20); // Closer position for mobile (adjust as needed)
-          console.log("Applying MOBILE camera settings:", { fov: camera.fov, pos: camera.position });
+          camera.fov = 50; // Smaller FOV for mobile
+          if (rocketModelVisible) {
+            camera.position.set(0, 0, 60); // Much further back position for mobile when rocket is visible
+            console.log("Applying MOBILE camera settings with ROCKET:", { fov: camera.fov, pos: camera.position });
+          } else {
+            camera.position.set(0, 0, 20); // Original mobile position
+            console.log("Applying MOBILE camera settings:", { fov: camera.fov, pos: camera.position });
+          }
         } else {
           camera.fov = 35; // Original desktop FOV
-          camera.position.set(0, 0, 80); // Original desktop position
-          console.log("Applying DESKTOP camera settings:", { fov: camera.fov, pos: camera.position });
+          if (rocketModelVisible) {
+            camera.position.set(0, 0, 100); // Further back position for desktop when rocket is visible
+            console.log("Applying DESKTOP camera settings with ROCKET:", { fov: camera.fov, pos: camera.position });
+          } else {
+            camera.position.set(0, 0, 80); // Original desktop position
+            console.log("Applying DESKTOP camera settings:", { fov: camera.fov, pos: camera.position });
+          }
         }
         // --- End changes ---
 
@@ -125,13 +136,11 @@ const MoonScene = forwardRef(({
         camera.lookAt(targetPosition);
         camera.updateProjectionMatrix(); // Important after changing fov or position
         controlsRef.current.update();
-
-        // console.log("Camera position forced to:", camera.position); // Keep or remove original log
       }
     }, 500); // Keep the delay
 
     return () => clearTimeout(timer);
-  }, [camera, modelCenter, isMobile]); // Add isMobile to dependency array
+  }, [camera, modelCenter, isMobile, rocketModelVisible]); // Add rocketModelVisible to dependency array
 
   useEffect(() => {
     const loader = new THREE.CubeTextureLoader();

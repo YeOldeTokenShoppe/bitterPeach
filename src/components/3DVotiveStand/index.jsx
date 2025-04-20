@@ -570,6 +570,7 @@ function ThreeDVotiveStand({
             ref={moonSceneRef}
             modelRef={modelRef}
             onSpawnReady={onSpawnReady}
+            rocketModelVisible={rocketModelVisible}
           />
         </Suspense>
 
