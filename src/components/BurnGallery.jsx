@@ -346,10 +346,10 @@ function BurnGallery({
     <>
       <Box
         position="relative"
-        width="100%"
-        height="100vh"
+        minH="100vh"
+        minW="100vw"
         overflow="hidden"
-        className="burn-gallery"
+        backgroundColor="#131416"
       >
         <Grid
           templateColumns="1fr"
@@ -405,6 +405,7 @@ function BurnGallery({
               monsterMode={monsterMode}
               toggleMonsterMode={toggleMonsterMode}
               showSpotify={showSpotify}
+              setShowSpotify={setShowSpotify}
               rocketModelVisible={rocketModelVisible}
               toggleRocketModel={toggleRocketModel}
               toggleConstellationVisibility={toggleConstellationVisibility}

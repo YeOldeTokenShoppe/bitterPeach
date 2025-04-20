@@ -152,7 +152,7 @@
         }
 
         /* Add an indicator for the collapsed state */
-        .video-display:not(.active)::after {
+        /* .video-display:not(.active)::after {
           content: "Tap to expand";
           position: absolute;
           top: 50%;
@@ -163,7 +163,7 @@
           text-shadow: 0 0 5px #06b6d4;
           opacity: 1;
           transition: opacity 0.3s ease-out;
-        }
+        } */
 
         /* Hide the tap indicator when active */
         .video-display.active::after {
@@ -1548,7 +1548,7 @@
         }
 
         /* Add an indicator for the collapsed state */
-        .video-display:not(.active)::after {
+        /* .video-display:not(.active)::after {
           content: "Tap to expand";
           position: absolute;
           top: 50%;
@@ -1557,7 +1557,7 @@
           color: #67e8f9;
           font-size: 0.75rem;
           text-shadow: 0 0 5px #06b6d4;
-        }
+        } */
 
         /* Add expand/collapse indicators */
         .video-display::before {
@@ -2284,6 +2284,9 @@
         }
       }
     </style>
+    <script>
+      let greetingHasFinished = false;
+    </script>
   </head>
   <body onload="if(window.innerWidth >= 768) { document.getElementById('leaderboard-content').style.display = 'block'; document.getElementById('leaderboard-arrow').textContent = '▲'; }">
     <div class="scan-lines" id="scan-lines"></div>
@@ -2397,7 +2400,15 @@
                         window.AI_vhost_api = AI_vhost_api;
                         console.log("✅ Made AI_vhost_api available on window");
                       }
-
+                     if (typeof stopListening === "function" && !window.stopListening) {
+                       window.stopListening = stopListening;
+                       console.log("✅ Made stopListening available on window");
+                     }
+                     if (typeof stopSpeaking === "function" && !window.stopSpeaking) {
+                       window.stopSpeaking = stopSpeaking;
+                       console.log("✅ Made stopSpeaking available on window");
+                     }
+                     waitForSitePalReadyAndStart();
                       // Request microphone permission during CONNECT to avoid interruption during the greeting
                       requestMicrophonePermission();
 
@@ -2405,6 +2416,7 @@
                       console.log(
                         "⏸️ Waiting for UN-MUTE before activating audio"
                       );
+            
                     };
 
                     // Function to request microphone permissions ahead of time
@@ -2531,7 +2543,7 @@
                       console.log("🔇 Priming audio with saySilent(0)...");
                       try {
                         if (typeof saySilent === "function") {
-                          saySilent(0);
+                          window.saySilent(0);
                           console.log("✅ Initial audio priming complete");
                         } else {
                           console.warn(
@@ -2562,14 +2574,6 @@
                     embedNow();
                   }
 
-                  // Add a button to request microphone access if not already present
-                  const micButton = document.createElement("button");
-                  micButton.innerText = "Enable Microphone";
-                  micButton.onclick = () => {
-                    // Combine microphone permission request and audio context resumption
-                    requestMicrophonePermissionAndResume();
-                  };
-                  container.appendChild(micButton); // Append the button to the container
 
                   // Function to request microphone permissions and resume audio context
                   function requestMicrophonePermissionAndResume() {
@@ -2583,7 +2587,7 @@
                             stream.getTracks().forEach((track) => track.stop());
                             resumeAudioContext(); // Resume audio context after permission is granted
                             // Now, you can call the function to start listening or interacting with the character
-                            startCharacterInteraction(); // New function to handle character interaction
+                 
                           })
                           .catch((err) => {
                             displayMessage("⚠️ Microphone permission denied or error: " + err);
@@ -2596,14 +2600,106 @@
                     }
                   }
 
-                  // Function to start character interaction
+                  function waitForSitePalReadyAndStart() {
+                    const maxRetries = 20;
+                    let attempts = 0;
+
+                    const interval = setInterval(() => {
+                      if (typeof window.sayText === "function") {
+                        console.log("✅ SitePal sayText is now available, starting interaction...");
+                        clearInterval(interval);
+                        startCharacterInteraction();
+                      } else {
+                        console.log("⏳ Waiting for SitePal API... attempt", attempts);
+                        attempts++;
+                        if (attempts >= maxRetries) {
+                          console.warn("❌ Timed out waiting for SitePal API");
+                          clearInterval(interval);
+                        }
+                      }
+                    }, 250);
+                  }
+
                   function startCharacterInteraction() {
-                    // Call the SitePal API to start listening or interacting with the character
-                    if (typeof startListening === "function") {
-                      startListening(); // Assuming this is the function to start interaction
-                      displayMessage("🎤 Character is now listening...");
+                    const signalButton = document.querySelector('.control-button[data-action="signal"]');
+                    const buttonLabel = signalButton?.querySelector('.button-label') || signalButton;
+
+                    if (signalButton) {
+                      // Initially disable during setup
+                      signalButton.disabled = true;
+                      signalButton.style.pointerEvents = "none";
+                      signalButton.classList.add("disabled");
+
+                      if (buttonLabel) {
+                        buttonLabel.innerText = "LOADING...";
+                      }
+
+                      // Set up UN-MUTE state after short delay
+                      setTimeout(() => {
+                        // Re-enable for click
+                        signalButton.disabled = false;
+                        signalButton.style.pointerEvents = "auto";
+                        signalButton.classList.remove("disabled");
+
+                        buttonLabel.innerText = "UN-MUTE";
+                        signalButton.setAttribute("data-state", "unmute");
+                        signalButton.classList.add("signal-pulse");
+
+                        // Wait for user click
+                        const handleUnmuteClick = () => {
+                          signalButton.removeEventListener("click", handleUnmuteClick);
+                          signalButton.classList.remove("signal-pulse");
+
+                          console.log("🗣️ UN-MUTE clicked, playing greeting...");
+                          try {
+                            if (typeof window.sayText === "function") {
+                              window.sayText("Greetings, how can I help you today?", 9, 1, 7);
+                              console.log("✅ sayText successfully called");
+                            } else {
+                              console.warn("❌ sayText is not defined");
+                            }
+                          } catch (e) {
+                            console.error("❌ sayText error:", e);
+                          }
+
+                          // Switch to DISCONNECT after greeting
+                          setTimeout(() => {
+                            console.log("🔁 Switching to DISCONNECT");
+                            buttonLabel.innerText = "DISCONNECT";
+                            signalButton.setAttribute("data-state", "disconnect");
+                            signalButton.classList.add("disconnect");
+
+                            // Extra priming step after greeting
+                            if (typeof window.saySilent === "function") {
+                              console.log("🔁 Re-priming audio after greeting...");
+                              window.saySilent(0);
+                            }
+
+                            // Attempt to start listening
+                            if (typeof window.AI_vhost_api === "function") {
+                              console.log("🎤 Attempting to start listening...");
+                              window.AI_vhost_api("startListening");
+                            } else {
+                              console.warn("❌ AI_vhost_api not available to start listening");
+                            }
+
+                            // Optional retry after 10 seconds
+                            setTimeout(() => {
+                              console.log("🔁 Retry listening after 10s");
+                              if (typeof window.saySilent === "function") {
+                                window.saySilent(0);
+                              }
+                              if (typeof window.AI_vhost_api === "function") {
+                                window.AI_vhost_api("startListening");
+                              }
+                            }, 10000);
+                          }, 6000);
+                        };
+
+                        signalButton.addEventListener("click", handleUnmuteClick);
+                      }, 200); // small delay to allow label change
                     } else {
-                      displayMessage("⚠️ startListening function not available.");
+                      console.warn("⚠️ signalButton or buttonLabel not found");
                     }
                   }
 
@@ -2633,15 +2729,47 @@
                   }
                 }
               </script>
-              <!-- <script>
-                const connectButton = document.getElementById("call-button");
-                if (connectButton) {
-                  connectButton.addEventListener("click", () => {
-        
-                    loadAndPrimeCharacter(); // Load and prime the character
-                  });
+              <script>
+                function disconnectSitePal() {
+                  
+                  console.log("🔌 Disconnecting SitePal character...");
+                  unloadScene();
+                  // 1. Hide the character visually
+                  const container = document.getElementById("sitepal-container");
+                  if (container) {
+                    container.style.display = "none";
+                    container.classList.remove("active");
+                  }
+
+                  // 2. Stop the character from listening
+                  if (typeof window.stopListening === "function") {
+                    window.stopListening();
+                    console.log("🛑 Stopped listening.");
+                  }
+
+                  // 3. Stop any ongoing speech (if applicable)
+                  if (typeof window.stopSpeaking === "function") {
+                    window.stopSpeaking();
+                    console.log("🔇 Stopped speaking.");
+                  }
+
+                  // 4. Reset visual layer (re-show deadAir)
+                  const deadAir = document.getElementById("deadAir");
+                  if (deadAir) {
+                    deadAir.style.opacity = 1;
+                    deadAir.style.zIndex = "20";
+                    deadAir.play().catch(() => {});
+                  }
+
+                  // 5. Optionally re-prime audio system
+                  if (typeof window.saySilent === "function") {
+                    setTimeout(() => {
+                      window.saySilent(0);
+                    }, 500);
+                  }
                 }
-              </script> -->
+              </script>
+             
               <div id="vhss_aiPlayer"></div>
               <!-- Add placeholder elements that SitePal expects -->
               <div id="vhss-aiplayer-aiformlogs"></div>
@@ -2665,7 +2793,8 @@
         </div>
 
         <div class="video-controls">
-          <!-- <button id="call-button" class="call-button">CONNECT</button> -->
+          <!-- <button id="call-button" class="call-button" disabled style="opacity: 0.5; pointer-events: none;">UN-MUTE</button> -->
+          <!-- <button id="disconnect-button" class="call-button disconnect">DISCONNECT</button> -->
           <select id="station-select" class="station-select">
             <option>LUNAR BASE ALPHA</option>
             <option>MARS OUTPOST</option>
@@ -2934,7 +3063,7 @@
               // Try to prime the audio early
               try {
                 if (typeof saySilent === "function") {
-                  saySilent(0);
+                  window.saySilent(0);
                 }
               } catch (e) {
                 console.log("Early audio priming failed:", e);
@@ -3823,11 +3952,19 @@
                 initSitePal();
                 sitepalContainer.dataset.initialized = "true";
                 
-                // Update button state to UN-MUTE
-                if (buttonLabel) {
-                  buttonLabel.textContent = "UN-MUTE";
+                // After greeting, safely start listening and update button state after delay
+                if (typeof window.AI_vhost_api === "function") {
+                  window.AI_vhost_api("startListening");
+                } else {
+                  console.warn("AI_vhost_api not available.");
                 }
-                button.classList.add("unmute");
+                setTimeout(() => {
+                  if (buttonLabel) {
+                    buttonLabel.textContent = "DISCONNECT";
+                  }
+                  button.classList.remove("unmute");
+                  button.classList.add("disconnect");
+                }, 2000);
                           function updateSelfView() {
             const selfView = document.getElementById("self-view");
             if (!selfView) {
@@ -3900,60 +4037,6 @@
                   setTimeout(activateMicrophone, 2000);
                 }
                 
-              } else if (currentButtonState === "UN-MUTE") {
-                // --- UN-MUTE Flow ---
-                console.log("Signal button in UN-MUTE state - activating microphone...");
-                
-                // Remove pulse effect
-                button.classList.remove("signal-pulse");
-                
-                // Update button appearance temporarily
-                if (buttonLabel) {
-                  buttonLabel.textContent = "ACTIVATING...";
-                }
-                
-                // Try to activate microphone and play greeting
-                const greetingText = "Hello, I am ready to assist you.";
-                sayText(greetingText, 9, 1, 7);
-                window.saySilent(0);
-                
-                // Prime the character for interaction
-                try {
-                  if (typeof window.saySilent === "function") {
-                    window.saySilent(0);
-                  } else if (typeof saySilent === "function") {
-                    saySilent(0);
-                  }
-                      } catch (primeError) {
-                  console.warn("⚠️ Error during audio priming:", primeError);
-                      }
-                      
-                      // Try to start listening
-                      try {
-                        const api = window.AI_vhost_api || AI_vhost_api;
-                        if (api) {
-                          api("startListening");
-                          window.parent.postMessage({ type: "SITEPAL_STATE_CHANGE", isListening: true }, "*");
-                        } else {
-                    console.warn("❌ No API found to activate microphone");
-                        }
-                      } catch (micError) {
-                  console.error("❌ Error activating microphone:", micError);
-                }
-                
-                // Update button to DISCONNECT state
-                setTimeout(() => {
-                  if (buttonLabel) {
-                    buttonLabel.textContent = "DISCONNECT";
-                  }
-                  button.classList.remove("unmute");
-                  button.classList.add("disconnect");
-                }, 1000);
-                
-                // Notify parent that microphone is active
-                if (window.parent) {
-                  window.parent.postMessage({ type: "MICROPHONE_ACTIVATED" }, "*");
-                }
               } else if (currentButtonState === "DISCONNECT") {
                 // --- Disconnect Flow ---
                 console.log("Signal button in DISCONNECT state - disconnecting...");
@@ -4065,7 +4148,7 @@
           localStorage.setItem('orientationViewed', 'true');
           
           // Update signal button state - remove all special effects
-          const signalButton = document.querySelector('[data-action="signal"]');
+          const signalButton = document.querySelector('.control-button[data-action="signal"]');
           if (signalButton) {
             const buttonLabel = signalButton.querySelector('.button-label');
             if (buttonLabel) {
@@ -4134,7 +4217,7 @@
         localStorage.removeItem('orientationViewed');
         
         // Make sure button states are properly initialized
-        const signalButton = document.querySelector('[data-action="signal"]');
+        const signalButton = document.querySelector('.control-button[data-action="signal"]');
         // const connectButton = document.getElementById("call-button");
         
         const orientationViewed = localStorage.getItem('orientationViewed') === 'true';
@@ -4321,6 +4404,7 @@
 
       // Modify the existing disconnectCall function to handle collapsing on mobile
       function disconnectCall() {
+
         isCallActive = false;
         if (typeof AI_vhost_api === "function") {
   
@@ -4976,7 +5060,7 @@
       function playOrientationVideo() {
         const videoFeed = document.getElementById("video-feed");
         const deadAir = document.getElementById("deadAir");
-        const signalButton = document.querySelector('[data-action="signal"]');
+        const signalButton = document.querySelector('.control-button[data-action="signal"]');
         // const connectButton = document.getElementById("call-button");
         const offlineDisplay = document.getElementById("offline-display");
         const transcriptToggleBtn = document.getElementById("transcript-toggle-btn");
@@ -5124,7 +5208,7 @@
           // Immediately trigger cleanup and state changes
           const deadAir = document.getElementById("deadAir");
           const offlineDisplay = document.getElementById("offline-display");
-          const signalButton = document.querySelector('[data-action="signal"]');
+          const signalButton = document.querySelector('.control-button[data-action="signal"]');
           const transcriptToggleBtn = document.getElementById('transcript-toggle');
           
           // Remove the video element
@@ -5461,7 +5545,7 @@
     <!-- Function to update signal button state based on orientation viewed status -->
     <script>
       function updateSignalButtonState() {
-        const signalButton = document.querySelector('[data-action="signal"]');
+        const signalButton = document.querySelector('.control-button[data-action="signal"]');
         const orientationViewed = localStorage.getItem('orientationViewed') === 'true';
         
         if (signalButton) {

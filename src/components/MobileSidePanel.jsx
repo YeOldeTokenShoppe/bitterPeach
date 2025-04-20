@@ -14,8 +14,15 @@ import {
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/router";
 import { getUserImageUrl } from "../utilities/clerkHelpers";
+import dynamic from "next/dynamic";
+
+// Dynamically import the MusicPlayer component
+const MusicPlayer2 = dynamic(() => import("./MusicPlayer2"), {
+  ssr: false,
+});
 
 const MobileSidePanel = ({
+  onButtonClick,
   is80sMode,
   toggle80sMode,
   monsterMode,
@@ -943,24 +950,6 @@ const MobileSidePanel = ({
           >
             ∞
           </Text>
-
-          {/* <Box
-            position="absolute"
-            top="-3px"
-            right="-10px"
-            width="8px"
-            height="8px"
-            borderRadius="full"
-            backgroundColor="#ef4444"
-            animation="pulse 2s infinite"
-            sx={{
-              "@keyframes pulse": {
-                "0%": { opacity: 1 },
-                "50%": { opacity: 0.5 },
-                "100%": { opacity: 1 },
-              },
-            }}
-          /> */}
         </Box>
       </Button>
 
@@ -995,15 +984,15 @@ const MobileSidePanel = ({
         />
         <DrawerContent
           backgroundColor="transparent"
-          maxHeight="80vh"
-          height="60vh"
+          maxHeight="85vh"
+          height="80vh"
           overflow="auto"
           position="fixed"
           bottom="0"
           left="0"
           width="100%"
           margin="0"
-          paddingBottom="env(safe-area-inset-bottom, 20px)"
+          paddingBottom={showSpotify ? "0" : "env(safe-area-inset-bottom, 20px)"}
           onClick={(e) => e.stopPropagation()}
           borderTop="2px solid #0e7490"
           borderTopLeftRadius="16px"
@@ -1053,17 +1042,15 @@ const MobileSidePanel = ({
             overflowY="auto"
             height="100%"
           >
+            {/* Mission Control iframe */}
             <Box
               width="100%"
               flex="1"
               overflow="visible"
               position="relative"
-              // pt="40px"
               display="flex"
               justifyContent="center"
-              // pb="70px"
             >
-              {/* Video overlay - not needed anymore since we're creating the video inside the iframe */}
               <iframe
                 ref={missionControlIframeRef}
                 src="/cyberpunk_mission_control.html"
@@ -1071,7 +1058,7 @@ const MobileSidePanel = ({
                   width: "100%",
                   maxWidth: "450px",
                   height: "100%",
-                  minHeight: "650px", // Increased to accommodate expanded video screen
+                  minHeight: showSpotify ? "520px" : "650px", // Adjusted height when music player is visible
                   border: "none",
                   overflow: "visible",
                   display: "block",
@@ -1082,6 +1069,27 @@ const MobileSidePanel = ({
                 onLoad={handleIframeLoad}
               />
             </Box>
+            
+            {/* Add Music Player component if showSpotify is true */}
+            {showSpotify && (
+              <Box
+                width="100%"
+                maxWidth="450px"
+                margin="0 auto"
+                marginTop="auto"
+                background="transparent"
+                overflow="hidden"
+                borderRadius="0"
+                zIndex="10"
+              >
+                <MusicPlayer2
+                  isVisible={showSpotify}
+                  onClose={() => setShowSpotify(false)}
+                  autoPlay={true}
+                  is80sMode={is80sMode}
+                />
+              </Box>
+            )}
           </Box>
         </DrawerContent>
       </Drawer>

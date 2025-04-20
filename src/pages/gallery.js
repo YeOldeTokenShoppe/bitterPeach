@@ -5,13 +5,7 @@ import Communion3 from "../components/Communion3";
 import Loader from "../components/Loader";
 import { X } from "lucide-react";
 
-
-
-// Dynamically import both music players
-const MusicPlayer2 = dynamic(() => import("../components/MusicPlayer2"), {
-  ssr: false,
-});
-
+// Dynamically import music players (keep for potential 80s mode use)
 const MusicPlayer3 = dynamic(() => import("../components/MusicPlayer3"), {
   ssr: false,
 });
@@ -19,77 +13,6 @@ const MusicPlayer3 = dynamic(() => import("../components/MusicPlayer3"), {
 // const NavBarDynamic = dynamic(() => import("../components/NavBar.client"), {
 //   ssr: false,
 // });
-
-const ClientOnlyMusicPlayer = ({
-  is80sMode,
-  showSpotify,
-  setShowSpotify,
-  isMobileView,
-}) => {
-  const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  if (!isMounted) return null;
-
-  return (
-    <div
-      style={{
-        position: "absolute",
-        bottom: isMobileView ? "60px" : "7rem",
-        left: isMobileView ? "20%" : "2rem",
-        transform: isMobileView
-          ? "translate(-50%, 0) scale(0.5)"
-          : "scale(0.6)",
-        zIndex: 1000,
-        borderRadius: "12px",
-        boxShadow: "0 4px 30px rgba(0, 0, 0, 0.3)",
-        opacity: 1,
-        transition: "all 0.3s ease",
-        pointerEvents: "auto",
-        cursor: "move",
-      }}
-    >
-      {showSpotify && (
-        <div
-          style={{
-            position: "absolute",
-            bottom: isMobileView ? "60px" : "3rem",
-            left: isMobileView ? "20%" : "0",
-            transform: isMobileView
-              ? "translate(-50%, 0) scale(0.5)"
-              : "scale(0.6)",
-            zIndex: 1000,
-            borderRadius: "12px",
-            boxShadow: "0 4px 30px rgba(0, 0, 0, 0.3)",
-            opacity: 1,
-            transition: "all 0.3s ease",
-            pointerEvents: "auto",
-            cursor: "move",
-          }}
-        >
-          <Suspense fallback={<div>Loading music player...</div>}>
-            {is80sMode ? (
-              <MusicPlayer3
-                isVisible={showSpotify}
-                onClose={() => setShowSpotify(false)}
-                autoPlay={true}
-              />
-            ) : (
-              <MusicPlayer2
-                isVisible={showSpotify}
-                onClose={() => setShowSpotify(false)}
-                autoPlay={true}
-              />
-            )}
-          </Suspense>
-        </div>
-      )}
-    </div>
-  );
-};
 
 const BurnGalleryClient = dynamic(() => import("../components/BurnGallery"), {
   ssr: false,
@@ -100,7 +23,7 @@ export default function GalleryPage() {
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   // Initialize state
-  const [showSpotify, setShowSpotify] = useState(false); // Start with false for SSR
+  const [showSpotify, setShowSpotify] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [is80sMode, setIs80sMode] = useState(false);
   const [monsterMode, setMonsterMode] = useState(false);
@@ -393,16 +316,6 @@ export default function GalleryPage() {
             setIsModalOpen={setIsModalOpen}
             is80sMode={is80sMode}
             toggle80sMode={toggle80sMode}
-          />
-        )}
-
-        {/* Music Player */}
-        {showSpotify && (
-          <ClientOnlyMusicPlayer
-            is80sMode={is80sMode}
-            showSpotify={showSpotify}
-            setShowSpotify={setShowSpotify}
-            isMobileView={isMobileView}
           />
         )}
       </div>

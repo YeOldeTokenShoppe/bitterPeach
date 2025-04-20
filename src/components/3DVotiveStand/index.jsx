@@ -506,7 +506,7 @@ function ThreeDVotiveStand({
   }, []);
 
   return (
-    <div style={{ width: "100%", height: "100%" }}>
+    <div style={{ width: "100%", height: "100vh" }}>
       <Canvas
         dpr={currentDpr}
         performance={{ min: 0.5 }}

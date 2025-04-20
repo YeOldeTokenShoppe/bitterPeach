@@ -40,6 +40,11 @@ import dynamic from "next/dynamic";
 import Image from "next/image";
 import { getUserImageUrl, getUsername, createUserData } from "../utilities/clerkHelpers";
 
+// Dynamically import the MusicPlayer component
+const MusicPlayer2 = dynamic(() => import("./MusicPlayer2"), {
+  ssr: false,
+});
+
 const SidePanel = ({
   onButtonClick,
   is80sMode,
@@ -50,6 +55,7 @@ const SidePanel = ({
   rocketModelVisible,
   toggleRocketModel,
   toggleConstellationVisibility,
+  setShowSpotify,
 }) => {
   const [isTextBoxVisible, setIsTextBoxVisible] = useState(true);
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
@@ -1092,6 +1098,8 @@ const SidePanel = ({
         transition="transform 0.4s ease-out"
         overflow="hidden"
         backgroundColor="transparent"
+        display="flex"
+        flexDirection="column"
       >
         {/* Video overlay */}
         {is80sMode && (
@@ -1130,20 +1138,40 @@ const SidePanel = ({
           </Box>
         )}
         
-        <iframe
-          ref={missionControlIframeRef}
-          src="/cyberpunk_mission_control.html"
-          style={{
-            width: "320px",
-            height: "100%",
-            border: "none",
-            overflow: "hidden",
-            display: "block",
-            backgroundColor: "transparent",
-          }}
-          title="Mission Control Panel"
-          onLoad={handleIframeLoad}
-        />
+        {/* Mission Control iframe in a flex container taking most of the space */}
+        <Box flex="1" minHeight="0" overflow="hidden">
+          <iframe
+            ref={missionControlIframeRef}
+            src="/cyberpunk_mission_control.html"
+            style={{
+              width: "100%",
+              height: "100%",
+              border: "none",
+              overflow: "hidden",
+              display: "block",
+              backgroundColor: "transparent",
+            }}
+            title="Mission Control Panel"
+            onLoad={handleIframeLoad}
+          />
+        </Box>
+        
+        {/* Integrated Music Player - NOT absolutely positioned but in the normal flow */}
+        {showSpotify && (
+          <Box
+            width="100%"
+            height="auto" 
+            backgroundColor="transparent"
+            overflow="hidden"
+          >
+            <MusicPlayer2
+              isVisible={showSpotify}
+              onClose={() => setShowSpotify(false)}
+              autoPlay={true}
+              is80sMode={is80sMode}
+            />
+          </Box>
+        )}
       </Box>
     </>
   );
