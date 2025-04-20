@@ -558,7 +558,7 @@ export default function CommunionPage() {
             >
               <img
                 src="/carouselSign.png"
-          
+                alt=""
                 translate="no" 
                 style={{
                   width: "auto",

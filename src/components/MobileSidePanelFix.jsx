@@ -291,16 +291,7 @@ const MobileSidePanel = ({
       type: "SYNC_80S_STATE",
       enabled: is80sMode,
     });
-    
-    // Also send a direct update for the signal button state
-    if (missionControlIframeRef.current && missionControlIframeRef.current.contentWindow) {
-      missionControlIframeRef.current.contentWindow.postMessage({
-        type: "UPDATE_SIGNAL_BUTTON_STATE",
-        is80sModeActive: is80sMode,
-        isMusicActive: showSpotify
-      }, "*");
-    }
-  }, [is80sMode, showSpotify]); // Re-run when is80sMode changes
+  }, [is80sMode]); // Re-run when is80sMode changes
 
   // Effect to sync rocket model state with iframe
   useEffect(() => {
@@ -332,11 +323,6 @@ const MobileSidePanel = ({
         } else {
            console.warn("[Parent MobileSidePanel] Iframe ref or contentWindow not available.");
         }
-      }
-      else if (event.data && event.data.type === 'SIGNAL_BUTTON_STATE') {
-        console.log("[Parent MobileSidePanel] Received SIGNAL_BUTTON_STATE:", event.data);
-        // You can add UI feedback here if needed
-        // For example, you could show a tooltip or notification explaining why the button is disabled
       }
       else if (event.data && event.data.type) {
           // Handle other message types (IFRAME_READY, REQUEST_STATE, etc.)
@@ -467,11 +453,6 @@ const MobileSidePanel = ({
             case "NAVIGATE_TO_HOME":
               router.push("/home");
               break;
-            // Add case for SitePal scene loaded
-            case "SITEPAL_SCENE_LOADED":
-              console.log("Mobile: Received SITEPAL_SCENE_LOADED");
-              setSitepalSceneLoaded(true);
-              break;
             default:
               // Log unhandled message types
               if (event.data.type !== "FIREBASE_CONFIG_RESPONSE") {
@@ -500,10 +481,7 @@ const MobileSidePanel = ({
     router,
     user,
     isSignedIn,
-    updateVideoPosition,
-    connectionPhase,
-    isMuted,
-    sitepalSceneLoaded
+    updateVideoPosition
   ]);
 
   // Update the drawer open effect to handle state sync more robustly
@@ -544,7 +522,7 @@ const MobileSidePanel = ({
           setActiveCall(true);
           setConnectionPhase(1);
           setIsMuted(true);
-          
+
           // Progress through connection phases with timeouts
           setTimeout(() => setConnectionPhase(2), 1200);
           setTimeout(() => setConnectionPhase(3), 3000);
@@ -600,9 +578,6 @@ const MobileSidePanel = ({
 
   // Function to initialize SitePal
   const initializeSitePal = () => {
-    if (!missionControlIframeRef.current) return;
-
-    // Simplify to just send the INIT_SITEPAL message directly
     sendMessageToMissionControl({
       type: "INIT_SITEPAL",
       width: 280,

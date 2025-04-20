@@ -262,7 +262,7 @@
         /* Add transition and initial z-index */
         transition: opacity 0.5s ease-out;
         z-index: 15; /* Ensure it's above sitepal-container (z-index 10) during effect */
-        /* Videos will be shown/hidden via JavaScript as needed */
+        display: none; /* Hide initially */
       }
 
       .video-overlay {
@@ -2265,7 +2265,6 @@
               id="deadAir"
               loop
               muted
-              preload="auto"
               playsinline
               webkit-playsinline
               style="width: 100%; height: 100%; object-fit: cover"
@@ -2305,19 +2304,15 @@
                   }
 
                   function embedNow() {
-                    // Define the scene loaded callback to handle transition from loading video to character
+                    // Handle the scene loaded event - make sure character is visible
                     const handleSceneLoaded = () => {
                       console.log("✅ SitePal scene loaded callback triggered");
 
-                      // Hide the transmission video effect with a nice fade
+                      // Hide the transmission video effect
                       if (deadAir) {
                         deadAir.style.opacity = 0;
-                        deadAir.style.transition = "opacity 0.5s ease-out";
                         deadAir.style.zIndex = "5"; // Lower z-index once loading is complete
-                        setTimeout(() => {
-                          deadAir.pause();
-                          deadAir.style.display = "none";
-                        }, 500);
+                        setTimeout(() => deadAir.pause(), 500);
                       }
 
                       // Ensure SitePal container is visible and has active class
@@ -2335,7 +2330,11 @@
                       }
 
                       // Make SitePal APIs available on window object for easier access
-                      if (typeof saySilent === "function" && !window.saySilent) {
+                      // but don't prime audio or start listening yet - wait for UN-MUTE
+                      if (
+                        typeof saySilent === "function" &&
+                        !window.saySilent
+                      ) {
                         window.saySilent = saySilent;
                         console.log("✅ Made saySilent available on window");
                       }
@@ -2353,11 +2352,53 @@
                         console.log("✅ Made AI_vhost_api available on window");
                       }
 
-                      // Notify parent that SitePal scene is loaded
-                      if (window.parent) {
-                        window.parent.postMessage({ type: "SITEPAL_SCENE_LOADED" }, "*");
-                      }
+                      // Request microphone permission during CONNECT to avoid interruption during the greeting
+                      requestMicrophonePermission();
+
+                      // DO NOT prime audio or activate mic here - wait for UN-MUTE button
+                      console.log(
+                        "⏸️ Waiting for UN-MUTE before activating audio"
+                      );
                     };
+
+                    // Function to request microphone permissions ahead of time
+                    function requestMicrophonePermission() {
+                      console.log(
+                        "🎤 Requesting microphone permission during CONNECT phase..."
+                      );
+                      try {
+                        // Use the browser's getUserMedia API to request microphone access
+                        if (
+                          navigator.mediaDevices &&
+                          navigator.mediaDevices.getUserMedia
+                        ) {
+                          navigator.mediaDevices
+                            .getUserMedia({ audio: true })
+                            .then((stream) => {
+                              console.log("✅ Microphone permission granted");
+                              // Stop all tracks to release the microphone - we're just getting permission
+                              stream
+                                .getTracks()
+                                .forEach((track) => track.stop());
+                            })
+                            .catch((err) => {
+                              console.warn(
+                                "⚠️ Microphone permission denied or error:",
+                                err
+                              );
+                            });
+                        } else {
+                          console.warn(
+                            "⚠️ getUserMedia not supported in this browser"
+                          );
+                        }
+                      } catch (e) {
+                        console.error(
+                          "❌ Error requesting microphone permission:",
+                          e
+                        );
+                      }
+                    }
 
                     // Set both callback names that SitePal might use
                     window.vh_sceneLoaded = handleSceneLoaded;
@@ -2365,22 +2406,103 @@
 
                     // Add a backup timeout in case callbacks don't fire
                     setTimeout(() => {
-                      console.log("⏱️ Checking if SitePal character is visible...");
-                      if (container && !container.classList.contains("active")) {
-                        console.log("⚠️ Character not visible, forcing display");
+                      console.log(
+                        "⏱️ Checking if SitePal character is visible..."
+                      );
+                      if (
+                        container &&
+                        !container.classList.contains("active")
+                      ) {
+                        console.log(
+                          "⚠️ Character not visible, forcing display"
+                        );
                         handleSceneLoaded();
+
+                        // Check if vhss_aiPlayer is actually visible
+                        const playerDiv =
+                          document.getElementById("vhss_aiPlayer");
+                        if (playerDiv && playerDiv.innerHTML === "") {
+                          console.log(
+                            "⚠️ SitePal player appears empty, trying to reload..."
+                          );
+
+                          // Try embedding again
+                          try {
+                            playerDiv.innerHTML = "";
+                            AI_vhost_embed(280, 180, 9157686, 255, 0, 1);
+                            console.log(
+                              "🔄 Attempted to reload SitePal character"
+                            );
+                          } catch (e) {
+                            console.error("❌ Error reloading SitePal:", e);
+                          }
+                        }
                       }
-                    }, 8000);
+                    }, 5000);
 
                     console.log("📱 Calling AI_vhost_embed to load SitePal...");
                     AI_vhost_embed(280, 180, 9157686, 255, 0, 1);
                   }
 
-                  // Check if we need to load the SitePal script first
+                  // Set up a backup timeout in case scene loaded doesn't fire
+                  const sceneLoadTimeout = setTimeout(() => {
+                    console.log("⚠️ Scene load timeout - backup transition");
+                    if (deadAir) {
+                      deadAir.style.opacity = 0;
+                      setTimeout(() => deadAir.pause(), 500);
+                    }
+                    if (container) {
+                      container.style.display = "block";
+                      container.style.opacity = "1";
+                    }
+                    // Try to make SitePal APIs available
+                    setupSitePalAPIs();
+                  }, 8000); // 8-second backup
+
+                  function setupSitePalAPIs() {
+                    console.log("Setting up SitePal APIs on window...");
+                    // Make SitePal APIs available on window object for easier access
+                    if (typeof saySilent === "function" && !window.saySilent) {
+                      window.saySilent = saySilent;
+                      console.log("✅ Made saySilent available on window");
+                    }
+
+                    if (typeof sayText === "function" && !window.sayText) {
+                      window.sayText = sayText;
+                      console.log("✅ Made sayText available on window");
+                    }
+
+                    if (
+                      typeof AI_vhost_api === "function" &&
+                      !window.AI_vhost_api
+                    ) {
+                      window.AI_vhost_api = AI_vhost_api;
+                      console.log("✅ Made AI_vhost_api available on window");
+                    }
+
+                    // Prime audio with saySilent but don't play greeting or start listening yet
+                    setTimeout(() => {
+                      console.log("🔇 Priming audio with saySilent(0)...");
+                      try {
+                        if (typeof saySilent === "function") {
+                          saySilent(0);
+                          console.log("✅ Initial audio priming complete");
+                        } else {
+                          console.warn(
+                            "⚠️ saySilent not available for initial priming"
+                          );
+                        }
+                      } catch (e) {
+                        console.error("❌ Error during initial priming:", e);
+                      }
+                    }, 300);
+                  }
+
                   if (typeof AI_vhost_embed !== "function") {
                     console.log("Loading SitePal scripts...");
                     const script = document.createElement("script");
-                    script.src = "//vhss-d.oddcast.com/vhost_embed_functions_v4.php?acc=9157686&js=1";
+                    script.src =
+                      "//vhss-d.oddcast.com/vhost_embed_functions_v4.php?acc=9157686&js=1";
                     script.onload = () => {
                       console.log("✅ SitePal script loaded successfully");
                       embedNow();
@@ -2392,6 +2514,76 @@
                   } else {
                     console.log("SitePal script already loaded, embedding now");
                     embedNow();
+                  }
+
+                  // Add a button to request microphone access if not already present
+                  const micButton = document.createElement("button");
+                  micButton.innerText = "Enable Microphone";
+                  micButton.onclick = () => {
+                    // Combine microphone permission request and audio context resumption
+                    requestMicrophonePermissionAndResume();
+                  };
+                  container.appendChild(micButton); // Append the button to the container
+
+                  // Function to request microphone permissions and resume audio context
+                  function requestMicrophonePermissionAndResume() {
+                    displayMessage("🎤 Requesting microphone permission...");
+                    try {
+                      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                        navigator.mediaDevices.getUserMedia({ audio: true })
+                          .then((stream) => {
+                            displayMessage("✅ Microphone permission granted");
+                            // Stop all tracks to release the microphone
+                            stream.getTracks().forEach((track) => track.stop());
+                            resumeAudioContext(); // Resume audio context after permission is granted
+                            // Now, you can call the function to start listening or interacting with the character
+                            startCharacterInteraction(); // New function to handle character interaction
+                          })
+                          .catch((err) => {
+                            displayMessage("⚠️ Microphone permission denied or error: " + err);
+                          });
+                      } else {
+                        displayMessage("⚠️ getUserMedia not supported in this browser");
+                      }
+                    } catch (e) {
+                      displayMessage("❌ Error requesting microphone permission: " + e);
+                    }
+                  }
+
+                  // Function to start character interaction
+                  function startCharacterInteraction() {
+                    // Call the SitePal API to start listening or interacting with the character
+                    if (typeof startListening === "function") {
+                      startListening(); // Assuming this is the function to start interaction
+                      displayMessage("🎤 Character is now listening...");
+                    } else {
+                      displayMessage("⚠️ startListening function not available.");
+                    }
+                  }
+
+                  // Function to resume the audio context
+                  function resumeAudioContext() {
+                    if (typeof AudioContext !== "undefined") {
+                      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                      audioContext.resume().then(() => {
+                        displayMessage("✅ Audio context resumed");
+                      }).catch(err => {
+                        displayMessage("⚠️ Failed to resume audio context: " + err);
+                      });
+                    }
+                  }
+
+                  // Function to display messages on the webpage
+                  function displayMessage(message) {
+                    const messageDiv = document.createElement("div");
+                    messageDiv.innerText = message;
+                    messageDiv.style.position = "fixed";
+                    messageDiv.style.bottom = "10px";
+                    messageDiv.style.left = "10px";
+                    messageDiv.style.backgroundColor = "white";
+                    messageDiv.style.padding = "10px";
+                    messageDiv.style.border = "1px solid black";
+                    document.body.appendChild(messageDiv);
                   }
                 }
               </script>
@@ -2427,7 +2619,7 @@
         </div>
 
         <div class="video-controls">
-          <button id="call-button" class="call-button" style="display: none;">CONNECT</button>
+          <button id="call-button" class="call-button">CONNECT</button>
           <select id="station-select" class="station-select">
             <option>LUNAR BASE ALPHA</option>
             <option>MARS OUTPOST</option>
@@ -3568,15 +3760,9 @@
             // Check if orientation video is already playing
             const orientationVideo = document.getElementById('orientation-video');
             
-            // Check if the video has been viewed (data attribute is set on the button or localStorage)
-            const videoViewed = button.getAttribute('data-video-viewed') === 'true' || 
-                               localStorage.getItem('orientationViewed') === 'true';
-            
-            // Check current button state by its label - this determines what action to take
-            const buttonLabel = button.querySelector('.button-label');
-            const currentButtonState = buttonLabel ? buttonLabel.textContent : "";
-            
             if (orientationVideo) {
+
+              
               // Stop and clean up the video
               stopOrientationVideo();
               
@@ -3585,131 +3771,8 @@
               setTimeout(() => {
                 button.classList.remove("active");
               }, 500);
-            } else if (currentButtonState === "DISCONNECT") {
-              // DISCONNECT state - Call disconnect function
-              console.log("Signal button in DISCONNECT state - disconnecting...");
-              
-              // Call disconnect function to clean up SitePal
-              disconnectCall();
-              
-              // Reset button state and appearance
-              if (buttonLabel) {
-                buttonLabel.textContent = "CONNECT AGENT";
-              }
-              button.classList.add("initial-pulse");
-              
-              // Notify parent
-              if (window.parent) {
-                window.parent.postMessage({ type: "CALL_DISCONNECTED" }, "*");
-              }
-              
-            } else if (currentButtonState === "UN-MUTE") {
-              // UN-MUTE state - Activate microphone and transition to DISCONNECT
-              console.log("Signal button in UN-MUTE state - activating microphone...");
-              
-              // Remove pulse effect
-              button.classList.remove("initial-pulse");
-              
-              // Update button appearance temporarily
-              if (buttonLabel) {
-                buttonLabel.textContent = "ACTIVATING...";
-              }
-              
-              // Try to activate microphone and play greeting
-              activateMicrophone();
-              
-              // Play greeting
-              setTimeout(() => {
-                playGreeting();
-              }, 500);
-              
-              // Update button to DISCONNECT state
-              setTimeout(() => {
-                if (buttonLabel) {
-                  buttonLabel.textContent = "DISCONNECT";
-                }
-              }, 1000);
-              
-              // Notify parent that microphone is active
-              if (window.parent) {
-                window.parent.postMessage({ type: "MICROPHONE_ACTIVATED" }, "*");
-              }
-              
-            } else if (videoViewed || currentButtonState === "CONNECT AGENT") {
-              // CONNECT AGENT state - Initiate SitePal with transmission effect
-              console.log("Signal button initiating SitePal connection with transmission effect...");
-              
-              // Change button appearance to show different state
-              if (buttonLabel) {
-                buttonLabel.textContent = "CONNECTING...";
-              }
-              
-              // --- START OF TRANSMISSION EFFECT CODE ---
-              const deadAir = document.getElementById("deadAir");
-              const sitepalContainer = document.getElementById("sitepal-container");
-              const offlineDisplay = document.getElementById("offline-display");
-              
-              // Hide offline display
-              if (offlineDisplay) {
-                offlineDisplay.style.display = "none";
-              }
-              
-              // Make transmission video visible and play it
-              if (deadAir) {
-                deadAir.style.display = "block";
-                deadAir.style.opacity = "1";
-                deadAir.style.zIndex = "20"; // Ensure it's on top during loading
-                deadAir.muted = true;
-                deadAir.loop = true;
-                deadAir.play().catch(e => console.error("Transmission video play failed:", e));
-              }
-              
-              // Show SitePal container behind the video
-              if (sitepalContainer) {
-                sitepalContainer.style.display = "block";
-                sitepalContainer.style.zIndex = "5"; // Lower z-index during loading
-              }
-              // --- END OF TRANSMISSION EFFECT CODE ---
-              
-              // Load and prime the character - this calls initSitePal
-              loadAndPrimeCharacter();
-              
-              // For mobile browsers, we need the intermediate UN-MUTE state
-              // because they need user interaction to enable audio
-              const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-              const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-              
-              // The timeout should match the connection phase duration in initSitePal
-              setTimeout(() => {
-                // If mobile or Safari, go to UN-MUTE state, otherwise skip to DISCONNECT
-                if (isMobile || isSafari) {
-                  if (buttonLabel) {
-                    buttonLabel.textContent = "UN-MUTE";
-                    button.classList.add("initial-pulse"); // Add pulse to draw attention
-                  }
-                } else {
-                  // On desktop non-Safari, auto-activate and go to DISCONNECT
-                  activateMicrophone();
-                  playGreeting();
-                  if (buttonLabel) {
-                    buttonLabel.textContent = "DISCONNECT";
-                  }
-                }
-              }, 3000);
-              
-              // Notify parent that call is being initiated
-              if (window.parent) {
-                window.parent.postMessage({ type: "CALL_INITIATED" }, "*");
-              }
-              
-              // Disable music and 80s mode toggles during SitePal session
-              disableToggles();
-              
-              // Set global state
-              isCallActive = true;
-              
             } else {
-              // Default case - Play orientation video
+
               playOrientationVideo();
             }
             break;
@@ -3726,28 +3789,6 @@
             // Navigate to the home page
             window.parent.postMessage({ type: "NAVIGATE_TO_HOME" }, "*");
             break;
-          case "DISCONNECT_SITEPAL":
-              disconnectCall();
-              
-              // Reset signal button to CONNECT AVATAR state
-              const signalButton = document.querySelector('[data-action="signal"]');
-              if (signalButton) {
-                const buttonLabel = signalButton.querySelector('.button-label');
-                if (buttonLabel) {
-                  buttonLabel.textContent = "CONNECT AGENT";
-                }
-                signalButton.classList.add("initial-pulse");
-                // Maintain the data-video-viewed attribute so it stays in connect avatar mode
-              }
-              break;
-          case "HIDE_SMALL_CONNECT_BUTTON":
-            const callButton = document.getElementById("call-button");
-            if (callButton && event.data.hide) {
-              callButton.style.display = "none";
-            }
-            break;
-          
-          // Add more message types here as needed
         }
 
         // Remove active states after animation (except for signal when stopping video)
@@ -3834,7 +3875,8 @@
         const signalButton = document.querySelector('[data-action="signal"]');
         const connectButton = document.getElementById("call-button");
         const offlineDisplay = document.getElementById("offline-display");
-        const transcriptToggleBtn = document.getElementById("transcript-toggle-btn");
+        
+   
         
         // Remove pulse effect from SIGNAL button immediately when clicked
         if (signalButton) {
@@ -4272,24 +4314,12 @@
 
       // Modify the existing disconnectCall function to handle collapsing on mobile
       function disconnectCall() {
-        console.log("Disconnecting call...");
         isCallActive = false;
-        
-        // Stop SitePal APIs
-        try {
-          if (typeof window.AI_vhost_api === "function") {
-            window.AI_vhost_api("stop");
-            console.log("✓ Stopped AI_vhost_api via window");
-          } 
-          else if (typeof AI_vhost_api === "function") {
-            AI_vhost_api("stop");
-            console.log("✓ Stopped AI_vhost_api locally");
-          }
-          else {
-            console.warn("AI_vhost_api is not available to stop.");
-          }
-        } catch (e) {
-          console.error("Error stopping AI_vhost_api:", e);
+        if (typeof AI_vhost_api === "function") {
+  
+          AI_vhost_api("stop");
+        } else {
+          console.warn("AI_vhost_api is not available to stop.");
         }
 
         // Re-enable toggles when disconnecting
@@ -4301,55 +4331,43 @@
           container.style.display = "none";
           container.innerHTML = ""; // optional: clear inner content
         }
-        
         // Collapse video display when disconnecting on mobile
         const videoDisplay = document.querySelector(".video-display");
         if (videoDisplay && window.innerHeight <= 700) {
           videoDisplay.classList.remove("active");
         }
 
-        // Update signal button to "CONNECT AGENT" state WITHOUT pulsing
-        const signalButton = document.querySelector('[data-action="signal"]');
-        if (signalButton) {
-          const buttonLabel = signalButton.querySelector('.button-label');
-          if (buttonLabel) {
-            buttonLabel.textContent = "CONNECT AGENT";
-          }
-          // REMOVED: signalButton.classList.add("initial-pulse");
-          // Keep the data-video-viewed attribute so it stays in connect agent mode
-        }
-
-        // Reset call button state as well (even though it's hidden)
+        // Existing disconnect logic
         const callButton = document.getElementById("call-button");
-        if (callButton) {
-          callButton.textContent = "CONNECT";
-          callButton.classList.remove("disconnect", "unmute");
-        }
-        
-        // Reset other UI elements
         const callStatus = document.getElementById("call-status");
         const stationSelect = document.getElementById("station-select");
         const selfView = document.getElementById("self-view");
         const liveIndicator = document.getElementById("live-indicator");
+        const sitepalContainer = document.getElementById("sitepal-container");
         const deadAir = document.getElementById("deadAir");
         const offlineDisplay = document.getElementById("offline-display");
 
-        if (callStatus) callStatus.classList.remove("active");
-        if (stationSelect) stationSelect.disabled = false;
-        if (selfView) selfView.style.display = "none";
-        if (liveIndicator) liveIndicator.style.display = "none";
+        // Reset all UI elements
+        callButton.textContent = "CONNECT";
+        callButton.classList.remove("disconnect", "unmute");
+        callStatus.classList.remove("active");
+        stationSelect.disabled = false;
+        selfView.style.display = "none";
+        liveIndicator.style.display = "none";
 
         // Show offline display
-        if (offlineDisplay) offlineDisplay.style.display = "flex";
+        offlineDisplay.style.display = "flex";
 
-        // Hide and stop video
-        if (deadAir) {
-          deadAir.style.display = "none";
-          deadAir.pause();
-        }
+        // Hide and stop video, hide SitePal
+        deadAir.style.display = "none";
+        deadAir.pause();
+        sitepalContainer.style.display = "none";
 
-        // Reset container initialization state
-        if (container) container.dataset.initialized = "false";
+        // Clean up SitePal instance
+        // cleanupSitePal();
+
+        // Reset the initialization state
+        sitepalContainer.dataset.initialized = "false";
 
         // Notify parent
         window.parent.postMessage(
@@ -4614,99 +4632,6 @@
                videoDisplay.style.height = "";
              }
            }
-        } else if (type === 'START_TRANSMISSION_EFFECT') {
-          console.log("Starting transmission effect from mobile");
-          
-          // Start the transmission loading effect
-          const deadAir = document.getElementById("deadAir");
-          const sitepalContainer = document.getElementById("sitepal-container");
-          const offlineDisplay = document.getElementById("offline-display");
-          
-          // Hide offline display
-          if (offlineDisplay) {
-            offlineDisplay.style.display = "none";
-          }
-          
-          // Make transmission video visible and play it
-          if (deadAir) {
-            deadAir.style.display = "block";
-            deadAir.style.opacity = "1";
-            deadAir.style.zIndex = "20"; // Ensure it's on top during loading
-            deadAir.muted = true;
-            deadAir.loop = true;
-            deadAir.play().catch(e => console.error("Transmission video play failed:", e));
-          }
-          
-          // Show SitePal container behind the video
-          if (sitepalContainer) {
-            sitepalContainer.style.display = "block";
-            sitepalContainer.style.zIndex = "5"; // Lower z-index during loading
-          }
-
-          // Enhanced transmission video handling for more reliable mobile playback
-          if (deadAir) {
-            // Ensure video element is properly configured
-            deadAir.style.display = "block";
-            deadAir.style.opacity = "1";
-            deadAir.style.zIndex = "20"; // Ensure it's on top during loading
-            deadAir.style.visibility = "visible"; // Make sure it's not hidden by visibility
-            deadAir.style.width = "100%"; 
-            deadAir.style.height = "100%";
-            deadAir.style.objectFit = "cover";
-            
-            // Set or verify source
-            let sourceElement = deadAir.querySelector('source');
-            if (!sourceElement) {
-                sourceElement = document.createElement('source');
-                deadAir.appendChild(sourceElement);
-            }
-            sourceElement.src = "/1.mp4";
-            sourceElement.type = "video/mp4";
-            
-            // Configure video properties
-            deadAir.muted = true;
-            deadAir.loop = true;
-            deadAir.playsinline = true;
-            deadAir.setAttribute('webkit-playsinline', '');
-            
-            // Force reload before playing
-            deadAir.load();
-            
-            console.log("🎬 Attempting to play transmission video on mobile...");
-            
-            // Try to play with fallback
-            deadAir.play()
-              .then(() => {
-                console.log("✅ Transmission video playing successfully");
-              })
-              .catch(e => {
-                console.error("❌ Transmission video play failed:", e);
-                
-                // Try again after a small delay
-                setTimeout(() => {
-                  console.log("🔄 Retrying transmission video playback...");
-                  deadAir.play().catch(err => {
-                    console.error("❌ Retry also failed:", err);
-                    
-                    // Last resort - add a click handler to the parent element
-                    const videoFeed = document.getElementById("video-feed");
-                    if (videoFeed) {
-                      console.log("Adding click handler to start video on user interaction");
-                      videoFeed.addEventListener('click', function playHandler() {
-                        deadAir.play().catch(e => console.error("Click play failed:", e));
-                        videoFeed.removeEventListener('click', playHandler);
-                      }, { once: true });
-                    }
-                  });
-                }, 300);
-              });
-          }
-          
-          // Show SitePal container behind the video
-          if (sitepalContainer) {
-            sitepalContainer.style.display = "block";
-            sitepalContainer.style.zIndex = "5"; // Lower z-index during loading
-          }
         }
         // Add other message handlers if needed
 
@@ -5416,124 +5341,41 @@
 
       // Function to load and prime the SitePal character
       function loadAndPrimeCharacter() {
-        console.log("Loading and priming SitePal character...");
-        
-        // Initialize SitePal directly
-        initSitePal();
-        
-        // Request microphone permission
-        requestMicrophonePermission();
-        
-        // Update UI to reflect call state
-        const callStatus = document.getElementById("call-status");
-        if (callStatus) {
-          callStatus.classList.add("active");
+        // Load the SitePal script and prime audio
+        if (typeof AI_vhost_embed !== "function") {
+          console.log("Loading SitePal scripts...");
+          const script = document.createElement("script");
+          script.src = "//vhss-d.oddcast.com/vhost_embed_functions_v4.php?acc=9157686&js=1";
+          script.onload = () => {
+            console.log("✅ SitePal script loaded successfully");
+            embedNow(); // Call your existing embed function
+            requestMicrophonePermission(); // Request microphone access
+          };
+          script.onerror = (e) => {
+            console.error("❌ Failed to load SitePal script:", e);
+          };
+          document.head.appendChild(script);
+        } else {
+          console.log("SitePal script already loaded, embedding now");
+          embedNow(); // Call your existing embed function
+          requestMicrophonePermission(); // Request microphone access
         }
-        
-        // Show self view and request avatar from parent
-        const selfView = document.getElementById("self-view");
-        if (selfView) {
-          selfView.style.display = "block";
-          updateSelfView(); // Call function to set up avatar
-        }
-        
-        // Show live indicator
-        const liveIndicator = document.getElementById("live-indicator");
-        if (liveIndicator) liveIndicator.style.display = "block";
-        
-        // Disable station select during call
-        const stationSelect = document.getElementById("station-select");
-        if (stationSelect) stationSelect.disabled = true;
-        
-        // Set global call active state
-        isCallActive = true;
       }
-
-      // Function to update self view with avatar or placeholder
-      function updateSelfView() {
-        // Use the existing selfView reference from DOM
-        const selfViewElement = document.getElementById("self-view");
-        if (!selfViewElement) {
-          console.error("Self view element not found");
-          return;
-        }
-
-        // Set a temporary placeholder
-        selfViewElement.innerHTML = '<div class="avatar-placeholder" style="width: 100%; height: 100%; background-color: #333; display: flex; justify-content: center; align-items: center; color: #888; font-size: 2rem;">?</div>';
-
-        // Request avatar from parent
-        console.log("[Iframe] Requesting avatar from parent window...");
-        window.parent.postMessage({ type: "REQUEST_AVATAR" }, "*");
-      }
-
-      // Listen for avatar response from parent
-      window.addEventListener('message', function(event) {
-        if (event.data && event.data.type === "AVATAR_RESPONSE") {
-          const avatarUrl = event.data.avatarUrl;
-          console.log("[Iframe] Received avatar URL from parent:", avatarUrl);
-          
-          const selfViewElement = document.getElementById("self-view");
-          if (!selfViewElement) return;
-
-          if (avatarUrl) {
-            const img = document.createElement("img");
-            img.src = avatarUrl;
-            img.alt = "User Avatar";
-            img.style.width = "100%";
-            img.style.height = "100%";
-            img.style.objectFit = "cover";
-            img.onerror = () => {
-              console.error("[Iframe] Failed to load avatar image:", avatarUrl);
-              selfViewElement.innerHTML = '<div class="avatar-placeholder" style="width: 100%; height: 100%; background-color: #333; display: flex; justify-content: center; align-items: center; color: #888; font-size: 2rem;">!</div>';
-            };
-            selfViewElement.innerHTML = '';
-            selfViewElement.appendChild(img);
-          } else {
-            console.log("[Iframe] No valid avatar URL received from parent.");
-            selfViewElement.innerHTML = '<div class="avatar-placeholder" style="width: 100%; height: 100%; background-color: #333; display: flex; justify-content: center; align-items: center; color: #888; font-size: 2rem;">🥸</div>';
-          }
-        }
-      });
 
       // Function to request microphone permissions
       function requestMicrophonePermission() {
-        console.log("Requesting microphone permission...");
-        
-        try {
-          if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-            navigator.mediaDevices.getUserMedia({ audio: true })
-              .then((stream) => {
-                console.log("✅ Microphone permission granted");
-                // Stop all tracks to release the microphone
-                stream.getTracks().forEach((track) => track.stop());
-                resumeAudioContext(); // Resume audio context after permission is granted
-                primeAudio(); // Prime audio with saySilent
-              })
-              .catch((err) => {
-                console.warn("⚠️ Microphone permission denied or error:", err);
-              });
-          } else {
-            console.warn("⚠️ getUserMedia not supported in this browser");
-          }
-        } catch (e) {
-          console.error("❌ Error requesting microphone permission:", e);
-        }
-      }
-
-      // Function to resume the audio context
-      function resumeAudioContext() {
-        try {
-          if (typeof AudioContext !== "undefined") {
-            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            audioContext.resume().then(() => {
-              console.log("✅ Audio context resumed");
-            }).catch(err => {
-              console.warn("⚠️ Failed to resume audio context:", err);
-            });
-          }
-        } catch (e) {
-          console.error("❌ Error resuming audio context:", e);
-        }
+        displayMessage("🎤 Requesting microphone permission...");
+        navigator.mediaDevices.getUserMedia({ audio: true })
+          .then((stream) => {
+            displayMessage("✅ Microphone permission granted");
+            // Stop all tracks to release the microphone
+            stream.getTracks().forEach((track) => track.stop());
+            resumeAudioContext(); // Resume audio context after permission is granted
+            primeAudio(); // Prime audio with saySilent
+          })
+          .catch((err) => {
+            displayMessage("⚠️ Microphone permission denied or error: " + err);
+          });
       }
 
       // Function to prime audio
@@ -5547,6 +5389,18 @@
             console.warn("⚠️ saySilent not available for initial priming");
           }
         }, 300);
+      }
+
+      // Function to resume the audio context
+      function resumeAudioContext() {
+        if (typeof AudioContext !== "undefined") {
+          const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+          audioContext.resume().then(() => {
+            displayMessage("✅ Audio context resumed");
+          }).catch(err => {
+            displayMessage("⚠️ Failed to resume audio context: " + err);
+          });
+        }
       }
 
       // Function to display messages on the webpage
@@ -5578,57 +5432,6 @@
           displayMessage("🎤 Character is now listening...");
         } else {
           displayMessage("⚠️ startListening function not available.");
-        }
-      }
-
-      // Function to activate the microphone
-      function activateMicrophone() {
-        console.log("Activating microphone...");
-        
-        // First, make sure audio context is active
-        try {
-          const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-          audioContext.resume().then(() => {
-            console.log("Audio context resumed for microphone activation");
-          }).catch(err => {
-            console.warn("Error resuming audio context:", err);
-          });
-        } catch (e) {
-          console.warn("Error creating audio context:", e);
-        }
-        
-        // Try different methods to start listening
-        try {
-          // Attempt with window.startListening
-          if (typeof window.startListening === "function") {
-            window.startListening();
-            console.log("✓ Activated microphone with window.startListening");
-            return true;
-          }
-          // Attempt with local startListening
-          else if (typeof startListening === "function") {
-            startListening();
-            console.log("✓ Activated microphone with local startListening");
-            return true;
-          }
-          // Try via AI_vhost_api
-          else if (typeof window.AI_vhost_api === "function") {
-            window.AI_vhost_api("startListening");
-            console.log("✓ Activated microphone with window.AI_vhost_api");
-            return true;
-          }
-          else if (typeof AI_vhost_api === "function") {
-            AI_vhost_api("startListening");
-            console.log("✓ Activated microphone with local AI_vhost_api");
-            return true;
-          }
-          else {
-            console.warn("No method available to activate microphone");
-            return false;
-          }
-        } catch (e) {
-          console.error("Error activating microphone:", e);
-          return false;
         }
       }
     </script>

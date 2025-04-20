@@ -558,6 +558,15 @@ const SidePanel = ({
       }
       // --- End Avatar Request Handling ---
 
+      // ---> ADD: Handle Signal Button State <---
+      if (event.data && event.data.type === 'SIGNAL_BUTTON_STATE') {
+        console.log("[Parent SidePanel] Received SIGNAL_BUTTON_STATE:", event.data);
+        // You can add UI feedback here if needed
+        // For example, you could show a tooltip or notification explaining why the button is disabled
+        return;
+      }
+      // --- End Signal Button State Handling ---
+
       // ---> Keep Existing Logic Below <--- 
       // console.log(
       //   `SidePanel: Switching on event.data.type: '${event.data.type}'`
@@ -765,7 +774,16 @@ const SidePanel = ({
       type: "SET_MUSIC_MODE",
       isActive: showSpotify,
     });
-  }, [is80sMode, monsterMode]);
+    
+    // Also send a direct update for the signal button state
+    if (missionControlIframeRef.current && missionControlIframeRef.current.contentWindow) {
+      missionControlIframeRef.current.contentWindow.postMessage({
+        type: "UPDATE_SIGNAL_BUTTON_STATE",
+        is80sModeActive: is80sMode,
+        isMusicActive: showSpotify
+      }, "*");
+    }
+  }, [is80sMode, monsterMode, showSpotify]);
 
   // Update the useEffect cleanup to be simpler
   useEffect(() => {

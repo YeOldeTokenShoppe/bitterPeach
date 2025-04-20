@@ -139,7 +139,7 @@ function HolographicStatue({ onLoad }) {
 
       // Create an anchor group with initial position
       const anchorGroup = new THREE.Group();
-      const basePosition = [-0.3, 4.3, -.3];
+      const basePosition = [-0.3, 4.6, -.3];
       anchorGroup.position.set(...basePosition);
       initialY.current = basePosition[1];
 
@@ -268,12 +268,12 @@ function HolographicStatue({ onLoad }) {
         initialY.current + Math.sin(state.clock.elapsedTime * 0.5) * 0.1;
 
       // Apply rotation to the rotation group
-      groupRef.current.rotation.rotation.y += delta * 0.2;
+      groupRef.current.rotation.rotation.y -= delta * 0.02;
 
       // Keep your existing shader update logic
       statueRef.current.traverse((child) => {
         if (child.material?.uniforms?.uTime) {
-          child.material.uniforms.uTime.value += delta;
+          child.material.uniforms.uTime.value -= delta;
         }
       });
     }

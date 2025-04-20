@@ -25,7 +25,7 @@
         margin: 0;
         padding: 0;
         font-family: monospace;
-        background-color: #0f172a !important;
+        background-color: transparent !important;
         color: #67e8f9;
         display: flex;
         justify-content: center;
@@ -262,7 +262,7 @@
         /* Add transition and initial z-index */
         transition: opacity 0.5s ease-out;
         z-index: 15; /* Ensure it's above sitepal-container (z-index 10) during effect */
-        /* Videos will be shown/hidden via JavaScript as needed */
+        display: none; /* Hide initially */
       }
 
       .video-overlay {
@@ -781,7 +781,7 @@
         line-height: 1.5;
         font-size: 0.8rem;
         color: #d946ef;
-        /* text-shadow: 0 0 3px #d946ef, 0 0 6px #d946ef; */
+        text-shadow: 0 0 3px #d946ef, 0 0 6px #d946ef;
         font-family: "Press Start 2P", cursive;
         display: flex;
         align-items: center;
@@ -1125,7 +1125,7 @@
       /* Override specific 80s styles to ensure they take precedence */
       .eighties-active .panel-title {
         color: #d946ef;
-        /* text-shadow: 0 0 3px #d946ef, 0 0 6px #d946ef !important; */
+        text-shadow: 0 0 3px #d946ef, 0 0 6px #d946ef !important;
         font-family: "Press Start 2P", cursive;
         font-size: 0.8rem !important; /* Ensure override */
         line-height: 1.5 !important; /* Ensure override */
@@ -2265,7 +2265,6 @@
               id="deadAir"
               loop
               muted
-              preload="auto"
               playsinline
               webkit-playsinline
               style="width: 100%; height: 100%; object-fit: cover"
@@ -2305,19 +2304,15 @@
                   }
 
                   function embedNow() {
-                    // Define the scene loaded callback to handle transition from loading video to character
+                    // Handle the scene loaded event - make sure character is visible
                     const handleSceneLoaded = () => {
                       console.log("✅ SitePal scene loaded callback triggered");
 
-                      // Hide the transmission video effect with a nice fade
+                      // Hide the transmission video effect
                       if (deadAir) {
                         deadAir.style.opacity = 0;
-                        deadAir.style.transition = "opacity 0.5s ease-out";
                         deadAir.style.zIndex = "5"; // Lower z-index once loading is complete
-                        setTimeout(() => {
-                          deadAir.pause();
-                          deadAir.style.display = "none";
-                        }, 500);
+                        setTimeout(() => deadAir.pause(), 500);
                       }
 
                       // Ensure SitePal container is visible and has active class
@@ -2335,7 +2330,11 @@
                       }
 
                       // Make SitePal APIs available on window object for easier access
-                      if (typeof saySilent === "function" && !window.saySilent) {
+                      // but don't prime audio or start listening yet - wait for UN-MUTE
+                      if (
+                        typeof saySilent === "function" &&
+                        !window.saySilent
+                      ) {
                         window.saySilent = saySilent;
                         console.log("✅ Made saySilent available on window");
                       }
@@ -2353,11 +2352,53 @@
                         console.log("✅ Made AI_vhost_api available on window");
                       }
 
-                      // Notify parent that SitePal scene is loaded
-                      if (window.parent) {
-                        window.parent.postMessage({ type: "SITEPAL_SCENE_LOADED" }, "*");
-                      }
+                      // Request microphone permission during CONNECT to avoid interruption during the greeting
+                      requestMicrophonePermission();
+
+                      // DO NOT prime audio or activate mic here - wait for UN-MUTE button
+                      console.log(
+                        "⏸️ Waiting for UN-MUTE before activating audio"
+                      );
                     };
+
+                    // Function to request microphone permissions ahead of time
+                    function requestMicrophonePermission() {
+                      console.log(
+                        "🎤 Requesting microphone permission during CONNECT phase..."
+                      );
+                      try {
+                        // Use the browser's getUserMedia API to request microphone access
+                        if (
+                          navigator.mediaDevices &&
+                          navigator.mediaDevices.getUserMedia
+                        ) {
+                          navigator.mediaDevices
+                            .getUserMedia({ audio: true })
+                            .then((stream) => {
+                              console.log("✅ Microphone permission granted");
+                              // Stop all tracks to release the microphone - we're just getting permission
+                              stream
+                                .getTracks()
+                                .forEach((track) => track.stop());
+                            })
+                            .catch((err) => {
+                              console.warn(
+                                "⚠️ Microphone permission denied or error:",
+                                err
+                              );
+                            });
+                        } else {
+                          console.warn(
+                            "⚠️ getUserMedia not supported in this browser"
+                          );
+                        }
+                      } catch (e) {
+                        console.error(
+                          "❌ Error requesting microphone permission:",
+                          e
+                        );
+                      }
+                    }
 
                     // Set both callback names that SitePal might use
                     window.vh_sceneLoaded = handleSceneLoaded;
@@ -2365,22 +2406,103 @@
 
                     // Add a backup timeout in case callbacks don't fire
                     setTimeout(() => {
-                      console.log("⏱️ Checking if SitePal character is visible...");
-                      if (container && !container.classList.contains("active")) {
-                        console.log("⚠️ Character not visible, forcing display");
+                      console.log(
+                        "⏱️ Checking if SitePal character is visible..."
+                      );
+                      if (
+                        container &&
+                        !container.classList.contains("active")
+                      ) {
+                        console.log(
+                          "⚠️ Character not visible, forcing display"
+                        );
                         handleSceneLoaded();
+
+                        // Check if vhss_aiPlayer is actually visible
+                        const playerDiv =
+                          document.getElementById("vhss_aiPlayer");
+                        if (playerDiv && playerDiv.innerHTML === "") {
+                          console.log(
+                            "⚠️ SitePal player appears empty, trying to reload..."
+                          );
+
+                          // Try embedding again
+                          try {
+                            playerDiv.innerHTML = "";
+                            AI_vhost_embed(280, 180, 9157686, 255, 0, 1);
+                            console.log(
+                              "🔄 Attempted to reload SitePal character"
+                            );
+                          } catch (e) {
+                            console.error("❌ Error reloading SitePal:", e);
+                          }
+                        }
                       }
-                    }, 8000);
+                    }, 5000);
 
                     console.log("📱 Calling AI_vhost_embed to load SitePal...");
                     AI_vhost_embed(280, 180, 9157686, 255, 0, 1);
                   }
 
-                  // Check if we need to load the SitePal script first
+                  // Set up a backup timeout in case scene loaded doesn't fire
+                  const sceneLoadTimeout = setTimeout(() => {
+                    console.log("⚠️ Scene load timeout - backup transition");
+                    if (deadAir) {
+                      deadAir.style.opacity = 0;
+                      setTimeout(() => deadAir.pause(), 500);
+                    }
+                    if (container) {
+                      container.style.display = "block";
+                      container.style.opacity = "1";
+                    }
+                    // Try to make SitePal APIs available
+                    setupSitePalAPIs();
+                  }, 8000); // 8-second backup
+
+                  function setupSitePalAPIs() {
+                    console.log("Setting up SitePal APIs on window...");
+                    // Make SitePal APIs available on window object for easier access
+                    if (typeof saySilent === "function" && !window.saySilent) {
+                      window.saySilent = saySilent;
+                      console.log("✅ Made saySilent available on window");
+                    }
+
+                    if (typeof sayText === "function" && !window.sayText) {
+                      window.sayText = sayText;
+                      console.log("✅ Made sayText available on window");
+                    }
+
+                    if (
+                      typeof AI_vhost_api === "function" &&
+                      !window.AI_vhost_api
+                    ) {
+                      window.AI_vhost_api = AI_vhost_api;
+                      console.log("✅ Made AI_vhost_api available on window");
+                    }
+
+                    // Prime audio with saySilent but don't play greeting or start listening yet
+                    setTimeout(() => {
+                      console.log("🔇 Priming audio with saySilent(0)...");
+                      try {
+                        if (typeof saySilent === "function") {
+                          saySilent(0);
+                          console.log("✅ Initial audio priming complete");
+                        } else {
+                          console.warn(
+                            "⚠️ saySilent not available for initial priming"
+                          );
+                        }
+                      } catch (e) {
+                        console.error("❌ Error during initial priming:", e);
+                      }
+                    }, 300);
+                  }
+
                   if (typeof AI_vhost_embed !== "function") {
                     console.log("Loading SitePal scripts...");
                     const script = document.createElement("script");
-                    script.src = "//vhss-d.oddcast.com/vhost_embed_functions_v4.php?acc=9157686&js=1";
+                    script.src =
+                      "//vhss-d.oddcast.com/vhost_embed_functions_v4.php?acc=9157686&js=1";
                     script.onload = () => {
                       console.log("✅ SitePal script loaded successfully");
                       embedNow();
@@ -2392,6 +2514,76 @@
                   } else {
                     console.log("SitePal script already loaded, embedding now");
                     embedNow();
+                  }
+
+                  // Add a button to request microphone access if not already present
+                  const micButton = document.createElement("button");
+                  micButton.innerText = "Enable Microphone";
+                  micButton.onclick = () => {
+                    // Combine microphone permission request and audio context resumption
+                    requestMicrophonePermissionAndResume();
+                  };
+                  container.appendChild(micButton); // Append the button to the container
+
+                  // Function to request microphone permissions and resume audio context
+                  function requestMicrophonePermissionAndResume() {
+                    displayMessage("🎤 Requesting microphone permission...");
+                    try {
+                      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                        navigator.mediaDevices.getUserMedia({ audio: true })
+                          .then((stream) => {
+                            displayMessage("✅ Microphone permission granted");
+                            // Stop all tracks to release the microphone
+                            stream.getTracks().forEach((track) => track.stop());
+                            resumeAudioContext(); // Resume audio context after permission is granted
+                            // Now, you can call the function to start listening or interacting with the character
+                            startCharacterInteraction(); // New function to handle character interaction
+                          })
+                          .catch((err) => {
+                            displayMessage("⚠️ Microphone permission denied or error: " + err);
+                          });
+                      } else {
+                        displayMessage("⚠️ getUserMedia not supported in this browser");
+                      }
+                    } catch (e) {
+                      displayMessage("❌ Error requesting microphone permission: " + e);
+                    }
+                  }
+
+                  // Function to start character interaction
+                  function startCharacterInteraction() {
+                    // Call the SitePal API to start listening or interacting with the character
+                    if (typeof startListening === "function") {
+                      startListening(); // Assuming this is the function to start interaction
+                      displayMessage("🎤 Character is now listening...");
+                    } else {
+                      displayMessage("⚠️ startListening function not available.");
+                    }
+                  }
+
+                  // Function to resume the audio context
+                  function resumeAudioContext() {
+                    if (typeof AudioContext !== "undefined") {
+                      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                      audioContext.resume().then(() => {
+                        displayMessage("✅ Audio context resumed");
+                      }).catch(err => {
+                        displayMessage("⚠️ Failed to resume audio context: " + err);
+                      });
+                    }
+                  }
+
+                  // Function to display messages on the webpage
+                  function displayMessage(message) {
+                    const messageDiv = document.createElement("div");
+                    messageDiv.innerText = message;
+                    messageDiv.style.position = "fixed";
+                    messageDiv.style.bottom = "10px";
+                    messageDiv.style.left = "10px";
+                    messageDiv.style.backgroundColor = "white";
+                    messageDiv.style.padding = "10px";
+                    messageDiv.style.border = "1px solid black";
+                    document.body.appendChild(messageDiv);
                   }
                 }
               </script>
@@ -2427,7 +2619,7 @@
         </div>
 
         <div class="video-controls">
-          <button id="call-button" class="call-button" style="display: none;">CONNECT</button>
+          <button id="call-button" class="call-button">CONNECT</button>
           <select id="station-select" class="station-select">
             <option>LUNAR BASE ALPHA</option>
             <option>MARS OUTPOST</option>
@@ -2469,7 +2661,7 @@
       <div class="button-grid">
         <button class="control-button" data-action="signal">
           <span class="button-prefix">//COM</span>
-          <span class="button-label">CONNECT</span>
+          <span class="button-label">START HERE</span>
           <div class="button-indicator"></div>
         </button>
 
@@ -2635,6 +2827,7 @@
       // State
       let isCallActive = false;
       let isEightiesMode = false;
+      let isOrientationComplete = false; // Track if orientation video has completed
 
       // Music toggle starts off by default
       musicToggle.classList.remove("active");
@@ -3004,95 +3197,50 @@
           callButton.classList.remove("unmute");
           callButton.classList.add("disconnect");
 
-
+          const handleAudioContextError = () => {
+            console.error("❌ Audio context error - falling back to basic functionality");
+            playGreeting();
+            callButton.disabled = false;
+          };
 
           try {
             const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            audioCtx.resume().then(() => {
-   
-              try {
-                if (typeof window.saySilent === "function") {
-                  window.saySilent(0);
-
-                } else if (typeof saySilent === "function") {
-                  saySilent(0);
-
-                } else {
-                  console.warn("    ⚠️ No saySilent function found for priming.");
+            audioCtx.resume()
+              .then(() => {
+                // Try to prime audio system
+                try {
+                  (window.saySilent || saySilent)?.(0);
+                } catch (primeError) {
+                  console.warn("⚠️ Error during audio priming:", primeError);
                 }
-              } catch (primeError) {
-                console.warn("    ⚠️ Error during audio priming:", primeError);
-              }
 
-
-              let listeningStarted = false;
-              try {
-                if (typeof window.AI_vhost_api === "function") {
-                  window.AI_vhost_api("startListening");
-
-                  window.parent.postMessage({ type: "SITEPAL_STATE_CHANGE", isListening: true }, "*");
-                  listeningStarted = true;
-                } else if (typeof AI_vhost_api === "function") {
-                  AI_vhost_api("startListening");
-
-                  window.parent.postMessage({ type: "SITEPAL_STATE_CHANGE", isListening: true }, "*");
-                  listeningStarted = true;
-                } else {
-                  console.warn("    ❌ No API found to activate microphone");
+                // Try to start listening
+                try {
+                  const api = window.AI_vhost_api || AI_vhost_api;
+                  if (api) {
+                    api("startListening");
+                    window.parent.postMessage({ type: "SITEPAL_STATE_CHANGE", isListening: true }, "*");
+                  } else {
+                    console.warn("❌ No API found to activate microphone");
+                  }
+                } catch (micError) {
+                  console.error("❌ Error activating microphone:", micError);
                 }
-              } catch (micError) {
-                console.error("    ❌ Error activating microphone:", micError);
-              }
 
-     
-              playGreeting(); // Call the function to attempt playing the greeting
-
-              // Step 5: Re-enable button
-              callButton.disabled = false;
-    
-
-            }).catch(resumeError => {
-              console.error("    ❌ Failed to resume AudioContext:", resumeError);
-              // If context fails, still try to play greeting and re-enable button
-              playGreeting();
-              callButton.disabled = false;
-            });
+                playGreeting();
+                callButton.disabled = false;
+              })
+              .catch(handleAudioContextError);
           } catch (contextError) {
-            console.error("  ❌ Error creating AudioContext:", contextError);
-            // If context creation fails, still try to play greeting and re-enable button
-            playGreeting();
-            callButton.disabled = false;
+            handleAudioContextError();
           }
 
         } else {
           // ---- Disconnect Flow ----
-
           isCallActive = false;
           window.sceneAlreadyLoaded = false; // Reset scene loaded flag on disconnect
-
-          // Re-enable toggles when disconnecting
           enableToggles();
-
-          // Start brief static effect
-          const deadAir = document.getElementById("deadAir");
-          const staticEffectDuration = 1500; // ms
-
-          if (deadAir) {
-            deadAir.style.display = "block";
-            deadAir.style.opacity = 1; // Ensure it's visible
-            deadAir.loop = false; // Don't loop for disconnect effect
-            deadAir.currentTime = 0; // Rewind to start
-            deadAir
-              .play()
-              .catch((e) => console.error("Disconnect static play failed:", e));
-          }
-
-          // Set timeout to disconnect after static effect
-          setTimeout(() => {
-  
-            // Use our new disconnectCall function
-            disconnectCall();
-          }, staticEffectDuration);
+          disconnectCall();
         }
       });
 
@@ -3565,152 +3713,195 @@
             }
             // --- End: Prime audio context ---
 
-            // Check if orientation video is already playing
-            const orientationVideo = document.getElementById('orientation-video');
-            
-            // Check if the video has been viewed (data attribute is set on the button or localStorage)
-            const videoViewed = button.getAttribute('data-video-viewed') === 'true' || 
-                               localStorage.getItem('orientationViewed') === 'true';
-            
-            // Check current button state by its label - this determines what action to take
-            const buttonLabel = button.querySelector('.button-label');
-            const currentButtonState = buttonLabel ? buttonLabel.textContent : "";
-            
-            if (orientationVideo) {
-              // Stop and clean up the video
-              stopOrientationVideo();
+            // Check if orientation is complete
+            if (isOrientationComplete) {
+              // If orientation is complete, handle SitePal connection like call-button
               
-              // Provide user feedback
-              button.classList.add("active");
-              setTimeout(() => {
-                button.classList.remove("active");
-              }, 500);
-            } else if (currentButtonState === "DISCONNECT") {
-              // DISCONNECT state - Call disconnect function
-              console.log("Signal button in DISCONNECT state - disconnecting...");
+              const signalButtonLabel = button.querySelector(".button-label");
+              if (!signalButtonLabel) break;
               
-              // Call disconnect function to clean up SitePal
-              disconnectCall();
+              // Get the current button state (CONNECT/UN-MUTE/DISCONNECT)
+              const currentState = signalButtonLabel.textContent;
               
-              // Reset button state and appearance
-              if (buttonLabel) {
-                buttonLabel.textContent = "CONNECT AGENT";
-              }
-              button.classList.add("initial-pulse");
-              
-              // Notify parent
-              if (window.parent) {
-                window.parent.postMessage({ type: "CALL_DISCONNECTED" }, "*");
-              }
-              
-            } else if (currentButtonState === "UN-MUTE") {
-              // UN-MUTE state - Activate microphone and transition to DISCONNECT
-              console.log("Signal button in UN-MUTE state - activating microphone...");
-              
-              // Remove pulse effect
-              button.classList.remove("initial-pulse");
-              
-              // Update button appearance temporarily
-              if (buttonLabel) {
-                buttonLabel.textContent = "ACTIVATING...";
-              }
-              
-              // Try to activate microphone and play greeting
-              activateMicrophone();
-              
-              // Play greeting
-              setTimeout(() => {
-                playGreeting();
-              }, 500);
-              
-              // Update button to DISCONNECT state
-              setTimeout(() => {
-                if (buttonLabel) {
-                  buttonLabel.textContent = "DISCONNECT";
-                }
-              }, 1000);
-              
-              // Notify parent that microphone is active
-              if (window.parent) {
-                window.parent.postMessage({ type: "MICROPHONE_ACTIVATED" }, "*");
-              }
-              
-            } else if (videoViewed || currentButtonState === "CONNECT AGENT") {
-              // CONNECT AGENT state - Initiate SitePal with transmission effect
-              console.log("Signal button initiating SitePal connection with transmission effect...");
-              
-              // Change button appearance to show different state
-              if (buttonLabel) {
-                buttonLabel.textContent = "CONNECTING...";
-              }
-              
-              // --- START OF TRANSMISSION EFFECT CODE ---
-              const deadAir = document.getElementById("deadAir");
-              const sitepalContainer = document.getElementById("sitepal-container");
-              const offlineDisplay = document.getElementById("offline-display");
-              
-              // Hide offline display
-              if (offlineDisplay) {
+              if (currentState === "CONNECT") {
+                // --- CONNECT Flow ---
+                console.log("Signal button initiating SitePal connection with transmission effect...");
+                
+                isCallActive = true;
+                window.sceneAlreadyLoaded = false;
+                window.allowButtonTransition = true;
+                window.greetingPlayed = false;
+                
+                // Disable music and 80s mode toggles during SitePal session
+                disableToggles();
+                
+                // Reset flag in case needsUnmuteState changes
+                window.needsUnmuteFlow = needsUnmuteState();
+                
+                // --- Transmission Effect Start ---
+                const deadAir = document.getElementById("deadAir");
+                const sitepalContainer = document.getElementById("sitepal-container");
+                const offlineDisplay = document.getElementById("offline-display");
+                const transmissionEffectDuration = 3500;
+                const fadeOutDuration = 500;
+                
+                // Hide offline display
                 offlineDisplay.style.display = "none";
-              }
-              
-              // Make transmission video visible and play it
-              if (deadAir) {
+                
+                // Make video visible and opaque, then play
                 deadAir.style.display = "block";
-                deadAir.style.opacity = "1";
-                deadAir.style.zIndex = "20"; // Ensure it's on top during loading
+                deadAir.style.opacity = 1;
+                deadAir.style.zIndex = "20";
                 deadAir.muted = true;
                 deadAir.loop = true;
-                deadAir.play().catch(e => console.error("Transmission video play failed:", e));
-              }
-              
-              // Show SitePal container behind the video
-              if (sitepalContainer) {
+                deadAir.play().catch((e) => console.error("Transmission video play failed:", e));
+                
+                // Show SitePal container behind the video
                 sitepalContainer.style.display = "block";
-                sitepalContainer.style.zIndex = "5"; // Lower z-index during loading
-              }
-              // --- END OF TRANSMISSION EFFECT CODE ---
-              
-              // Load and prime the character - this calls initSitePal
-              loadAndPrimeCharacter();
-              
-              // For mobile browsers, we need the intermediate UN-MUTE state
-              // because they need user interaction to enable audio
-              const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-              const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-              
-              // The timeout should match the connection phase duration in initSitePal
-              setTimeout(() => {
-                // If mobile or Safari, go to UN-MUTE state, otherwise skip to DISCONNECT
-                if (isMobile || isSafari) {
-                  if (buttonLabel) {
-                    buttonLabel.textContent = "UN-MUTE";
-                    button.classList.add("initial-pulse"); // Add pulse to draw attention
-                  }
-                } else {
-                  // On desktop non-Safari, auto-activate and go to DISCONNECT
-                  activateMicrophone();
-                  playGreeting();
-                  if (buttonLabel) {
-                    buttonLabel.textContent = "DISCONNECT";
+                sitepalContainer.style.zIndex = "5";
+                
+                // Activate call status indicator
+                const callStatus = document.getElementById("call-status");
+                if (callStatus) callStatus.classList.add("active");
+                
+                // Clean up any existing instance
+                if (sitepalContainer.dataset.initialized === "true") {
+                  cleanupSitePal();
+                }
+                
+                // Initialize SitePal
+                initSitePal();
+                sitepalContainer.dataset.initialized = "true";
+                
+                // Update self view
+                const selfView = document.getElementById("self-view");
+                if (selfView) {
+                  selfView.style.display = "block";
+                  updateSelfView();
+                }
+                
+                const liveIndicator = document.getElementById("live-indicator");
+                if (liveIndicator) liveIndicator.style.display = "block";
+                
+                const stationSelect = document.getElementById("station-select");
+                if (stationSelect) stationSelect.disabled = true;
+                
+                // Update button state
+                signalButtonLabel.textContent = "UN-MUTE";
+                button.classList.add("unmute");
+                button.classList.remove("disconnect");
+                button.classList.remove("initial-pulse");
+                
+                // Special handling for iOS
+                if (isIOS || browserIsSafari) {
+                  console.log("iOS/Safari detected - deferring mic activation until UN-MUTE");
+                  
+                  // Try to prime audio system
+                  try {
+                    const tempContext = new (window.AudioContext || window.webkitAudioContext)();
+                    tempContext.resume().then(() => {
+                      console.log("Temporary audio context resumed");
+                    });
+                    
+                    // Create and play a brief silent sound
+                    const oscillator = tempContext.createOscillator();
+                    const gainNode = tempContext.createGain();
+                    gainNode.gain.value = 0.0001;
+                    oscillator.connect(gainNode);
+                    gainNode.connect(tempContext.destination);
+                    oscillator.start(0);
+                    oscillator.stop(tempContext.currentTime + 0.001);
+                  } catch (e) {
+                    console.warn("Temporary audio context creation failed:", e);
                   }
                 }
-              }, 3000);
-              
-              // Notify parent that call is being initiated
-              if (window.parent) {
-                window.parent.postMessage({ type: "CALL_INITIATED" }, "*");
+                
+                // Expand video display
+                const videoDisplay = document.querySelector(".video-display");
+                if (videoDisplay) {
+                  videoDisplay.classList.add("active");
+                }
+              } else if (currentState === "UN-MUTE") {
+                // --- UN-MUTE Flow ---
+                console.log("Signal button in UN-MUTE state - activating microphone...");
+                
+                // Temporarily disable button to prevent double clicks
+                button.disabled = true;
+                
+                // Step 1: Force button state change immediately
+                signalButtonLabel.textContent = "DISCONNECT";
+                button.classList.remove("unmute");
+                button.classList.add("disconnect");
+                
+                const handleAudioContextError = () => {
+                  console.error("Audio context error - falling back to basic functionality");
+                  playGreeting();
+                  button.disabled = false;
+                };
+                
+                try {
+                  const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                  audioCtx.resume()
+                    .then(() => {
+                      // Try to prime audio system
+                      try {
+                        (window.saySilent || saySilent)?.(0);
+                      } catch (primeError) {
+                        console.warn("Error during audio priming:", primeError);
+                      }
+                      
+                      // Try to start listening
+                      try {
+                        const api = window.AI_vhost_api || AI_vhost_api;
+                        if (api) {
+                          api("startListening");
+                          window.parent.postMessage({ type: "SITEPAL_STATE_CHANGE", isListening: true }, "*");
+                        } else {
+                          console.warn("No API found to activate microphone");
+                        }
+                      } catch (micError) {
+                        console.error("Error activating microphone:", micError);
+                      }
+                      
+                      playGreeting();
+                      button.disabled = false;
+                    })
+                    .catch(handleAudioContextError);
+                } catch (contextError) {
+                  handleAudioContextError();
+                }
+              } else if (currentState === "DISCONNECT") {
+                // --- Disconnect Flow ---
+                console.log("Signal button in DISCONNECT state - disconnecting...");
+                isCallActive = false;
+                window.sceneAlreadyLoaded = false;
+                enableToggles();
+                disconnectCall();
+                
+                // Reset signal button to CONNECT AVATAR state
+                const buttonLabel = button.querySelector('.button-label');
+                if (buttonLabel) {
+                  buttonLabel.textContent = "CONNECT";
+                }
+                button.classList.remove("unmute", "disconnect");
+                button.classList.add("initial-pulse");
               }
-              
-              // Disable music and 80s mode toggles during SitePal session
-              disableToggles();
-              
-              // Set global state
-              isCallActive = true;
-              
             } else {
-              // Default case - Play orientation video
-              playOrientationVideo();
+              // Check if orientation video is already playing
+              const orientationVideo = document.getElementById('orientation-video');
+              
+              if (orientationVideo) {
+                // Stop and clean up the video
+                stopOrientationVideo();
+                
+                // Provide user feedback
+                button.classList.add("active");
+                setTimeout(() => {
+                  button.classList.remove("active");
+                }, 500);
+              } else {
+                playOrientationVideo();
+              }
             }
             break;
           case "ignition":
@@ -3726,28 +3917,6 @@
             // Navigate to the home page
             window.parent.postMessage({ type: "NAVIGATE_TO_HOME" }, "*");
             break;
-          case "DISCONNECT_SITEPAL":
-              disconnectCall();
-              
-              // Reset signal button to CONNECT AVATAR state
-              const signalButton = document.querySelector('[data-action="signal"]');
-              if (signalButton) {
-                const buttonLabel = signalButton.querySelector('.button-label');
-                if (buttonLabel) {
-                  buttonLabel.textContent = "CONNECT AGENT";
-                }
-                signalButton.classList.add("initial-pulse");
-                // Maintain the data-video-viewed attribute so it stays in connect avatar mode
-              }
-              break;
-          case "HIDE_SMALL_CONNECT_BUTTON":
-            const callButton = document.getElementById("call-button");
-            if (callButton && event.data.hide) {
-              callButton.style.display = "none";
-            }
-            break;
-          
-          // Add more message types here as needed
         }
 
         // Remove active states after animation (except for signal when stopping video)
@@ -3827,237 +3996,7 @@
         }, 300); // 300ms for opacity transition
       }
 
-      // Function to play the orientation video
-      function playOrientationVideo() {
-        const videoFeed = document.getElementById("video-feed");
-        const deadAir = document.getElementById("deadAir");
-        const signalButton = document.querySelector('[data-action="signal"]');
-        const connectButton = document.getElementById("call-button");
-        const offlineDisplay = document.getElementById("offline-display");
-        const transcriptToggleBtn = document.getElementById("transcript-toggle-btn");
-        
-        // Remove pulse effect from SIGNAL button immediately when clicked
-        if (signalButton) {
-          signalButton.classList.remove("initial-pulse");
-        }
-        
-        // First, clean up any existing orientation videos to prevent multiple playbacks
-        const existingVideos = document.querySelectorAll('#orientation-video');
-        if (existingVideos.length > 0) {
-
-          existingVideos.forEach(video => {
-            // Remove event listeners first to prevent error events during cleanup
-            video.onloadstart = null;
-            video.onloadedmetadata = null;
-            video.onloadeddata = null;
-            video.oncanplay = null;
-            video.oncanplaythrough = null;
-            video.onerror = null;
-            video.onended = null;
-            video.onplaying = null;
-            
-            // Stop playback
-            try {
-              video.pause();
-              // Don't set src to empty string as it can trigger error events
-              video.removeAttribute('src');
-              // Remove controls attribute if present
-              video.removeAttribute('controls');
-            } catch (e) {
-              console.log("Error during video cleanup:", e);
-            }
-            // Remove from DOM
-            video.remove();
-          });
-          
-          // Show offline display and deadAir video again
-          if (offlineDisplay) {
-            offlineDisplay.style.display = 'flex';
-            offlineDisplay.innerHTML = '<span>SYS//OFFLINE</span><div class="crosshair-h"></div><div class="crosshair-v"></div><div class="scanlines-overlay"></div>';
-          }
-          
-          if (deadAir) {
-            deadAir.style.display = '';
-          }
-          
-          return; // Exit function after stopping playback
-        }
-        
-        // Check if this is the first time viewing - we'll still play the video, but
-        // only set the CONNECT button to pulse on first viewing
-        const isFirstViewing = localStorage.getItem('orientationViewed') !== 'true';
-        console.log("First time viewing?", isFirstViewing);
-        
-        // Create orientation video element
-        const orientationVideo = document.createElement('video');
-        
-        // Add event listeners to track video loading progress
-        orientationVideo.addEventListener('loadstart', () => console.log('🔄 Video loadstart event fired'));
-        orientationVideo.addEventListener('loadedmetadata', () => console.log('🔄 Video loadedmetadata event fired'));
-        orientationVideo.addEventListener('loadeddata', () => console.log('🔄 Video loadeddata event fired'));
-        orientationVideo.addEventListener('canplay', () => console.log('✅ Video canplay event fired - ready to play'));
-        orientationVideo.addEventListener('canplaythrough', () => console.log('✅ Video canplaythrough event fired - can play without buffering'));
-        orientationVideo.addEventListener('error', (e) => {
-          // Only log real errors, not cleanup-related ones
-          if (orientationVideo.src && orientationVideo.src !== '') {
-            console.error('❌ Video error event:', e);
-          }
-        });
-        
-        // Set attributes AFTER adding event listeners
-        orientationVideo.setAttribute('id', 'orientation-video');
-        orientationVideo.setAttribute('playsinline', '');
-        orientationVideo.setAttribute('webkit-playsinline', '');
-        orientationVideo.setAttribute('muted', ''); // Add muted attribute to help with autoplay
-        orientationVideo.setAttribute('preload', 'auto'); // Preload the video
-        orientationVideo.style.width = '100%';
-        orientationVideo.style.height = '100%';
-        orientationVideo.style.objectFit = 'cover';
-        orientationVideo.style.position = 'absolute';
-        orientationVideo.style.top = '0';
-        orientationVideo.style.left = '0';
-        orientationVideo.style.zIndex = '50'; // Higher z-index to ensure visibility
-        orientationVideo.style.display = 'block'; // Ensure video is visible
-        orientationVideo.style.opacity = '1'; // Ensure video is visible
-        orientationVideo.style.backgroundColor = '#000'; // Add background to video
-
-        // Set source LAST to avoid error events during setup
-        orientationVideo.setAttribute('src', '/orientation.mp4');
-        
-        // Add video to the feed
-        videoFeed.appendChild(orientationVideo);
-        
-        // Hide other elements
-        if (deadAir) {
-          deadAir.style.display = 'none';
-          deadAir.pause();
-        }
-        
-        if (offlineDisplay) {
-          offlineDisplay.style.display = 'none';
-        }
-        
-        // Make sure video display is expanded
-        const videoDisplay = document.querySelector(".video-display");
-        if (videoDisplay) {
-          videoDisplay.classList.add("active", "touched");
-          // Explicitly set height to ensure it overrides styles
-          videoDisplay.style.height = '180px';
-        }
-        
-        // Handle iOS/Safari-specific autoplay issues
-        if (isIOS || browserIsSafari) {
-          // Try to unmute and play after user interaction
-          document.addEventListener('touchstart', function playVideoOnTouch() {
-            orientationVideo.muted = false;
-            orientationVideo.play().catch(err => {
-              console.error("Error playing orientation video on touch:", err);
-              // Fall back to muted playback if unmuted fails
-              orientationVideo.muted = true;
-              orientationVideo.play().catch(e => console.error("Fallback play failed:", e));
-            });
-            document.removeEventListener('touchstart', playVideoOnTouch);
-          }, { once: true });
-        }
-        
-        // Log that we're attempting to play the video
-        console.log("Attempting to play orientation video...");
-        
-        // Play the video and log success
-        orientationVideo.play()
-          .then(() => {
-            console.log("✅ Orientation video is playing successfully");
-            
-            // Add event listener for when video actually starts rendering frames
-            orientationVideo.addEventListener('playing', () => {
-              console.log("✅ Orientation video is rendering frames now");
-            });
-            
-          })
-          .catch(err => {
-            console.error("❌ Error playing orientation video:", err);
-            // Fallback to muted play if unmuted fails (common on mobile)
-            orientationVideo.muted = true;
-            orientationVideo.play().catch(e => {
-              console.error("❌ Fallback muted play failed:", e);
-              // If all else fails, show a message
-              if (offlineDisplay) {
-                offlineDisplay.style.display = 'flex';
-                offlineDisplay.innerHTML = '<span>TAP TO PLAY ORIENTATION</span>';
-                offlineDisplay.style.cursor = 'pointer';
-                offlineDisplay.style.zIndex = '30';
-                offlineDisplay.addEventListener('click', function playOnClick() {
-                  orientationVideo.play().catch(err => console.error("❌ Play on click failed:", err));
-                  offlineDisplay.style.display = 'none';
-                  offlineDisplay.removeEventListener('click', playOnClick);
-                });
-              }
-            });
-          });
-        
-     
-        // When video ends, remove it and transfer pulse effect to CONNECT button
-        orientationVideo.addEventListener('ended', () => {
-
-          
-          // Remove event listeners first to prevent error events during cleanup
-          orientationVideo.onloadstart = null;
-          orientationVideo.onloadedmetadata = null;
-          orientationVideo.onloadeddata = null;
-          orientationVideo.oncanplay = null;
-          orientationVideo.oncanplaythrough = null;
-          orientationVideo.onerror = null;
-          orientationVideo.onplaying = null;
-          
-          // Remove the video with proper cleanup
-          try {
-            orientationVideo.pause();
-            // Don't set src to empty string or call load() as it can trigger error events
-            orientationVideo.removeAttribute('src');
-          } catch (e) {
-            console.log("Error cleaning up video:", e);
-          }
-          orientationVideo.remove();
-          
-          // Show offline display again
-          if (offlineDisplay) {
-            offlineDisplay.style.display = 'flex';
-            // Restore original content if it was changed
-            offlineDisplay.innerHTML = '<span>SYS//OFFLINE</span><div class="crosshair-h"></div><div class="crosshair-v"></div><div class="scanlines-overlay"></div>';
-          }
-          
-          // Show deadAir again
-          if (deadAir) {
-            deadAir.style.display = '';
-            deadAir.play();
-          }
-          
-          // Hide transcript toggle button and content when video ends
-          if (transcriptToggleBtn) {
-            transcriptToggleBtn.style.display = 'none';
-            transcriptToggleBtn.classList.remove('active');
-          }
-          
-          // Hide transcript container if visible
-          if (transcriptContainer && transcriptContainer.style.display !== 'none') {
-            transcriptContainer.style.display = 'none';
-          }
-          
-          // Clear transcript interval
-          if (transcriptInterval) {
-            clearInterval(transcriptInterval);
-            transcriptInterval = null;
-          }
-          
-          // Only add pulse to CONNECT button on first viewing
-          if (isFirstViewing && connectButton) {
-            connectButton.classList.add("initial-pulse");
-            
-            // Mark orientation as viewed (only on first viewing)
-            localStorage.setItem('orientationViewed', 'true');
-          }
-        });
-      }
+ 
 
       // At the end of the file, add this script to resize the container
       document.addEventListener("DOMContentLoaded", function () {
@@ -4078,19 +4017,15 @@
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get("resetOrientation") === "true") {
           localStorage.removeItem('orientationViewed');
-
         }
         
-        // Force reset orientation state for testing - comment out in production
-        localStorage.removeItem('orientationViewed');
+        // Check if orientation has been viewed
+        const orientationViewed = localStorage.getItem('orientationViewed') === 'true';
+        isOrientationComplete = orientationViewed; // Set our state variable
         
         // Make sure button states are properly initialized
         const signalButton = document.querySelector('[data-action="signal"]');
         const connectButton = document.getElementById("call-button");
-        
-        const orientationViewed = localStorage.getItem('orientationViewed') === 'true';
-        
-
         
         // Clear any existing pulse classes first
         if (signalButton) signalButton.classList.remove("initial-pulse");
@@ -4098,16 +4033,26 @@
         
         // Then apply the correct pulse class based on state
         if (orientationViewed) {
-          // If orientation has been viewed, pulse the CONNECT button
+          // If orientation has been viewed, update signal button text and pulse
+          if (signalButton) {
+            const buttonLabel = signalButton.querySelector('.button-label');
+            if (buttonLabel) {
+              buttonLabel.textContent = "CONNECT";
+            }
+            signalButton.classList.add("initial-pulse");
+          }
+          // Hide the call button since signal button now has its functionality
           if (connectButton) {
-            connectButton.classList.add("initial-pulse");
-      
+            connectButton.style.display = "none";
           }
         } else {
-          // If orientation hasn't been viewed, pulse the SIGNAL button
+          // If orientation hasn't been viewed, pulse the SIGNAL button with START HERE text
           if (signalButton) {
+            const buttonLabel = signalButton.querySelector('.button-label');
+            if (buttonLabel) {
+              buttonLabel.textContent = "START HERE";
+            }
             signalButton.classList.add("initial-pulse");
- 
           }
         }
         
@@ -4123,7 +4068,6 @@
           
           // Simple click handler for toggling
           videoDisplay.addEventListener('click', function() {
-
             // Add touched class to stop pulsing animation
             this.classList.add('touched');
             
@@ -4132,18 +4076,15 @@
               // Only collapse if we're on mobile and not in a call
               if (window.innerHeight <= 700 && !isCallActive) {
                 this.classList.remove('active');
-
               }
             } else {
               this.classList.add('active');
-
               
               // Auto-collapse after 5 seconds if not in a call and on mobile
               if (window.innerHeight <= 700 && !isCallActive) {
                 setTimeout(() => {
                   if (!isCallActive) {
                     this.classList.remove('active');
-           
                   }
                 }, 5000);
               }
@@ -4166,1031 +4107,6 @@
       });
 
       // Remove all previous DOMContentLoaded handlers for video display and use this single function
-      function initVideoDisplayToggle() {
-
-        
-        // Clean up any existing click handlers by cloning and replacing
-        const videoDisplay = document.querySelector(".video-display");
-        if (!videoDisplay) return;
-        
-        const newVideoDisplay = videoDisplay.cloneNode(true);
-        videoDisplay.parentNode.replaceChild(newVideoDisplay, videoDisplay);
-        
-        // Check if we're on a mobile screen
-        const isMobile = window.innerHeight <= 700;
-        
-        // Initialize state based on screen height and call status
-        if (isMobile && !isCallActive && !isEightiesMode) {
-          newVideoDisplay.classList.remove('active');
-          newVideoDisplay.style.height = '';
-        } else {
-          newVideoDisplay.classList.add('active');
-          // Let CSS handle height on desktop
-          newVideoDisplay.style.height = isMobile ? '180px' : '';
-        }
-        
-        // Add the core click handler that toggles between states
-        newVideoDisplay.addEventListener('click', function(e) {
-
-          
-          // Don't toggle if any videos are playing
-          const orientationVideo = document.getElementById('orientation-video');
-          if (orientationVideo) {
-            console.log("Ignoring click while orientation video is playing");
-            return;
-          }
-          
-          // Only toggle on mobile and when not in a call
-          if (!isMobile || isCallActive) {
-            console.log("Not toggling - not mobile or call is active");
-            return;
-          }
-          
-          // Add touched class to prevent animation
-          this.classList.add('touched');
-          
-          // Toggle active state
-          const isCurrentlyActive = this.classList.contains('active');
-          console.log("Current state:", isCurrentlyActive ? "active" : "inactive");
-          
-          if (isCurrentlyActive) {
-            // Collapse
-            this.classList.remove('active');
-            this.style.height = '';
-            console.log("Collapsing video display");
-          } else {
-            // Expand
-            this.classList.add('active');
-            this.style.height = '180px';
-            console.log("Expanding video display");
-            
-            // Auto-collapse after timeout if not in a call
-            if (!isCallActive) {
-              setTimeout(() => {
-                if (!isCallActive) {
-                  this.classList.remove('active');
-                  this.style.height = '';
-                  console.log("Auto-collapsing video display after timeout");
-                }
-              }, 5000);
-            }
-          }
-          
-          // Force a reflow to ensure transitions work properly
-          this.offsetHeight;
-          window.dispatchEvent(new Event('resize'));
-        });
-        
-        console.log("Video display toggle initialized");
-        return newVideoDisplay;
-      }
-
-      // Replace all the individual video display initialization code with this handler
-      window.addEventListener('resize', function() {
-        const videoDisplay = document.querySelector('.video-display');
-        if (!videoDisplay) return;
-        
-        const isMobile = window.innerHeight <= 700;
-        
-        // Only remove 'active' on resize if mobile AND call is inactive AND 80s mode is OFF
-        if (isMobile && !isCallActive && !isEightiesMode) {
-          // Only collapse if not already collapsed (to avoid flickering)
-          if (videoDisplay.classList.contains('active')) {
-            videoDisplay.classList.remove('active');
-            videoDisplay.style.height = '';
-            console.log("Collapsing video display on resize");
-          }
-        } else {
-          // Always ensure it's active on non-mobile screens
-          if (!videoDisplay.classList.contains('active')) {
-            videoDisplay.classList.add('active');
-            videoDisplay.style.height = isMobile ? '180px' : '';
-            console.log("Expanding video display on resize");
-          }
-        }
-      });
-
-      // Modify the existing disconnectCall function to handle collapsing on mobile
-      function disconnectCall() {
-        console.log("Disconnecting call...");
-        isCallActive = false;
-        
-        // Stop SitePal APIs
-        try {
-          if (typeof window.AI_vhost_api === "function") {
-            window.AI_vhost_api("stop");
-            console.log("✓ Stopped AI_vhost_api via window");
-          } 
-          else if (typeof AI_vhost_api === "function") {
-            AI_vhost_api("stop");
-            console.log("✓ Stopped AI_vhost_api locally");
-          }
-          else {
-            console.warn("AI_vhost_api is not available to stop.");
-          }
-        } catch (e) {
-          console.error("Error stopping AI_vhost_api:", e);
-        }
-
-        // Re-enable toggles when disconnecting
-        enableToggles();
-
-        // Hide SitePal container
-        const container = document.getElementById("sitepal-container");
-        if (container) {
-          container.style.display = "none";
-          container.innerHTML = ""; // optional: clear inner content
-        }
-        
-        // Collapse video display when disconnecting on mobile
-        const videoDisplay = document.querySelector(".video-display");
-        if (videoDisplay && window.innerHeight <= 700) {
-          videoDisplay.classList.remove("active");
-        }
-
-        // Update signal button to "CONNECT AGENT" state WITHOUT pulsing
-        const signalButton = document.querySelector('[data-action="signal"]');
-        if (signalButton) {
-          const buttonLabel = signalButton.querySelector('.button-label');
-          if (buttonLabel) {
-            buttonLabel.textContent = "CONNECT AGENT";
-          }
-          // REMOVED: signalButton.classList.add("initial-pulse");
-          // Keep the data-video-viewed attribute so it stays in connect agent mode
-        }
-
-        // Reset call button state as well (even though it's hidden)
-        const callButton = document.getElementById("call-button");
-        if (callButton) {
-          callButton.textContent = "CONNECT";
-          callButton.classList.remove("disconnect", "unmute");
-        }
-        
-        // Reset other UI elements
-        const callStatus = document.getElementById("call-status");
-        const stationSelect = document.getElementById("station-select");
-        const selfView = document.getElementById("self-view");
-        const liveIndicator = document.getElementById("live-indicator");
-        const deadAir = document.getElementById("deadAir");
-        const offlineDisplay = document.getElementById("offline-display");
-
-        if (callStatus) callStatus.classList.remove("active");
-        if (stationSelect) stationSelect.disabled = false;
-        if (selfView) selfView.style.display = "none";
-        if (liveIndicator) liveIndicator.style.display = "none";
-
-        // Show offline display
-        if (offlineDisplay) offlineDisplay.style.display = "flex";
-
-        // Hide and stop video
-        if (deadAir) {
-          deadAir.style.display = "none";
-          deadAir.pause();
-        }
-
-        // Reset container initialization state
-        if (container) container.dataset.initialized = "false";
-
-        // Notify parent
-        window.parent.postMessage(
-          { type: "SITEPAL_STATE_CHANGE", isListening: false },
-          "*"
-        );
-      }
-
-      // Add resize handler to adjust video display state when resizing
-      window.addEventListener("resize", function () {
-        const videoDisplay = document.querySelector(".video-display");
-        if (videoDisplay) {
-          if (window.innerHeight <= 700 && !isCallActive) {
-            videoDisplay.classList.remove("active");
-          } else if (window.innerHeight > 700) {
-            videoDisplay.classList.add("active");
-          }
-        }
-      });
-
-      // Check for initial message from parent to sync toggle states
-      window.addEventListener("message", (event) => {
-        // Check if the message is from the parent frame
-        if (event.source === window.parent) {
-          const data = event.data;
-
-          // Handle state synchronization
-          if (data.type === "SYNC_STATE") {
-            // Sync 80s mode
-            if (data.isEightiesMode !== undefined) {
-              isEightiesMode = data.isEightiesMode;
-              updateEightiesUI(isEightiesMode);
-            }
-
-            // Sync music state
-            if (data.isMusicEnabled !== undefined) {
-              if (data.isMusicEnabled) {
-                musicToggle.classList.add("active");
-              } else {
-                musicToggle.classList.remove("active");
-              }
-            }
-
-            // Sync constellation state
-            if (data.isConstellationsEnabled !== undefined) {
-              if (data.isConstellationsEnabled) {
-                constellationToggle.classList.add("active");
-              } else {
-                constellationToggle.classList.remove("active");
-              }
-            }
-          }
-
-          // Handle music state updates from parent (when music players change state)
-          if (data.type === "SET_MUSIC_STATE") {
-            // Update music toggle to match the music player state
-            if (data.isPlaying !== undefined) {
-              if (data.isPlaying) {
-                musicToggle.classList.add("active");
-              } else {
-                musicToggle.classList.remove("active");
-              }
-    
-            }
-          }
-          
-          // Handle video screen expansion messages
-          if (data.type === "EXPAND_VIDEO_SCREEN") {
-   
-            const videoDisplay = document.querySelector(".video-display");
-            if (videoDisplay) {
-              if (data.expanded) {
- 
-                // Add both active and touched classes to ensure proper expansion
-                videoDisplay.classList.add("active");
-                videoDisplay.classList.add("touched");
-                
-                // Force the height to be 180px for mobile
-                videoDisplay.style.height = "180px";
-                
-                // Force a reflow to ensure the height change takes effect
-                videoDisplay.offsetHeight;
-                window.dispatchEvent(new Event('resize'));
-              } else {
-         
-                videoDisplay.classList.remove("active");
-                // Keep the touched class to prevent the pulsing animation
-                // Reset the height to let CSS handle it
-                videoDisplay.style.height = "";
-              }
-            }
-          }
-        }
-      });
-
-      // Styling for the music toggle
-      document.addEventListener("DOMContentLoaded", function () {
-        // Add music toggle style
-        const musicToggle = document.getElementById("music-toggle");
-        if (musicToggle) {
-          // Check if music should be on by default based on screen size
-          // On larger screens, music is typically enabled
-          if (window.innerWidth > 768) {
-            musicToggle.classList.add("active");
-            // Notify parent that music should be on
-            window.parent.postMessage(
-              {
-                type: "MUSIC_TOGGLE",
-                enabled: true,
-              },
-              "*"
-            );
-          }
-        }
-      });
-
-      // Add window resize handler for toggle layout
-      window.addEventListener("resize", () => {
-        const toggleRow = document.querySelector(".toggle-row.mobile-inline");
-        if (window.innerWidth >= 768 && isEightiesMode) {
-          toggleRow.classList.add("fullscreen");
-        } else {
-          toggleRow.classList.remove("fullscreen");
-        }
-      });
-
-      // Add handler for video screen expansion messages
-      window.addEventListener("message", (event) => {
-        if (event.source === window.parent && event.data.type === "EXPAND_VIDEO_SCREEN") {
-          console.log("Received EXPAND_VIDEO_SCREEN message:", event.data.expanded);
-          const videoDisplay = document.querySelector(".video-display");
-          if (videoDisplay) {
-            if (event.data.expanded) {
-              console.log("Expanding video display");
-              // Add both active and touched classes to ensure proper expansion
-              videoDisplay.classList.add("active");
-              videoDisplay.classList.add("touched");
-              
-              // Force the height to be 180px for mobile
-              videoDisplay.style.height = "180px";
-              
-              // Also dispatch a resize event to ensure CSS media queries are applied
-              const resizeEvent = new Event('resize');
-              window.dispatchEvent(resizeEvent);
-              
-              // Add a small delay to ensure the height change takes effect
-              setTimeout(() => {
-                // Force a reflow to ensure the height change takes effect
-                videoDisplay.offsetHeight;
-              }, 50);
-            } else {
-              console.log("Collapsing video display");
-              videoDisplay.classList.remove("active");
-              // Keep the touched class to prevent the pulsing animation
-              // Reset the height to let CSS handle it
-              videoDisplay.style.height = "";
-            }
-          }
-        }
-      });
-
-      // Handle messages from parent window
-      window.addEventListener('message', function(event) {
-        if (event.data.type === 'EXPAND_VIDEO_SCREEN') {
-          const videoDisplay = document.querySelector('.video-display');
-          if (videoDisplay) {
-            if (event.data.expanded) {
-              videoDisplay.classList.add('active', 'touched');
-              videoDisplay.style.height = '180px';
-              // Force a reflow to ensure the height change takes effect
-              videoDisplay.offsetHeight;
-              window.dispatchEvent(new Event('resize'));
-            } else {
-              videoDisplay.classList.remove('active');
-              // Let the CSS handle the height transition
-              videoDisplay.style.height = '';
-              window.dispatchEvent(new Event('resize'));
-            }
-          }
-        }
-      });
-
-      // Add resize handler to adjust video display state
-      window.addEventListener('resize', function() {
-        const videoDisplay = document.querySelector('.video-display');
-        if (videoDisplay) {
-          const isMobile = window.innerHeight <= 700;
-          // Only remove 'active' on resize if mobile AND call is inactive AND 80s mode is OFF
-          if (isMobile && !isCallActive && !isEightiesMode) {
-            videoDisplay.classList.remove('active');
-            videoDisplay.style.height = ''; // Also reset height
-          } else if (!isMobile) {
-            // Always ensure it's active on non-mobile screens
-            videoDisplay.classList.add('active');
-            videoDisplay.style.height = ''; // Let CSS handle height on desktop
-          }
-          // If mobile and 80s mode is active, ensure it stays expanded
-          else if (isMobile && isEightiesMode) {
-              videoDisplay.classList.add('active', 'touched');
-              videoDisplay.style.height = '180px';
-          }
-        }
-      });
-
-      // Listen for synchronization messages from parent
-      window.addEventListener('message', function(event) {
-        if (!event.data || !event.data.type) return;
-        // Add origin check in production: if (event.origin !== 'YOUR_ORIGIN') return;
-
-        const type = event.data.type;
-        const enabled = event.data.enabled; // Expect a boolean
-
-
-
-        if (type === 'SYNC_80S_STATE') {
-          const eightiesToggle = document.getElementById('eighties-toggle');
-          if (eightiesToggle) {
-            // Only call updateEightiesUI if the state *actually* needs changing
-            if (typeof enabled === 'boolean' && enabled !== isEightiesMode) {
-           
-              // Call the main UI update function. It handles the 'active' class
-              // and the internal isEightiesMode variable update.
-              updateEightiesUI(enabled);
-            }
-          }
-        } else if (type === 'SYNC_MUSIC_STATE') {
-          const musicToggle = document.getElementById('music-toggle');
-          if (musicToggle) {
-            const currentMusicState = musicToggle.classList.contains('active');
-            if (typeof enabled === 'boolean' && enabled !== currentMusicState) {
-         
-              // Directly toggle the class for music, as its click handler does
-              musicToggle.classList.toggle('active', enabled);
-            }
-          }
-        } else if (type === 'EXPAND_VIDEO_SCREEN') {
-           const videoDisplay = document.querySelector('.video-display');
-           if (videoDisplay) {
-             if (event.data.expanded) {
-           
-               // Add both active and touched classes to ensure proper expansion
-               videoDisplay.classList.add("active");
-               videoDisplay.classList.add("touched");
-               
-               // Force the height to be 180px for mobile
-               videoDisplay.style.height = "180px";
-               
-               // Also dispatch a resize event to ensure CSS media queries are applied
-               const resizeEvent = new Event('resize');
-               window.dispatchEvent(resizeEvent);
-               
-               // Add a small delay to ensure the height change takes effect
-               setTimeout(() => {
-                 // Force a reflow to ensure the height change takes effect
-                 videoDisplay.offsetHeight;
-               }, 50);
-             } else {
-               console.log("Collapsing video display");
-               videoDisplay.classList.remove("active");
-               // Keep the touched class to prevent the pulsing animation
-               // Reset the height to let CSS handle it
-               videoDisplay.style.height = "";
-             }
-           }
-        } else if (type === 'START_TRANSMISSION_EFFECT') {
-          console.log("Starting transmission effect from mobile");
-          
-          // Start the transmission loading effect
-          const deadAir = document.getElementById("deadAir");
-          const sitepalContainer = document.getElementById("sitepal-container");
-          const offlineDisplay = document.getElementById("offline-display");
-          
-          // Hide offline display
-          if (offlineDisplay) {
-            offlineDisplay.style.display = "none";
-          }
-          
-          // Make transmission video visible and play it
-          if (deadAir) {
-            deadAir.style.display = "block";
-            deadAir.style.opacity = "1";
-            deadAir.style.zIndex = "20"; // Ensure it's on top during loading
-            deadAir.muted = true;
-            deadAir.loop = true;
-            deadAir.play().catch(e => console.error("Transmission video play failed:", e));
-          }
-          
-          // Show SitePal container behind the video
-          if (sitepalContainer) {
-            sitepalContainer.style.display = "block";
-            sitepalContainer.style.zIndex = "5"; // Lower z-index during loading
-          }
-
-          // Enhanced transmission video handling for more reliable mobile playback
-          if (deadAir) {
-            // Ensure video element is properly configured
-            deadAir.style.display = "block";
-            deadAir.style.opacity = "1";
-            deadAir.style.zIndex = "20"; // Ensure it's on top during loading
-            deadAir.style.visibility = "visible"; // Make sure it's not hidden by visibility
-            deadAir.style.width = "100%"; 
-            deadAir.style.height = "100%";
-            deadAir.style.objectFit = "cover";
-            
-            // Set or verify source
-            let sourceElement = deadAir.querySelector('source');
-            if (!sourceElement) {
-                sourceElement = document.createElement('source');
-                deadAir.appendChild(sourceElement);
-            }
-            sourceElement.src = "/1.mp4";
-            sourceElement.type = "video/mp4";
-            
-            // Configure video properties
-            deadAir.muted = true;
-            deadAir.loop = true;
-            deadAir.playsinline = true;
-            deadAir.setAttribute('webkit-playsinline', '');
-            
-            // Force reload before playing
-            deadAir.load();
-            
-            console.log("🎬 Attempting to play transmission video on mobile...");
-            
-            // Try to play with fallback
-            deadAir.play()
-              .then(() => {
-                console.log("✅ Transmission video playing successfully");
-              })
-              .catch(e => {
-                console.error("❌ Transmission video play failed:", e);
-                
-                // Try again after a small delay
-                setTimeout(() => {
-                  console.log("🔄 Retrying transmission video playback...");
-                  deadAir.play().catch(err => {
-                    console.error("❌ Retry also failed:", err);
-                    
-                    // Last resort - add a click handler to the parent element
-                    const videoFeed = document.getElementById("video-feed");
-                    if (videoFeed) {
-                      console.log("Adding click handler to start video on user interaction");
-                      videoFeed.addEventListener('click', function playHandler() {
-                        deadAir.play().catch(e => console.error("Click play failed:", e));
-                        videoFeed.removeEventListener('click', playHandler);
-                      }, { once: true });
-                    }
-                  });
-                }, 300);
-              });
-          }
-          
-          // Show SitePal container behind the video
-          if (sitepalContainer) {
-            sitepalContainer.style.display = "block";
-            sitepalContainer.style.zIndex = "5"; // Lower z-index during loading
-          }
-        }
-        // Add other message handlers if needed
-
-      });
-
-      // Add transcript functionality
-      // Sample transcript data - would normally be loaded from a separate file
-      const transcriptData = {
-        en: [
-          { time: 0, text: "Greetings and welcome, Earthling. I have pre-recorded this communication as your orientation." },
-          { time: 7, text: "For your amusement, double-click to fire projectiles at the moons. Don't worry - this won't harm or break anything." },
-          { time: 15, text: "Next, please note that A SINGLE long click on the floor of the scene will instantiate a green candle there which may serve as an offering to Our Lady of Perpetual Profit." },
-          { time: 24, text: "Candles will melt in 1 hour." },
-          { time: 27, text: "Also, please observe the special votive candles which surround Our Lady. These represent the highly revered 'Illumin80'." },
-          { time: 36, text: "They are the top token stakers. Click once on one of these candles to inspect it closely." },
-          { time: 43, text: "Finally, you may click the connect button immediately below me to speak to me in real time." },
-          { time: 49, text: "I can guide you in acquiring RL80 tokens and embarking on special missions." },
-          { time: 55, text: "Be aware that there may be small delays in my response due to the great distance between us." },
-          { time: 61, text: "Goodbye for now." }
-        ],
-        es: [
-          { time: 0, text: "Saludos y bienvenido, Terrícola. He pregrabado esta comunicación como tu orientación." },
-          { time: 7, text: "Para divertirte, haz doble clic para disparar proyectiles a las lunas. No te preocupes, esto no dañará ni romperá nada." },
-          { time: 15, text: "A continuación, ten en cuenta que UN SOLO clic en el suelo de la escena producirá allí una vela verde que puede servir como ofrenda a Nuestra Señora del Beneficio Perpetuo." },
-          { time: 24, text: "Las velas se derretirán en 1 hora." },
-          { time: 27, text: "Además, observa las velas votivas especiales que rodean a Nuestra Señora. Estas representan a los altamente venerados 'Illumin80'." },
-          { time: 36, text: "Son los principales poseedores de tokens. Haz clic una vez en una de estas velas para inspeccionarla de cerca." },
-          { time: 43, text: "Finalmente, puedes hacer clic en el botón de conexión inmediatamente debajo de mí para hablar conmigo en tiempo real." },
-          { time: 49, text: "Puedo guiarte para adquirir tokens RL80 y embarcarte en misiones especiales." },
-          { time: 55, text: "Ten en cuenta que puede haber pequeños retrasos en mi respuesta debido a la gran distancia entre nosotros." },
-          { time: 61, text: "Adiós por ahora." }
-        ],
-        fr: [
-          { time: 0, text: "Salutations et bienvenue, Terrien. J'ai préenregistré cette communication comme votre orientation." },
-          { time: 7, text: "Pour vous amuser, double-cliquez pour tirer des projectiles sur les lunes. Ne vous inquiétez pas - cela n'endommagera ni ne cassera rien." },
-          { time: 15, text: "Ensuite, veuillez noter qu'UN SEUL clic sur le sol de la scène produira une bougie verte qui pourra servir d'offrande à Notre-Dame du Profit Perpétuel." },
-          { time: 24, text: "Les bougies fondront en 1 heure." },
-          { time: 27, text: "Veuillez également observer lesbougies votives spéciales qui entourent Notre-Dame. Elles représentent les très estimés 'Illumin80'." },
-          { time: 36, text: "Ce sont les principaux détenteurs de jetons. Cliquez une fois sur l'une de ces bougies pour l'examiner de près." },
-          { time: 43, text: "Enfin, vous pouvez cliquer sur le bouton de connexion juste en dessous de moi pour me parler en temps réel." },
-          { time: 49, text: "Je peux vous guider dans l'acquisition de jetons RL80 et rejoindre les Illumin80." },
-          { time: 55, text: "Sachez qu'il peut y avoir de petits délais dans ma réponse en raison de la grande distance entre nous." },
-          { time: 61, text: "Au revoir pour l'instant." }
-        ],
-        de: [
-          { time: 0, text: "Grüße und willkommen, Erdling. Ich habe diese Kommunikation als Ihre Orientierung vorab aufgezeichnet." },
-          { time: 7, text: "Zum Vergnügen können Sie mit einem Doppelklick Projektile auf die Monde abfeuern. Keine Sorge - dies wird nichts beschädigen oder kaputt machen." },
-          { time: 15, text: "Beachten Sie als Nächstes, dass EIN EINZIGER Klick auf den Boden der Szene dort eine grüne Kerze erzeugt, die als Opfergabe für Unsere Liebe Frau vom Immerwährenden Profit dienen kann." },
-          { time: 24, text: "Kerzen schmelzen in 1 Stunde." },
-          { time: 27, text: "Beobachten Sie bitte auch die speziellen Votivkerzen, die Unsere Liebe Frau umgeben. Diese repräsentieren die hochgeschätzten 'Illumin80'." },
-          { time: 36, text: "Sie sind die wichtigsten Token-Besitzer. Klicken Sie einmal auf eine dieser Kerzen, um sie genau zu betrachten." },
-          { time: 43, text: "Schließlich können Sie auf die Verbindungstaste direkt unter mir klicken, um in Echtzeit mit mir zu sprechen." },
-          { time: 49, text: "Ich kann Sie beim Erwerb von RL80-Tokens und bei besonderen Missionen unterstützen." },
-          { time: 55, text: "Beachten Sie, dass es aufgrund der großen Entfernung zwischen uns zu kleinen Verzögerungen bei meiner Antwort kommen kann." },
-          { time: 61, text: "Auf Wiedersehen für jetzt." }
-        ],
-        ja: [
-          { time: 0, text: "ご挨拶申し上げます、地球人の皆様。これはあなたのためのオリエンテーションとして事前に録音されたコミュニケーションです。" },
-          { time: 7, text: "楽しみのために、ダブルクリックして月に投射物を発射してください。心配しないでください - これは何も傷つけたり壊したりすることはありません。" },
-          { time: 15, text: "次に、シーンの床を一回クリックすると、そこに緑色のキャンドルが現れ、永久利益の聖母への供物として役立つことを覚えておいてください。" },
-          { time: 24, text: "キャンドルは1時間で溶けます。" },
-          { time: 27, text: "また、聖母を囲む特別な奉納キャンドルを観察してください。これらは非常に尊敬される「イルミン80」を表しています。" },
-          { time: 36, text: "彼らは主要なトークン保有者です。これらのキャンドルのいずれかを一度クリックして、近くで観察してください。" },
-          { time: 43, text: "最後に、私のすぐ下にある接続ボタンをクリックして、リアルタイムで私と話すことができます。" },
-          { time: 49, text: "RL80トークンの取得と特別なミッションへの参加についてご案内します。" },
-          { time: 55, text: "私たちの間の大きな距離のため、私の応答に小さな遅延があるかもしれないことにご注意ください。" },
-          { time: 61, text: "さようなら、また会いましょう。" }
-        ],
-        zh: [
-          { time: 0, text: "问候并欢迎，地球人。我已预先录制了这段通讯作为您的入门指导。" },
-          { time: 7, text: "为了娱乐，双击可向月球发射投射物。别担心 - 这不会造成任何伤害或破坏。" },
-          { time: 15, text: "接下来，请注意在场景地板上单击一次将会在那里产生一根绿色蜡烛，可作为永恒利润圣母的供品。" },
-          { time: 24, text: "蜡烛将在1小时内融化。" },
-          { time: 27, text: "另外，请观察围绕永恒利润圣母的特殊供奉蜡烛。这些代表着备受尊敬的'光明80'。" },
-          { time: 36, text: "他们是主要的代币持有者。单击其中一支蜡烛可以近距离检查它。" },
-          { time: 43, text: "最后，您可以点击我正下方的连接按钮与我实时交谈。" },
-          { time: 49, text: "我可以指导您获取RL80代币并参与特殊任务。" },
-          { time: 55, text: "请注意，由于我们之间的距离较远，我的回应可能会有短暂的延迟。" },
-          { time: 61, text: "暂时告别。" }
-        ],
-        ko: [
-          { time: 0, text: "환영합니다, 지구인 여러분. 이 통신은 귀하의 오리엔테이션을 위해 사전에 녹음되었습니다." },
-          { time: 7, text: "재미를 위해 더블클릭으로 달에 발사체를 발사할 수 있습니다. 걱정하지 마세요 - 이것은 아무것도 손상시키거나 파괴하지 않습니다." },
-          { time: 15, text: "다음으로, 장면의 바닥을 한 번 클릭하면 그곳에 녹색 양초가 생성되어 영원한 이익의 성모님께 바칠 수 있습니다." },
-          { time: 24, text: "양초는 1시간 후에 녹습니다." },
-          { time: 27, text: "또한, 성모님을 둘러싸고 있는 특별한 봉헌 양초들을 관찰해 주세요. 이것들은 매우 존경받는 '일루민80'을 나타냅니다." },
-          { time: 36, text: "그들은 주요 토큰 보유자입니다. 이 양초들 중 하나를 한 번 클릭하여 자세히 살펴보세요." },
-          { time: 43, text: "마지막으로, 제 바로 아래에 있는 연결 버튼을 클릭하여 실시간으로 저와 대화할 수 있습니다." },
-          { time: 49, text: "RL80 토큰 획득과 특별한 미션 참여를 안내해 드릴 수 있습니다." },
-          { time: 55, text: "우리 사이의 거리가 멀기 때문에 제 응답에 약간의 지연이 있을 수 있다는 점을 참고해 주세요." },
-          { time: 61, text: "안녕히 가세요." }
-        ],
-        pt: [
-          { time: 0, text: "Saudações e bem-vindo, Terrestre. Gravei esta comunicação como sua orientação." },
-          { time: 7, text: "Para seu entretenimento, dê um duplo clique para disparar projéteis nas luas. Não se preocupe - isso não causará danos nem quebrará nada." },
-          { time: 15, text: "Em seguida, observe que UM ÚNICO clique no chão da cena irá criar uma vela verde que pode servir como oferenda para Nossa Senhora do Lucro Perpétuo." },
-          { time: 24, text: "As velas derreterão em 1 hora." },
-          { time: 27, text: "Além disso, observe as velas votivas especiais que cercam Nossa Senhora. Estas representam os altamente reverenciados 'Illumin80'." },
-          { time: 36, text: "Eles são os principais detentores de tokens. Clique uma vez em uma dessas velas para inspecioná-la de perto." },
-          { time: 43, text: "Por fim, você pode clicar no botão de conexão logo abaixo de mim para falar comigo em tempo real." },
-          { time: 49, text: "Posso guiá-lo na aquisição de tokens RL80 e em missões especiais." },
-          { time: 55, text: "Esteja ciente de que pode haver pequenos atrasos em minha resposta devido à grande distância entre nós." },
-          { time: 61, text: "Até breve." }
-        ],
-        ru: [
-          { time: 0, text: "Приветствую вас, Землянин. Я предварительно записал это сообщение как вашу ориентацию." },
-          { time: 7, text: "Для развлечения дважды щелкните, чтобы стрелять снарядами в луны. Не беспокойтесь - это не причинит вреда и ничего не сломает." },
-          { time: 15, text: "Далее обратите внимание, что ОДНО нажатие на пол сцены создаст там зеленую свечу, которая может служить подношением Нашей Госпоже Вечной Прибыли." },
-          { time: 24, text: "Свечи растают через 1 час." },
-          { time: 27, text: "Также обратите внимание на особые вотивные свечи, окружающие Нашу Госпожу. Они представляют высокочтимых 'Illumin80'." },
-          { time: 36, text: "Они являются основными держателями токенов. Щелкните один раз по одной из этих свечей, чтобы рассмотреть её поближе." },
-          { time: 43, text: "Наконец, вы можете нажать на кнопку подключения прямо подо мной, чтобы поговорить со мной в реальном времени." },
-          { time: 49, text: "Я могу помочь вам приобрести токены RL80 и участвовать в специальных миссиях." },
-          { time: 55, text: "Имейте в виду, что могут быть небольшие задержки в моем ответе из-за большого расстояния между нами." },
-          { time: 61, text: "До свидания." }
-        ],
-        hi: [
-          { time: 0, text: "नमस्कार और स्वागत है, पृथ्वीवासी। मैंने यह संचार आपके अभिविन्यास के लिए पहले से रिकॉर्ड किया है।" },
-          { time: 7, text: "मनोरंजन के लिए, चंद्रमा पर प्रक्षेप्य छोड़ने के लिए डबल-क्लिक करें। चिंता न करें - यह किसी को नुकसान नहीं पहुंचाएगा और कुछ नहीं तोड़ेगा।" },
-          { time: 15, text: "अगला, ध्यान दें कि दृश्य के फर्श पर एक क्लिक वहां एक हरी मोमबत्ती बनाएगा जो शाश्वत लाभ की हमारी महिला को अर्पण के रूप में काम कर सकती है।" },
-          { time: 24, text: "मोमबत्तियां 1 घंटे में पिघल जाएंगी।" },
-          { time: 27, text: "साथ ही, हमारी महिला के चारों ओर विशेष वोटिव मोमबत्तियों को देखें। ये अत्यधिक सम्मानित 'इल्यूमिन80' का प्रतिनिधित्व करती हैं।" },
-          { time: 36, text: "वे शीर्ष टोकन धारक हैं। इनमें से किसी एक मोमबत्ती पर एक बार क्लिक करके उसे करीब से देखें।" },
-          { time: 43, text: "अंत में, आप मेरे साथ वास्तविक समय में बात करने के लिए मेरे ठीक नीचे कनेक्ट बटन पर क्लिक कर सकते हैं।" },
-          { time: 49, text: "मैं आपको RL80 टोकन प्राप्त करने और विशेष मिशनों में शामिल होने में मार्गदर्शन कर सकता हूं।" },
-          { time: 55, text: "ध्यान दें कि हमारे बीच की बड़ी दूरी के कारण मेरे जवाब में छोटी देरी हो सकती है।" },
-          { time: 61, text: "अलविदा।" }
-        ],
-        ar: [
-          { time: 0, text: "تحياتي ومرحباً، أيها الأرضي. لقد سجلت هذا التواصل مسبقاً كتوجيه لك." },
-          { time: 7, text: "للترفيه، انقر نقراً مزدوجاً لإطلاق المقذوفات على الأقمار. لا تقلق - لن يضر هذا بأي شيء أو يكسر شيئاً." },
-          { time: 15, text: "التالي، لاحظ أن نقرة واحدة على أرضية المشهد ستنشئ شمعة خضراء هناك يمكن أن تكون قرباناً لسيدتنا الربح الدائم." },
-          { time: 24, text: "ستذوب الشموع في ساعة واحدة." },
-          { time: 27, text: "أيضاً، لاحظ الشموع الخاصة التي تحيط بسيدتنا. هذه تمثل 'إلومين80' المحترمين." },
-          { time: 36, text: "هم حاملي الرموز الرئيسيين. انقر مرة واحدة على إحدى هذه الشموع لفحصها عن قرب." },
-          { time: 43, text: "أخيراً، يمكنك النقر على زر الاتصال مباشرة تحتي للتحدث معي في الوقت الفعلي." },
-          { time: 49, text: "يمكنني توجيهك في الحصول على رموز RL80 والمشاركة في المهام الخاصة." },
-          { time: 55, text: "كن على علم أنه قد تكون هناك تأخيرات صغيرة في استجابتي بسبب المسافة الكبيرة بيننا." },
-          { time: 61, text: "مع السلامة." }
-        ],
-        vi: [
-          { time: 0, text: "Chào mừng và hoan nghênh, Người Trái Đất. Tôi đã ghi âm sẵn thông điệp này làm hướng dẫn cho bạn." },
-          { time: 7, text: "Để giải trí, nhấp đúp chuột để bắn đạn vào các mặt trăng. Đừng lo lắng - điều này sẽ không gây hại hay làm hỏng bất cứ thứ gì." },
-          { time: 15, text: "Tiếp theo, hãy lưu ý rằng MỘT lần nhấp vào sàn của cảnh sẽ tạo ra một ngọn nến xanh lá ở đó, có thể dùng làm lễ vật dâng lên Đức Mẹ của Lợi Nhuận Vĩnh Cửu." },
-          { time: 24, text: "Nến sẽ tan chảy trong 1 giờ." },
-          { time: 27, text: "Ngoài ra, hãy quan sát những ngọn nến cầu nguyện đặc biệt bao quanh Đức Mẹ. Những ngọn nến này đại diện cho 'Illumin80' được tôn kính." },
-          { time: 36, text: "Họ là những người nắm giữ token hàng đầu. Nhấp một lần vào một trong những ngọn nến này để xem xét kỹ." },
-          { time: 43, text: "Cuối cùng, bạn có thể nhấp vào nút kết nối ngay bên dưới tôi để nói chuyện với tôi trong thời gian thực." },
-          { time: 49, text: "Tôi có thể hướng dẫn bạn trong việc có được token RL80 và tham gia vào các nhiệm vụ đặc biệt." },
-          { time: 55, text: "Xin lưu ý rằng có thể có độ trễ nhỏ trong phản hồi của tôi do khoảng cách lớn giữa chúng ta." },
-          { time: 61, text: "Tạm biệt." }
-        ]
-      };
-
-      // Transcript elements and state
-      const transcriptContainer = document.getElementById('transcript-container');
-      const transcriptToggleBtn = document.getElementById('transcript-toggle-btn');
-      const transcriptHeader = document.getElementById('transcript-header');
-      const transcriptContent = document.getElementById('transcript-content');
-      const languageSelect = document.getElementById('language-select');
-      const transcriptExpandIcon = document.querySelector('.transcript-expand-icon');
-      
-      let isTranscriptVisible = false;
-      let isTranscriptCollapsed = false;
-      let currentLanguage = 'en';
-      let currentSegmentIndex = 0;
-      let transcriptInterval = null;
-
-      // Initialize transcript functionality
-      function initTranscript() {
-        // Ensure transcript starts expanded
-        if (transcriptContent) transcriptContent.classList.remove('collapsed');
-        if (transcriptExpandIcon) transcriptExpandIcon.classList.remove('collapsed');
-        isTranscriptCollapsed = false; // Reset state variable
-
-        // Show the transcript toggle button when video is playing
-        transcriptToggleBtn.style.display = 'flex';
-        
-        // Set up event listeners
-        transcriptToggleBtn.addEventListener('click', toggleTranscriptVisibility);
-        transcriptHeader.addEventListener('click', toggleTranscriptCollapse);
-        languageSelect.addEventListener('change', function() {
-          currentLanguage = this.value;
-          loadTranscript(currentLanguage);
-        });
-        
-        // Load initial transcript
-        loadTranscript(currentLanguage);
-      }
-
-      // Toggle transcript visibility
-      function toggleTranscriptVisibility() {
-        isTranscriptVisible = !isTranscriptVisible;
-        
-        if (isTranscriptVisible) {
-          transcriptContainer.style.display = 'block';
-          transcriptToggleBtn.classList.add('active');
-          // Start the transcript highlight simulation if not already running
-          if (!transcriptInterval) {
-            currentSegmentIndex = 0;
-            startTranscriptHighlight();
-          }
-        } else {
-          transcriptContainer.style.display = 'none';
-          transcriptToggleBtn.classList.remove('active');
-          // Stop the highlight simulation when hidden
-          if (transcriptInterval) {
-            clearInterval(transcriptInterval);
-            transcriptInterval = null;
-          }
-        }
-      }
-
-      // Toggle transcript collapse/expand
-      function toggleTranscriptCollapse() {
-        isTranscriptCollapsed = !isTranscriptCollapsed;
-        
-        if (isTranscriptCollapsed) {
-          transcriptContent.classList.add('collapsed');
-          transcriptExpandIcon.classList.add('collapsed');
-        } else {
-          transcriptContent.classList.remove('collapsed');
-          transcriptExpandIcon.classList.remove('collapsed');
-        }
-      }
-
-      // Load transcript in selected language
-      function loadTranscript(language) {
-        // Clear current transcript
-        transcriptContent.innerHTML = '';
-        
-        // Get transcript data for selected language or fall back to English
-        const transcript = transcriptData[language] || transcriptData.en;
-        
-        // Create transcript segments
-        transcript.forEach((segment, index) => {
-          const segmentElement = document.createElement('div');
-          segmentElement.classList.add('transcript-segment');
-          segmentElement.setAttribute('data-time', segment.time);
-          segmentElement.textContent = segment.text;
-          
-          // Highlight the first segment by default
-          if (index === 0) {
-            segmentElement.classList.add('active');
-          }
-          
-          transcriptContent.appendChild(segmentElement);
-        });
-      }
-
-      // Start transcript highlight simulation
-      function startTranscriptHighlight() {
-        // Clear any existing interval
-        if (transcriptInterval) {
-          clearInterval(transcriptInterval);
-        }
-        
-        // Set up new interval
-        transcriptInterval = setInterval(() => {
-          // Skip if transcript is not visible or collapsed
-          if (!isTranscriptVisible || isTranscriptCollapsed) return;
-          
-          const segments = document.querySelectorAll('.transcript-segment');
-          if (segments.length === 0) return;
-          
-          // Clear active class from all segments
-          segments.forEach(segment => segment.classList.remove('active'));
-          
-          // Add active class to current segment
-          segments[currentSegmentIndex].classList.add('active');
-          
-          // Auto-scroll to keep active segment visible
-          const activeSegment = segments[currentSegmentIndex];
-          const containerRect = transcriptContent.getBoundingClientRect();
-          const segmentRect = activeSegment.getBoundingClientRect();
-          
-          if (segmentRect.bottom > containerRect.bottom || segmentRect.top < containerRect.top) {
-            activeSegment.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }
-          
-          // Advance to next segment
-          currentSegmentIndex = (currentSegmentIndex + 1) % segments.length;
-        }, 3000); // Change active segment every 3 seconds (changed from 5 seconds)
-      }
-
-      // Show transcript when orientation video is playing
-      function showTranscriptForOrientationVideo() {
-        const transcriptToggleBtn = document.getElementById("transcript-toggle-btn");
-        const transcriptContainer = document.getElementById('transcript-container');
-        
-        // Display CC button
-        if (transcriptToggleBtn) {
-          transcriptToggleBtn.style.display = 'flex';
-          transcriptToggleBtn.classList.add('pulse-attention');
-        }
-        
-        // Initialize transcript
-        initTranscript();
-        
-        // Automatically show transcript after 2 seconds to draw attention to it
-        setTimeout(() => {
-          if (transcriptToggleBtn && !isTranscriptVisible) {
-            toggleTranscriptVisibility();
-          }
-        }, 2000);
-        
-        // Monitor for video end
-        const orientationVideo = document.getElementById('orientation-video');
-        if (orientationVideo) {
-          orientationVideo.addEventListener('ended', function() {
-            // Stop pulsing and hide CC button
-            if (transcriptToggleBtn) {
-              transcriptToggleBtn.classList.remove('pulse-attention');
-              transcriptToggleBtn.style.display = 'none';
-            }
-            
-            // Hide transcript if visible
-            if (isTranscriptVisible) {
-              toggleTranscriptVisibility();
-            }
-            
-            // Clear highlight interval
-            if (window.transcriptInterval) {
-              clearInterval(window.transcriptInterval);
-              window.transcriptInterval = null;
-            }
-          });
-        }
-      }
-
-      // Function to play the orientation video - modified to add transcript
-      function playOrientationVideo() {
-        const videoFeed = document.getElementById("video-feed");
-        const deadAir = document.getElementById("deadAir");
-        const signalButton = document.querySelector('[data-action="signal"]');
-        const connectButton = document.getElementById("call-button");
-        const offlineDisplay = document.getElementById("offline-display");
-        const transcriptToggleBtn = document.getElementById("transcript-toggle-btn");
-        
-  
-        
-        // Remove pulse effect from SIGNAL button immediately when clicked
-        if (signalButton) {
-          signalButton.classList.remove("initial-pulse");
-        }
-        
-        // First, clean up any existing orientation videos to prevent multiple playbacks
-        const existingVideos = document.querySelectorAll('#orientation-video');
-        if (existingVideos.length > 0) {
-     
-          existingVideos.forEach(video => {
-            // Remove event listeners first to prevent error events during cleanup
-            video.onloadstart = null;
-            video.onloadedmetadata = null;
-            video.onloadeddata = null;
-            video.oncanplay = null;
-            video.oncanplaythrough = null;
-            video.onerror = null;
-            video.onended = null;
-            video.onplaying = null;
-            
-            // Stop playback
-            try {
-              video.pause();
-              video.removeAttribute('src');
-              video.load(); // Force browser to release resources
-              video.remove();
-            } catch (e) {
-              console.log("Error during video cleanup:", e);
-            }
-          });
-          
-          // Show offline display and deadAir video again
-          if (offlineDisplay) {
-            offlineDisplay.style.display = 'flex';
-            offlineDisplay.innerHTML = '<span>SYS//OFFLINE</span><div class="crosshair-h"></div><div class="crosshair-v"></div><div class="scanlines-overlay"></div>';
-          }
-          
-          if (deadAir) {
-            deadAir.style.display = '';
-          }
-          
-          return; // Exit function after stopping playback
-        }
-        
-        // Check if this is the first time viewing - we'll still play the video, but
-        // only set the CONNECT button to pulse on first viewing
-        const isFirstViewing = localStorage.getItem('orientationViewed') !== 'true';
-        console.log("First time viewing?", isFirstViewing);
-        
-        // Create loading indicator
-        const loadingIndicator = document.createElement('div');
-        loadingIndicator.className = 'video-loading-indicator';
-        loadingIndicator.innerHTML = `
-          <div class="loading-spinner"></div>
-          <div>LOADING TRANSMISSION</div>
-        `;
-        videoFeed.appendChild(loadingIndicator);
-        
-        // Hide deadAir and offline display during loading
-        if (deadAir) {
-          deadAir.style.display = 'none';
-        }
-        
-        if (offlineDisplay) {
-          offlineDisplay.style.display = 'none';
-        }
-        
-        // Make sure video display is expanded
-        const videoDisplay = document.querySelector(".video-display");
-        if (videoDisplay) {
-          videoDisplay.classList.add("active", "touched");
-          videoDisplay.style.height = '180px';
-        }
-        
-        // Create orientation video element
-        const orientationVideo = document.createElement('video');
-        
-        // Add event listeners to track video loading progress
-        orientationVideo.addEventListener('loadstart', () => console.log('🔄 Video loadstart event fired'));
-        orientationVideo.addEventListener('loadedmetadata', () => console.log('🔄 Video loadedmetadata event fired'));
-        orientationVideo.addEventListener('loadeddata', () => console.log('🔄 Video loadeddata event fired'));
-        
-        // When video can play, prepare for delayed start
-        orientationVideo.addEventListener('canplay', () => {
-          console.log('✅ Video canplay event fired - preparing for delayed start');
-          
-          // Disable music and 80s mode toggles during video playback
-          disableToggles();
-          
-          // Add a 1.5 second delay before showing and playing the video
-          // This helps ensure audio is ready and synced
-          setTimeout(() => {
-            // Remove loading indicator
-            if (loadingIndicator.parentNode) {
-              loadingIndicator.remove();
-            }
-            
-            // Show the video with fade-in effect
-            orientationVideo.style.opacity = '1';
-            
-            // Initialize transcript for the orientation video
-            // This makes the elements available but doesn't show the container yet
-            initTranscript(); 
-            
-            // Show and animate the CC button
-            if (transcriptToggleBtn) {
-              transcriptToggleBtn.style.display = 'flex';
-              transcriptToggleBtn.classList.add('pulse-attention');
-            }
-            
-            // Start playing
-            orientationVideo.muted = false; // Unmute right before playing
-            orientationVideo.play()
-              .then(() => {
-                console.log("✅ Orientation video playing after delay");
-              })
-              .catch(err => {
-                console.error("❌ Error playing orientation video after delay:", err);
-                // Handle play error
-                handleVideoPlayError(orientationVideo, offlineDisplay);
-              });
-          }, 500); // Reduced delay to 0.5 seconds
-        });
-        
-        orientationVideo.addEventListener('error', (e) => {
-          console.error('❌ Video error event:', e);
-          // Remove loading indicator and show error message
-          if (loadingIndicator.parentNode) {
-            loadingIndicator.innerHTML = `
-              <div>ERROR LOADING VIDEO</div>
-              <div style="font-size: 0.8em; margin-top: 5px;">Tap to retry</div>
-            `;
-            loadingIndicator.style.cursor = 'pointer';
-            loadingIndicator.addEventListener('click', () => playOrientationVideo());
-          }
-        });
-        
-        // When video ends, properly clean up
-        orientationVideo.addEventListener('ended', () => {
-          console.log("Orientation video finished - cleaning up");
-          
-          // Re-enable the toggles when video ends (but only if SitePal isn't active)
-          if (!isCallActive) {
             enableToggles();
           }
           
@@ -5207,42 +4123,14 @@
           }
           
           // Clear transcript interval
-          if (window.transcriptInterval) {
-            clearInterval(window.transcriptInterval);
-            window.transcriptInterval = null;
+          if (transcriptState.interval) {
+            clearInterval(transcriptState.interval);
+            transcriptState.interval = null;
           }
           
           // Start a fade-out transition
           orientationVideo.style.opacity = '0';
-          
-          // After fade transition completes, remove the video and clean up
-          setTimeout(() => {
-            // Clean up video resources
-            orientationVideo.pause();
-            orientationVideo.removeAttribute('src');
-            orientationVideo.load(); // Force browser to release resources
-            orientationVideo.remove();
-            
-            // Show offline display again
-            if (offlineDisplay) {
-              offlineDisplay.style.display = 'flex';
-              offlineDisplay.innerHTML = '<span>SYS//OFFLINE</span><div class="crosshair-h"></div><div class="crosshair-v"></div><div class="scanlines-overlay"></div>';
-            }
-            
-            // Show deadAir again
-            if (deadAir) {
-              deadAir.style.display = '';
-              deadAir.play().catch(e => console.log("Couldn't restart deadAir:", e));
-            }
-            
-            // Only add pulse to CONNECT button on first viewing
-            if (isFirstViewing && connectButton) {
-              connectButton.classList.add("initial-pulse");
-              
-              // Mark orientation as viewed (only on first viewing)
-              localStorage.setItem('orientationViewed', 'true');
-            }
-          }, 500); // 500ms for opacity transition
+          // ... existing code ...
         });
         
         // Set attributes for the video
@@ -5309,69 +4197,35 @@
 
       // Helper function to handle video play errors
       function handleVideoPlayError(videoElement, offlineDisplay) {
-        // Try with muted playback if unmuted failed
-        console.warn("Unmuted playback failed, attempting muted fallback...");
-        videoElement.muted = true;
-        videoElement.play().catch(e => {
-          console.error("❌ Fallback muted play failed:", e);
-          
-          // If all else fails, show a tap-to-play message
-          if (offlineDisplay) {
-            offlineDisplay.style.display = 'flex';
-            offlineDisplay.innerHTML = '<span>TAP TO PLAY ORIENTATION</span>';
-            offlineDisplay.style.cursor = 'pointer';
-            offlineDisplay.style.zIndex = '60';
-            offlineDisplay.addEventListener('click', function playOnClick() {
-              videoElement.play().catch(err => console.error("❌ Play on click failed:", err));
-              offlineDisplay.style.display = 'none';
-              offlineDisplay.removeEventListener('click', playOnClick);
-            });
-          }
-        });
-      }
-
-      // Function to show and animate the transcript for orientation video
-      function showTranscriptForOrientationVideo() {
-        const transcriptToggleBtn = document.getElementById("transcript-toggle-btn");
-        const transcriptContainer = document.getElementById('transcript-container');
+        console.error("Video play error - handling fallback");
         
-        // Display CC button
-        if (transcriptToggleBtn) {
-          transcriptToggleBtn.style.display = 'flex';
-          transcriptToggleBtn.classList.add('pulse-attention');
+        // Hide video and show error message
+        if (videoElement) {
+          videoElement.style.display = 'none';
+          
+          // Clean up resources
+          try {
+            videoElement.pause();
+            videoElement.removeAttribute('src');
+            videoElement.load();
+          } catch (e) {
+            console.log("Error cleaning up video on error:", e);
+          }
         }
         
-        // Initialize transcript
-        initTranscript();
+        // Show offline display with error message
+        if (offlineDisplay) {
+          offlineDisplay.style.display = 'flex';
+          offlineDisplay.innerHTML = '<span>TRANSMISSION ERROR</span><div class="crosshair-h"></div><div class="crosshair-v"></div><div class="scanlines-overlay"></div>';
+        }
         
-        // Automatically show transcript after 2 seconds to draw attention to it
-        setTimeout(() => {
-          if (transcriptToggleBtn && !isTranscriptVisible) {
-            toggleTranscriptVisibility();
-          }
-        }, 2000);
+        // Enable toggles that might have been disabled
+        enableToggles();
         
-        // Monitor for video end
-        const orientationVideo = document.getElementById('orientation-video');
-        if (orientationVideo) {
-          orientationVideo.addEventListener('ended', function() {
-            // Stop pulsing and hide CC button
-            if (transcriptToggleBtn) {
-              transcriptToggleBtn.classList.remove('pulse-attention');
-              transcriptToggleBtn.style.display = 'none';
-            }
-            
-            // Hide transcript if visible
-            if (isTranscriptVisible) {
-              toggleTranscriptVisibility();
-            }
-            
-            // Clear highlight interval
-            if (window.transcriptInterval) {
-              clearInterval(window.transcriptInterval);
-              window.transcriptInterval = null;
-            }
-          });
+        // Remove any loading indicators
+        const loadingIndicator = document.querySelector('.video-loading-indicator');
+        if (loadingIndicator && loadingIndicator.parentNode) {
+          loadingIndicator.remove();
         }
       }
 
@@ -5414,224 +4268,8 @@
         return greetingPlayed;
       }
 
-      // Function to load and prime the SitePal character
-      function loadAndPrimeCharacter() {
-        console.log("Loading and priming SitePal character...");
-        
-        // Initialize SitePal directly
-        initSitePal();
-        
-        // Request microphone permission
-        requestMicrophonePermission();
-        
-        // Update UI to reflect call state
-        const callStatus = document.getElementById("call-status");
-        if (callStatus) {
-          callStatus.classList.add("active");
-        }
-        
-        // Show self view and request avatar from parent
-        const selfView = document.getElementById("self-view");
-        if (selfView) {
-          selfView.style.display = "block";
-          updateSelfView(); // Call function to set up avatar
-        }
-        
-        // Show live indicator
-        const liveIndicator = document.getElementById("live-indicator");
-        if (liveIndicator) liveIndicator.style.display = "block";
-        
-        // Disable station select during call
-        const stationSelect = document.getElementById("station-select");
-        if (stationSelect) stationSelect.disabled = true;
-        
-        // Set global call active state
-        isCallActive = true;
-      }
-
-      // Function to update self view with avatar or placeholder
-      function updateSelfView() {
-        // Use the existing selfView reference from DOM
-        const selfViewElement = document.getElementById("self-view");
-        if (!selfViewElement) {
-          console.error("Self view element not found");
-          return;
-        }
-
-        // Set a temporary placeholder
-        selfViewElement.innerHTML = '<div class="avatar-placeholder" style="width: 100%; height: 100%; background-color: #333; display: flex; justify-content: center; align-items: center; color: #888; font-size: 2rem;">?</div>';
-
-        // Request avatar from parent
-        console.log("[Iframe] Requesting avatar from parent window...");
-        window.parent.postMessage({ type: "REQUEST_AVATAR" }, "*");
-      }
-
-      // Listen for avatar response from parent
-      window.addEventListener('message', function(event) {
-        if (event.data && event.data.type === "AVATAR_RESPONSE") {
-          const avatarUrl = event.data.avatarUrl;
-          console.log("[Iframe] Received avatar URL from parent:", avatarUrl);
-          
-          const selfViewElement = document.getElementById("self-view");
-          if (!selfViewElement) return;
-
-          if (avatarUrl) {
-            const img = document.createElement("img");
-            img.src = avatarUrl;
-            img.alt = "User Avatar";
-            img.style.width = "100%";
-            img.style.height = "100%";
-            img.style.objectFit = "cover";
-            img.onerror = () => {
-              console.error("[Iframe] Failed to load avatar image:", avatarUrl);
-              selfViewElement.innerHTML = '<div class="avatar-placeholder" style="width: 100%; height: 100%; background-color: #333; display: flex; justify-content: center; align-items: center; color: #888; font-size: 2rem;">!</div>';
-            };
-            selfViewElement.innerHTML = '';
-            selfViewElement.appendChild(img);
-          } else {
-            console.log("[Iframe] No valid avatar URL received from parent.");
-            selfViewElement.innerHTML = '<div class="avatar-placeholder" style="width: 100%; height: 100%; background-color: #333; display: flex; justify-content: center; align-items: center; color: #888; font-size: 2rem;">🥸</div>';
-          }
-        }
-      });
-
-      // Function to request microphone permissions
-      function requestMicrophonePermission() {
-        console.log("Requesting microphone permission...");
-        
-        try {
-          if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-            navigator.mediaDevices.getUserMedia({ audio: true })
-              .then((stream) => {
-                console.log("✅ Microphone permission granted");
-                // Stop all tracks to release the microphone
-                stream.getTracks().forEach((track) => track.stop());
-                resumeAudioContext(); // Resume audio context after permission is granted
-                primeAudio(); // Prime audio with saySilent
-              })
-              .catch((err) => {
-                console.warn("⚠️ Microphone permission denied or error:", err);
-              });
-          } else {
-            console.warn("⚠️ getUserMedia not supported in this browser");
-          }
-        } catch (e) {
-          console.error("❌ Error requesting microphone permission:", e);
-        }
-      }
-
-      // Function to resume the audio context
-      function resumeAudioContext() {
-        try {
-          if (typeof AudioContext !== "undefined") {
-            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            audioContext.resume().then(() => {
-              console.log("✅ Audio context resumed");
-            }).catch(err => {
-              console.warn("⚠️ Failed to resume audio context:", err);
-            });
-          }
-        } catch (e) {
-          console.error("❌ Error resuming audio context:", e);
-        }
-      }
-
-      // Function to prime audio
-      function primeAudio() {
-        setTimeout(() => {
-          console.log("🔇 Priming audio with saySilent(0)...");
-          if (typeof saySilent === "function") {
-            saySilent(0);
-            console.log("✅ Initial audio priming complete");
-          } else {
-            console.warn("⚠️ saySilent not available for initial priming");
-          }
-        }, 300);
-      }
-
-      // Function to display messages on the webpage
-      function displayMessage(message) {
-        const messageDiv = document.createElement("div");
-        messageDiv.innerText = message;
-        messageDiv.style.position = "fixed";
-        messageDiv.style.bottom = "10px";
-        messageDiv.style.left = "10px";
-        messageDiv.style.backgroundColor = "white";
-        messageDiv.style.padding = "10px";
-        messageDiv.style.border = "1px solid black";
-        document.body.appendChild(messageDiv);
-      }
-
-      // UN-MUTE button functionality
-      const unMuteButton = document.getElementById("unmute-button"); // Assuming you have an UN-MUTE button
-      if (unMuteButton) {
-        unMuteButton.addEventListener("click", () => {
-          sayText("Hello! How can I assist you today?"); // Call sayText to greet
-          startCharacterInteraction(); // Start character interaction
-        });
-      }
-
-      // Function to start character interaction
-      function startCharacterInteraction() {
-        if (typeof startListening === "function") {
-          startListening(); // Assuming this is the function to start interaction
-          displayMessage("🎤 Character is now listening...");
-        } else {
-          displayMessage("⚠️ startListening function not available.");
-        }
-      }
-
-      // Function to activate the microphone
-      function activateMicrophone() {
-        console.log("Activating microphone...");
-        
-        // First, make sure audio context is active
-        try {
-          const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-          audioContext.resume().then(() => {
-            console.log("Audio context resumed for microphone activation");
-          }).catch(err => {
-            console.warn("Error resuming audio context:", err);
-          });
-        } catch (e) {
-          console.warn("Error creating audio context:", e);
-        }
-        
-        // Try different methods to start listening
-        try {
-          // Attempt with window.startListening
-          if (typeof window.startListening === "function") {
-            window.startListening();
-            console.log("✓ Activated microphone with window.startListening");
-            return true;
-          }
-          // Attempt with local startListening
-          else if (typeof startListening === "function") {
-            startListening();
-            console.log("✓ Activated microphone with local startListening");
-            return true;
-          }
-          // Try via AI_vhost_api
-          else if (typeof window.AI_vhost_api === "function") {
-            window.AI_vhost_api("startListening");
-            console.log("✓ Activated microphone with window.AI_vhost_api");
-            return true;
-          }
-          else if (typeof AI_vhost_api === "function") {
-            AI_vhost_api("startListening");
-            console.log("✓ Activated microphone with local AI_vhost_api");
-            return true;
-          }
-          else {
-            console.warn("No method available to activate microphone");
-            return false;
-          }
-        } catch (e) {
-          console.error("Error activating microphone:", e);
-          return false;
-        }
-      }
-    </script>
+      
+    // </script>
     
     <!-- Initialize leaderboard arrow on desktop -->
     <script>

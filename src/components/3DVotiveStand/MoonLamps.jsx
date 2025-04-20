@@ -1263,4 +1263,7 @@ const MoonScene = forwardRef(({
   // Add this to your existing useEffect that handles model loading
 });
 
+// Add display name for ESLint
+MoonScene.displayName = 'MoonScene';
+
 export default MoonScene;
