@@ -1,19 +1,6 @@
-import React, {
-  useEffect,
-  useState,
-  useRef,
-  Suspense,
-  useCallback,
-} from "react";
+import React, { useEffect, useState, useRef, Suspense, useCallback } from "react";
 import { useThree, useFrame } from "@react-three/fiber";
-import {
-  useGLTF,
-  useProgress,
-  Text,
-  Environment,
-  useTexture,
-  Plane,
-} from "@react-three/drei";
+import { useGLTF, useProgress, Text, Environment, useTexture, Plane } from "@react-three/drei";
 import * as THREE from "three";
 import { useFirestoreResults } from "../../utilities/useFirestoreResults";
 import DarkClouds from "./Clouds";
@@ -24,13 +11,7 @@ import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader";
 import { InstancedMesh, DynamicDrawUsage } from "three";
-import {
-  collection,
-  addDoc,
-  updateDoc,
-  doc,
-  getDocs,
-} from "firebase/firestore";
+import { collection, addDoc, updateDoc, doc, getDocs } from "firebase/firestore";
 import { db } from "../../utilities/firebaseClient";
 import { gsap } from "gsap";
 
@@ -63,6 +44,8 @@ function Model({
   showLightHelper: parentShowLightHelper,
   is80sMode,
   showSpotify,
+  setShowSpotify,
+  isLaunching,
 
   monsterMode,
   cameraControlsRef,
@@ -158,7 +141,7 @@ function Model({
     // Use the existing texture loader
     textureLoader.current.load(
       url,
-      (texture) => {
+      texture => {
         // Apply optimizations that don't affect appearance
         texture.generateMipmaps = true; // Keep mipmaps for quality
         texture.anisotropy = 4; // Good quality without excess memory
@@ -170,7 +153,7 @@ function Model({
         onLoad(texture);
       },
       undefined,
-      (error) => console.warn("Texture loading error:", error)
+      error => console.warn("Texture loading error:", error)
     );
   };
 
@@ -180,7 +163,7 @@ function Model({
       // Dispose textures properly to prevent memory leaks
       const currentCache = textureCache.current;
       if (currentCache && currentCache.size > 0) {
-        currentCache.forEach((texture) => {
+        currentCache.forEach(texture => {
           texture.dispose();
         });
         currentCache.clear();
@@ -189,67 +172,88 @@ function Model({
   }, []);
 
   // NEW POINTER HANDLERS for Long Press
-  const handlePointerDown = useCallback((event) => {
-    event.stopPropagation();
-    // Check the intersections provided by the event
-    let floorIntersection = null;
-    for (const intersection of event.intersections) {
-      const obj = intersection.object;
-      if (obj.isMesh && (obj.name === "Floor" || obj.name === "Floor2.002" || obj.name.includes("Floor2") || obj.name.includes("goldCircuit"))) {
-        floorIntersection = intersection;
-        break; // Found the first floor intersection
-      }
-    }
-
-    if (floorIntersection) {
-      // A floor was pressed
-      console.log("[handlePointerDown] Floor pressed");
-      mouseIsDownRef.current = true;
-      mouseDownTime.current = Date.now();
-      // Use the point from the actual floor intersection
-      mouseDownPosition.current = { x: event.clientX, y: event.clientY, point: floorIntersection.point.clone() }; 
-      candlePlacedRef.current = false;
-
-      console.log("[handlePointerDown] Setting timeout for placement...");
-      holdTimeoutRef.current = setTimeout(() => {
-        console.log("[Timeout Callback] Fired");
-        console.log("  - mouseIsDownRef.current:", mouseIsDownRef.current);
-        console.log("  - !candlePlacedRef.current:", !candlePlacedRef.current);
-        console.log("  - placeCandleFunc.current:", !!placeCandleFunc.current);
-        console.log("  - mouseDownPosition.current?.point:", !!mouseDownPosition.current?.point);
-
-        if (mouseIsDownRef.current && !candlePlacedRef.current && placeCandleFunc.current && mouseDownPosition.current?.point) {
-          console.log("[Timeout Callback] Conditions met, calling placeCandleFunc");
-          placeCandleFunc.current(mouseDownPosition.current.point);
-          candlePlacedRef.current = true;
-        } else {
-          console.log("[Timeout Callback] Conditions NOT met, candle not placed.");
+  const handlePointerDown = useCallback(
+    event => {
+      event.stopPropagation();
+      // Check the intersections provided by the event
+      let floorIntersection = null;
+      for (const intersection of event.intersections) {
+        const obj = intersection.object;
+        if (
+          obj.isMesh &&
+          (obj.name === "Floor" ||
+            obj.name === "Floor2.002" ||
+            obj.name.includes("Floor2") ||
+            obj.name.includes("goldCircuit"))
+        ) {
+          floorIntersection = intersection;
+          break; // Found the first floor intersection
         }
-      }, HOLD_THRESHOLD);
-    }
-  }, [HOLD_THRESHOLD]);
-
-  const handlePointerMove = useCallback((event) => {
-    if (!mouseIsDownRef.current || !mouseDownPosition.current) return;
-
-    const clientX = event.clientX;
-    const clientY = event.clientY;
-    const dx = clientX - mouseDownPosition.current.x;
-    const dy = clientY - mouseDownPosition.current.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-
-    if (distance > MOVE_THRESHOLD) {
-      console.log("[handlePointerMove] Movement threshold exceeded, clearing timeout.");
-      mouseIsDownRef.current = false;
-      if (holdTimeoutRef.current) {
-        clearTimeout(holdTimeoutRef.current);
-        holdTimeoutRef.current = null;
       }
-      mouseDownPosition.current = null; // Reset position data
-    }
-  }, [MOVE_THRESHOLD]);
 
-  const handlePointerUp = useCallback((event) => {
+      if (floorIntersection) {
+        // A floor was pressed
+        console.log("[handlePointerDown] Floor pressed");
+        mouseIsDownRef.current = true;
+        mouseDownTime.current = Date.now();
+        // Use the point from the actual floor intersection
+        mouseDownPosition.current = {
+          x: event.clientX,
+          y: event.clientY,
+          point: floorIntersection.point.clone(),
+        };
+        candlePlacedRef.current = false;
+
+        console.log("[handlePointerDown] Setting timeout for placement...");
+        holdTimeoutRef.current = setTimeout(() => {
+          console.log("[Timeout Callback] Fired");
+          console.log("  - mouseIsDownRef.current:", mouseIsDownRef.current);
+          console.log("  - !candlePlacedRef.current:", !candlePlacedRef.current);
+          console.log("  - placeCandleFunc.current:", !!placeCandleFunc.current);
+          console.log("  - mouseDownPosition.current?.point:", !!mouseDownPosition.current?.point);
+
+          if (
+            mouseIsDownRef.current &&
+            !candlePlacedRef.current &&
+            placeCandleFunc.current &&
+            mouseDownPosition.current?.point
+          ) {
+            console.log("[Timeout Callback] Conditions met, calling placeCandleFunc");
+            placeCandleFunc.current(mouseDownPosition.current.point);
+            candlePlacedRef.current = true;
+          } else {
+            console.log("[Timeout Callback] Conditions NOT met, candle not placed.");
+          }
+        }, HOLD_THRESHOLD);
+      }
+    },
+    [HOLD_THRESHOLD]
+  );
+
+  const handlePointerMove = useCallback(
+    event => {
+      if (!mouseIsDownRef.current || !mouseDownPosition.current) return;
+
+      const clientX = event.clientX;
+      const clientY = event.clientY;
+      const dx = clientX - mouseDownPosition.current.x;
+      const dy = clientY - mouseDownPosition.current.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+
+      if (distance > MOVE_THRESHOLD) {
+        console.log("[handlePointerMove] Movement threshold exceeded, clearing timeout.");
+        mouseIsDownRef.current = false;
+        if (holdTimeoutRef.current) {
+          clearTimeout(holdTimeoutRef.current);
+          holdTimeoutRef.current = null;
+        }
+        mouseDownPosition.current = null; // Reset position data
+      }
+    },
+    [MOVE_THRESHOLD]
+  );
+
+  const handlePointerUp = useCallback(event => {
     if (!mouseIsDownRef.current) return; // Only process if mouse was down
     event.stopPropagation();
     console.log("[handlePointerUp] Pointer up");
@@ -263,118 +267,121 @@ function Model({
   }, []);
 
   // Function to actually place the candle
-  const placeCandleAtPoint = useCallback((point) => {
-    console.log("[placeCandleAtPoint] Function called with point:", point); // Log start of placement function
-    // Check if we've reached the candle limit
-    if (candleCount >= maxFloorCandles) {
-      console.log("[placeCandleAtPoint] Candle limit reached."); // Log limit reached
-      return;
-    }
-
-    // Create a deep clone of the original candle model
-    const newCandle = candle.scene.clone();
-    
-    // IMPROVED FLOOR PLACEMENT LOGIC
-    // Always use raycasting for more accurate placement regardless of floor type
-    const raycaster = new THREE.Raycaster();
-    // Start raycast from 5 units above the click point
-    const rayStart = new THREE.Vector3(point.x, point.y + 5, point.z);
-    const rayDir = new THREE.Vector3(0, -1, 0);
-    raycaster.set(rayStart, rayDir);
-
-    // Get all floor objects for testing
-    const floors = [];
-    gltf.scene.traverse((obj) => {
-      if (
-        obj.isMesh &&
-        (obj.name === "Floor" ||
-          obj.name === "Floor2.002" ||
-          obj.name.includes("Floor2") ||
-          obj.name.includes("goldCircuit"))
-      ) {
-        floors.push(obj);
+  const placeCandleAtPoint = useCallback(
+    point => {
+      console.log("[placeCandleAtPoint] Function called with point:", point); // Log start of placement function
+      // Check if we've reached the candle limit
+      if (candleCount >= maxFloorCandles) {
+        console.log("[placeCandleAtPoint] Candle limit reached."); // Log limit reached
+        return;
       }
-    });
 
-    // Find all intersections
-    const hits = raycaster.intersectObjects(floors, false);
+      // Create a deep clone of the original candle model
+      const newCandle = candle.scene.clone();
 
-    // Place candle at exact intersection point with small offset
-    if (hits.length > 0) {
-      // Filter hits by normal to get upward-facing surfaces
-      const up = new THREE.Vector3(0, 1, 0);
-      const validHits = hits.filter((hit) => {
-        // Only include if the face has an upward-facing normal
-        return hit.face && hit.face.normal.dot(up) > 0.5;
+      // IMPROVED FLOOR PLACEMENT LOGIC
+      // Always use raycasting for more accurate placement regardless of floor type
+      const raycaster = new THREE.Raycaster();
+      // Start raycast from 5 units above the click point
+      const rayStart = new THREE.Vector3(point.x, point.y + 5, point.z);
+      const rayDir = new THREE.Vector3(0, -1, 0);
+      raycaster.set(rayStart, rayDir);
+
+      // Get all floor objects for testing
+      const floors = [];
+      gltf.scene.traverse(obj => {
+        if (
+          obj.isMesh &&
+          (obj.name === "Floor" ||
+            obj.name === "Floor2.002" ||
+            obj.name.includes("Floor2") ||
+            obj.name.includes("goldCircuit"))
+        ) {
+          floors.push(obj);
+        }
       });
 
-      if (validHits.length > 0) {
-        // Sort by distance (closest first)
-        validHits.sort((a, b) => a.distance - b.distance);
-        const exactPoint = validHits[0].point.clone();
+      // Find all intersections
+      const hits = raycaster.intersectObjects(floors, false);
 
-        // Add a small but consistent offset to prevent z-fighting
-        exactPoint.y += 0.02;
+      // Place candle at exact intersection point with small offset
+      if (hits.length > 0) {
+        // Filter hits by normal to get upward-facing surfaces
+        const up = new THREE.Vector3(0, 1, 0);
+        const validHits = hits.filter(hit => {
+          // Only include if the face has an upward-facing normal
+          return hit.face && hit.face.normal.dot(up) > 0.5;
+        });
 
-        // Use the exact intersection point
-        newCandle.position.copy(exactPoint);
+        if (validHits.length > 0) {
+          // Sort by distance (closest first)
+          validHits.sort((a, b) => a.distance - b.distance);
+          const exactPoint = validHits[0].point.clone();
 
-        // Store floor normal to help with candle orientation
-        const floorNormal = validHits[0].face.normal.clone();
-        newCandle.userData.floorNormal = floorNormal;
+          // Add a small but consistent offset to prevent z-fighting
+          exactPoint.y += 0.02;
+
+          // Use the exact intersection point
+          newCandle.position.copy(exactPoint);
+
+          // Store floor normal to help with candle orientation
+          const floorNormal = validHits[0].face.normal.clone();
+          newCandle.userData.floorNormal = floorNormal;
+        } else {
+          // Fallback if no valid hit
+          point.y += 0.05;
+          newCandle.position.copy(point);
+        }
       } else {
-        // Fallback if no valid hit
+        // Complete fallback for no hits at all
         point.y += 0.05;
         newCandle.position.copy(point);
       }
-    } else {
-      // Complete fallback for no hits at all
-      point.y += 0.05;
-      newCandle.position.copy(point);
-    }
 
-    // Add random rotation for visual interest
-    newCandle.rotation.y = Math.random() * Math.PI * 2;
+      // Add random rotation for visual interest
+      newCandle.rotation.y = Math.random() * Math.PI * 2;
 
-    // Use a consistent scale for all candles
-    const fixedScale = 0.7;
-    newCandle.scale.set(fixedScale, fixedScale, fixedScale);
+      // Use a consistent scale for all candles
+      const fixedScale = 0.7;
+      newCandle.scale.set(fixedScale, fixedScale, fixedScale);
 
-    // Calculate a consistent melting rate for this candle - TESTING SPEED
-    const meltingRate = 1 / (1 * 60 * 60); 
+      // Calculate a consistent melting rate for this candle - TESTING SPEED
+      const meltingRate = 1 / (1 * 60 * 60);
 
-    // Apply melting properties to each child
-    newCandle.traverse((child) => {
-      // Store the original scale for reference during melting
-      child.userData.originalScale = child.scale.clone();
-      // Add melting flag and progress tracker
-      child.userData.isMelting = true;
-      child.userData.meltingProgress = 0;
-      // Use the same melting rate for all parts of the candle
-      child.userData.meltingRate = meltingRate;
-    });
+      // Apply melting properties to each child
+      newCandle.traverse(child => {
+        // Store the original scale for reference during melting
+        child.userData.originalScale = child.scale.clone();
+        // Add melting flag and progress tracker
+        child.userData.isMelting = true;
+        child.userData.meltingProgress = 0;
+        // Use the same melting rate for all parts of the candle
+        child.userData.meltingRate = meltingRate;
+      });
 
-    // Mark as a candle for cleanup later
-    newCandle.userData = {
-      ...newCandle.userData,
-      isCandle: true,
-      candleId: `placed_candle_${candleCount}`,
-      placedAt: new Date(),
-      // Add melting properties to the parent as well
-      isMelting: true,
-      meltingProgress: 0,
-      originalScale: newCandle.scale.clone(),
-      // Use the same melting rate calculated above
-      meltingRate: meltingRate,
-    };
+      // Mark as a candle for cleanup later
+      newCandle.userData = {
+        ...newCandle.userData,
+        isCandle: true,
+        candleId: `placed_candle_${candleCount}`,
+        placedAt: new Date(),
+        // Add melting properties to the parent as well
+        isMelting: true,
+        meltingProgress: 0,
+        originalScale: newCandle.scale.clone(),
+        // Use the same melting rate calculated above
+        meltingRate: meltingRate,
+      };
 
-    // Add the candle to the scene
-    scene.add(newCandle);
+      // Add the candle to the scene
+      scene.add(newCandle);
 
-    // Increment the candle counter
-    setCandleCount((prev) => prev + 1);
-  }, [candle, candleCount, gltf, scene, maxFloorCandles]);
-  
+      // Increment the candle counter
+      setCandleCount(prev => prev + 1);
+    },
+    [candle, candleCount, gltf, scene, maxFloorCandles]
+  );
+
   // Store the function in the ref after it's created
   useEffect(() => {
     placeCandleFunc.current = placeCandleAtPoint;
@@ -382,7 +389,7 @@ function Model({
 
   // Replace the old handleFloorClick with the mouse down handler
   // const handleFloorClick = handlePointerDown; // No longer needed as we use direct pointer handlers
-  
+
   // Clean up any timers on unmount
   useEffect(() => {
     return () => {
@@ -395,7 +402,7 @@ function Model({
 
   // Update handleCandleClick to work with the new system
   const handleCandleClick = useCallback(
-    (event) => {
+    event => {
       event.stopPropagation();
 
       // Only handle clicks on VCANDLEs now
@@ -412,16 +419,8 @@ function Model({
 
         // Mouse event
         return {
-          x:
-            (event.nativeEvent.offsetX / event.nativeEvent.target.clientWidth) *
-              2 -
-            1,
-          y:
-            -(
-              event.nativeEvent.offsetY / event.nativeEvent.target.clientHeight
-            ) *
-              2 +
-            1,
+          x: (event.nativeEvent.offsetX / event.nativeEvent.target.clientWidth) * 2 - 1,
+          y: -(event.nativeEvent.offsetY / event.nativeEvent.target.clientHeight) * 2 + 1,
         };
       };
 
@@ -434,11 +433,11 @@ function Model({
       // Find all VCANDLE objects and their children
       const intersectableObjects = [];
       if (modelRef.current) {
-        modelRef.current.traverse((object) => {
+        modelRef.current.traverse(object => {
           if (object.name.startsWith("VCANDLE")) {
             intersectableObjects.push(object);
             // Also include children for better click detection
-            object.children.forEach((child) => {
+            object.children.forEach(child => {
               if (
                 child.name.includes("Label1") ||
                 child.name.includes("wax") ||
@@ -470,7 +469,7 @@ function Model({
     },
     [camera, modelRef, onCandleClick]
   );
-  
+
   // Add a function to show the user how many candles are available
   const getRemainingCandleCount = useCallback(() => {
     return maxFloorCandles - candleCount;
@@ -479,7 +478,7 @@ function Model({
   // Add a reset function (optional)
   const resetCandles = useCallback(() => {
     // Remove all placed candles
-    scene.children.forEach((child) => {
+    scene.children.forEach(child => {
       if (child.userData && child.userData.isCandle) {
         scene.remove(child);
       }
@@ -490,7 +489,7 @@ function Model({
   }, [scene, maxFloorCandles]);
 
   // Optional helper function to save candles to Firestore
-  const saveCandleToFirestore = async (candleData) => {
+  const saveCandleToFirestore = async candleData => {
     try {
       const docRef = await addDoc(collection(db, "userCandles"), {
         position: candleData.position,
@@ -512,7 +511,7 @@ function Model({
   useEffect(() => {
     return () => {
       // Clean up any candles when component unmounts
-      scene.children.forEach((child) => {
+      scene.children.forEach(child => {
         if (child.userData && child.userData.isCandle) {
           scene.remove(child);
         }
@@ -525,7 +524,7 @@ function Model({
     if (!gltf.scene) return;
 
     // Find Object_3 and Object_2.001 in the model
-    gltf.scene.traverse((child) => {
+    gltf.scene.traverse(child => {
       if (
         child.name === "Object_3" ||
         child.name === "Object_2.001" ||
@@ -541,12 +540,10 @@ function Model({
     if (!gltf || !gltf.scene) return;
 
     // Find floor objects and add click handlers
-    gltf.scene.traverse((child) => {
+    gltf.scene.traverse(child => {
       if (
         child.isMesh &&
-        (child.name === "Floor" ||
-          child.name === "Floor2.002" ||
-          child.name === "goldCircuit")
+        (child.name === "Floor" || child.name === "Floor2.002" || child.name === "goldCircuit")
       ) {
         // Store original material for hover effects (optional)
         if (!child.userData.originalMaterial) {
@@ -570,7 +567,7 @@ function Model({
 
       // Load candles in batches
       const allCandles = [];
-      candlesSnapshot.forEach((doc) => {
+      candlesSnapshot.forEach(doc => {
         // Create candle data from document
         const data = doc.data();
 
@@ -607,7 +604,6 @@ function Model({
   // Add console logging to track progress
   useEffect(() => {
     if (progress === 100 && setIsModelLoaded) {
-
       // Add a small delay to ensure everything is rendered
       const timer = setTimeout(() => {
         setIsModelLoaded(true);
@@ -620,10 +616,8 @@ function Model({
   // Ensure the model is displayed even if candles aren't fully loaded
   useEffect(() => {
     if (progress === 100 && setIsModelLoaded) {
-
       // Force isModelLoaded to true after a reasonable timeout (e.g., 5 seconds)
       const forceLoadTimer = setTimeout(() => {
-
         setIsModelLoaded(true);
       }, 5000); // Reduced from 10 seconds to 5 seconds
 
@@ -639,13 +633,13 @@ function Model({
     const center = new THREE.Vector3();
     boundingBoxRef.current.getCenter(center);
     modelRef.current.position.sub(center);
-    setModelCenter(center);
+    // setModelCenter(center);
   }, [gltf.scene, modelRef, setModelCenter]);
 
   // Modify the lighting setup to ensure proper values
   useEffect(() => {
     // Clean up any previous lights to prevent duplicates
-    scene.children.forEach((child) => {
+    scene.children.forEach(child => {
       if (child.isHemisphereLight && child !== hemiLightRef.current) {
         scene.remove(child);
       }
@@ -665,9 +659,14 @@ function Model({
 
     // Create the hemisphere light with correct parameters
     const lightIntensityValue =
-      parentLightIntensity !== undefined
-        ? parentLightIntensity
-        : lightIntensity;
+      parentLightIntensity !== undefined ? parentLightIntensity : lightIntensity;
+
+    // 🌈 Log HemisphereLight colors and intensity before creating the light
+    console.log("🌈 HemisphereLight colors:", {
+      skyColorValue,
+      groundColorValue,
+      lightIntensityValue,
+    });
 
     const hemiLight = new THREE.HemisphereLight(
       skyColorValue,
@@ -701,7 +700,7 @@ function Model({
   useEffect(() => {
     if (gltf && gltf.scene) {
       // Apply some basic optimizations to the model
-      gltf.scene.traverse((object) => {
+      gltf.scene.traverse(object => {
         // Skip instanced meshes
         if (object.isInstancedMesh) return;
 
@@ -764,28 +763,24 @@ function Model({
     };
 
     // Find floor objects in the model
-    gltf.scene.traverse((child) => {
+    gltf.scene.traverse(child => {
       // Check for any mesh with "Floor" in its name (case insensitive)
       if (child.isMesh && child.name === "Floor") {
         // Store the original texture if we haven't already
-        if (
-          !child.userData.originalTexture &&
-          child.material &&
-          child.material.map
-        ) {
+        if (!child.userData.originalTexture && child.material && child.material.map) {
           child.userData.originalTexture = child.material.map;
           child.userData.originalMaterial = child.material.clone();
         }
 
         // Toggle between original and 80s texture
         if (is80sMode) {
-          textureLoader.load(textureConfig.path, (texture) => {
+          textureLoader.load(textureConfig.path, texture => {
             // Apply all texture settings
             applyTextureWithSettings(texture, textureConfig);
 
             if (child.material) {
               // Create a new material or update existing one
-              const applyMaterial = (mat) => {
+              const applyMaterial = mat => {
                 mat.map = texture;
 
                 // Add emissive properties if configured
@@ -848,20 +843,18 @@ function Model({
     if (!user?.image) return;
 
     // Find both labels, but keep them in separate arrays
-    const label1Objects = candle.children.filter((child) =>
-      child.name.includes("Label1")
-    );
+    const label1Objects = candle.children.filter(child => child.name.includes("Label1"));
 
     const label2Objects = candle.children.filter(
-      (child) => child.name.includes("Label2") && !child.name.includes("Label1")
+      child => child.name.includes("Label2") && !child.name.includes("Label1")
     );
 
     if (label1Objects.length === 0 && label2Objects.length === 0) return;
 
     // Use our optimized texture loader instead of direct loading
-    loadOptimizedTexture(user.image, (texture) => {
+    loadOptimizedTexture(user.image, texture => {
       // Apply to Label1 objects (flipped on both X and Y axes)
-      label1Objects.forEach((label) => {
+      label1Objects.forEach(label => {
         if (label.material) {
           // Properly dispose of existing materials/textures
           if (label.material.map) {
@@ -898,7 +891,7 @@ function Model({
       });
 
       // Apply to Label2 objects (normal orientation)
-      label2Objects.forEach((label) => {
+      label2Objects.forEach(label => {
         if (label.material) {
           if (label.material.map) {
             label.material.map.dispose();
@@ -922,7 +915,7 @@ function Model({
     if (!results || !gltf.scene) return;
 
     // Create default users for when we don't have enough results
-    const createDefaultUser = (index) => ({
+    const createDefaultUser = index => ({
       userName: `Default User ${index}`,
       id: `default-${index}`,
       burnedAmount: 0,
@@ -936,7 +929,7 @@ function Model({
     );
 
     const sortedByCreatedAt = [...(results || [])].sort((a, b) => {
-      const getDate = (timestamp) => {
+      const getDate = timestamp => {
         if (!timestamp) return new Date(0);
         if (timestamp.toDate) return timestamp.toDate();
         if (timestamp instanceof Date) return timestamp;
@@ -958,9 +951,7 @@ function Model({
 
     // Get next 4 most recent users, excluding those already in topBurners
     let recentUsersArray = sortedByCreatedAt
-      .filter(
-        (user) => !topBurnersArray.some((topUser) => topUser.id === user.id)
-      )
+      .filter(user => !topBurnersArray.some(topUser => topUser.id === user.id))
       .slice(0, 4);
 
     // Fill remaining slots with default users
@@ -1033,7 +1024,7 @@ function Model({
       let totalVertices = 0;
 
       if (scene) {
-        scene.traverse((object) => {
+        scene.traverse(object => {
           if (object.isMesh) {
             meshCount++;
             if (
@@ -1065,7 +1056,7 @@ function Model({
     const newFlickeringMaterials = new Map();
 
     // Look for all objects with "flame" in their name
-    gltf.scene.traverse((object) => {
+    gltf.scene.traverse(object => {
       if (
         object.isMesh &&
         (object.name.includes("flame") ||
@@ -1106,10 +1097,10 @@ function Model({
     });
 
     // Also look for manually placed candles
-    scene.traverse((object) => {
+    scene.traverse(object => {
       if (object.userData && object.userData.isCandle) {
         // Find flame objects in the placed candles
-        object.traverse((child) => {
+        object.traverse(child => {
           if (
             child.isMesh &&
             (child.name.includes("flame") ||
@@ -1169,19 +1160,16 @@ function Model({
 
     // Create a copy of the children to avoid modification during iteration
     const sceneChildren = [...scene.children];
-    
+
     // Handle candle melting using tempBox with a safer approach
-    sceneChildren.forEach((child) => {
+    sceneChildren.forEach(child => {
       // Safety check for child
       if (!child || !child.userData) return;
-      
+
       if (child.userData.isCandle && child.userData.isMelting) {
         child.userData.meltingProgress += delta * child.userData.meltingRate;
         const MIN_SCALE = 0.2;
-        const percentageRemaining = Math.max(
-          1 - child.userData.meltingProgress,
-          MIN_SCALE
-        );
+        const percentageRemaining = Math.max(1 - child.userData.meltingProgress, MIN_SCALE);
 
         if (child.userData.originalScale?.y) {
           if (!child.userData.originalValues) {
@@ -1216,7 +1204,7 @@ function Model({
           // Make sure the child still exists in the scene before removing
           if (scene && scene.children.includes(child)) {
             scene.remove(child);
-            setCandleCount((prev) => Math.max(0, prev - 1));
+            setCandleCount(prev => Math.max(0, prev - 1));
           }
         }
       }
@@ -1242,7 +1230,7 @@ function Model({
 
     // Get all floor objects for testing
     const floors = [];
-    gltf.scene.traverse((obj) => {
+    gltf.scene.traverse(obj => {
       if (
         obj.isMesh &&
         (obj.name === "Floor" ||
@@ -1255,17 +1243,13 @@ function Model({
     });
 
     // Find all user-placed candles
-    scene.children.forEach((child) => {
+    scene.children.forEach(child => {
       if (child.userData && child.userData.isCandle) {
         // Get candle position
         const candlePos = child.position.clone();
 
         // Cast ray from 5 units above the candle down
-        const rayStart = new THREE.Vector3(
-          candlePos.x,
-          candlePos.y + 5,
-          candlePos.z
-        );
+        const rayStart = new THREE.Vector3(candlePos.x, candlePos.y + 5, candlePos.z);
         const rayDir = new THREE.Vector3(0, -1, 0);
         raycaster.set(rayStart, rayDir);
 
@@ -1318,7 +1302,7 @@ function Model({
     if (!gltf || !gltf.scene) return;
 
     // Force depth settings on all model materials with higher priority
-    gltf.scene.traverse((object) => {
+    gltf.scene.traverse(object => {
       if (object.isMesh) {
         // Set render order very high to ensure it renders after stars
         object.renderOrder = 10;
@@ -1328,7 +1312,7 @@ function Model({
           // Ensure goldCircuit renders before other objects
           object.renderOrder = -1; // Changed to negative to ensure it's always first
           if (object.material) {
-            const applyFixes = (material) => {
+            const applyFixes = material => {
               material.depthWrite = false; // Disable depth writing
               material.depthTest = true; // Keep depth testing
               material.transparent = true;
@@ -1345,7 +1329,7 @@ function Model({
         }
 
         if (object.material) {
-          const applyFixes = (material) => {
+          const applyFixes = material => {
             // Force proper depth settings
             material.depthWrite = true;
             material.depthTest = true;
@@ -1368,10 +1352,7 @@ function Model({
             }
 
             // Prevent any shadow-only materials from blocking stars
-            if (
-              material.shadowSide !== undefined &&
-              material.visible === false
-            ) {
+            if (material.shadowSide !== undefined && material.visible === false) {
               material.depthWrite = false;
             }
 
@@ -1419,3 +1400,4 @@ useGLTF.preload("/altar88.glb");
 useGLTF.preload("/XCandle1.glb");
 
 export default Model;
+

@@ -1,13 +1,5 @@
 // index.jsx
-import React, {
-  useState,
-  useRef,
-  useEffect,
-  useCallback,
-  useMemo,
-  Suspense,
-  lazy,
-} from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo, Suspense, lazy } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { AdaptiveDpr, AdaptiveEvents, BakeShadows } from "@react-three/drei";
 import TickerDisplay from "./TickerDisplay";
@@ -47,39 +39,39 @@ const scene = new THREE.Scene();
 // Add HoldIndicator component here
 const HoldIndicator = ({ showIndicator, progress }) => {
   if (!showIndicator) return null;
-  
+
   return (
-    <div 
+    <div
       style={{
-        position: 'absolute',
-        left: '50%',
-        bottom: '20%',
-        transform: 'translateX(-50%)',
-        backgroundColor: 'rgba(0,0,0,0.7)',
-        padding: '10px',
-        borderRadius: '5px',
-        color: 'white',
+        position: "absolute",
+        left: "50%",
+        bottom: "20%",
+        transform: "translateX(-50%)",
+        backgroundColor: "rgba(0,0,0,0.7)",
+        padding: "10px",
+        borderRadius: "5px",
+        color: "white",
         zIndex: 1000,
-        pointerEvents: 'none',
+        pointerEvents: "none",
       }}
     >
       <div>Hold to place candle</div>
-      <div 
+      <div
         style={{
-          width: '100%',
-          height: '5px',
-          backgroundColor: 'rgba(255,255,255,0.3)',
-          marginTop: '5px',
-          borderRadius: '2px',
-          overflow: 'hidden',
+          width: "100%",
+          height: "5px",
+          backgroundColor: "rgba(255,255,255,0.3)",
+          marginTop: "5px",
+          borderRadius: "2px",
+          overflow: "hidden",
         }}
       >
-        <div 
+        <div
           style={{
             width: `${progress * 100}%`,
-            height: '100%',
-            backgroundColor: progress >= 1 ? '#4CAF50' : 'white',
-            transition: 'width 0.1s linear',
+            height: "100%",
+            backgroundColor: progress >= 1 ? "#4CAF50" : "white",
+            transition: "width 0.1s linear",
           }}
         />
       </div>
@@ -88,6 +80,8 @@ const HoldIndicator = ({ showIndicator, progress }) => {
 };
 
 // Lazy load scene components
+
+// Create a wrapper component to access the RocketContext
 
 function ThreeDVotiveStand({
   setIsLoading,
@@ -115,7 +109,7 @@ function ThreeDVotiveStand({
   // Add state for hold indicator
   const [holdState, setHoldState] = useState({
     showIndicator: false,
-    progress: 0
+    progress: 0,
   });
 
   // Add ref for MoonScene
@@ -178,6 +172,20 @@ function ThreeDVotiveStand({
   const [skyColor, setSkyColor] = useState("#7300ff"); // Sky color in hex format for inputs
   const [groundColor, setGroundColor] = useState("#ff0000"); // Ground color in hex format for inputs
 
+  // In thrusterProps state:
+  // const [thrusterProps, setThrusterProps] = useState({
+  //   enabled: true,
+  //   amplitude: 0.1, // Reduce to 0.1 for more subtle hover
+  //   frequency: 1.0, // Reduce to 1.0 for slower movement
+  //   randomness: 0.05, // Reduce to 0.05 for less jitter
+  // });
+
+  // // In launchConfig state:
+  // const [launchConfig, setLaunchConfig] = useState({
+  //   thrusterIntensity: 1.5, // Try 1.5 for less dramatic flame during launch
+  //   rotationFactor: 0.1, // Try 0.1 for less rotation
+  // });
+
   window.pauseThreeJSRendering = function () {
     // Store the current animation state
     if (window.threeJSAnimationId) {
@@ -221,7 +229,7 @@ function ThreeDVotiveStand({
 
   // Apply a preset configuration
   const applyPreset = useCallback(
-    (presetName) => {
+    presetName => {
       const preset = lightingPresets[presetName];
       if (!preset) return;
 
@@ -258,14 +266,14 @@ function ThreeDVotiveStand({
   }, [is80sMode, applyPreset]);
 
   // Handle light position changes from Model component
-  const handleLightPositionChange = (newPosition) => {
+  const handleLightPositionChange = newPosition => {
     setLightPosition(newPosition);
   };
 
   // Update light position
   const updateLightPosition = (axis, value) => {
     const newValue = Number(value);
-    setLightPosition((prev) => ({
+    setLightPosition(prev => ({
       ...prev,
       [axis]: newValue,
     }));
@@ -277,7 +285,7 @@ function ThreeDVotiveStand({
   };
 
   // Update light intensity
-  const updateLightIntensity = (value) => {
+  const updateLightIntensity = value => {
     const intensity = Number(value);
     setLightIntensity(intensity);
 
@@ -288,7 +296,7 @@ function ThreeDVotiveStand({
   };
 
   // Update sky color (top color)
-  const updateSkyColor = (hexColor) => {
+  const updateSkyColor = hexColor => {
     setSkyColor(hexColor);
 
     // Update the model's sky color if modelRef is available
@@ -298,7 +306,7 @@ function ThreeDVotiveStand({
   };
 
   // Update ground color (bottom color)
-  const updateGroundColor = (hexColor) => {
+  const updateGroundColor = hexColor => {
     setGroundColor(hexColor);
 
     // Update the model's ground color if modelRef is available
@@ -316,7 +324,7 @@ function ThreeDVotiveStand({
         console.log("ThreeDVotiveStand: Notifying parent to hide preloader.");
         setIsLoading(true); // Notify parent (e.g., BurnGallery)
 
-        // --- UPDATED: Delay triggering moon spawn --- 
+        // --- UPDATED: Delay triggering moon spawn ---
         // Add a short delay after hiding the preloader before spawning moons
         const spawnDelayTimer = setTimeout(() => {
           if (moonSceneRef.current) {
@@ -331,7 +339,6 @@ function ThreeDVotiveStand({
         // Clean up inner timer if outer timer's cleanup is called before inner fires
         // (Though unlikely with these timings, it's good practice)
         return () => clearTimeout(spawnDelayTimer);
-
       }, 5700); // Keep existing delay for hiding preloader
 
       // Ensure outer timer is cleared if component unmounts before firing
@@ -343,9 +350,7 @@ function ThreeDVotiveStand({
   useEffect(() => {
     const fallbackTimer = setTimeout(() => {
       if (!hasNotifiedParentRef.current) {
-        console.log(
-          "ThreeDVotiveStand: Fallback timer triggered, forcing load complete"
-        );
+        console.log("ThreeDVotiveStand: Fallback timer triggered, forcing load complete");
         setIsLoading(true);
         hasNotifiedParentRef.current = true;
       }
@@ -406,14 +411,14 @@ function ThreeDVotiveStand({
   const ambientLightDimmingRef = useRef(0.1);
 
   // Function to update the ambient light dimming value
-  const updateAmbientLightDimming = (value) => {
+  const updateAmbientLightDimming = value => {
     ambientLightDimmingRef.current = value;
   };
 
   // Add an effect to dim ambient light when monsterMode is active
   useEffect(() => {
     // Find ambient light in the scene
-    scene.traverse((object) => {
+    scene.traverse(object => {
       if (object.isAmbientLight) {
         // Store original intensity if not already stored
         if (!object.userData.originalIntensity && monsterMode) {
@@ -435,7 +440,7 @@ function ThreeDVotiveStand({
 
     return () => {
       // Restore original intensity when component unmounts
-      scene.traverse((object) => {
+      scene.traverse(object => {
         if (object.isAmbientLight && object.userData.originalIntensity) {
           object.intensity = object.userData.originalIntensity;
         }
@@ -448,14 +453,14 @@ function ThreeDVotiveStand({
     return () => {
       // Dispose of Three.js resources when component unmounts
       if (modelRef.current) {
-        modelRef.current.traverse((object) => {
+        modelRef.current.traverse(object => {
           if (object.geometry) {
             object.geometry.dispose();
           }
 
           if (object.material) {
             if (Array.isArray(object.material)) {
-              object.material.forEach((material) => material.dispose());
+              object.material.forEach(material => material.dispose());
             } else {
               object.material.dispose();
             }
@@ -494,16 +499,33 @@ function ThreeDVotiveStand({
   // }, []);
 
   // Handle hold state changes from Model component
-  const handleHoldStateChange = useCallback((state) => {
+  const handleHoldStateChange = useCallback(state => {
     console.log("Hold state changed:", state);
     setHoldState(state);
   }, []);
 
-  const handleCandleClick = useCallback((candleData) => {
+  const handleCandleClick = useCallback(candleData => {
     console.log("Candle clicked:", candleData);
     setSelectedCandleData(candleData);
     setShowFloatingViewer(true);
   }, []);
+
+  // Add a global method to manually test rocket launch from the console
+  // useEffect(() => {
+  //   window.testRocketLaunch = () => {
+  //     console.log("Test rocket launch triggered from console");
+  //     if (window.rocketLaunch) {
+  //       return window.rocketLaunch();
+  //     } else {
+  //       console.warn("window.rocketLaunch not available");
+  //       return false;
+  //     }
+  //   };
+    
+  //   return () => {
+  //     delete window.testRocketLaunch;
+  //   };
+  // }, []);
 
   return (
     <div style={{ width: "100%", height: "100vh" }}>
@@ -628,13 +650,10 @@ function ThreeDVotiveStand({
         />
       )}
 
-      {/* Add the HoldIndicator here, outside of the Canvas */}
-      <HoldIndicator 
-        showIndicator={holdState.showIndicator} 
-        progress={holdState.progress} 
-      />
+     
     </div>
   );
 }
 
 export default ThreeDVotiveStand;
+

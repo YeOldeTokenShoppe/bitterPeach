@@ -12,84 +12,165 @@ const RocketSimulator = () => {
   const [countdown, setCountdown] = useState(10);
   let currentFace = 1; // Track the current face
   const toggledRef = useRef(false);
-  const raysRef = useRef(null);
-  // Add rays animation effect
+  const canvasRef = useRef(null);
+  const warpRef = useRef(null);
+  const [isClient, setIsClient] = useState(false);
+
+  // Set isClient flag on mount
   useEffect(() => {
-    const rays = raysRef.current;
-    if (!rays) return;
-
-    const createRay = (i) => {
-      const ray = document.createElement("div");
-      ray.className = "ray";
-      ray.id = `r${i}`;
-
-      const rayFill = document.createElement("div");
-      rayFill.className = "rayFill";
-      ray.appendChild(rayFill);
-
-      return ray;
-    };
-
-    const startRay = (ray, i) => {
-      const h = Math.max(window.innerWidth, window.innerHeight);
-      gsap.set(ray, {
-        rotation: 360 * Math.random(),
-      });
-
-      gsap.fromTo(
-        ray.children[0],
-        {
-          opacity: 0.15,
-          scaleY: 1,
-          height: 0,
-          y: (h / 5) * Math.random(),
-        },
-        {
-          opacity: 1,
-          y: h / 2 + (h / 2) * Math.random(),
-          delay: i / 150,
-          height: h,
-          duration: 1,
-          ease: "power4.inOut",
-          onComplete: () => endRay(ray),
-        }
-      );
-    };
-
-    const endRay = (ray) => {
-      gsap.fromTo(
-        ray.children[0],
-        {
-          transformOrigin: "0% 100%",
-        },
-        {
-          scaleY: 0,
-          duration: 0.3,
-          ease: "none",
-          onComplete: () => startRay(ray, parseInt(ray.id.slice(1))),
-        }
-      );
-    };
-
-    // Create rays
-    for (let i = 1; i < 300; i++) {
-      const ray = createRay(i);
-      rays.appendChild(ray);
-      startRay(ray, i);
-    }
-
-    // Cleanup
-    return () => {
-      while (rays.firstChild) {
-        rays.removeChild(rays.firstChild);
-      }
-    };
+    setIsClient(true);
   }, []);
 
+  // Implement the original warp speed animation from MD file
   useEffect(() => {
-    console.log("user", user);
-    if (!containerRef.current) return;
+    if (!isClient || !canvasRef.current || !warpRef.current) return;
 
+    // Direct port of the animation code from RocketWarpSpeed.md
+    console.log("Setting up warp speed animation");
+    
+    const canvas = canvasRef.current;
+    const warpButton = warpRef.current;
+    const c = canvas.getContext("2d");
+
+    // Set canvas size
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    // Variables
+    const numStars = 1900;
+    const radius = '0.' + Math.floor(Math.random() * 9) + 1;
+    const focalLength = canvas.width * 2;
+    
+    // Always ensure warp is reset when the component mounts
+    let warp = 0;
+    
+    // Clear any previously stored warp state
+    try {
+      sessionStorage.removeItem('rocketWarpState');
+    } catch (e) {
+      console.error("Error accessing sessionStorage:", e);
+    }
+    
+    let centerX, centerY;
+    let stars = [];
+    let star;
+    let i;
+    let animate = true;
+
+    initializeStars();
+
+    function executeFrame() {
+      if (animate) {
+        requestAnimationFrame(executeFrame);
+      }
+      moveStars();
+      drawStars();
+    }
+
+    function initializeStars() {
+      centerX = canvas.width / 2;
+      centerY = canvas.height / 2;
+      
+      stars = [];
+      for (i = 0; i < numStars; i++) {
+        star = {
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          z: Math.random() * canvas.width,
+          o: '0.' + Math.floor(Math.random() * 99) + 1
+        };
+        stars.push(star);
+      }
+    }
+
+    function moveStars() {
+      for (i = 0; i < numStars; i++) {
+        star = stars[i];
+        star.z--;
+        
+        if (star.z <= 0) {
+          star.z = canvas.width;
+        }
+      }
+    }
+
+    function drawStars() {
+      let pixelX, pixelY, pixelRadius;
+      
+      // Resize to the screen
+      if (canvas.width != window.innerWidth || canvas.width != window.innerWidth) {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        initializeStars();
+      }
+      
+      if (warp == 0) {
+        c.fillStyle = "rgba(0,10,20,1)";
+        c.fillRect(0, 0, canvas.width, canvas.height);
+      }
+      
+      c.fillStyle = "rgba(209, 255, 255, " + radius + ")";
+      for (i = 0; i < numStars; i++) {
+        star = stars[i];
+        
+        pixelX = (star.x - centerX) * (focalLength / star.z);
+        pixelX += centerX;
+        pixelY = (star.y - centerY) * (focalLength / star.z);
+        pixelY += centerY;
+        pixelRadius = 1 * (focalLength / star.z);
+        
+        c.fillRect(pixelX, pixelY, pixelRadius, pixelRadius);
+        c.fillStyle = "rgba(209, 255, 255, " + star.o + ")";
+      }
+    }
+
+    warpButton.addEventListener("click", function(e) {
+      e.preventDefault();
+      warp = warp == 1 ? 0 : 1;
+      c.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Store warp state in sessionStorage
+      try {
+        sessionStorage.setItem('rocketWarpState', warp.toString());
+      } catch (e) {
+        console.error("Error storing warp state:", e);
+      }
+      
+      // Dispatch custom event for parent component
+      try {
+        const warpEvent = new CustomEvent('warpToggled', { 
+          detail: { warpActive: warp === 1 } 
+        });
+        window.dispatchEvent(warpEvent);
+        console.log("Warp event dispatched, warp =", warp);
+      } catch (error) {
+        console.error("Error dispatching warp event:", error);
+      }
+    });
+
+    executeFrame();
+
+    const handleResize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      initializeStars();
+    };
+
+    window.addEventListener('resize', handleResize);
+    
+    return () => {
+      warpButton.removeEventListener("click", null);
+      window.removeEventListener('resize', handleResize);
+      animate = false;
+    };
+  }, [isClient]);
+
+  // Original Three.js effect - Keep this as is
+  useEffect(() => {
+    if (!containerRef.current || !isClient) return;
+    
+    console.log("user", user);
+    
     const container = containerRef.current;
 
     // Define Outline Shader
@@ -215,7 +296,7 @@ const RocketSimulator = () => {
 
     const faceTexture1 = textureLoader.load(
       userAvatarUrl,
-      (loadedTexture) => {
+      loadedTexture => {
         console.log("Avatar texture loaded successfully:", userAvatarUrl);
         if (faceMesh1 && faceMesh1.material) {
           faceMesh1.material.map = loadedTexture;
@@ -224,7 +305,7 @@ const RocketSimulator = () => {
         }
       },
       undefined,
-      (err) => {
+      err => {
         console.error("Error loading avatar texture:", err);
         // Optional: Load a fallback texture if needed
         // Consider loading the fallback texture *here* and updating the map similarly
@@ -414,7 +495,7 @@ const RocketSimulator = () => {
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
 
-    const mousemove = (e) => {
+    const mousemove = e => {
       mouse.x = (e.clientX / container.clientWidth) * 2 - 1;
       mouse.y = -(e.clientY / container.clientHeight) * 2 + 1;
       cameraTarget.x = -mouse.x * 1;
@@ -423,7 +504,7 @@ const RocketSimulator = () => {
       raycaster.ray.intersectPlane(plane, rocketTarget);
     };
 
-    const mousedown = (e) => {
+    const mousedown = e => {
       e.preventDefault();
 
       if (toggledRef.current) return; // Prevent further clicks until animation completes
@@ -459,7 +540,7 @@ const RocketSimulator = () => {
       renderer.domElement.style.cursor = "none";
     };
 
-    const mouseup = (e) => {
+    const mouseup = e => {
       gsap.to(rocketGroup.scale, {
         x: 1,
         y: 1,
@@ -519,54 +600,69 @@ const RocketSimulator = () => {
       renderer.domElement.removeEventListener("mouseup", mouseup);
       container.removeChild(renderer.domElement);
     };
-  }, [user, userAvatarUrl]);
+  }, [user, userAvatarUrl, isClient]);
+
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (!containerRef.current || !isClient) return;
 
     const container = containerRef.current;
 
-    // Three.js setup code...
-
     // Optional countdown effect
     const countdownInterval = setInterval(() => {
-      setCountdown((prev) => (prev > 0 ? prev - 1 : 0));
+      setCountdown(prev => (prev > 0 ? prev - 1 : 0));
     }, 1000);
 
     return () => {
       clearInterval(countdownInterval);
-      // Clean up Three.js resources...
     };
-  }, []);
+  }, [isClient]);
 
   return (
     <>
       <div id="rayContainer" className="fixed inset-0 bg-black">
-        <div
-          id="rays"
-          ref={raysRef}
-          className="absolute"
-          style={{ position: "absolute", left: "50%", top: "50%" }}
-        >
-          <div id="r0" className="ray">
-            <div className="rayFill"></div>
-          </div>
+        <div id="w">
+          <canvas 
+            id="space" 
+            ref={canvasRef} 
+            style={{
+              width: "100%",
+              height: "100%",
+              position: "absolute",
+              left: 0,
+              top: 0,
+              zIndex: 1
+            }}
+          ></canvas>
+        
+          <a 
+            href="#" 
+            id="warp"
+            ref={warpRef}
+            style={{
+              position: "absolute",
+              zIndex: 10,
+              bottom: 0,
+              left: 0,
+              right: 0,
+              margin: "20px auto",
+              color: "rgba(209, 255, 255, 1)",
+              border: "2px solid",
+              padding: "1em",
+              width: "10em",
+              textAlign: "center",
+              fontWeight: 700,
+              fontSize: "1.2em",
+              display: "block",
+              cursor: "pointer",
+              textDecoration: "none",
+              background: "rgba(0, 0, 0, 0.8)",
+              transition: "all 0.2s",
+              borderRadius: "4px"
+            }}
+          >
+            WARP SPEED
+          </a>
         </div>
-
-        <div
-          id="rayCenter"
-          className="absolute"
-          style={{
-            position: "absolute",
-            left: "50%",
-            top: "50%",
-            marginTop: "-75px",
-            marginLeft: "-75px",
-            width: "150px",
-            height: "150px",
-            background:
-              "radial-gradient(ellipse, #000 20%, rgba(0, 0, 0, 0) 50%)",
-          }}
-        ></div>
 
         {/* Three.js container */}
         <div
@@ -599,39 +695,22 @@ const RocketSimulator = () => {
         </div>
       </div>
 
-      <style jsx>{`
-        #rayContainer {
-          width: 100%;
+      <style jsx global>{`
+        html, body {
           height: 100%;
-          top: 0px;
-          left: 0px;
-          background-color: #000;
+          max-width: 100%;
+          margin: 0;
           overflow: hidden;
+          font-family: sans-serif;
         }
-
-        #rays,
-        #rayCenter {
-          left: 50%;
-          top: 50%;
+        
+        #space {
+          width: 100%;
         }
-
-        .ray {
-          position: absolute;
-        }
-
-        .rayFill {
-          position: absolute;
-          width: 1px;
-          height: 0px;
-          background: #fff;
-        }
-
-        #rayCenter {
-          margin-top: -75px;
-          margin-left: -75px;
-          width: 150px;
-          height: 150px;
-          background: radial-gradient(ellipse, #000 20%, rgba(0, 0, 0, 0) 50%);
+        
+        #warp:hover {
+          box-shadow: 0 0 10px #eef, 0 0 12px #a0cdff inset;
+          text-shadow: 0 0 12px #489cfa, 0 0 5px #fff;
         }
       `}</style>
     </>
@@ -639,3 +718,4 @@ const RocketSimulator = () => {
 };
 
 export default RocketSimulator;
+
