@@ -269,3 +269,72 @@ exports.clerkWebhook = functions.https.onRequest(async (req, res) => {
     message: "Webhook received successfully",
   });
 });
+
+// CoinMarketCap Fear & Greed Index Function
+exports.getFearAndGreed = functions.https.onRequest(async (req, res) => {
+  // Enable CORS
+  res.set("Access-Control-Allow-Origin", "*");
+
+  if (req.method === "OPTIONS") {
+    // Send response to OPTIONS requests
+    res.set("Access-Control-Allow-Methods", "GET");
+    res.set("Access-Control-Allow-Headers", "Content-Type");
+    res.status(204).send("");
+    return;
+  }
+
+  try {
+    const axios = require('axios');
+    // Get the API key from environment variables
+    const apiKey = functions.config().coinmarketcap?.api_key;
+    
+    if (!apiKey) {
+      console.error("CoinMarketCap API key not configured");
+      return res.status(500).json({ 
+        error: "API key missing", 
+        message: "CoinMarketCap API key not configured in Firebase Functions" 
+      });
+    }
+
+    // Using axios similar to the CoinMarketCap example
+    const response = await axios.get('https://pro-api.coinmarketcap.com/v3/fear-and-greed/latest', {
+      headers: {
+        'X-CMC_PRO_API_KEY': apiKey,
+      },
+    });
+    
+    // Process the response data
+    const data = response.data;
+    
+    // Return only the first data object, or the fields you need
+    if (data.data && data.data[0]) {
+      const { value, value_classification: classification } = data.data[0];
+      return res.status(200).json({ value, classification });
+    } else {
+      console.error("Unexpected CMC response format", data);
+      return res.status(500).json({ 
+        error: "Unexpected CMC response", 
+        details: data 
+      });
+    }
+  } catch (err) {
+    console.error("Error fetching Fear & Greed index:", err);
+    
+    // Handle axios error response if available
+    if (err.response) {
+      // The request was made and the server responded with a status code
+      // that falls out of the range of 2xx
+      console.error("CMC API error response:", {
+        status: err.response.status,
+        data: err.response.data
+      });
+      return res.status(err.response.status).json({ 
+        error: "CoinMarketCap error", 
+        details: err.response.data,
+        status: err.response.status 
+      });
+    }
+    
+    return res.status(500).json({ error: err.message });
+  }
+});

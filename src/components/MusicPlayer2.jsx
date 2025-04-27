@@ -191,10 +191,7 @@ const MusicPlayer = React.forwardRef(
         audioRef.current
           .play()
           .then(() => {
-            console.log(
-              "Auto-play successful at volume:",
-              audioRef.current.volume
-            );
+    
             setIsPlaying(true);
           })
           .catch((error) => {
@@ -285,11 +282,11 @@ const MusicPlayer = React.forwardRef(
           return;
         }
         const path = firebasePaths[currentTrackIndex];
-        console.log("Attempting to fetch URL for path:", path);
+   
         try {
           const storageReference = storageRefUtil(storage, path);
           const downloadUrl = await getDownloadURL(storageReference);
-          console.log("Fetched URL from Firebase:", downloadUrl);
+
           setTrackUrl(downloadUrl); // Set the fetched URL
           setIsLoaded(false); // Reset loaded state for new track
         } catch (error) {
@@ -365,10 +362,7 @@ const MusicPlayer = React.forwardRef(
           audioRef.current
             .play()
             .then(() => {
-              console.log(
-                "Successfully started playback, volume:",
-                audioRef.current.volume
-              );
+      
             })
             .catch((error) => console.error("Error playing:", error));
         } else {
@@ -380,7 +374,7 @@ const MusicPlayer = React.forwardRef(
     // Handle volume changes
     useEffect(() => {
       if (audioRef.current) {
-        console.log("Setting volume to:", volume);
+
         audioRef.current.volume = volume;
       }
     }, [volume]);
@@ -520,7 +514,7 @@ const MusicPlayer = React.forwardRef(
                 style={{ 
                   color: accentColor,
                   fontWeight: 'bold',
-                  fontSize: '0.95rem',
+                  fontSize: '0.65rem',
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
