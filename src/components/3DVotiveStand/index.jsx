@@ -5,11 +5,11 @@ import { AdaptiveDpr, AdaptiveEvents, BakeShadows } from "@react-three/drei";
 import TickerDisplay from "./TickerDisplay";
 import { Perf } from "r3f-perf";
 import { useFirestoreResults } from "../../utilities/useFirestoreResults";
-// import PostProcessingEffects from "./PostProcessingEffects";
 import * as THREE from "three";
-import gsap from "gsap";
+
 import Model from "./Model";
 import RocketModel from "./RocketModel";
+
 
 // import { DEFAULT_CAMERA, getCameraSettings } from "./defaultCamera";
 // In your Canvas component
@@ -635,6 +635,8 @@ function ThreeDVotiveStand({
         <Suspense fallback={null}>
           <StarField is80sMode={is80sMode} />
         </Suspense>
+
+
       </Canvas>
 
       {/* FloatingCandleViewer goes here, outside the Canvas */}
