@@ -27,6 +27,8 @@ export default function GalleryPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [is80sMode, setIs80sMode] = useState(false);
   const [monsterMode, setMonsterMode] = useState(false);
+  // Add synthwave mode state
+  const [synthwaveMode, setSynthwaveMode] = useState(false);
   const [mobile, setMobile] = useState(false);
   const [shouldRenderGallery, setShouldRenderGallery] = useState(false);
   const [isMobileView, setIsMobileView] = useState(false);
@@ -177,7 +179,37 @@ export default function GalleryPage() {
     }
   }, [showSpotify]);
 
-  // Listen for messages from the mission control panel iframe
+  // Handle mission control ignition command
+  const handleIgnition = () => {
+    console.log("Ignition triggered - entering synthwave mode");
+    setSynthwaveMode(true);
+    
+    // Notify mission control about the mode change
+    const iframe = getMissionControlIframe();
+    if (iframe && iframe.contentWindow) {
+      iframe.contentWindow.postMessage(
+        { type: "SYNTHWAVE_MODE_CHANGED", active: true },
+        "*"
+      );
+    }
+  };
+  
+  // Handle returning from synthwave mode
+  const handleReturnFromSynthwave = () => {
+    console.log("Returning from synthwave mode");
+    setSynthwaveMode(false);
+    
+    // Notify mission control about the mode change
+    const iframe = getMissionControlIframe();
+    if (iframe && iframe.contentWindow) {
+      iframe.contentWindow.postMessage(
+        { type: "SYNTHWAVE_MODE_CHANGED", active: false },
+        "*"
+      );
+    }
+  };
+
+  // Listen for messages from the mission control panel iframe - extend to handle ignition
   useEffect(() => {
     const handleMessage = (event) => {
       // Check if the message is from our mission control panel
@@ -219,6 +251,11 @@ export default function GalleryPage() {
           }
         }
 
+        // Handle ignition command
+        if (event.data.type === "IGNITION_COMMAND") {
+          handleIgnition();
+        }
+        
         // Handle other message types as needed
       }
     };
@@ -230,7 +267,7 @@ export default function GalleryPage() {
     return () => {
       window.removeEventListener("message", handleMessage);
     };
-  }, [toggle80sMode, showSpotify]); // Include showSpotify in dependencies
+  }, [toggle80sMode, showSpotify, synthwaveMode]); // Add synthwaveMode to dependencies
 
   // Add an effect to ensure mission control is synced once available
   useEffect(() => {
@@ -316,6 +353,10 @@ export default function GalleryPage() {
             setIsModalOpen={setIsModalOpen}
             is80sMode={is80sMode}
             toggle80sMode={toggle80sMode}
+            synthwaveMode={synthwaveMode}
+            setSynthwaveMode={setSynthwaveMode}
+            handleIgnition={handleIgnition}
+            handleReturnFromSynthwave={handleReturnFromSynthwave}
           />
         )}
       </div>

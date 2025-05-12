@@ -10,9 +10,9 @@ const TickerDisplay = ({ modelRef, ...props }) => {
   const scrollPos = useRef(0);
   const [isInitialized, setIsInitialized] = useState(false);
   const fetchTimeRef = useRef(Date.now());
-  const gltf = useGLTF("/altar88.glb");
+  const gltf = useGLTF("/alligatorStroll.glb");
   const scene = gltf.scene;
-  const baseRadius = 30.25; // Store the base radius as a constant
+  const baseRadius = 2.8; // Store the base radius as a constant
   const lastModelScale = useRef(1); // Track the last known model scale
   const ALPHA_VANTAGE_API_KEY = process.env.NEXT_PUBLIC_ALPHA_VANTAGE_API_KEY;
   const FMP_API_KEY = "kUsgBNt4QQmJzi0TFe0MHLIg1NlpWnsR";

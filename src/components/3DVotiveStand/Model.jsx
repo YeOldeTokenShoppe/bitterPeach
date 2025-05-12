@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, Suspense, useCallback } from "react";
 import { useThree, useFrame } from "@react-three/fiber";
-import { useGLTF, useProgress, Text, Environment, useTexture, Plane } from "@react-three/drei";
+import { useGLTF, useProgress, Text, Environment, useTexture, Plane, useAnimations } from "@react-three/drei";
 import * as THREE from "three";
 import { useFirestoreResults } from "../../utilities/useFirestoreResults";
 import DarkClouds from "./Clouds";
@@ -16,7 +16,7 @@ import { db } from "../../utilities/firebaseClient";
 import { gsap } from "gsap";
 
 // Configure draco loader for useGLTF
-useGLTF.preload("/altar88.glb");
+useGLTF.preload("/alligatorStroll.glb");
 const dracoLoader = new DRACOLoader();
 dracoLoader.setDecoderPath("/draco/");
 // Set up GLTFLoader to use Draco compression
@@ -53,7 +53,7 @@ function Model({
   onHoldStateChange,
 }) {
   // STATE VARIABLES - consolidated in one place
-  const [modelUrl, setModelUrl] = useState("/altar88.glb");
+  const [modelUrl, setModelUrl] = useState("/alligatorStroll.glb");
   const { progress } = useProgress();
   const gltf = useGLTF(modelUrl, true);
   const { camera, scene } = useThree();
@@ -75,7 +75,7 @@ function Model({
 
   const lightHelperRef = useRef();
   const lightMarkerRef = useRef();
-
+  const { actions } = useAnimations(gltf.animations, gltf.scene);
   // Add these new refs and state variables for candle placement
   const instancedXCandleRef = useRef();
   const candleModelRef = useRef();
@@ -130,6 +130,23 @@ function Model({
   // Add this ref with the others at the top
   const mouseIsDownRef = useRef(false);
 
+  // Add minimum scale enforcement
+  const MIN_SCALE = 10;
+  const safeScale = scale < MIN_SCALE ? MIN_SCALE : scale;
+  
+  // Apply scale directly to gltf.scene after loading
+  useEffect(() => {
+    if (gltf && gltf.scene) {
+      // Ensure the model is always at least MIN_SCALE
+      if (scale < MIN_SCALE) {
+        console.warn(`Model scale (${scale}) below minimum (${MIN_SCALE}), enforcing minimum scale`);
+      }
+      
+      // Apply scale directly to the scene object
+      gltf.scene.scale.set(safeScale, safeScale, safeScale);
+    }
+  }, [gltf, scale, safeScale, MIN_SCALE]);
+
   // Add this function to optimize texture loading without changing geometry
   const loadOptimizedTexture = (url, onLoad) => {
     // Check cache first
@@ -170,6 +187,65 @@ function Model({
       }
     };
   }, []);
+  useEffect(() => {
+    if (gltf.animations?.length > 0) {
+      console.log("All animations in model:", gltf.animations.map(anim => anim.name));
+      
+      // Check for the new animation names
+      const walkSequenceAnim = gltf.animations.find(anim => 
+        anim.name === "WALK_SEQUENCE" || anim.name.includes("WALK"));
+      
+      const circleWalkAnim = gltf.animations.find(anim => 
+        anim.name === "CircleWalk" || anim.name.includes("Circle"));
+      
+      if (walkSequenceAnim) {
+        console.log("Found Walk Sequence animation:", walkSequenceAnim.name);
+      }
+      
+      if (circleWalkAnim) {
+        console.log("Found Circle Walk animation:", circleWalkAnim.name);
+      }
+    }
+    
+    if (actions) {
+      console.log("Available actions by key:", Object.keys(actions));
+      
+      // Updated animation names
+      const animationsToPlay = ["WALK_SEQUENCE", "CircleWalk"];
+      
+      animationsToPlay.forEach(animName => {
+        // Try direct access first
+        if (actions[animName]) {
+          console.log(`Playing animation by direct access: ${animName}`);
+          actions[animName].reset().play();
+          actions[animName].loop = THREE.LoopRepeat;
+        } else {
+          // If direct access doesn't work, look for matching name (case insensitive)
+          const matchingAnim = Object.entries(actions).find(
+            ([name]) => name.includes(animName) || 
+                        name.toLowerCase().includes(animName.toLowerCase())
+          );
+          
+          if (matchingAnim) {
+            console.log(`Playing animation by match: ${matchingAnim[0]}`);
+            matchingAnim[1].reset().play();
+            matchingAnim[1].loop = THREE.LoopRepeat;
+          } else {
+            console.log(`Animation not found: ${animName}`);
+          }
+        }
+      });
+      
+      // Play all animations if needed (uncomment if you want all animations to play)
+      /*
+      Object.entries(actions).forEach(([name, action]) => {
+        console.log(`Playing all animations: ${name}`);
+        action.reset().play();
+        action.loop = THREE.LoopRepeat;
+      });
+      */
+    }
+  }, [gltf.animations, actions]);
 
   // NEW POINTER HANDLERS for Long Press
   const handlePointerDown = useCallback(
@@ -387,9 +463,6 @@ function Model({
     placeCandleFunc.current = placeCandleAtPoint;
   }, [placeCandleAtPoint]);
 
-  // Replace the old handleFloorClick with the mouse down handler
-  // const handleFloorClick = handlePointerDown; // No longer needed as we use direct pointer handlers
-
   // Clean up any timers on unmount
   useEffect(() => {
     return () => {
@@ -518,22 +591,6 @@ function Model({
       });
     };
   }, [scene]);
-
-  // Add effect to toggle visibility of specific objects based on monsterMode
-  useEffect(() => {
-    if (!gltf.scene) return;
-
-    // Find Object_3 and Object_2.001 in the model
-    gltf.scene.traverse(child => {
-      if (
-        child.name === "Object_3" ||
-        child.name === "Object_2.001" ||
-        child.name === "Earth rays_2"
-      ) {
-        child.visible = !monsterMode;
-      }
-    });
-  }, [monsterMode, gltf.scene]);
 
   // Add click handlers to floor objects
   useEffect(() => {
@@ -1375,19 +1432,45 @@ function Model({
     });
   }, [gltf]);
 
+  // Add this useEffect to configure the 'american alligator' for interaction
+  useEffect(() => {
+    if (gltf && gltf.scene) {
+      gltf.scene.traverse(object => {
+        if (object.name === 'american alligator') {
+          console.log("Found 'american alligator'. Configuring for interaction on layer 1.");
+          // Enable layer 1 for the main alligator object
+          object.layers.enable(1);
+
+          // Also enable layer 1 for all child meshes of the alligator
+          object.traverse(child => {
+            if (child.isMesh) {
+              child.layers.enable(1);
+            }
+          });
+        }
+      });
+    }
+  }, [gltf]);
+
   return (
     <>
       <primitive
         ref={modelRef}
         object={gltf.scene}
-        scale={[scale, scale, scale]}
-        position={[0, -20, 0]}
+        scale={[safeScale, safeScale, safeScale]}
+        position={[0, 0, 0]}
         rotation={rotation}
         onClick={handleCandleClick}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerLeave={handlePointerUp}
+        onUpdate={(self) => {
+          // Force scale on every update for extra safety
+          if (self && (self.scale.x < MIN_SCALE || self.scale.y < MIN_SCALE || self.scale.z < MIN_SCALE)) {
+            self.scale.set(safeScale, safeScale, safeScale);
+          }
+        }}
       />
       <primitive ref={candleModelRef} object={new THREE.Group()} />
       <DarkClouds />
@@ -1396,7 +1479,7 @@ function Model({
 }
 
 // Preload both models
-useGLTF.preload("/altar88.glb");
+useGLTF.preload("/alligatorStroll.glb");
 useGLTF.preload("/XCandle1.glb");
 
 export default Model;

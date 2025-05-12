@@ -69,6 +69,8 @@ a, button, input, select {
 	justify-content: center;
 	flex-direction: column;
 	background: rgba(0,0,0,0.7);
+	margin-top: 20px;
+	padding: 10px;
 }
 
 #overlay button {
@@ -88,4 +90,24 @@ a, button, input, select {
 	background-color: #f00;
 	margin-top: 20px;
 	padding: 10px;
+}
+
+#tossCoinButton {
+	position: absolute;
+	bottom: 15%;
+	left: 50%;
+	transform: translateX(-50%);
+	padding: 10px 20px;
+	font-size: 16px;
+	cursor: pointer;
+	background-color: #f0ad4e; /* Orange color */
+	color: white;
+	border: none;
+	border-radius: 5px;
+	z-index: 100; /* Ensure it's above other elements */
+	box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+#tossCoinButton:active {
+	background-color: #ec971f; /* Darker orange on click */
 } 

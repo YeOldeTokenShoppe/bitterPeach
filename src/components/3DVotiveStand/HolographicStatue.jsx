@@ -4,11 +4,18 @@ import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader";
 import * as THREE from "three";
 import { useFrame, useThree } from "@react-three/fiber";
 
-function HolographicStatue({ onLoad }) {
+function HolographicStatue({ 
+  onLoad, 
+  position = [-0.3, 4.6, -0.3],  // Default position if not provided
+  rotation = [0, Math.PI / 180, 0],  // Default rotation if not provided
+  scale = [18, 18, 18],  // Default scale if not provided
+  hover = false,  // Disable hover animation by default
+  rotate = false  // Disable rotation animation by default
+}) {
   const statueRef = useRef();
   const groupRef = useRef();
   const { scene } = useThree();
-  const initialY = useRef(0);
+  const initialY = useRef(position[1]); // Use provided Y position as initial Y
   const mixerRef = useRef();
   const hasLoadedRef = useRef(false);
 
@@ -117,7 +124,7 @@ function HolographicStatue({ onLoad }) {
 
     let isCurrentInstance = true; // Flag to track if this effect instance is current
 
-    loader.load("/CyberpunkMary.glb", (gltf) => {
+    loader.load("/CyberpunkMaryHeart.glb", (gltf) => {
       if (!isCurrentInstance) return; // Don't proceed if this effect is stale
 
       const statue = gltf.scene;
@@ -139,9 +146,9 @@ function HolographicStatue({ onLoad }) {
 
       // Create an anchor group with initial position
       const anchorGroup = new THREE.Group();
-      const basePosition = [-0.3, 4.6, -.3];
-      anchorGroup.position.set(...basePosition);
-      initialY.current = basePosition[1];
+      // Use position from props instead of hardcoded position
+      anchorGroup.position.set(position[0], position[1], position[2]);
+      initialY.current = position[1];
 
       // Create a rotation group
       const rotationGroup = new THREE.Group();
@@ -154,9 +161,9 @@ function HolographicStatue({ onLoad }) {
       statueRef.current = statue;
       groupRef.current = { anchor: anchorGroup, rotation: rotationGroup };
 
-      // Apply your existing transformations
-      statue.scale.set(18, 18, 18);
-      statue.rotation.y = Math.PI / 180;
+      // Apply scale and rotation from props
+      statue.scale.set(scale[0], scale[1], scale[2]);
+      statue.rotation.set(rotation[0], rotation[1], rotation[2]);
 
       // Center the statue in the rotation group
       const box = new THREE.Box3().setFromObject(statue);
@@ -197,6 +204,9 @@ function HolographicStatue({ onLoad }) {
               depthWrite: true,
               depthTest: true,
             });
+          } else if (child.name.startsWith('Heart') || child.name.toLowerCase().startsWith('heart')) {
+            // Keep original material for Heart objects
+            console.log('Preserved original material for Heart object:', child.name);
           } else {
             child.material = holographicMaterial;
           }
@@ -254,7 +264,7 @@ function HolographicStatue({ onLoad }) {
       // Reset loaded flag
       hasLoadedRef.current = false;
     };
-  }, [scene, holographicMaterial, loader, onLoad]);
+  }, [scene, holographicMaterial, loader, onLoad, position, rotation, scale, hover, rotate]);
 
   useFrame((state, delta) => {
     // Update the animation mixer
@@ -263,12 +273,16 @@ function HolographicStatue({ onLoad }) {
     }
 
     if (statueRef.current && groupRef.current) {
-      // Apply hover animation to the anchor group
-      groupRef.current.anchor.position.y =
-        initialY.current + Math.sin(state.clock.elapsedTime * 0.5) * 0.1;
+      // Apply hover animation to the anchor group only if hover is enabled
+      if (hover) {
+        groupRef.current.anchor.position.y =
+          initialY.current + Math.sin(state.clock.elapsedTime * 0.5) * 0.1;
+      }
 
-      // Apply rotation to the rotation group
-      groupRef.current.rotation.rotation.y -= delta * 0.02;
+      // Apply rotation to the rotation group only if rotate is enabled
+      if (rotate) {
+        groupRef.current.rotation.rotation.y -= delta * 0.02;
+      }
 
       // Keep your existing shader update logic
       statueRef.current.traverse((child) => {

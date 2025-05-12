@@ -1,10 +1,10 @@
 import React from "react";
-import ExampleGallery from "../components/PortalFrames/ExampleGallery";
+import SkullMirrorViewer from "../components/3DVotiveStand/MirrorView";
 
 export default function SamplePage() {
   return (
     <div>
-      <ExampleGallery />
+      <SkullMirrorViewer />
     </div>
   );
 }

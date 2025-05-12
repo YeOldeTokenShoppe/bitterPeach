@@ -3020,20 +3020,19 @@ function startCharacterInteraction() {
       <!-- Button Grid -->
       <div class="button-grid">
         <button class="control-button" data-action="signal">
-          <span class="button-prefix">//COM</span>
+          <span class="button-prefix">//SIGNAL</span>
           <span class="button-label">START HERE</span>
           <div class="button-indicator"></div>
         </button>
 
-        <button class="control-button" data-action="ignition">
-          <span class="button-prefix">//PRE-FLIGHT</span>
-          <span class="button-label">IGNITION</span>
-          <div class="button-indicator"></div>
+        <button class="control-button" data-action="ignition" onclick="handleIgnitionClick()">
+          <span class="button-prefix">//OPS</span>
+          <span class="button-label">CRUSADE</span>
         </button>
 
         <button class="control-button" data-action="launch">
-          <span class="button-prefix">//SYS</span>
-          <span class="button-label">LAUNCH</span>
+          <span class="button-prefix">//GLOBAL</span>
+          <span class="button-label">TRADE</span>
           <div class="button-indicator"></div>
         </button>
 
@@ -5805,7 +5804,7 @@ function startCharacterInteraction() {
         if (signalButton) {
           const buttonLabel = signalButton.querySelector(".button-label");
           if (buttonLabel) {
-            buttonLabel.textContent = orientationViewed ? "CONNECT" : "SIGNAL";
+            buttonLabel.textContent = orientationViewed ? "CONNECT" : "COMMS";
           }
 
           // Check if 80s mode or music is active
@@ -6088,6 +6087,95 @@ function startCharacterInteraction() {
           }
         });
       }
+    </script>
+
+    <script>
+      // console.log('Cyberpunk mission control script loaded');
+      // let handleIgnition = null;
+
+      // // Listen for messages from the parent window
+      // window.addEventListener('message', (event) => {
+      //   console.log('Received message in iframe:', event.data);
+      //   if (event.data.type === 'INITIAL_STATE') {
+      //     console.log('Setting handleIgnition from parent');
+      //     handleIgnition = event.data.data.handleIgnition;
+      //   }
+      // });
+
+      // Make the function globally accessible
+      window.handleIgnitionClick = function() {
+        console.log('Ignition button clicked in iframe - starting synthwave mode');
+        // Send message to parent window with correct message type
+        window.parent.postMessage({ type: 'IGNITION_COMMAND' }, '*');
+        
+        // Add visual feedback
+        const ignitionButton = document.querySelector('.control-button[data-action="ignition"]');
+        if (ignitionButton) {
+          ignitionButton.classList.add('active');
+          setTimeout(() => {
+            ignitionButton.classList.remove('active');
+          }, 2000);
+        }
+      };
+
+      // Log when the script is executed
+      console.log('Script execution completed');
+    </script>
+
+    <!-- Add ignition button handling -->
+    <script>
+      // Add debug logging
+      console.log('Ignition script loaded in cyberpunk_mission_control.html');
+
+      // Function to handle ignition button click
+      function handleIgnitionClick() {
+        console.log('Ignition button clicked in iframe - starting synthwave mode');
+        // Send message to parent window with correct message type
+        window.parent.postMessage({ type: 'IGNITION_COMMAND' }, '*');
+        
+        // Add visual feedback
+        const ignitionButton = document.querySelector('.control-button[data-action="ignition"]');
+        if (ignitionButton) {
+          ignitionButton.classList.add('active');
+          setTimeout(() => {
+            ignitionButton.classList.remove('active');
+          }, 2000);
+        }
+      }
+
+      // Add message listener
+      window.addEventListener('message', function(event) {
+        console.log('Received message in iframe:', event.data);
+        
+        if (event.data && event.data.type === 'INITIAL_STATE') {
+          console.log('Received initial state:', event.data);
+          // Update local state based on parent state
+          if (event.data.showSpotify !== undefined) {
+            // Update showSpotify state
+          }
+          if (event.data.is80sMode !== undefined) {
+            // Update 80s mode state
+          }
+          if (event.data.monsterMode !== undefined) {
+            // Update monster mode state
+          }
+          if (event.data.rocketModelVisible !== undefined) {
+            // Update rocket model visibility
+          }
+        }
+      });
+
+      // Add click handler to ignition button
+      document.addEventListener('DOMContentLoaded', function() {
+        console.log('DOM loaded in iframe');
+        const ignitionButton = document.querySelector('.control-button[data-action="ignition"]');
+        if (ignitionButton) {
+          console.log('Found ignition button');
+          ignitionButton.addEventListener('click', handleIgnitionClick);
+        } else {
+          console.warn('Ignition button not found');
+        }
+      });
     </script>
   </body>
 </html>

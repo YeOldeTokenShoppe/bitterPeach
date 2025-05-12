@@ -389,9 +389,9 @@ function Header() {
                     onClick={() => setMenuOpen(false)}
                     onMouseEnter={handleMouseEnter}
                     onMouseLeave={handleMouseLeave}
-                    data-value="Moon Room"
+                    data-value="The Illumin80"
                   >
-                    Moon Room
+                    The Illumin80
                   </Link>
                   {/* </div> */}
                   {/* <div className="p-1"> */}
@@ -401,9 +401,19 @@ function Header() {
                     onClick={() => setMenuOpen(false)}
                     onMouseEnter={handleMouseEnter}
                     onMouseLeave={handleMouseLeave}
-                    data-value="Secret Soci80"
+                    data-value="Notori80 Soci80"
                   >
-                    Secret Soci80
+                    Notori80 Soci80
+                  </Link>
+                  <Link
+                    href="/communion"
+                    className="menu-item"
+                    onClick={() => setMenuOpen(false)}
+                    onMouseEnter={handleMouseEnter}
+                    onMouseLeave={handleMouseLeave}
+                    data-value="Fountain of Char80"
+                  >
+                    Fountain of Char80
                   </Link>
                   {/* </div> */}
                 </Menu>

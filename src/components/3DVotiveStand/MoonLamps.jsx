@@ -55,6 +55,7 @@ const MoonScene = forwardRef(
     const COLLISION_GROUP_MOON = 4;
     const COLLISION_GROUP_PROJECTILE = 8;
     const COLLISION_GROUP_OUTER_WALL = 16; // New collision group for outer wall
+    const COLLISION_GROUP_ALLIGATOR = 32; // New collision group for alligator
 
     // Wrap setupScene in useCallback
     const setupScene = useCallback(() => {
@@ -62,7 +63,7 @@ const MoonScene = forwardRef(
 
       const controls = new OrbitControls(camera, gl.domElement);
       controls.autoRotate = true;
-      controls.autoRotateSpeed = 0.2;
+      controls.autoRotateSpeed = -0.2;
       controls.enableDamping = true;
       controls.enablePan = true;
       controls.enableZoom = true;
@@ -78,18 +79,16 @@ const MoonScene = forwardRef(
       controls.panSpeed = 0.5; // Optional: adjust pan speed for smoother control
 
       // Use modelCenter if provided, or a default target
-      const targetPosition = modelCenter || new THREE.Vector3(0, 5, 0);
-
-      camera.position.set(0, 0, 50);
+      const targetPosition = modelCenter || new THREE.Vector3(0, 15, 0);
       controls.target.copy(targetPosition);
 
-      camera.fov = 35;
-      camera.updateProjectionMatrix();
+      // Don't override camera position, just update controls
       controls.update();
       controlsRef.current = controls;
 
       // If we have an onControlsCreated callback, call it
       if (onControlsCreated) {
+        console.log('MoonScene: Calling onControlsCreated with controls');
         onControlsCreated(controls);
       }
     }, [camera, gl.domElement, modelCenter, onControlsCreated]);
@@ -429,7 +428,7 @@ const MoonScene = forwardRef(
         shape.addPoint(tempBtVec, lastOne);
       }
 
-      shape.setMargin(0.01); // Small non-zero margin for stability
+      shape.setMargin(0.005); // Small non-zero margin for stability
 
       // Store in cache
       shapeCache.current.set(geometryId, shape);
@@ -575,7 +574,7 @@ const MoonScene = forwardRef(
 
       // Create base material with texture and fallback
       const moonMaterial = new THREE.MeshPhongMaterial({
-        color: new THREE.Color("#faf0e6"),
+        color: new THREE.Color("#00ffff"),
         map: moonTextureRef.current,
         lightMap: moonTextureRef.current,
         lightMapIntensity: textureError ? 1 : 3, // Reduce intensity if using fallback
@@ -607,7 +606,7 @@ const MoonScene = forwardRef(
 
       // Create point light for the moon
       const pointLight = new THREE.PointLight(
-        new THREE.Color("#faf0e6"),
+        new THREE.Color("#00ffff"),
         25, // intensity reduced from 50 to 25
         10 // distance
       );
@@ -618,7 +617,7 @@ const MoonScene = forwardRef(
       // Add glowing effect layers as in original
       // Layer 1 - semi-transparent glow
       const glowMaterial1 = new THREE.MeshLambertMaterial({
-        color: "white",
+        color: "#00ffff",
         transparent: true,
         opacity: 0.3,
       });
@@ -643,7 +642,7 @@ const MoonScene = forwardRef(
       // Physics setup
       // const moonShape = createConvexHullShape(moonGeometry);
       const moonShape = new AmmoLib.btSphereShape(moonSize);
-      moonShape.setMargin(0.05); // Prevents moons from overlapping
+      moonShape.setMargin(0.005); // Prevents moons from overlapping
       const moonTransform = new AmmoLib.btTransform();
       moonTransform.setIdentity();
       moonTransform.setOrigin(new AmmoLib.btVector3(spawnX, spawnY, spawnZ));
@@ -698,7 +697,8 @@ const MoonScene = forwardRef(
         COLLISION_GROUP_DEFAULT |
           COLLISION_GROUP_WALL |
           COLLISION_GROUP_PROJECTILE |
-          COLLISION_GROUP_MOON // Ensure they collide with other moons
+          COLLISION_GROUP_MOON |
+          COLLISION_GROUP_ALLIGATOR
       );
       bodiesRef.current.push({ mesh: moon, body: moonBody });
     };
@@ -716,11 +716,6 @@ const MoonScene = forwardRef(
         if (child.isMesh && (child.name === "Object_3" || child.name === "Object_2.001")) {
           // Set a user data flag to identify it later
           child.userData.excludeFromPhysics = true;
-
-          // Keep it visible but don't let it interact with physics
-          // Don't disable raycast completely - we still want it to be visible
-
-          // Set a special collision group for this object
           child.userData.collisionGroup = 2; // COLLISION_GROUP_OBJECT3
         }
       });
@@ -729,7 +724,6 @@ const MoonScene = forwardRef(
       modelRef.current.traverse(child => {
         if (!child.isMesh) return;
 
-        // Skip Object_3 and Statue from physics/collision detection
         if (
           child.userData.excludeFromPhysics ||
           child.name === "Object_3" ||
@@ -739,74 +733,43 @@ const MoonScene = forwardRef(
         }
 
         let shape;
-        const isWall = child.name === "wall";
-        // Define isFloor2 inside the traverse where child is defined
+        const isWallMesh = child.name === "wall"; // Renamed to avoid conflict with outer wall group
         const isFloor2 = child.name === "Floor2.002";
         const isFloor3 =
           child.name === "Floor3" || child.name === "Floor3.001" || child.name === "Floor3.002";
         const isMainFloor = child.name.toLowerCase().includes("floor") && !isFloor2 && !isFloor3;
+        const isAlligator = child.name === "american alligator" || 
+                           child.name.toLowerCase().includes("alligator") || 
+                           child.name.toLowerCase().includes("gator");
 
-        // Rest of your code using isFloor2...
-        if (isFloor2 || isFloor3) {
-          // Try to create a convex hull first
+        if (isAlligator) {
+          console.log("Found alligator object for physics:", child.name);
           shape = createConvexHullShape(child.geometry);
-
-          // If that fails, try triangle mesh
           if (!shape) {
-            console.log("Convex hull creation failed, trying triangle mesh");
-            shape = createTriangleMeshShape(child.geometry);
-          }
-
-          // If both fail, try simple shape
-          if (!shape) {
-            console.log("Triangle mesh creation failed, falling back to simple shape");
+            console.log("Creating simple shape for alligator as fallback");
             shape = createSimpleShape(child);
           }
-
-          // Final fallback if all else fails
-          if (!shape) {
-            console.error(`All shape creation methods failed for ${child.name}`);
-            return; // Skip this object
-          }
-
-          // Create custom debug visualization that follows the actual shape
-          // instead of using a box helper
-          const wireframe = new THREE.WireframeGeometry(child.geometry);
-          const line = new THREE.LineSegments(
-            wireframe,
-            new THREE.LineBasicMaterial({
-              color: 0x00ff00,
-              transparent: true,
-              opacity: 0.5,
-            })
-          );
-          child.add(line);
-          line.position.copy(child.position);
-          line.quaternion.copy(child.quaternion);
-          line.scale.copy(child.scale);
-
-          scene.add(line);
-          line.position.set(0, 0.01, 0);
-          // Skip the box helper for this object
-          child.userData.skipBoxHelper = true;
-          // Mark this as Floor2/Floor3 for physics properties later
+          child.userData.isAlligator = true; // Mark the mesh
+        } else if (isFloor2 || isFloor3) {
+          shape = createConvexHullShape(child.geometry);
+          if (!shape) shape = createTriangleMeshShape(child.geometry);
+          if (!shape) shape = createSimpleShape(child);
+          if (!shape) { console.error(`All shape creation failed for ${child.name}`); return; }
           child.userData.isFloor2 = isFloor2;
           child.userData.isFloor3 = isFloor3;
-        }
-
-        // Handle wall
-        else if (isWall) {
+        } else if (isWallMesh) {
           shape = createTriangleMeshShape(child.geometry);
           if (!shape) shape = createSimpleShape(child);
-        }
-        // Handle other meshes
-        else {
+        } else {
           shape = createConvexHullShape(child.geometry);
           if (!shape) shape = createSimpleShape(child);
         }
 
-        // Rest of your existing code continues here...
-        // Set up physics transform
+        if (!shape) {
+            console.warn(`Could not create physics shape for ${child.name}. Skipping.`);
+            return;
+        }
+
         child.updateMatrixWorld();
         const position = new THREE.Vector3();
         const quaternion = new THREE.Quaternion();
@@ -820,11 +783,10 @@ const MoonScene = forwardRef(
           new AmmoLib.btQuaternion(quaternion.x, quaternion.y, quaternion.z, quaternion.w)
         );
 
-        // Apply scaling to shape
         const ammoScale = new AmmoLib.btVector3(scale.x, scale.y, scale.z);
         shape.setLocalScaling(ammoScale);
 
-        const mass = 0; // Static object
+        const mass = 0; 
         const localInertia = new AmmoLib.btVector3(0, 0, 0);
         const motionState = new AmmoLib.btDefaultMotionState(transform);
         const rbInfo = new AmmoLib.btRigidBodyConstructionInfo(
@@ -835,36 +797,43 @@ const MoonScene = forwardRef(
         );
         const body = new AmmoLib.btRigidBody(rbInfo);
 
-        // Set physics properties based on object type
-        if (child.userData.isFloor2 || child.userData.isFloor3) {
-          // Apply specific properties for Floor2/Floor3
-          body.setFriction(GROUND_FRICTION);
-          body.setRestitution(GROUND_RESTITUTION); // Higher restitution for more bounce
-          body.setDamping(0, 0); // No damping
+        let bodyCollisionGroup = COLLISION_GROUP_DEFAULT;
+        let bodyCollisionMask = COLLISION_GROUP_DEFAULT | COLLISION_GROUP_MOON | COLLISION_GROUP_PROJECTILE | COLLISION_GROUP_ALLIGATOR | COLLISION_GROUP_WALL;
 
-          console.log(`${child.name} physics applied with convex hull`);
+        if (child.userData.isFloor2 || child.userData.isFloor3) {
+          body.setFriction(GROUND_FRICTION);
+          body.setRestitution(GROUND_RESTITUTION);
+          body.setDamping(0, 0);
+          console.log(`${child.name} floor physics applied`);
+        } else if (child.userData.isAlligator) {
+          body.setFriction(0.5);
+          body.setRestitution(0.2);
+          body.setDamping(0, 0);
+          body.setCollisionFlags(body.getCollisionFlags() | 2); // CF_KINEMATIC_OBJECT
+          body.activate(true); 
+
+          bodyCollisionGroup = COLLISION_GROUP_ALLIGATOR;
+          bodyCollisionMask = COLLISION_GROUP_DEFAULT | COLLISION_GROUP_WALL | COLLISION_GROUP_MOON | COLLISION_GROUP_PROJECTILE;
+          
+          console.log(`${child.name} alligator physics applied as KINEMATIC in ALLIGATOR group`);
+        } else if (isWallMesh) {
+            body.setFriction(MODEL_FRICTION); 
+            body.setRestitution(MODEL_RESTITUTION);
+            bodyCollisionGroup = COLLISION_GROUP_WALL; 
+            bodyCollisionMask = COLLISION_GROUP_MOON | COLLISION_GROUP_PROJECTILE; 
         } else {
-          // Regular physics for other objects
           body.setFriction(MODEL_FRICTION);
           body.setRestitution(MODEL_RESTITUTION);
           body.setDamping(0, 0);
-
-          // Set as kinematic static object
-          body.setCollisionFlags(body.getCollisionFlags() | 2); // 2 = kinematic
         }
 
         body.name = child.name;
-
         physicsRef.current.world.addRigidBody(
           body,
-          COLLISION_GROUP_DEFAULT, // collision group
-          COLLISION_GROUP_DEFAULT | COLLISION_GROUP_MOON | COLLISION_GROUP_PROJECTILE // collision mask
+          bodyCollisionGroup,
+          bodyCollisionMask
         );
-        child.userData.physicsBody = body;
-
-        //   console.log(`Added physics for mesh: ${child.name}`);
-
-        const showDebugShape = false; // Set to true for debugging
+        child.userData.physicsBody = body; // Store physics body on the mesh
 
         if (showDebugShape && shape && !isMainFloor && !child.userData.skipBoxHelper) {
           const helper = new THREE.BoxHelper(child, 0xff0000);
@@ -883,7 +852,9 @@ const MoonScene = forwardRef(
       bbox.getSize(size);
 
       // Create box shape
-      return new AmmoLib.btBoxShape(new AmmoLib.btVector3(size.x / 2, size.y / 2, size.z / 2));
+      const shape = new AmmoLib.btBoxShape(new AmmoLib.btVector3(size.x / 2, size.y / 2, size.z / 2));
+      shape.setMargin(0.01); // Explicitly set a small margin for box shapes
+      return shape;
     };
 
     // Add a function to check if a point is inside the room
@@ -967,7 +938,7 @@ const MoonScene = forwardRef(
       physicsRef.current.world.addRigidBody(
         projectileBody,
         COLLISION_GROUP_PROJECTILE, // collision group
-        COLLISION_GROUP_DEFAULT | COLLISION_GROUP_MOON // collision mask (doesn't include wall)
+        COLLISION_GROUP_DEFAULT | COLLISION_GROUP_MOON | COLLISION_GROUP_ALLIGATOR
       );
 
       // Apply velocity with original force
@@ -1235,9 +1206,42 @@ const MoonScene = forwardRef(
 
       // Check for Object_3 collisions
       checkObject3Collisions();
-    });
 
-    // Add this to your existing useEffect that handles model loading
+      // Add alligator collision detection
+      const checkAlligatorCollisions = () => {
+        if (!modelRef.current || !ammoRef.current || !physicsRef.current.world) return;
+        const AmmoLib = ammoRef.current;
+
+        modelRef.current.traverse(object => {
+            // Check if this object is the alligator and has a physics body
+            if (object.isMesh && object.userData && object.userData.isAlligator && object.userData.physicsBody) {
+                const alligatorMesh = object;
+                const alligatorBody = object.userData.physicsBody;
+
+                // Ensure the mesh's world matrix is up to date
+                alligatorMesh.updateWorldMatrix(true, false); 
+                const position = new THREE.Vector3();
+                const quaternion = new THREE.Quaternion();
+                // Decompose the world matrix to get world position and rotation
+                alligatorMesh.matrixWorld.decompose(position, quaternion, new THREE.Vector3()); 
+
+                const transform = new AmmoLib.btTransform();
+                transform.setIdentity();
+                transform.setOrigin(new AmmoLib.btVector3(position.x, position.y, position.z));
+                transform.setRotation(new AmmoLib.btQuaternion(
+                    quaternion.x, quaternion.y, quaternion.z, quaternion.w
+                ));
+
+                alligatorBody.getMotionState().setWorldTransform(transform);
+                alligatorBody.setCenterOfMassTransform(transform); 
+                alligatorBody.activate(true); 
+            }
+        });
+      };
+      
+      // Call the collision detection function every frame
+      checkAlligatorCollisions();
+    });
   }
 );
 

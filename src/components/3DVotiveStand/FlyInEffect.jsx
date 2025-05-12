@@ -1,82 +1,81 @@
-import { useEffect } from "react";
+import React, { useEffect, useRef } from 'react';
 import * as THREE from "three";
 import { gsap } from "gsap";
+import { useRouter } from 'next/router';
 
-const FlyInEffect = ({ cameraRef, controlsRef, duration = 6 }) => {
+const FlyInEffect = ({ cameraRef, controlsRef, onComplete }) => {
+  const router = useRouter();
+  const animationRef = useRef();
+
   useEffect(() => {
-    if (!cameraRef.current) return; // wait until camera is available
-
-    const camera = cameraRef.current;
-    // Get the current target from OrbitControls (fallback to (0,0,0) if not available)
-    const target =
-      controlsRef.current && controlsRef.current.target
-        ? controlsRef.current.target.clone()
-        : new THREE.Vector3(0, 0, 0);
-
-    // Final camera position (predefined via setCameraSettings) is already in place.
-    const finalPos = camera.position.clone();
-
-    // Determine the vector from the target to the final camera position.
-    const finalVector = new THREE.Vector3().subVectors(finalPos, target);
-    const finalDistance = finalVector.length();
-    const finalAngle = Math.atan2(finalVector.z, finalVector.x);
-
-    // Define parameters for a combined orbit and zoom effect:
-    // - Start with a significantly farther distance (e.g., 4.5 times the final distance)
-    // - Start with an angle offset such that we can perform an extra full rotation (2π) over the duration
-    // - Start at a higher Y to give a dramatic descent effect.
-    const startDistance = finalDistance * 4.5;
-    // Starting angle is offset from finalAngle – here we add an extra 180° offset as base.
-    const startAngle = finalAngle + THREE.MathUtils.degToRad(180);
-    const startY = finalPos.y + 20; // Starting height offset
-
-    // Compute starting position.
-    const startX = target.x + startDistance * Math.cos(startAngle);
-    const startZ = target.z + startDistance * Math.sin(startAngle);
-    const startPos = new THREE.Vector3(startX, startY, startZ);
-
-    // Set the camera immediately to the starting position.
-    camera.position.copy(startPos);
-    camera.lookAt(target);
-    if (controlsRef.current) {
-      controlsRef.current.target.copy(target);
-      controlsRef.current.update();
+    console.log('FlyInEffect mounted');
+    if (!cameraRef?.current || !controlsRef?.current) {
+      console.log('Missing refs:', { cameraRef: !!cameraRef?.current, controlsRef: !!controlsRef?.current });
+      return;
     }
 
-    // Create a dummy object with properties to tween.
-    const dummy = { angle: startAngle, distance: startDistance, y: startY };
+    const camera = cameraRef.current;
+    const controls = controlsRef.current;
+    const target = new THREE.Vector3(0, 0, 0);
 
-    // Animate all three properties simultaneously.
-    gsap.to(dummy, {
-      angle: finalAngle + Math.PI * 2, // add a full rotation (2π) then settle to finalAngle
-      distance: finalDistance,
-      y: finalPos.y,
-      duration: duration,
+    // Store initial positions
+    const initialPosition = camera.position.clone();
+    const initialDistance = camera.position.distanceTo(target);
+
+    // Calculate final position (zoomed in with vertical offset)
+    const finalDistance = initialDistance * 0.01; // Zoom in to 1% of original distance
+    const direction = new THREE.Vector3()
+      .subVectors(target, initialPosition)
+      .normalize();
+    const finalPosition = new THREE.Vector3()
+      .copy(target)
+      .sub(direction.multiplyScalar(finalDistance))
+      .add(new THREE.Vector3(0, 6, 0)); // Add vertical offset
+
+    console.log('Starting fly-in effect', {
+      initialPosition,
+      finalPosition,
+      initialDistance,
+      finalDistance,
+      controlsEnabled: controls.enabled
+    });
+
+    // Disable controls during animation
+    controls.enabled = false;
+
+    // Create animation
+    animationRef.current = gsap.to(camera.position, {
+      x: finalPosition.x,
+      y: finalPosition.y,
+      z: finalPosition.z,
+      duration: 4,
       ease: "power2.inOut",
       onUpdate: () => {
-        const currentX = target.x + dummy.distance * Math.cos(dummy.angle);
-        const currentZ = target.z + dummy.distance * Math.sin(dummy.angle);
-
-        camera.position.set(currentX, dummy.y, currentZ);
         camera.lookAt(target);
-        if (controlsRef.current) {
-          controlsRef.current.target.copy(target);
-          controlsRef.current.update();
-        }
       },
       onComplete: () => {
-        // Ensure the camera exactly reaches the predefined final position.
-        camera.position.copy(finalPos);
-        camera.lookAt(target);
-        if (controlsRef.current) {
-          controlsRef.current.target.copy(target);
-          controlsRef.current.update();
-        }
-      },
+        console.log('Fly-in effect completed');
+        // Re-enable controls
+        controls.enabled = true;
+        // Call the completion callback
+        if (onComplete) onComplete();
+        // Navigate to Synthwave page after a short delay
+        setTimeout(() => {
+          router.push('/synthwave');
+        }, 1000);
+      }
     });
-  }, [cameraRef, controlsRef, duration]);
 
-  return null; // This component doesn't render any JSX
+    return () => {
+      console.log('FlyInEffect cleanup');
+      if (animationRef.current) {
+        animationRef.current.kill();
+      }
+      controls.enabled = true;
+    };
+  }, [cameraRef, controlsRef, onComplete, router]);
+
+  return null;
 };
 
 export default FlyInEffect;

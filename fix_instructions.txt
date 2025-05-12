@@ -1,0 +1,1 @@
+Edit MoonLamps.jsx at around line 1375-1380 to move the 'size' variable outside the if-else block to fix the ReferenceError

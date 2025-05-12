@@ -1,5 +1,5 @@
 // index.jsx
-import React, { useState, useRef, useEffect, useCallback, useMemo, Suspense, lazy } from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo, Suspense, lazy, forwardRef, useImperativeHandle } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { AdaptiveDpr, AdaptiveEvents, BakeShadows } from "@react-three/drei";
 import TickerDisplay from "./TickerDisplay";
@@ -33,8 +33,13 @@ import HolographicStatue from "./HolographicStatue";
 import PostProcessingEffects from "./PostProcessingEffects";
 import ConstellationModel from "./ConstellationModel";
 import StarField from "./StarField";
+import FlyInEffect from './FlyInEffect';
 
 const scene = new THREE.Scene();
+
+// Add constants for scale management
+const MIN_MODEL_SCALE = 10;
+const DEFAULT_MODEL_SCALE = 11;
 
 // Add HoldIndicator component here
 const HoldIndicator = ({ showIndicator, progress }) => {
@@ -83,7 +88,7 @@ const HoldIndicator = ({ showIndicator, progress }) => {
 
 // Create a wrapper component to access the RocketContext
 
-function ThreeDVotiveStand({
+const ThreeDVotiveStand = forwardRef(({
   setIsLoading,
   isInMarkerView,
   isMobileView,
@@ -99,7 +104,8 @@ function ThreeDVotiveStand({
   rocketModelVisible,
   isConstellationsVisible,
   toggleConstellationVisibility,
-}) {
+  handleIgnition,
+}, ref) => {
   const [showFloatingViewer, setShowFloatingViewer] = useState(false);
   const [selectedCandleData, setSelectedCandleData] = useState(null);
   const [showDebugOverlay, setShowDebugOverlay] = useState(false); // Debug overlay toggle
@@ -124,7 +130,7 @@ function ThreeDVotiveStand({
 
   const [isHovered, setIsHovered] = useState(false);
   const [isMarkerMovement, setIsMarkerMovement] = useState(false);
-  const [modelScale, setModelScale] = useState(1);
+  const [modelScale, setModelScale] = useState(DEFAULT_MODEL_SCALE);
   const [buttonPopupVisible, setButtonPopupVisible] = useState(false);
   // const [clickedButtonName, setClickedButtonName] = useState("");
   const [buttonData, setButtonData] = useState("");
@@ -359,7 +365,7 @@ function ThreeDVotiveStand({
     return () => clearTimeout(fallbackTimer);
   }, [setIsLoading]);
 
-  // Handle window resize and maintain consistent pixel ratio
+  // Modify the resize handler to ensure scale doesn't go below minimum
   useEffect(() => {
     const handleResize = () => {
       if (rendererRef.current) {
@@ -377,8 +383,11 @@ function ThreeDVotiveStand({
         // Adjust model scale based on viewport size
         // This helps maintain consistent visual size across different devices
         const baseWidth = 1400; // Base width for reference
-        const scaleFactor = Math.max(0.8, Math.min(1.2, newWidth / baseWidth));
-        setModelScale(scaleFactor);
+        const calculatedScale = Math.max(0.8, Math.min(1.2, newWidth / baseWidth));
+        
+        // Ensure calculated scale * DEFAULT_MODEL_SCALE is at least MIN_MODEL_SCALE
+        const finalScale = Math.max(MIN_MODEL_SCALE, calculatedScale * DEFAULT_MODEL_SCALE);
+        setModelScale(finalScale);
       }
     };
 
@@ -393,6 +402,14 @@ function ThreeDVotiveStand({
       window.removeEventListener("resize", handleResize);
     };
   }, []);
+
+  // Add a safety check in case modelScale somehow gets reset
+  useEffect(() => {
+    if (modelScale < MIN_MODEL_SCALE) {
+      console.warn(`Model scale (${modelScale}) below minimum, resetting to ${DEFAULT_MODEL_SCALE}`);
+      setModelScale(DEFAULT_MODEL_SCALE);
+    }
+  }, [modelScale]);
 
   // Add a keyboard listener to toggle debug overlay with 'D' key
 
@@ -527,17 +544,41 @@ function ThreeDVotiveStand({
   //   };
   // }, []);
 
+  const [showFlyIn, setShowFlyIn] = useState(false);
+
+  const handleLocalIgnition = () => {
+    console.log('Ignition button clicked, triggering fly-in effect');
+    setShowFlyIn(true);
+    // Reset after animation completes
+    setTimeout(() => {
+      console.log('Fly-in effect completed, resetting state');
+      setShowFlyIn(false);
+    }, 6000);
+  };
+
+  // Expose handleLocalIgnition through ref
+  useImperativeHandle(ref, () => ({
+    handleLocalIgnition
+  }));
+
+  // Add useEffect to handle fly-in effect
+  useEffect(() => {
+    if (showFlyIn) {
+      console.log('Fly-in effect active');
+      // Add any additional setup for the fly-in effect here
+    }
+  }, [showFlyIn]);
+
+  // Add this right after your imports
+  const MemoizedHolographicStatue = React.memo(HolographicStatue);
+
+  ThreeDVotiveStand.displayName = 'ThreeDVotiveStand';
+
   return (
     <div style={{ width: "100%", height: "100vh" }}>
       <Canvas
         dpr={currentDpr}
         performance={{ min: 0.5 }}
-        camera={{
-          fov: 45,
-          position: [0, -10, 70],
-          near: 1,
-          far: 1000,
-        }}
         onCreated={({ gl, camera }) => {
           cameraRef.current = camera;
           rendererRef.current = gl;
@@ -563,7 +604,7 @@ function ThreeDVotiveStand({
         {/* <Perf position="top-left" showGraph={true} chart={true} /> */}
 
         <Model
-          scale={modelScale}
+          scale={Math.max(modelScale, MIN_MODEL_SCALE)} // Additional safety check
           rotation={[0, 0, 0]}
           modelRef={modelRef}
           showFloatingViewer={showFloatingViewer}
@@ -593,17 +634,22 @@ function ThreeDVotiveStand({
             modelRef={modelRef}
             onSpawnReady={onSpawnReady}
             rocketModelVisible={rocketModelVisible}
+            onControlsCreated={(controls) => {
+              console.log('Controls created in MoonScene');
+              controlsRef.current = controls;
+            }}
           />
         </Suspense>
 
         {/* Conditionally render HolographicStatue or RocketModel based on monsterMode */}
         <Suspense fallback={null}>
-          {console.log("ThreeDVotiveStand render:", {
+          {/* {console.log("ThreeDVotiveStand render:", {
             monsterMode,
             rocketModelVisible,
           })}
-          {!monsterMode ? (
-            <HolographicStatue
+          {!monsterMode ? ( */}
+            <MemoizedHolographicStatue
+              key="holographic-statue"
               isInMarkerView={isInMarkerView}
               isMobileView={isMobileView}
               setShowSpotify={setShowSpotify}
@@ -615,9 +661,9 @@ function ThreeDVotiveStand({
               userData={userData}
               setIsStatueLoaded={setIsStatueLoaded}
             />
-          ) : (
+          {/* ) : (
             rocketModelVisible && <RocketModel is80sMode={is80sMode} userData={userData} />
-          )}
+          )} */}
         </Suspense>
         <Suspense fallback={null}>
           <TickerDisplay modelRef={modelRef} />
@@ -636,7 +682,7 @@ function ThreeDVotiveStand({
           <StarField is80sMode={is80sMode} />
         </Suspense>
 
-
+        {showFlyIn && <FlyInEffect cameraRef={cameraRef} controlsRef={controlsRef} />}
       </Canvas>
 
       {/* FloatingCandleViewer goes here, outside the Canvas */}
@@ -651,11 +697,9 @@ function ThreeDVotiveStand({
           }}
         />
       )}
-
-     
     </div>
   );
-}
+});
 
 export default ThreeDVotiveStand;
 
