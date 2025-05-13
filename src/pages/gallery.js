@@ -333,7 +333,7 @@ export default function GalleryPage() {
       }}
     >
       <Head>
-        <link href="https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&display=swap" rel="stylesheet" />
+        {/* No font import needed here as it's now in _document.jsx */}
       </Head>
       
       {/* Text effect in top left corner */}

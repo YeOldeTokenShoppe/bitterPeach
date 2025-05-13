@@ -401,7 +401,7 @@ function Header() {
                     Notori80 Soci80
                   </Link>
                   <Link
-                    href="/communion"
+                    href="/fountain.html"
                     className="menu-item"
                     onClick={() => setMenuOpen(false)}
                     onMouseEnter={handleMouseEnter}

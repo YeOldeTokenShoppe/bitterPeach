@@ -8,7 +8,7 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
+} from "../components/ui/card"
 import Image from "next/image";
 
 import { PieChart, Pie, Sector, Cell, ResponsiveContainer } from "recharts";
@@ -689,6 +689,7 @@ const Numerology = ({ setNumerologyLoaded }) => {
                         width={100}
                         height={100}
                         src="/cryptoMeme.jpg"
+                        alt="Crypto Meme"
                         style={{
                           width: "100%",
                           height: "100%",

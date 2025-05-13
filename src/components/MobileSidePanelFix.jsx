@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 
-import { Button, Drawer, DrawerContent, DrawerCloseButton, DrawerOverlay, useDisclosure, Text } from "./ui/button";
+import { Button, Drawer, DrawerContent, DrawerCloseButton, DrawerOverlay, useDisclosure, Text, Box } from "./ui/button";
 import { useUser } from "@clerk/nextjs";
 import useMediaQuery from "./hooks/useMediaQuery";
 import { useRouter } from "next/router";

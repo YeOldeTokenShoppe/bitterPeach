@@ -34,6 +34,7 @@ const MobileSidePanel = ({
   toggleRocketModel,
   toggleConstellationVisibility,
   isConstellationsVisible,
+  handleIgnition,
 }) => {
   const [isVideoScreenOpen, setIsVideoScreenOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -1772,6 +1773,40 @@ const MobileSidePanel = ({
       videoStatusIndicator.style.backgroundColor = "#4b5563"; // Gray for offline state
     }
   };
+
+  // Add this new function
+  const handleIgnitionClick = useCallback(() => {
+    console.log('Ignition button clicked in MobileSidePanel');
+    if (handleIgnition) {
+      console.log('Calling handleIgnition prop');
+      handleIgnition();
+      // Also send message to iframe to update its state
+      if (missionControlIframeRef.current && missionControlIframeRef.current.contentWindow) {
+        missionControlIframeRef.current.contentWindow.postMessage(
+          { type: 'IGNITION_CLICKED' },
+          '*'
+        );
+      }
+    } else {
+      console.warn('handleIgnition prop not provided to MobileSidePanel');
+    }
+  }, [handleIgnition]);
+
+  // Update the message handler to handle START_SYNTHWAVE_TRANSITION
+  useEffect(() => {
+    const handleMessage = (event) => {
+      if (event.data && event.data.type === 'START_SYNTHWAVE_TRANSITION') {
+        console.log('START_SYNTHWAVE_TRANSITION received from iframe');
+        handleIgnitionClick();
+      }
+      // Handle other message types...
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => {
+      window.removeEventListener('message', handleMessage);
+    };
+  }, [handleIgnitionClick]);
 
   return (
     <>

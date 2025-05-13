@@ -7,8 +7,10 @@ import React, {
   useRef,
   memo,
 } from "react";
+
 import { useRouter } from "next/router";
-import { Button } from "./ui/container"; 
+// import { Button } from "./ui/button"; 
+import { Button } from "@chakra-ui/react";
 import AnimatedRadioButtons from "./3DVotiveStand/CyberButtons";
 import SidePanel from "./SidePanel";
 import {
@@ -367,7 +369,7 @@ function BurnGallery({
             />
           ) : (
             <Suspense fallback={<div>Loading Synthwave...</div>}>
-              <div position="absolute" top={0} right={0} zIndex={10} p={4}>
+              <div style={{ position: "absolute", top: 0, right: 0, zIndex: 10, padding: "1rem" }}>
                 <Button onClick={handleReturnFromSynthwave} colorScheme="teal">
                   Return
                 </Button>

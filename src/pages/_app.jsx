@@ -15,7 +15,6 @@ import "../../styles/MusicPlayer.module.css";
 import "../../styles/coin.css";
 import "../../styles/NeonSign.css";
 import "../../styles/ScenePage.css";
-import "../../styles/TextLight.scss";
 import { ThirdwebProvider } from "thirdweb/react";
 import { sepolia } from "thirdweb/chains";
 import { ChakraProvider } from "@chakra-ui/react";
@@ -39,7 +38,6 @@ function MyApp({ Component, pageProps }) {
   const isCommunionPage = router.pathname === "/communion";
   const isScenePage = router.pathname === "/scene";
   const isRocketPage = router.pathname === "/rocket";
-  const isSynthwavePage = router.pathname === "/synthwave";
 
 
   useEffect(() => {
@@ -49,7 +47,7 @@ function MyApp({ Component, pageProps }) {
     html.style.colorScheme = "dark";
 
     // Add appropriate class to the body
-    document.body.classList.remove("gallery-page", "scene-page", "rocket-page", "index-page", "communion-page", "synthwave-page");
+    document.body.classList.remove("gallery-page", "scene-page", "rocket-page", "index-page", "communion-page");
 
     if (isGalleryPage) {
       document.body.classList.add("gallery-page");
@@ -62,9 +60,6 @@ function MyApp({ Component, pageProps }) {
     }
     else if (isCommunionPage) {
       document.body.classList.add("communion-page");
-    }
-    else if (isSynthwavePage) {
-      document.body.classList.add("synthwave-page");
     }
   }, [isGalleryPage, isScenePage, isRocketPage, isIndexPage, isCommunionPage, router.pathname]);
 
@@ -84,12 +79,6 @@ function MyApp({ Component, pageProps }) {
       body.style.padding = "0";
       body.style.margin = "0";
       body.style.overflow = "hidden";
-    } else if (isSynthwavePage) {
-      // body.style.backgroundColor = "#000000";
-      // body.style.maxWidth = "100vw";
-      // body.style.padding = "0";
-      // body.style.margin = "0";
-      // body.style.overflow = "hidden";
     } else {
       body.style.backgroundColor = "#1b1724"; // Default for most pages
     }
@@ -114,7 +103,7 @@ function MyApp({ Component, pageProps }) {
     : defaultTheme;
 
   let HeaderComponent = null;
-  if (isGalleryPage || isSynthwavePage) {
+  if (isGalleryPage) {
     HeaderComponent = Header3;
   } else if (!(isIndexPage || isScenePage || isRocketPage || isCommunionPage)) {
     HeaderComponent = Header;

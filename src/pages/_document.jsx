@@ -21,6 +21,8 @@ export default function Document() {
         <link rel="manifest" href="/manifest.json" />
         {/* <link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5" /> */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&display=swap" rel="stylesheet" />
 
         <script
           src="https://cdnjs.cloudflare.com/ajax/libs/gsap/1.19.0/TweenMax.min.js"

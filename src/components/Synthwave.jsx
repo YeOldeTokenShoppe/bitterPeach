@@ -1,6 +1,6 @@
 import React, { useRef, Suspense, useState, useEffect } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { useGLTF, OrbitControls, Environment, ContactShadows, Html } from '@react-three/drei';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { useGLTF, OrbitControls, Environment, ContactShadows, Html, Sky, GradientTexture } from '@react-three/drei';
 import * as THREE from 'three';
 import { gsap } from 'gsap';
 
@@ -8,34 +8,147 @@ import { gsap } from 'gsap';
 import DashboardHolograph from './3DVotiveStand/DashboardHolograph';
 
 // Preload the model
-useGLTF.preload('/deloreanScene2.glb');
+useGLTF.preload('/lamboScene.glb');
 
 // Define the target position as a constant so it's available everywhere
-const TARGET_POSITION = new THREE.Vector3(0.045, 0.45, 0.25);
+const TARGET_POSITION = new THREE.Vector3(0.0216, 0.5077, 0.3390);
+
+// Create a context to share camera data with components outside of Canvas
+const CameraContext = React.createContext(null);
+
+// Camera data provider component
+function CameraDataProvider({ children }) {
+  const { camera } = useThree();
+  const [camData, setCamData] = useState({
+    position: { x: 0, y: 0, z: 0 },
+    rotation: { x: 0, y: 0, z: 0 },
+    fov: 0
+  });
+
+  useFrame(() => {
+    setCamData({
+      position: {
+        x: camera.position.x.toFixed(4),
+        y: camera.position.y.toFixed(4),
+        z: camera.position.z.toFixed(4)
+      },
+      rotation: {
+        x: camera.rotation.x.toFixed(4),
+        y: camera.rotation.y.toFixed(4),
+        z: camera.rotation.z.toFixed(4)
+      },
+      fov: camera.fov.toFixed(2)
+    });
+  });
+
+  return (
+    <CameraContext.Provider value={camData}>
+      {children}
+    </CameraContext.Provider>
+  );
+}
 
 // Simple model component without target finding
 function DeLoreanModel() {
-  const { scene } = useGLTF('/deloreanScene2.glb');
+  const { scene } = useGLTF('/lamboScene.glb');
   const [isStatueLoaded, setIsStatueLoaded] = useState(false);
   const modelRef = useRef();
+  const [headTargetInfo, setHeadTargetInfo] = useState(null);
+  const videoRef = useRef();
   
   // Handle statue loaded notification
   const handleStatueLoaded = () => {
-
     setIsStatueLoaded(true);
   };
+  
+  // Create a video texture and apply it to the 'Display' object
+  useEffect(() => {
+    if (scene) {
+      // Create video element
+      const video = document.createElement('video');
+      video.src = '/headroom.mp4'; // Path to your video file
+      video.crossOrigin = 'Anonymous';
+      video.loop = true;
+      video.muted = true;
+      video.playsInline = true;
+      video.autoplay = false;
+      videoRef.current = video;
+      
+      // Create video texture
+      const videoTexture = new THREE.VideoTexture(video);
+      videoTexture.minFilter = THREE.LinearFilter;
+      videoTexture.magFilter = THREE.LinearFilter;
+      videoTexture.format = THREE.RGBAFormat;
+      
+      // Find the 'Display' object
+      scene.traverse((object) => {
+        if (object.name.includes('Display')) {
+          console.log('Found Display object:', object.name);
+          
+          // Create a new material with the video texture
+          if (object.material) {
+            // Save original material properties
+            const originalColor = object.material.color ? object.material.color.clone() : new THREE.Color(1, 1, 1);
+            const originalMetalness = object.material.metalness !== undefined ? object.material.metalness : 0;
+            const originalRoughness = object.material.roughness !== undefined ? object.material.roughness : 1;
+            
+            // Create new material with video texture
+            const videoMaterial = new THREE.MeshStandardMaterial({
+              map: videoTexture,
+              color: originalColor,
+              metalness: originalMetalness,
+              roughness: originalRoughness,
+              emissive: new THREE.Color(1, 1, 1),
+              emissiveMap: videoTexture,
+              emissiveIntensity: 0.5
+            });
+            
+            // Apply material to object
+            object.material = videoMaterial;
+            
+            // Start playing the video
+            video.play().catch(err => {
+              console.error('Error playing video:', err);
+              
+              // Try playing on user interaction as fallback
+              document.addEventListener('click', () => {
+                video.play().catch(e => console.error('Failed to play on click:', e));
+              }, { once: true });
+            });
+          }
+        }
+      });
+      
+      // Log all object names to help identify the correct name if needed
+      console.log('All objects in the scene:');
+      scene.traverse((object) => {
+        if (object.isMesh) {
+          console.log(` - ${object.name}`);
+        }
+      });
+    }
+    
+    // Clean up video on unmount
+    return () => {
+      if (videoRef.current) {
+        videoRef.current.pause();
+        videoRef.current.src = '';
+        videoRef.current = null;
+      }
+    };
+  }, [scene]);
   
   return (
     <>
       <primitive object={scene} ref={modelRef} />
       
       {/* Permanent DashboardHolograph with fixed position and scale */}
-      <DashboardHolograph 
+      {/* <DashboardHolograph 
         onLoad={handleStatueLoaded}
-        position={[0.045, 0.432, 0.245]}
+        position={[0.045, 0.432, 0.645]}
         rotation={[0, 0, 0]}
         scale={[0.05, 0.05, 0.05]}
-      />
+      /> */}
     </>
   );
 }
@@ -107,7 +220,7 @@ function PointLightHelper({ position, color, intensity }) {
 
 // Simple camera controls component
 function CameraControls() {
-  const initialPosition = { x: 0.01, y: 0.4, z: 0.4};
+  const initialPosition = { x: 0.01, y: 0.51, z: 0.6};
   
   // Store position for keyboard controls
   const [position, setPosition] = useState(initialPosition);
@@ -119,23 +232,41 @@ function CameraControls() {
   
   // Camera preset positions
   const presets = {
-    position1: { x: 0.045, y: 0.419, z: 0.741, fov: 40 },
-    // position2: { x: -0.9, y: 0.9, z: -4.31, fov: 12 },
-    position3: { x: -2.71, y: 2.1, z: 3.75, fov: 60 }
+    position1: { 
+      x: 0.0711, y: 0.503, z: -0.2412, 
+      fov: 20, 
+      target: { x: -0.0137, y: 0.5019, z: 0.2878 }
+    },
+    position2: { 
+      x: 0.5791, y: 0.805, z: -0.6848, 
+      fov: 20,
+      target: { x: 0.0356, y: 0.4476, z: 0.2713 }
+    },
+    position3: { 
+      x: 0.1912, y: 0.533, z: 3.1731, 
+      fov: 20,
+      target: { x: -0.1119, y: 0.4302, z: 0.426 }
+    },
+    position4: { 
+      x: -5.0927, y: 3.9886, z: 12.4432, 
+      fov: 20,
+      target: { x: -0.2125, y: 1.0975, z: 0.1229 }
+    }
   };
   
   // Create a sequence array with the positions we want to play on load
   const autoPlaySequence = [
     presets.position1,
-    presets.position3
+    presets.position2,
+    // presets.position3,
+    // presets.position4
   ];
   
   // Function to make camera look at target
-  const lookAtTarget = () => {
+  const lookAtTarget = (targetPos = TARGET_POSITION) => {
     if (window.camera) {
-      window.camera.lookAt(TARGET_POSITION);
+      window.camera.lookAt(targetPos);
       window.camera.updateMatrixWorld();
-
     }
   };
   
@@ -147,11 +278,15 @@ function CameraControls() {
         x: window.camera.position.x,
         y: window.camera.position.y,
         z: window.camera.position.z,
-        fov: window.camera.fov
+        fov: window.camera.fov,
+        target: {
+          x: TARGET_POSITION.x,
+          y: TARGET_POSITION.y, 
+          z: TARGET_POSITION.z
+        }
       };
       
       setSavedPositions(prev => [...prev, newPosition]);
-
       
       return newPosition;
     }
@@ -162,6 +297,23 @@ function CameraControls() {
     if (window.camera && !isAnimating) {
       setIsAnimating(true);
       
+      // Create target vector from position's target or use default
+      const targetVector = targetPosition.target 
+        ? new THREE.Vector3(targetPosition.target.x, targetPosition.target.y, targetPosition.target.z)
+        : TARGET_POSITION;
+        
+      // If we have OrbitControls, update its target too
+      const orbitControls = window.orbitControlsRef?.current;
+      if (orbitControls) {
+        gsap.to(orbitControls.target, {
+          x: targetVector.x,
+          y: targetVector.y,
+          z: targetVector.z,
+          duration: duration,
+          ease: "power2.inOut"
+        });
+      }
+      
       gsap.to(window.camera.position, {
         x: targetPosition.x,
         y: targetPosition.y,
@@ -169,7 +321,7 @@ function CameraControls() {
         duration: duration,
         ease: "power2.inOut",
         onUpdate: () => {
-          lookAtTarget();
+          lookAtTarget(targetVector);
           setPosition({
             x: window.camera.position.x,
             y: window.camera.position.y,
@@ -187,7 +339,6 @@ function CameraControls() {
             },
             onComplete: () => {
               setIsAnimating(false);
-      
             }
           });
         }
@@ -209,47 +360,103 @@ function CameraControls() {
       }
       
       const target = autoPlaySequence[currentIndex];
- 
       
-      // Animate position and FOV simultaneously
+      // Create target vector from position's target or use default
+      const targetVector = target.target 
+        ? new THREE.Vector3(target.target.x, target.target.y, target.target.z)
+        : TARGET_POSITION;
+        
+      // Get current camera position and target for smooth interpolation
+      const currentCameraPosition = { 
+        x: window.camera.position.x,
+        y: window.camera.position.y,
+        z: window.camera.position.z
+      };
+      
+      // Use window.orbitControlsRef instead of controlsRef
+      const orbitControls = window.orbitControlsRef?.current;
+      const currentOrbitTarget = orbitControls ? {
+        x: orbitControls.target.x,
+        y: orbitControls.target.y,
+        z: orbitControls.target.z
+      } : { x: TARGET_POSITION.x, y: TARGET_POSITION.y, z: TARGET_POSITION.z };
+
+      const currentFov = window.camera.fov;
+
+      // Create a master timeline for synchronized animations
       const timeline = gsap.timeline({
         onComplete: () => {
           currentIndex++;
           if (currentIndex < autoPlaySequence.length) {
-            animateNext(); // Remove pause between positions
+            setTimeout(() => animateNext(), 3000); // 3 second pause between positions
           } else {
             setIsAnimating(false);
           }
         }
       });
       
-      // Position animation
+      // First, smoothly move the orbit target (where the camera looks)
+      // This needs to happen first or slightly before camera movement
+      if (orbitControls) {
+        timeline.to(orbitControls.target, {
+          x: targetVector.x,
+          y: targetVector.y,
+          z: targetVector.z,
+          duration: 6, // Longer duration for smoother movement
+          ease: "power2.inOut", // Smooth acceleration and deceleration
+          overwrite: "auto",
+          onUpdate: () => {
+            // Force orbit controls to update each frame
+            orbitControls.update();
+          }
+        }, 0); // Start at the beginning of the timeline
+      }
+      
+      // Then move the camera position with a slight delay
       timeline.to(window.camera.position, {
         x: target.x,
         y: target.y,
         z: target.z,
-        duration: 4,
-        ease: "power2.inOut",
+        duration: 7, // Even longer duration for camera position
+        delay: 0.2, // Slight delay so target starts moving first
+        ease: "power3.inOut", // More pronounced ease for smoother stops
+        overwrite: "auto",
         onUpdate: () => {
-          lookAtTarget();
+          // Calculate interpolation factor (0 to 1)
+          const progress = timeline.progress();
+          
+          // Apply lookAt during transition for smoother rotation
+          if (progress < 0.9) { // Only until near the end
+            // Calculate interpolated look target
+            const interpTarget = new THREE.Vector3(
+              gsap.utils.interpolate(currentOrbitTarget.x, targetVector.x, progress),
+              gsap.utils.interpolate(currentOrbitTarget.y, targetVector.y, progress),
+              gsap.utils.interpolate(currentOrbitTarget.z, targetVector.z, progress)
+            );
+            
+            // Look at the interpolated target
+            window.camera.lookAt(interpTarget);
+          }
+          
+          // Update position state
           setPosition({
             x: window.camera.position.x,
             y: window.camera.position.y,
             z: window.camera.position.z
           });
         }
-      }, 0);
+      }, 0.1); // Start slightly after the target animation
       
-      // FOV animation (runs simultaneously)
+      // Smoothly animate the FOV change
       timeline.to(window.camera, {
         fov: target.fov,
-        duration: 4,
+        duration: 5, // Moderate duration for FOV change
         ease: "power2.inOut",
         onUpdate: () => {
           window.camera.updateProjectionMatrix();
           setFov(window.camera.fov);
         }
-      }, 0); // Start at the same time as position animation
+      }, 0.5); // Start a bit later in the sequence
     };
     
     animateNext();
@@ -282,7 +489,7 @@ function CameraControls() {
         duration: 2,
         ease: "power2.inOut",
         onUpdate: () => {
-          lookAtTarget();
+          lookAtTarget(target.target);
           setPosition({
             x: window.camera.position.x,
             y: window.camera.position.y,
@@ -437,9 +644,99 @@ function CameraControls() {
 }
 
 function Synthwave() {
-  const [controlsEnabled, setControlsEnabled] = useState(true); // Enable controls by default
-  const [showLightHelper, setShowLightHelper] = useState(false); // Light helper hidden by default
+  const [controlsEnabled, setControlsEnabled] = useState(true);
+  const [showLightHelper, setShowLightHelper] = useState(false);
+  const [showCameraGUI, setShowCameraGUI] = useState(true);
   const controlsRef = useRef();
+  
+  // Store orbit controls ref in window for access in camera functions
+  useEffect(() => {
+    window.orbitControlsRef = controlsRef;
+  }, [controlsRef]);
+  
+  // State to store camera data outside of Canvas
+  const [externalCamData, setExternalCamData] = useState({
+    position: { x: 0, y: 0, z: 0 },
+    rotation: { x: 0, y: 0, z: 0 },
+    fov: 0
+  });
+
+  // Function to log current camera data to console
+  const logCameraPosition = () => {
+    if (window.camera) {
+      const position = {
+        x: Number(window.camera.position.x.toFixed(4)),
+        y: Number(window.camera.position.y.toFixed(4)),
+        z: Number(window.camera.position.z.toFixed(4))
+      };
+      
+      const rotation = {
+        x: Number(window.camera.rotation.x.toFixed(4)),
+        y: Number(window.camera.rotation.y.toFixed(4)),
+        z: Number(window.camera.rotation.z.toFixed(4))
+      };
+      
+      const target = {
+        x: Number(controlsRef.current?.target.x.toFixed(4)) || TARGET_POSITION.x,
+        y: Number(controlsRef.current?.target.y.toFixed(4)) || TARGET_POSITION.y,
+        z: Number(controlsRef.current?.target.z.toFixed(4)) || TARGET_POSITION.z
+      };
+      
+      const cameraData = {
+        position,
+        rotation,
+        target,
+        fov: Number(window.camera.fov.toFixed(2))
+      };
+      
+      console.log('Camera Data:', cameraData);
+      
+      // Format for copy to clipboard - now in proper preset format
+      const formattedPreset = `{
+  x: ${position.x}, y: ${position.y}, z: ${position.z},
+  fov: ${cameraData.fov},
+  target: { x: ${target.x}, y: ${target.y}, z: ${target.z} }
+}`;
+      
+      // Copy to clipboard
+      navigator.clipboard.writeText(formattedPreset)
+        .then(() => {
+          console.log('Camera preset copied to clipboard!');
+          alert('Camera preset copied to clipboard in format ready for presets object');
+        })
+        .catch(err => {
+          console.error('Failed to copy: ', err);
+          alert('Failed to copy to clipboard. See console for data.');
+        });
+    }
+  };
+
+  // Effect to update camera data from window.camera
+  useEffect(() => {
+    const updateCameraData = () => {
+      if (window.camera) {
+        setExternalCamData({
+          position: {
+            x: window.camera.position.x.toFixed(4),
+            y: window.camera.position.y.toFixed(4),
+            z: window.camera.position.z.toFixed(4)
+          },
+          rotation: {
+            x: window.camera.rotation.x.toFixed(4),
+            y: window.camera.rotation.y.toFixed(4),
+            z: window.camera.rotation.z.toFixed(4)
+          },
+          fov: window.camera.fov.toFixed(2)
+        });
+      }
+    };
+    
+    // Update camera data initially and on animation frames
+    updateCameraData();
+    const intervalId = setInterval(updateCameraData, 100);
+    
+    return () => clearInterval(intervalId);
+  }, []);
 
   // Add keyboard event listener for shortcuts
   useEffect(() => {
@@ -450,13 +747,14 @@ function Synthwave() {
       switch (e.key.toLowerCase()) {
         case 'c': // 'C' to toggle camera controls
           setControlsEnabled(prev => !prev);
-     
           break;
         case 'l': // 'L' to toggle light helper
           setShowLightHelper(prev => !prev);
-         
           break;
-        
+        case 'g': // 'G' to toggle camera GUI
+          setShowCameraGUI(prev => !prev);
+          console.log('Camera GUI toggled:', !showCameraGUI); // Add debug log
+          break;
         default:
           break;
       }
@@ -464,55 +762,194 @@ function Synthwave() {
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [controlsEnabled, showLightHelper]);
+  }, [controlsEnabled, showLightHelper, showCameraGUI]);
 
   return (
-    <div style={{ width: '100vw', height: '100vh' }}>
+    <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
       <Canvas
         camera={{
-          fov: 2,
-          position: [0.09, 0.51, 0.45],
-          near: 0.1,
+          fov: 20,
+          position: [0.05, 0.55, 0.65],
+          near: 0.01,
           far: 300
         }}
         onCreated={({ camera, gl }) => {
-     
-          window.camera = camera; // Make camera globally accessible
+          window.camera = camera;
           camera.up.set(0, 1, 0);
-          // Look at target point immediately
           camera.lookAt(TARGET_POSITION);
         }}
       >
-        <Suspense fallback={null}>
-          <DeLoreanModel />
-          <CameraControls />
-          <Environment preset="night" />
-          <ContactShadows
-            position={[0, -0.5, 0]}
-            opacity={0.5}
-            scale={10}
-            blur={1}
-            far={4}
+        <CameraDataProvider>
+          <Suspense fallback={null}>
+            <DeLoreanModel />
+            <CameraControls />
+            <Environment preset="night" />
+            
+            {/* Sky component with synthwave colors */}
+            <Sky 
+              distance={450000} 
+              sunPosition={[0, -0.05, -1]} 
+              inclination={0.1} 
+              azimuth={0.25}
+              turbidity={10}
+              rayleigh={1.5}
+              mieCoefficient={0.005}
+              mieDirectionalG={0.8}
+              moonPosition={[3, 0.5, -1]}
+              exposure={0.6}
+            />
+            
+            {/* Synthwave background sphere */}
+            <mesh>
+              <sphereGeometry args={[50, 32, 32]} />
+              <meshStandardMaterial 
+                side={THREE.BackSide}
+                color="#000000"
+                emissive="#560088"
+                emissiveIntensity={0.3}
+                metalness={0.8}
+                roughness={0.4}
+                wireframe={false}
+                fog={false}
+              />
+            </mesh>
+            
+            {/* Sun/horizon glow */}
+            <mesh position={[0, 10, -80]} rotation={[0, 0, 0]}>
+              <planeGeometry args={[300, 50]} />
+              <meshBasicMaterial 
+                side={THREE.DoubleSide}
+                transparent={true}
+                opacity={0.6}
+                color="#ff0066"
+              />
+            </mesh>
+            
+            {/* Grid floor for synthwave effect */}
+            <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.7, 0]}>
+              <planeGeometry args={[500, 500, 200, 200]} />
+              <meshStandardMaterial 
+                color="#5b5c87"
+                emissive="#5b5c87"
+                emissiveIntensity={0.2}
+                wireframe={true}
+                fog={true}
+              />
+            </mesh>
+            
+            {/* Debugging sphere to visually confirm target */}
+            {/* <mesh position={[TARGET_POSITION.x, TARGET_POSITION.y, TARGET_POSITION.z]}>
+              <sphereGeometry args={[0.01, 16, 16]} />
+              <meshBasicMaterial color="yellow" />
+            </mesh> */}
+            <ContactShadows
+              position={[0, -0.5, 0]}
+              opacity={0.5}
+              scale={10}
+              blur={1}
+              far={4}
+            />
+            <pointLight position={[0.045, 0.22, 0.51]} intensity={1} color="#ff00ff" />
+            
+            {/* Hemisphere light with sunset colors */}
+            <hemisphereLight 
+              skyColor="#ff7e5f" // Warm orange/pink for sky
+              groundColor="#371e57" // Deep purple for ground
+              intensity={1.5}
+              position={[0, 5, 0]}
+            />
+          </Suspense>
+          
+          <OrbitControls
+            ref={controlsRef}
+            target={[TARGET_POSITION.x, TARGET_POSITION.y, TARGET_POSITION.z]}
+            enablePan={true}
+            enableZoom={true}
+            enableRotate={true}
+            autoRotate={true}
+            autoRotateSpeed={0.5}
+            enabled={controlsEnabled}
+            zoomToCursor={true}
+            near={0.01}
+            far={100}
+            // Limit zoom distance to stay inside the skybox
+            minDistance={0.1}
+            maxDistance={12} 
+            // Restrict vertical rotation to stay above model
+            minPolarAngle={0} // Can look directly from above
+            maxPolarAngle={Math.PI / 2.2} // Slightly above horizon
+            // Restrict damping for smoother controls
+            dampingFactor={0.05}
+            enableDamping={true}
           />
-          {/* {showLightHelper ? (
-            <PointLightHelper position={[0.0435, 0.389, 0.2458]} intensity={1} color="#ff00ff" />
-          ) : ( */}
-            <pointLight position={[0.045, 0.22, 0.51]} intensity={.2} color="#ff00ff" />
-          {/* )} */}
-        </Suspense>
-        
-        <OrbitControls
-          ref={controlsRef}
-          target={[TARGET_POSITION.x, TARGET_POSITION.y, TARGET_POSITION.z]}
-          enablePan={true}
-          enableZoom={true}
-          enableRotate={true}
-          autoRotate={true}
-          autoRotateSpeed={1}
-          enabled={controlsEnabled}
-          zoomToCursor={true}
-        />
+        </CameraDataProvider>
       </Canvas>
+      
+      {/* Camera position capture button */}
+      <button 
+        onClick={logCameraPosition}
+        style={{
+          position: 'absolute',
+          bottom: '20px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          padding: '10px 20px',
+          backgroundColor: '#ff00ff',
+          color: 'white',
+          border: 'none',
+          borderRadius: '5px',
+          fontSize: '16px',
+          fontWeight: 'bold',
+          cursor: 'pointer',
+          zIndex: 1000,
+          boxShadow: '0 0 10px rgba(0,0,0,0.5)'
+        }}
+      >
+        Capture Camera Position
+      </button>
+      
+      {/* Camera GUI outside of Canvas - guaranteed to be visible */}
+      {showCameraGUI && (
+        <div style={{
+          position: 'absolute',
+          top: '180px',
+          left: '10px',
+          backgroundColor: 'rgba(0,0,0,0.7)',
+          color: '#00ff00',
+          padding: '10px',
+          borderRadius: '5px',
+          fontFamily: 'monospace',
+          fontSize: '12px',
+          userSelect: 'text',
+          zIndex: 1000
+        }}>
+          <div><b>Position:</b> x:{externalCamData.position.x} y:{externalCamData.position.y} z:{externalCamData.position.z}</div>
+          <div><b>Rotation:</b> x:{externalCamData.rotation.x} y:{externalCamData.rotation.y} z:{externalCamData.rotation.z}</div>
+          <div><b>FOV:</b> {externalCamData.fov}</div>
+          <div><b>Target:</b> x:{TARGET_POSITION.x.toFixed(4)} y:{TARGET_POSITION.y.toFixed(4)} z:{TARGET_POSITION.z.toFixed(4)}</div>
+        </div>
+      )}
+      
+      {/* Permanent instructions that are always visible */}
+      {/* <div style={{
+        position: 'absolute',
+        top: '10px',
+        left: '10px',
+        backgroundColor: 'rgba(0,0,0,0.7)',
+        color: 'white',
+        padding: '10px',
+        borderRadius: '5px',
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        userSelect: 'text',
+        zIndex: 1000
+      }}>
+        <h3 style={{margin: '0 0 5px 0'}}>Camera Controls</h3>
+        <div>Press G to toggle camera data ({showCameraGUI ? 'ON' : 'OFF'})</div>
+        <div>Press C to toggle orbit controls ({controlsEnabled ? 'ON' : 'OFF'})</div>
+        <div>Arrow keys to move camera</div>
+        <div>Or click the button at the bottom to capture position</div>
+      </div> */}
     </div>
   );
 }

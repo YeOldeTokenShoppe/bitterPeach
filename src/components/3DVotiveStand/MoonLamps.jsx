@@ -48,8 +48,8 @@ const MoonScene = forwardRef(
     // New ref for tracking scroll materials that need pulsing
     const glowingScrollMaterialsRef = useRef([]);
     
-    const maxProjectiles = 25; // Reduced from 50 to 25 for memory optimization
-    const projectileLifespan = 30000; // Reduced from 60000 to 30000 (30 seconds) to clean up projectiles faster
+    const maxProjectiles = 50; // Increased from 20 to 50 for more projectiles
+    const projectileLifespan = 60000; // Increased to 60 seconds (1 minute) for much longer visibility
     const projectilePoolRef = useRef([]);
     const clockRef = useRef(new THREE.Clock());
 
@@ -93,7 +93,6 @@ const MoonScene = forwardRef(
       controls.maxPolarAngle = Math.PI / 2;
       controls.zoomToCursor = true;
       controls.zoomSpeed = 2.0; // Increase zoom speed
-    
       
       // Add a console log to verify controls settings
       console.log("MoonScene: OrbitControls initialized with settings:", {
@@ -314,7 +313,7 @@ const MoonScene = forwardRef(
 
             script.onload = () => {
               Ammo({
-                INITIAL_MEMORY: 256 * 1024 * 1024, // 256MB WebAssembly Heap (increased from 128MB)
+                INITIAL_MEMORY: 128 * 1024 * 1024, // 128MB WebAssembly Heap
               })
                 .then(resolve)
                 .catch(reject);
@@ -446,56 +445,17 @@ const MoonScene = forwardRef(
       const vertices = geometry.attributes.position.array;
       const tempBtVec = new AmmoLib.btVector3(0, 0, 0);
 
-      // Use even fewer vertices for complex geometries to save memory
-      const maxVertices = 40; // Further reduced from 50 to 40
-      const vertexCount = vertices.length / 3;
-      const stride = Math.max(1, Math.floor(vertexCount / maxVertices));
-      
-      // Sample vertices more intelligently to preserve shape features
-      const vertexSet = new Set(); // Track used indices to avoid duplicates
-      let pointsAdded = 0; // Manual counter for number of points added
-      
-      // First add key vertices from the bounding corners if available
-      if (!geometry.boundingBox) {
-        geometry.computeBoundingBox();
-      }
-      
-      if (geometry.boundingBox) {
-        const { min, max } = geometry.boundingBox;
-        // Add 8 corners of the bounding box
-        const corners = [
-          [min.x, min.y, min.z], [min.x, min.y, max.z],
-          [min.x, max.y, min.z], [min.x, max.y, max.z],
-          [max.x, min.y, min.z], [max.x, min.y, max.z],
-          [max.x, max.y, min.z], [max.x, max.y, max.z]
-        ];
-        
-        corners.forEach(([x, y, z]) => {
-          tempBtVec.setValue(x, y, z);
-          shape.addPoint(tempBtVec, false);
-          pointsAdded++;
-        });
-      }
-      
-      // Then sample remaining vertices
+      const maxVertices = 100; // Limit number of vertices
+      const stride = Math.max(1, Math.floor(vertices.length / 3 / maxVertices));
+
       for (let i = 0; i < vertices.length; i += 3 * stride) {
         if (i >= vertices.length) break;
-        
-        // Skip if we already have enough points
-        if (pointsAdded >= maxVertices) break;
-        
-        const index = Math.floor(i / 3);
-        if (!vertexSet.has(index)) {
-          vertexSet.add(index);
-          tempBtVec.setValue(vertices[i], vertices[i + 1], vertices[i + 2]);
-          const lastOne = i >= vertices.length - 3 * stride;
-          shape.addPoint(tempBtVec, lastOne);
-          pointsAdded++;
-        }
+        tempBtVec.setValue(vertices[i], vertices[i + 1], vertices[i + 2]);
+        const lastOne = i >= vertices.length - 3 * stride;
+        shape.addPoint(tempBtVec, lastOne);
       }
 
       shape.setMargin(margin);  // Use the passed margin argument
-      // Removed: shape.optimizeConvexHull(); - This function doesn't exist
 
       shapeCache.current.set(cacheKey, shape); // Store in cache with the margin-specific key
 
@@ -1021,47 +981,10 @@ const MoonScene = forwardRef(
       const size = new THREE.Vector3();
       bbox.getSize(size);
 
-      // Use a simplified shape - prefer sphere for small objects
-      if (Math.max(size.x, size.y, size.z) < 5 && 
-          Math.abs(size.x - size.y) < 1 && 
-          Math.abs(size.x - size.z) < 1) {
-        // For roughly cube-shaped small objects, use sphere (more efficient)
-        const radius = (size.x + size.y + size.z) / 6; // Average half-extent
-        const shape = new AmmoLib.btSphereShape(radius);
-        shape.setMargin(0.01); // Small margin for better performance
-        return shape;
-      } else {
-        // For larger or non-cube shapes, use box shape
-        const shape = new AmmoLib.btBoxShape(
-          new AmmoLib.btVector3(
-            Math.max(0.1, size.x * 0.5), // Ensure minimum size of 0.1
-            Math.max(0.1, size.y * 0.5), 
-            Math.max(0.1, size.z * 0.5)
-          )
-        );
-        shape.setMargin(0.01); // Explicitly set a small margin for box shapes
-        return shape;
-      }
-    };
-    
-    // Helper function to assess how spherical an object is
-    const assessSphericity = (size) => {
-      // Calculate how close the object is to being a perfect sphere (1.0 = perfect sphere)
-      const maxDim = Math.max(size.x, size.y, size.z);
-      const minDim = Math.min(size.x, size.y, size.z);
-      
-      if (maxDim === 0) return 0; // Avoid division by zero
-      
-      // Ratio between smallest and largest dimension - closer to 1 means more spherical
-      const ratio = minDim / maxDim;
-      
-      // We also consider volume ratio compared to enclosing sphere
-      const boxVolume = size.x * size.y * size.z;
-      const sphereVolume = (4/3) * Math.PI * Math.pow(maxDim/2, 3);
-      const volumeRatio = boxVolume / sphereVolume;
-      
-      // Weighted combination
-      return (ratio * 0.6) + (volumeRatio * 0.4);
+      // Create box shape
+      const shape = new AmmoLib.btBoxShape(new AmmoLib.btVector3(size.x / 2, size.y / 2, size.z / 2));
+      shape.setMargin(0.01); // Explicitly set a small margin for box shapes
+      return shape;
     };
 
     // Add a function to check if a point is inside the room
@@ -1324,44 +1247,12 @@ const MoonScene = forwardRef(
 
       startSimulation();
 
-      // Add periodic cleanup to prevent memory buildup
-      const cleanupInterval = setInterval(() => {
-        if (physicsRef.current.world && ammoRef.current) {
-          // Force garbage collection on physics bodies no longer in use
-          const currentBodies = [...bodiesRef.current];
-          for (let i = currentBodies.length - 1; i >= 0; i--) {
-            const body = currentBodies[i];
-            // Clean up any projectiles that are very old (over 20 seconds)
-            if (body.isProjectile && (Date.now() - body.createdAt > 20000)) {
-              recycleProjectile(body, i);
-            }
-          }
-          
-          // Manually run the garbage collector for Ammo.js if supported
-          if (typeof window.gc === 'function') {
-            try {
-              window.gc();
-            } catch (e) {
-              console.log('Manual GC not available');
-            }
-          }
-        }
-      }, 10000); // Run cleanup every 10 seconds
-
       return () => {
         // Cleanup physics resources
-        clearInterval(cleanupInterval);
-        
         if (physicsRef.current.world && ammoRef.current) {
-          // Clear all physics bodies to prevent memory leaks
-          bodiesRef.current.forEach(obj => {
-            if (obj.body) {
-              physicsRef.current.world.removeRigidBody(obj.body);
-            }
-          });
-          bodiesRef.current = [];
+          // Proper Ammo.js cleanup would go here
         }
-        
+
         // Clean up animation mixers
       };
     }, []); // Keep dependencies minimal

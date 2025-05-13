@@ -593,6 +593,10 @@ const SidePanel = ({
         console.log('Ignition click received from iframe');
         handleIgnitionClick();
       }
+      else if (event.data && event.data.type === 'START_SYNTHWAVE_TRANSITION') {
+        console.log('START_SYNTHWAVE_TRANSITION received from iframe');
+        handleIgnitionClick();
+      }
       else if (event.data && event.data.type === 'CONSTELLATION_TOGGLE') {
         console.log('Constellation toggle received from iframe');
         handleConstellationToggle();

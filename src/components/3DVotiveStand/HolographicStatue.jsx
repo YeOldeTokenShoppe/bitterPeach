@@ -204,7 +204,7 @@ function HolographicStatue({
               depthWrite: true,
               depthTest: true,
             });
-          } else if (child.name.startsWith('Heart') || child.name.toLowerCase().startsWith('heart')) {
+          } else if (child.name.startsWith('Heart2') || child.name.toLowerCase().startsWith('heart')) {
             // Keep original material for Heart objects
             console.log('Preserved original material for Heart object:', child.name);
           } else {
