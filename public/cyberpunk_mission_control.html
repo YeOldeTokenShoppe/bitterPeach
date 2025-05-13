@@ -3025,7 +3025,7 @@ function startCharacterInteraction() {
           <div class="button-indicator"></div>
         </button>
 
-        <button class="control-button" data-action="ignition" onclick="handleIgnitionClick()">
+        <button class="control-button" data-action="ignition">
           <span class="button-prefix">//OPS</span>
           <span class="button-label">CRUSADE</span>
         </button>
@@ -6125,13 +6125,14 @@ function startCharacterInteraction() {
     <!-- Add ignition button handling -->
     <script>
       // Add debug logging
-      console.log('Ignition script loaded in cyberpunk_mission_control.html');
+      console.log('Ignition script (revised) loaded in cyberpunk_mission_control.html');
 
       // Function to handle ignition button click
       function handleIgnitionClick() {
-        console.log('Ignition button clicked in iframe - starting synthwave mode');
-        // Send message to parent window with correct message type
-        window.parent.postMessage({ type: 'IGNITION_COMMAND' }, '*');
+        console.log('Ignition button clicked: Requesting synthwave transition with camera zoom.');
+        
+        // Send message to parent window to initiate the camera zoom and then the model switch
+        window.parent.postMessage({ type: 'START_SYNTHWAVE_TRANSITION' }, '*');
         
         // Add visual feedback
         const ignitionButton = document.querySelector('.control-button[data-action="ignition"]');
@@ -6143,37 +6144,50 @@ function startCharacterInteraction() {
         }
       }
 
-      // Add message listener
+      // Consolidated message listener
       window.addEventListener('message', function(event) {
-        console.log('Received message in iframe:', event.data);
-        
-        if (event.data && event.data.type === 'INITIAL_STATE') {
-          console.log('Received initial state:', event.data);
-          // Update local state based on parent state
-          if (event.data.showSpotify !== undefined) {
-            // Update showSpotify state
-          }
-          if (event.data.is80sMode !== undefined) {
-            // Update 80s mode state
-          }
-          if (event.data.monsterMode !== undefined) {
-            // Update monster mode state
-          }
-          if (event.data.rocketModelVisible !== undefined) {
-            // Update rocket model visibility
-          }
+        // Basic check for data and type properties
+        if (!event.data || typeof event.data.type === 'undefined') {
+            // console.log('Message received without event.data or event.data.type:', event);
+            return; 
         }
+
+        console.log('Received message in iframe:', event.data); // Generic log for any message
+        
+        if (event.data.type === 'INITIAL_STATE') {
+          console.log('Received INITIAL_STATE:', event.data);
+          // Update local state based on parent state (example placeholders)
+          // These should be replaced with actual state update logic if needed by this iframe.
+          if (typeof event.data.showSpotify !== 'undefined') {
+            console.log('INITIAL_STATE: showSpotify =', event.data.showSpotify);
+          }
+          if (typeof event.data.is80sMode !== 'undefined') {
+            console.log('INITIAL_STATE: is80sMode =', event.data.is80sMode);
+          }
+          if (typeof event.data.monsterMode !== 'undefined') {
+            console.log('INITIAL_STATE: monsterMode =', event.data.monsterMode);
+          }
+          if (typeof event.data.rocketModelVisible !== 'undefined') {
+            console.log('INITIAL_STATE: rocketModelVisible =', event.data.rocketModelVisible);
+          }
+          // The problematic event.data.data.handleIgnition is no longer accessed here, fixing the error.
+        }
+        // Example: Handle other specific message types if they become necessary
+        // else if (event.data.type === 'ANOTHER_MESSAGE_FROM_PARENT') {
+        //   console.log('Received ANOTHER_MESSAGE_FROM_PARENT:', event.data);
+        //   // Process this message
+        // }
       });
 
-      // Add click handler to ignition button
+      // Add click handler to ignition button after DOM is loaded
       document.addEventListener('DOMContentLoaded', function() {
-        console.log('DOM loaded in iframe');
+        console.log('DOM loaded in iframe. Setting up ignition button listener.');
         const ignitionButton = document.querySelector('.control-button[data-action="ignition"]');
         if (ignitionButton) {
-          console.log('Found ignition button');
+          console.log('Found ignition button, attaching click listener for handleIgnitionClick.');
           ignitionButton.addEventListener('click', handleIgnitionClick);
         } else {
-          console.warn('Ignition button not found');
+          console.warn('Ignition button (data-action="ignition") not found in DOMContentLoaded.');
         }
       });
     </script>

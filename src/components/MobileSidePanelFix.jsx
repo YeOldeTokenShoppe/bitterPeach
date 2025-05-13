@@ -1,17 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import {
-  Box,
-  Button,
-  Drawer,
-  DrawerContent,
-  DrawerCloseButton,
-  DrawerOverlay,
-  useDisclosure,
-  Text,
-  VStack,
-  HStack,
-} from "@chakra-ui/react";
+
+import { Button, Drawer, DrawerContent, DrawerCloseButton, DrawerOverlay, useDisclosure, Text } from "./ui/button";
 import { useUser } from "@clerk/nextjs";
+import useMediaQuery from "./hooks/useMediaQuery";
 import { useRouter } from "next/router";
 import { getUserImageUrl } from "../utilities/clerkHelpers";
 
@@ -1019,7 +1010,7 @@ const MobileSidePanel = ({
           />
 
           {/* Mission Control Panel */}
-          <Box
+          <div
             width="100%"
             display="flex"
             flexDirection="column"
@@ -1028,7 +1019,7 @@ const MobileSidePanel = ({
             overflowY="auto"
             height="100%"
           >
-            <Box
+            <div
               width="100%"
               flex="1"
               overflow="visible"
@@ -1056,8 +1047,8 @@ const MobileSidePanel = ({
                 title="Mission Control Panel Mobile"
                 onLoad={handleIframeLoad}
               />
-            </Box>
-          </Box>
+            </div>
+          </div>
         </DrawerContent>
       </Drawer>
     </>

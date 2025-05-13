@@ -53,13 +53,17 @@ scene.add(lightHelper);
         model.traverse((child) => {
             if (child.isMesh && child.name.includes('Mirror')) {
                 child.material = new THREE.MeshPhysicalMaterial({
+                    dispersion: 2.9,
+                    iridescence: 0.5,
+                    sheen: 1,
+                    sheenColor: 0x000000,
                   metalness: 1,          // Keeps it reflective
-                  roughness: 0.05,       // Adds soft blur (increase to 0.2–0.3 for more haze)
+                  roughness: 0.07,       // Adds soft blur (increase to 0.2–0.3 for more haze)
                   reflectivity: 0.8,     // High reflectivity, slightly under perfect
-                  clearcoat: 0.5,          // Extra shiny layer (like car paint or glass)
-                  clearcoatRoughness: 0.8, // Roughness on the clearcoat (adds the window-like haze)
-                  envMapIntensity: 1.0,  // Reflection brightness from environment
-                  transmission: 0        // Keep at 0 unless you want transparency
+                  clearcoat: 0.9,          // Extra shiny layer (like car paint or glass)
+                  clearcoatRoughness: 2, // Roughness on the clearcoat (adds the window-like haze)
+                  envMapIntensity: 2.0,  // Reflection brightness from environment
+                  transmission: 1        // Keep at 0 unless you want transparency
                 });
               }
         });

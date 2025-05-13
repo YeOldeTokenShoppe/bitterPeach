@@ -11,10 +11,6 @@ import {
   Switch,
   FormControl,
   FormLabel,
-  Drawer,
-  DrawerOverlay,
-  DrawerContent,
-  DrawerCloseButton,
 } from "@chakra-ui/react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/router";
@@ -1777,87 +1773,8 @@ const MobileSidePanel = ({
     }
   };
 
-  const iframeSrc = `/cyberpunk_mission_control.html?v=${new Date().getTime()}`;
-
   return (
     <>
-      <Drawer isOpen={isVideoScreenOpen} placement="right" onClose={closeVideoScreen} size="full">
-        <DrawerOverlay />
-        <DrawerContent
-          bg="transparent"
-          style={{
-            touchAction: "none",
-            height: "calc(var(--vh, 1vh) * 100)",
-            width: "100%",
-            maxWidth: "450px", // Max width for the panel
-            marginLeft: "auto", // Center the panel
-            marginRight: "auto", // Center the panel
-            boxShadow: "none",
-            overflow: "hidden", // Prevent main scrollbar on drawer content
-          }}
-        >
-          <DrawerCloseButton
-            position="fixed"
-            color="#67e8f9"
-            size="lg"
-            top="env(safe-area-inset-top, 15px)"
-            right="15px"
-            zIndex="2000"
-            bg="rgba(13, 25, 42, 0.95)"
-            borderRadius="full"
-            p={2.5}
-            boxShadow="0 0 10px rgba(6, 182, 212, 0.4), inset 0 0 8px rgba(6, 182, 212, 0.2)"
-            border="1px solid #0e7490"
-            _hover={{
-              bg: "rgba(19, 36, 63, 0.95)",
-              transform: "scale(1.08)",
-              boxShadow: "0 0 15px rgba(6, 182, 212, 0.6)",
-            }}
-          />
-
-          {/* Mission Control Panel */}
-          <Box
-            width="100%"
-            display="flex"
-            flexDirection="column"
-            alignItems="center"
-            position="relative"
-            overflowY="auto"
-            height="100%"
-          >
-            <Box
-              width="100%"
-              flex="1"
-              overflow="visible"
-              position="relative"
-              // pt="40px"
-              display="flex"
-              justifyContent="center"
-              // pb="70px"
-            >
-              {/* Video overlay - not needed anymore since we're creating the video inside the iframe */}
-              <iframe
-                ref={missionControlIframeRef}
-                src={iframeSrc}
-                style={{
-                  width: "100%",
-                  maxWidth: "450px",
-                  height: "100%",
-                  minHeight: "650px", // Increased to accommodate expanded video screen
-                  border: "none",
-                  overflow: "visible",
-                  display: "block",
-                  backgroundColor: "transparent",
-                  position: "relative",
-                }}
-                title="Mission Control Panel Mobile"
-                onLoad={handleIframeLoad}
-              />
-            </Box>
-          </Box>
-        </DrawerContent>
-      </Drawer>
-
       {/* Bottom Navigation Bar */}
       <Box
         position="fixed"

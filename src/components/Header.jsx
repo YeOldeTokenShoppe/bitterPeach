@@ -11,7 +11,8 @@ import {
   UserButton,
   useAuth,
 } from "@clerk/nextjs"; // Import Clerk components
-import { Button, Container } from "@chakra-ui/react";
+import { Container} from "./ui/container"; // Import our custom Container component
+import { Button } from "./ui/button";
 import Link from "next/link";
 import { slide as Menu } from "react-burger-menu";
 import { doc, setDoc, getDoc } from "firebase/firestore"; // Import Firestore methods
@@ -310,15 +311,9 @@ function Header() {
         }}
       >
         <Container
-          className="header"
-          maxW="1200px"
-          mb="125px"
-          // style={{
-          //   position: "relative",
-          //   zIndex: "100",
-          // }}
+          className="header mb-[125px] max-w-[1200px] relative z-[100]"
         >
-          <header
+          <div
             id="header"
             style={{ position: "relative", width: "100%", zindex: "0" }}
           >
@@ -463,7 +458,7 @@ function Header() {
                 </SignedOut>
               </div>
             </div>
-          </header>
+          </div>
         </Container>
       </div>
     </>

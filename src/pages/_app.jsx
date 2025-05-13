@@ -15,6 +15,7 @@ import "../../styles/MusicPlayer.module.css";
 import "../../styles/coin.css";
 import "../../styles/NeonSign.css";
 import "../../styles/ScenePage.css";
+import "../../styles/TextLight.scss";
 import { ThirdwebProvider } from "thirdweb/react";
 import { sepolia } from "thirdweb/chains";
 import { ChakraProvider } from "@chakra-ui/react";

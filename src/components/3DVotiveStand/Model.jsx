@@ -16,7 +16,7 @@ import { db } from "../../utilities/firebaseClient";
 import { gsap } from "gsap";
 
 // Configure draco loader for useGLTF
-useGLTF.preload("/alligatorStroll.glb");
+useGLTF.preload("/alligatorStroll1.glb");
 const dracoLoader = new DRACOLoader();
 dracoLoader.setDecoderPath("/draco/");
 // Set up GLTFLoader to use Draco compression
@@ -51,9 +51,10 @@ function Model({
   cameraControlsRef,
   onCandleClick,
   onHoldStateChange,
+  onModelDataLoaded,
 }) {
   // STATE VARIABLES - consolidated in one place
-  const [modelUrl, setModelUrl] = useState("/alligatorStroll.glb");
+  const [modelUrl, setModelUrl] = useState("/alligatorStroll1.glb");
   const { progress } = useProgress();
   const gltf = useGLTF(modelUrl, true);
   const { camera, scene } = useThree();
@@ -257,7 +258,7 @@ function Model({
         const obj = intersection.object;
         if (
           obj.isMesh &&
-          (obj.name === "Floor" ||
+          (
             obj.name === "Floor2.002" ||
             obj.name.includes("Floor2") ||
             obj.name.includes("goldCircuit"))
@@ -273,10 +274,13 @@ function Model({
         mouseIsDownRef.current = true;
         mouseDownTime.current = Date.now();
         // Use the point from the actual floor intersection
+        // Store face and object for normal checking
         mouseDownPosition.current = {
           x: event.clientX,
           y: event.clientY,
           point: floorIntersection.point.clone(),
+          face: floorIntersection.face,       
+          object: floorIntersection.object    
         };
         candlePlacedRef.current = false;
 
@@ -287,23 +291,50 @@ function Model({
           console.log("  - !candlePlacedRef.current:", !candlePlacedRef.current);
           console.log("  - placeCandleFunc.current:", !!placeCandleFunc.current);
           console.log("  - mouseDownPosition.current?.point:", !!mouseDownPosition.current?.point);
+          console.log("  - mouseDownPosition.current?.face:", !!mouseDownPosition.current?.face);
+          console.log("  - mouseDownPosition.current?.object:", !!mouseDownPosition.current?.object);
+
 
           if (
             mouseIsDownRef.current &&
             !candlePlacedRef.current &&
             placeCandleFunc.current &&
-            mouseDownPosition.current?.point
+            mouseDownPosition.current?.point &&
+            mouseDownPosition.current?.face &&    
+            mouseDownPosition.current?.object  
           ) {
-            console.log("[Timeout Callback] Conditions met, calling placeCandleFunc");
-            placeCandleFunc.current(mouseDownPosition.current.point);
-            candlePlacedRef.current = true;
+            const { point, face, object: intersectedObject } = mouseDownPosition.current;
+
+            // --- START NORMAL CHECK ---
+            const localNormal = face.normal;
+            const worldNormal = localNormal.clone();
+            // Ensure intersectedObject.matrixWorld is up to date if the object might be moving/animated
+            // For static objects like Floor2, it should be fine.
+            intersectedObject.updateMatrixWorld(); 
+            const normalMatrix = new THREE.Matrix3().getNormalMatrix(intersectedObject.matrixWorld);
+            worldNormal.applyMatrix3(normalMatrix).normalize();
+
+            const worldUp = new THREE.Vector3(0, 1, 0);
+            // Adjust threshold as needed (e.g., 30-45 degrees for "mostly up")
+            // A higher threshold means more tolerance for steeper surfaces.
+            const angleThreshold = THREE.MathUtils.degToRad(35); // e.g., 35 degrees from horizontal
+            const angleToUp = worldNormal.angleTo(worldUp);
+
+            if (angleToUp < angleThreshold) {
+              console.log(`[Timeout Callback] Surface is suitable (angle: ${THREE.MathUtils.radToDeg(angleToUp).toFixed(1)}°). Placing candle.`);
+              placeCandleFunc.current(point); 
+              candlePlacedRef.current = true;
+            } else {
+              console.warn(`[Timeout Callback] Surface normal not suitable for candle. Angle to up: ${THREE.MathUtils.radToDeg(angleToUp).toFixed(1)}°.`);
+            }
+            // --- END NORMAL CHECK ---
           } else {
-            console.log("[Timeout Callback] Conditions NOT met, candle not placed.");
+            console.log("[Timeout Callback] Conditions NOT met (or missing face/object data), candle not placed.");
           }
         }, HOLD_THRESHOLD);
       }
     },
-    [HOLD_THRESHOLD]
+    [HOLD_THRESHOLD, placeCandleFunc] // Added placeCandleFunc to dependencies if it's stable
   );
 
   const handlePointerMove = useCallback(
@@ -368,7 +399,7 @@ function Model({
       gltf.scene.traverse(obj => {
         if (
           obj.isMesh &&
-          (obj.name === "Floor" ||
+          (
             obj.name === "Floor2.002" ||
             obj.name.includes("Floor2") ||
             obj.name.includes("goldCircuit"))
@@ -544,42 +575,42 @@ function Model({
   );
 
   // Add a function to show the user how many candles are available
-  const getRemainingCandleCount = useCallback(() => {
-    return maxFloorCandles - candleCount;
-  }, [maxFloorCandles, candleCount]);
+  // const getRemainingCandleCount = useCallback(() => {
+  //   return maxFloorCandles - candleCount;
+  // }, [maxFloorCandles, candleCount]);
 
-  // Add a reset function (optional)
-  const resetCandles = useCallback(() => {
-    // Remove all placed candles
-    scene.children.forEach(child => {
-      if (child.userData && child.userData.isCandle) {
-        scene.remove(child);
-      }
-    });
+  // // Add a reset function (optional)
+  // const resetCandles = useCallback(() => {
+  //   // Remove all placed candles
+  //   scene.children.forEach(child => {
+  //     if (child.userData && child.userData.isCandle) {
+  //       scene.remove(child);
+  //     }
+  //   });
 
-    // Reset counter
-    setCandleCount(0);
-  }, [scene, maxFloorCandles]);
+  //   // Reset counter
+  //   setCandleCount(0);
+  // }, [scene, maxFloorCandles]);
 
   // Optional helper function to save candles to Firestore
-  const saveCandleToFirestore = async candleData => {
-    try {
-      const docRef = await addDoc(collection(db, "userCandles"), {
-        position: candleData.position,
-        rotation: candleData.rotation,
-        scale: candleData.scale,
-        instanceId: candleData.id,
-        createdAt: candleData.createdAt,
-        // Add any other metadata you want
-        userName: "Anonymous", // Could be dynamic
-        message: "", // Could prompt user for a message
-      });
+  // const saveCandleToFirestore = async candleData => {
+  //   try {
+  //     const docRef = await addDoc(collection(db, "userCandles"), {
+  //       position: candleData.position,
+  //       rotation: candleData.rotation,
+  //       scale: candleData.scale,
+  //       instanceId: candleData.id,
+  //       createdAt: candleData.createdAt,
+  //       // Add any other metadata you want
+  //       userName: "Anonymous", // Could be dynamic
+  //       message: "", // Could prompt user for a message
+  //     });
 
-      return docRef.id;
-    } catch (error) {
-      return null;
-    }
-  };
+  //     return docRef.id;
+  //   } catch (error) {
+  //     return null;
+  //   }
+  // };
 
   useEffect(() => {
     return () => {
@@ -600,7 +631,7 @@ function Model({
     gltf.scene.traverse(child => {
       if (
         child.isMesh &&
-        (child.name === "Floor" || child.name === "Floor2.002" || child.name === "goldCircuit")
+        (child.name === "Floor2.002" || child.name === "goldCircuit")
       ) {
         // Store original material for hover effects (optional)
         if (!child.userData.originalMaterial) {
@@ -822,7 +853,7 @@ function Model({
     // Find floor objects in the model
     gltf.scene.traverse(child => {
       // Check for any mesh with "Floor" in its name (case insensitive)
-      if (child.isMesh && child.name === "Floor") {
+      if (child.isMesh && child.name === "Floor2.002") {
         // Store the original texture if we haven't already
         if (!child.userData.originalTexture && child.material && child.material.map) {
           child.userData.originalTexture = child.material.map;
@@ -1290,7 +1321,7 @@ function Model({
     gltf.scene.traverse(obj => {
       if (
         obj.isMesh &&
-        (obj.name === "Floor" ||
+        (
           obj.name === "Floor2.002" ||
           obj.name.includes("Floor2") ||
           obj.name.includes("goldCircuit"))
@@ -1452,6 +1483,17 @@ function Model({
     }
   }, [gltf]);
 
+  // NEW useEffect to pass animations up and notify load
+  useEffect(() => {
+    if (gltf.scene && gltf.animations && setIsModelLoaded && onModelDataLoaded) {
+      // modelRef.current is already being set by the <primitive> component using the ref prop.
+      // We are just confirming that the data is ready to be passed up.
+      console.log("Model.jsx: GLTF Scene and Animations loaded. Calling onModelDataLoaded.");
+      onModelDataLoaded({ scene: gltf.scene, animations: gltf.animations });
+      setIsModelLoaded(true); // Notify parent that model (scene graph part) is ready
+    }
+  }, [gltf.scene, gltf.animations, setIsModelLoaded, onModelDataLoaded]);
+
   return (
     <>
       <primitive
@@ -1479,8 +1521,9 @@ function Model({
 }
 
 // Preload both models
-useGLTF.preload("/alligatorStroll.glb");
+useGLTF.preload("/alligatorStroll1.glb");
 useGLTF.preload("/XCandle1.glb");
 
 export default Model;
+
 

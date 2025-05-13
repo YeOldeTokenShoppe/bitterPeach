@@ -1,21 +1,16 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { Box, Image, Text, useDisclosure } from "@chakra-ui/react";
 import Carousel from "../components/Carousel";
 import NavBar from "../components/NavBar.client";
 import Footer from "../components/Footer";
-import { Heading } from "@chakra-ui/react";
 import gsap from "gsap";
 import Loader from "../components/Loader";
-import dynamic from "next/dynamic";
 import Header from "../components/Header";
 // import { zIndex } from "html2canvas/dist/types/css/property-descriptors/z-index";
 
 export default function CommunionPage() {
-  const { isOpen, onOpen, onClose } = useDisclosure();
   const [isLoading, setIsLoading] = useState(true);
   const [carouselLoaded, setCarouselLoaded] = useState(false);
   const [communionLoaded, setCommunionLoaded] = useState(false);
-  const [goldCardsLoaded, setGoldCardsLoaded] = useState(true);
   const [allImagesLoaded, setAllImagesLoaded] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [loadingStage, setLoadingStage] = useState("initializing");

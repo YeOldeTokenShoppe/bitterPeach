@@ -1,10 +1,19 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Card, Row, Col } from "react-bootstrap";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import Image from "next/image";
+
 import { PieChart, Pie, Sector, Cell, ResponsiveContainer } from "recharts";
 import { Box, Flex, Heading, Text, Grid, GridItem } from "@chakra-ui/react";
-import { resolveMethod, createThirdwebClient, getContract } from "thirdweb";
+import { resolveMethod, createThirdwebClient, getContract, sha256 } from "thirdweb";
 import { useReadContract } from "thirdweb/react";
 import { defineChain } from "thirdweb/chains";
 import styled, { keyframes } from "styled-components";
@@ -187,7 +196,7 @@ const Numerology = ({ setNumerologyLoaded }) => {
 
   useEffect(() => {
     const fetchData = async () => {
-      const res = await fetch("/api/DexscreenerAPI");
+      const res = await fetch("./api/DexscreenerAPI");
       const json = await res.json();
       setDexdata(json);
     };
@@ -211,11 +220,11 @@ const Numerology = ({ setNumerologyLoaded }) => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await fetch("/api/DexscreenerAPI");
+        const res = await fetch("./api/DexscreenerAPI");
         const json = await res.json();
         setDexdata(json);
       } catch (error) {
-        console.error("Error fetching DexScreener data:", error);
+        console.log("Error fetching DexScreener data:", error);
       }
     };
 
@@ -314,7 +323,7 @@ const Numerology = ({ setNumerologyLoaded }) => {
 
   //   fetchBurnedTokens();
   // }, []);
-  console.log(error);
+  // console.log(error);
   const cardStyle1 = {
     height: "410px",
     background: "#4D4169",
@@ -507,9 +516,9 @@ const Numerology = ({ setNumerologyLoaded }) => {
               <div className="numerology">
                 <div className="first">
                   <Card className="numbers-card" style={cardStyle1}>
-                    <Card.Title style={titleStyle}>
+                    <CardTitle style={titleStyle}>
                       Initial Allocation
-                    </Card.Title>
+                    </CardTitle>
                     {/* <Card.Text
                       style={{
                         position: "absolute",
@@ -548,34 +557,34 @@ const Numerology = ({ setNumerologyLoaded }) => {
                         alignItems: "flex-start",
                       }}
                     >
-                      <Card.Text
+                      <CardContent
                         style={{ color: "#0088fe", fontWeight: "bold" }}
                       >
                         85%: Liquidity Pool
-                      </Card.Text>
-                      <Card.Text
+                      </CardContent>
+                      <CardContent
                         style={{ color: "#00c49F", fontWeight: "bold" }}
                       >
                         10%: Treasury
-                      </Card.Text>
-                      <Card.Text
+                      </CardContent>
+                      <CardContent
                         style={{ color: "#ffbb27", fontWeight: "bold" }}
                       >
                         5%: Centralized Exchange Reserve
-                      </Card.Text>
+                      </CardContent>
                     </div>
                   </Card>
                 </div>
                 <div className="second">
                   <Card className="numbers-card" style={cardStyle2}>
-                    <Card.Title style={titleStyle}>Tokens Burned</Card.Title>
-                    <Card.Text style={numberStyle}>
+                    <CardTitle style={titleStyle}>Tokens Burned</CardTitle>
+                    <CardContent style={numberStyle}>
                       {/* {isLoading || tokensBurned === null
                         ? "Loading..."
                         : tokensBurned.toFixed(2)} */}
                       1,123,456,789
-                    </Card.Text>
-                    <Card.Text
+                    </CardContent>
+                    <CardContent
                       style={{
                         position: "absolute",
                         bottom: "10px",
@@ -589,15 +598,15 @@ const Numerology = ({ setNumerologyLoaded }) => {
                             2
                           )}% of total supply burned`} */}
                       12.34% of total supply burned
-                    </Card.Text>
+                    </CardContent>
                   </Card>
                 </div>
                 <div className="third">
                   <Card className="numbers-card" style={cardStyle2}>
-                    <Card.Title style={titleStyle}>
+                    <CardTitle style={titleStyle}>
                       Current Prize Pool
-                    </Card.Title>
-                    <Card.Text style={numberStyle}>100,775</Card.Text>
+                    </CardTitle>
+                    <CardContent style={numberStyle}>100,775</CardContent>
                     {/* <Card.Text
                       style={{
                         position: "absolute",
@@ -612,27 +621,27 @@ const Numerology = ({ setNumerologyLoaded }) => {
                 </div>
                 <div className="fourth">
                   <Card className="numbers-card" style={cardStyle2}>
-                    <Card.Title style={titleStyle}>
+                    <CardTitle style={titleStyle}>
                       Current Price (USD)
-                    </Card.Title>
-                    <Card.Text
+                    </CardTitle>
+                    <CardContent
                       style={{
                         fontSize: "32px",
                         fontWeight: "bold",
                       }}
-                    ></Card.Text>
+                    ></CardContent>
                   </Card>
                 </div>
                 <div className="fifth">
                   <Card style={cardStyle2}>
-                    <Card.Title style={titleStyle}>Current Entries</Card.Title>
-                    <Card.Text style={numberStyle}>334</Card.Text>
+                    <CardTitle style={titleStyle}>Current Entries</CardTitle>
+                    <CardContent style={numberStyle}>334</CardContent>
                   </Card>
                 </div>
                 <div className="sixth">
                   <Card className="numbers-card" style={cardStyle2}>
-                    <Card.Title style={titleStyle}>Dex Stats</Card.Title>
-                    <Card.Text style={{ fontSize: "16px", fontWeight: "bold" }}>
+                    <CardTitle style={titleStyle}>Dex Stats</CardTitle>
+                    <CardContent style={{ fontSize: "16px", fontWeight: "bold" }}>
                       {dexdata.volume ? (
                         <Text
                           style={{
@@ -660,7 +669,7 @@ const Numerology = ({ setNumerologyLoaded }) => {
                       ) : (
                         "Loading..."
                       )}
-                    </Card.Text>
+                    </CardContent>
                   </Card>
                 </div>
                 <div className="seventh">
@@ -675,8 +684,10 @@ const Numerology = ({ setNumerologyLoaded }) => {
                       onMouseEnter={() => setIsHovered(true)}
                       onMouseLeave={() => setIsHovered(false)}
                     >
-                      <Card.Img
+                      <Image
                         variant="top"
+                        width={100}
+                        height={100}
                         src="/cryptoMeme.jpg"
                         style={{
                           width: "100%",
@@ -701,11 +712,11 @@ const Numerology = ({ setNumerologyLoaded }) => {
                           paddingBottom: "15px",
                         }}
                       >
-                        <Card.Title style={titleStyle}>
+                        <CardTitle style={titleStyle}>
                           Latest Winners
-                        </Card.Title>
+                        </CardTitle>
 
-                        <Card.Text
+                        <CardContent
                           style={{ fontSize: "16px", fontWeight: "bold" }}
                         >
                           <Text
@@ -720,7 +731,7 @@ const Numerology = ({ setNumerologyLoaded }) => {
                             @ethereumcrude <br />
                             1.2M tokens
                           </Text>
-                        </Card.Text>
+                        </CardContent>
                       </div>
                     </Confetti>
                   </Card>

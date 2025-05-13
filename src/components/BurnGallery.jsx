@@ -8,29 +8,7 @@ import React, {
   memo,
 } from "react";
 import { useRouter } from "next/router";
-import {
-  Accordion,
-  Avatar,
-  AccordionButton,
-  AccordionIcon,
-  AccordionItem,
-  AccordionPanel,
-  Link,
-  Box,
-  Button,
-  Flex,
-  Heading,
-  Image,
-  Text,
-  Grid,
-  GridItem,
-  Badge,
-  Stat,
-  StatGroup,
-  StatLabel,
-  StatNumber,
-  StatHelpText,
-} from "@chakra-ui/react";
+import { Button } from "./ui/container"; 
 import AnimatedRadioButtons from "./3DVotiveStand/CyberButtons";
 import SidePanel from "./SidePanel";
 import {
@@ -357,21 +335,15 @@ function BurnGallery({
   const synthwaveRef = useRef(null);
 
   return (
-    <Box
+    <div
       position="relative"
       minH="100vh"
       minW="100vw"
       overflow="hidden"
       backgroundColor="#131416"
     >
-      <Grid
-        templateColumns="1fr"
-        templateRows="1fr"
-        h="100vh"
-        w="100vw"
-        position="relative"
-      >
-        <GridItem>
+      <div className="grid grid-cols-1">
+        <div>
           {/* Conditionally render either ThreeDVotiveStand or Synthwave based on synthwaveMode */}
           {!synthwaveMode ? (
             <ThreeDVotiveStand
@@ -394,17 +366,17 @@ function BurnGallery({
               handleIgnition={handleIgnition}
             />
           ) : (
-            <Suspense fallback={<Box>Loading Synthwave...</Box>}>
-              <Box position="absolute" top={0} right={0} zIndex={10} p={4}>
+            <Suspense fallback={<div>Loading Synthwave...</div>}>
+              <div position="absolute" top={0} right={0} zIndex={10} p={4}>
                 <Button onClick={handleReturnFromSynthwave} colorScheme="teal">
                   Return
                 </Button>
-              </Box>
+              </div>
               <DynamicSynthwave ref={synthwaveRef} />
             </Suspense>
           )}
-        </GridItem>
-      </Grid>
+        </div>
+      </div>
 
       {/* Only show the panels when not in synthwave mode */}
       {currentView === "main" && !synthwaveMode && (
@@ -455,7 +427,7 @@ function BurnGallery({
           saveMessage={saveMessage}
         />
       )}
-    </Box>
+    </div>
   );
 }
 

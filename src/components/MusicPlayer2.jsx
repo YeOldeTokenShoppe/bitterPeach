@@ -37,18 +37,23 @@ const MusicPlayer = React.forwardRef(
 
     // --- Track List for 80s Mode ---
     const eightyTrackNames = [
-      "Like A Prayer - Madonna",
-      "Intergalactic - Beastie Boys",
       "For Those About To Rock - AC/DC",
+      "Dirty Cash - The Adventures of Stevie V",
+  
+      "Intergalactic - Beastie Boys",
+
       "Good Life - Inner City",
+      "Like A Prayer - Madonna",
       "99 Luftballoons - Nena",
       "Sweet Dreams - Eurythmics",
     ];
     const eightyFirebasePaths = [
-      "audio/320k/like-a-prayer-madonna.m4a",
-      "audio/320k/intergalactic-beastie-boys.m4a",
       "audio/320k/for-those-about-to-rock-ac-dc.m4a",
+      "audio/320k/dirty-cash.m4a",
+      "audio/320k/intergalactic-beastie-boys.m4a",
+
       "audio/320k/good-life-inner-city.m4a",
+      "audio/320k/like-a-prayer-madonna.m4a",
       "audio/320k/99-luftballoons-nena.m4a",
       "audio/320k/sweet-dreams-eurythmics.m4a",
     ];
@@ -487,7 +492,7 @@ const MusicPlayer = React.forwardRef(
                   objectFit: 'cover'
                 }}
               />
-              <div
+              {/* <div
                 style={{
                   position: 'absolute',
                   top: '50%',
@@ -505,7 +510,7 @@ const MusicPlayer = React.forwardRef(
                 }}
               >
                 {isPlaying ? "❚❚" : "▶"}
-              </div>
+              </div> */}
             </div>
             
             {/* Track title and artist */}

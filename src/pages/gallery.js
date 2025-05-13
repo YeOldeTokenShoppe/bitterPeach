@@ -1,5 +1,6 @@
 import React, { useState, useEffect, Suspense } from "react";
 import dynamic from "next/dynamic";
+import Head from "next/head";
 import NavBar from "../components/NavBar.client";
 import Communion3 from "../components/Communion3";
 import Loader from "../components/Loader";
@@ -331,6 +332,68 @@ export default function GalleryPage() {
         overflow: "auto",
       }}
     >
+      <Head>
+        <link href="https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&display=swap" rel="stylesheet" />
+      </Head>
+      
+      {/* Text effect in top left corner */}
+      <style jsx global>{`
+        .text__copy {
+          position: absolute;
+          z-index: -1;
+          top: 0;
+          left: 0;
+          filter: blur(0.1rem);
+        }
+      `}</style>
+      
+      <div className="textLight" id="textLight" style={{
+        position: "absolute",
+        top: "20px", 
+        left: "20px",
+        zIndex: 100,
+        borderRadius: "8px",
+        padding: "10px",
+        pointerEvents: "none"
+      }}>
+        <div 
+          id="text"
+          style={{
+            position: "relative",
+            fontFamily: "'UnifrakturMaguntia', cursive",
+            fontSize: "4rem",
+            color: "#ffffff",
+          }}
+        >
+          RL80
+          {Array.from({length: 100}).map((_, i) => {
+            const index = i + 1;
+            return (
+              <div
+                key={index}
+                className="text__copy"
+                style={{
+                  position: "absolute",
+                  pointerEvents: "none",
+                  zIndex: -1,
+                  top: 0,
+                  left: 0,
+                  color: `rgba(${255 - index * 2}, ${255 - index * 3}, ${255 - index * 2})`,
+                  filter: "blur(0.1rem)",
+                  transform: `translate(
+                    ${index * 0.1}rem, 
+                    ${index * 0.1}rem
+                  ) scale(${1 + index * 0.01})`,
+                  opacity: (1 / index) * 1.5,
+                }}
+              >
+                RL80
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      
       {/* Loader with progress */}
       {isLoading && <Loader progress={loadingProgress} />}
 

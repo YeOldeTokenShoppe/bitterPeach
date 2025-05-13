@@ -2,30 +2,26 @@
 "use client";
 import React from "react";
 import Marquee from "react-fast-marquee";
-import { Box, Text } from "@chakra-ui/react";
+import { Text } from "./ui/text";
 
 const TextItem = ({ image }) => {
   return (
-    <Box mx={4} position="relative" display="flex" alignItems="center">
-      <Text fontSize="1.5rem" fontWeight="bold">
-        {image.userName} -{" "}
+    <div className="mx-4 relative flex items-center">
+      <Text className="text-xl font-bold">
+        {" "}{image.userName} -{" "}
         <span style={{ color: "orange" }}>
           Burned: {image.burnedAmount} tokens
         </span>
+        {" "}{" "}{" "}{" "}{" "}{" "}★{" "}{" "}{" "}{" "}{" "}{" "}
       </Text>
-    </Box>
+    </div>
   );
 };
 
 const TextMarquee = ({ images }) => {
   return (
-    <Box
-      height="2rems"
-      paddingX="2rem"
-      marginTop="2rem"
-      // marginBottom="2rem"
-      display="flex"
-      alignItems="center"
+    <div
+      className="h-[2rem] px-8 mt-8 flex items-center"
     >
       <Marquee
         pauseOnHover
@@ -38,7 +34,7 @@ const TextMarquee = ({ images }) => {
           <TextItem key={index} image={image} />
         ))}
       </Marquee>
-    </Box>
+    </div>
   );
 };
 

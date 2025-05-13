@@ -6,6 +6,7 @@ import TickerDisplay from "./TickerDisplay";
 import { Perf } from "r3f-perf";
 import { useFirestoreResults } from "../../utilities/useFirestoreResults";
 import * as THREE from "three";
+import FlyInEffect from "./FlyInEffect";
 
 import Model from "./Model";
 import RocketModel from "./RocketModel";
@@ -33,7 +34,8 @@ import HolographicStatue from "./HolographicStatue";
 import PostProcessingEffects from "./PostProcessingEffects";
 import ConstellationModel from "./ConstellationModel";
 import StarField from "./StarField";
-import FlyInEffect from './FlyInEffect';
+// import FlyInEffect from './FlyInEffect';
+import ScrollDetailViewer from "./ScrollDetailViewer";
 
 const scene = new THREE.Scene();
 
@@ -75,7 +77,7 @@ const HoldIndicator = ({ showIndicator, progress }) => {
           style={{
             width: `${progress * 100}%`,
             height: "100%",
-            backgroundColor: progress >= 1 ? "#4CAF50" : "white",
+            // backgroundColor: progress >= 1 ? "#4CAF50" : "white",
             transition: "width 0.1s linear",
           }}
         />
@@ -100,7 +102,6 @@ const ThreeDVotiveStand = forwardRef(({
   showSpotify,
   monsterMode,
   userData,
-  setIsStatueLoaded,
   rocketModelVisible,
   isConstellationsVisible,
   toggleConstellationVisibility,
@@ -127,10 +128,28 @@ const ThreeDVotiveStand = forwardRef(({
   const [tooltipData, setTooltipData] = useState([]);
 
   const [shuffledCandleIndices, setShuffledCandleIndices] = useState([]);
+  const [mainGltfAnimations, setMainGltfAnimations] = useState([]); // State for animations
+
+  // Dummy messages for the Alligator Scroll
+  const scrollMessages = [
+    "Don't bother Saint Gr80, he's meditating.",
+    "He seeks the alpha in the delta.",
+    "The GatorOracle ponders the next 100x coin.",
+    "Beware the rug pull, young frens.",
+    "To the moon, or to the swamp? Only Gr80 knows."
+  ];
+  const [currentScrollMessageIndex, setCurrentScrollMessageIndex] = useState(0);
+
+  // Function to cycle to the next message (can be called by a button in ScrollDetailViewer later)
+  const cycleScrollMessage = () => {
+    setCurrentScrollMessageIndex(prevIndex => (prevIndex + 1) % scrollMessages.length);
+  };
 
   const [isHovered, setIsHovered] = useState(false);
   const [isMarkerMovement, setIsMarkerMovement] = useState(false);
   const [modelScale, setModelScale] = useState(DEFAULT_MODEL_SCALE);
+  const [isScrollDetailVisible, setIsScrollDetailVisible] = useState(false);
+  const [detailViewScrollData, setDetailViewScrollData] = useState(null);
   const [buttonPopupVisible, setButtonPopupVisible] = useState(false);
   // const [clickedButtonName, setClickedButtonName] = useState("");
   const [buttonData, setButtonData] = useState("");
@@ -164,11 +183,31 @@ const ThreeDVotiveStand = forwardRef(({
     panelRef.current?.togglePanel();
   };
 
+  // const [isGuiMode, setIsGuiMode] = useState(false); // Moved down
+  // const [isMobile, setIsMobile] = useState(false); // Moved down
+  // const [guiActive, setGuiActive] = useState(false); // Moved down
+
+  // const [isModelLoaded, setIsModelLoaded] = useState(false); // Moved down
+  // const [isChildStatueLoaded, setIsChildStatueLoaded] = useState(false); // Moved down
+  // const hasNotifiedParentRef = useRef(false); // Moved down
+
+  // Light helper state
+  // const [showLightHelper, setShowLightHelper] = useState(false); // Moved down
+  // const [lightPosition, setLightPosition] = useState({ x: 32, y: 33, z: 89 }); // Moved down
+  // const [lightIntensity, setLightIntensity] = useState(1); // Moved down
+  // const [skyColor, setSkyColor] = useState("#7300ff"); // Moved down
+  // const [groundColor, setGroundColor] = useState("#ff0000"); // Moved down
+
+  // All useState hooks should generally be at the top of the component function body.
+  // For clarity, I am moving the state declarations relevant to handleHolographicStatueLoad
+  // above its definition. The others can also be grouped at the top.
+
   const [isGuiMode, setIsGuiMode] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [guiActive, setGuiActive] = useState(false);
 
   const [isModelLoaded, setIsModelLoaded] = useState(false);
+  const [isChildStatueLoaded, setIsChildStatueLoaded] = useState(false); // Added for internal statue tracking
   const hasNotifiedParentRef = useRef(false); // Add this ref to track notification state
 
   // Light helper state
@@ -177,6 +216,12 @@ const ThreeDVotiveStand = forwardRef(({
   const [lightIntensity, setLightIntensity] = useState(1);
   const [skyColor, setSkyColor] = useState("#7300ff"); // Sky color in hex format for inputs
   const [groundColor, setGroundColor] = useState("#ff0000"); // Ground color in hex format for inputs
+
+  // Callback for HolographicStatue onLoad - Now defined AFTER setIsChildStatueLoaded is declared
+  const handleHolographicStatueLoad = useCallback(() => {
+    console.log("HolographicStatue has loaded and notified ThreeDVotiveStand (via useCallback).");
+    setIsChildStatueLoaded(true);
+  }, [setIsChildStatueLoaded]); // setIsChildStatueLoaded is stable
 
   // In thrusterProps state:
   // const [thrusterProps, setThrusterProps] = useState({
@@ -323,8 +368,8 @@ const ThreeDVotiveStand = forwardRef(({
 
   // Update the parent component when model is loaded (only once)
   useEffect(() => {
-    if (isModelLoaded && !hasNotifiedParentRef.current) {
-      console.log("ThreeDVotiveStand: Model loaded. Delaying parent notification...");
+    if (isModelLoaded && isChildStatueLoaded && !hasNotifiedParentRef.current) { // Ensure statue is also loaded
+      console.log("ThreeDVotiveStand: Model AND Statue loaded. Delaying parent notification...");
       // Wait slightly longer than the MoonScene spawn delay before notifying the parent
       const notificationTimer = setTimeout(() => {
         console.log("ThreeDVotiveStand: Notifying parent to hide preloader.");
@@ -350,7 +395,7 @@ const ThreeDVotiveStand = forwardRef(({
       // Ensure outer timer is cleared if component unmounts before firing
       return () => clearTimeout(notificationTimer);
     }
-  }, [isModelLoaded, setIsLoading]); // Keep dependencies
+  }, [isModelLoaded, isChildStatueLoaded, setIsLoading]); // Keep dependencies, added isChildStatueLoaded
 
   // Add a fallback timer to ensure loading completes even if there's an issue
   useEffect(() => {
@@ -556,46 +601,243 @@ const ThreeDVotiveStand = forwardRef(({
     }, 6000);
   };
 
-  // Expose handleLocalIgnition through ref
-  useImperativeHandle(ref, () => ({
-    handleLocalIgnition
-  }));
+  // Initialize ref to null. It will be populated by onCreated or a camera component's ref prop.
+  const sceneCameraRef = useRef(null); 
 
-  // Add useEffect to handle fly-in effect
+  // Effect to log camera changes (for debugging)
   useEffect(() => {
-    if (showFlyIn) {
-      console.log('Fly-in effect active');
-      // Add any additional setup for the fly-in effect here
-    }
-  }, [showFlyIn]);
+    console.log("ThreeDVotiveStand: sceneCameraRef.current is now:", sceneCameraRef.current);
+  }, [sceneCameraRef.current]);
+
+  useImperativeHandle(ref, () => ({
+    startIntroCameraAnimation: (onZoomCompleteCallback) => {
+      console.log("ThreeDVotiveStand: startIntroCameraAnimation called.");
+
+      const cameraToAnimate = sceneCameraRef.current;
+
+      if (!cameraToAnimate) {
+        console.error("ThreeDVotiveStand: Camera to animate is not available! Check sceneCameraRef assignment (onCreated or camera ref prop).");
+        if (typeof onZoomCompleteCallback === 'function') {
+          onZoomCompleteCallback(); // Proceed without zoom
+        }
+        return;
+      }
+
+      // Store external controls reference if it exists
+      const externalControls = controlsRef.current;
+      let originalTarget = null;
+      
+      // Temporarily disable external controls if they exist
+      if (externalControls) {
+        console.log("ThreeDVotiveStand: Temporarily disabling external controls");
+        originalTarget = externalControls.target.clone();
+        externalControls.enabled = false;
+      }
+
+      console.log("ThreeDVotiveStand: Animating camera:", cameraToAnimate.name || "(camera ref)");
+      
+      // Store initial values
+      const initialPosition = cameraToAnimate.position.clone();
+      const initialFov = cameraToAnimate.fov;
+      
+      // Define target values
+      const statueModelCenter = new THREE.Vector3(0, 7, 0);
+      const headOffset = 4;
+      const lookAtTarget = new THREE.Vector3(
+          statueModelCenter.x, 
+          statueModelCenter.y + headOffset,
+          statueModelCenter.z 
+      );
+      
+      // Calculate a position much closer to the statue but not too close
+      const distanceToStatue = initialPosition.distanceTo(statueModelCenter);
+      console.log("Initial distance to statue:", distanceToStatue);
+      
+      // Get direction vector from camera to statue
+      const directionToStatue = new THREE.Vector3()
+        .subVectors(statueModelCenter, initialPosition)
+        .normalize();
+      
+      // Set target position at 95% of the way toward the statue
+      const targetPosition = initialPosition.clone().add(
+        directionToStatue.multiplyScalar(distanceToStatue * 0.95)
+      );
+      
+      // Instead of moving all the way to the statue,
+      // move partially and then use FOV to create zoom effect
+      const targetFov = initialFov * 0.3; // Dramatic zoom effect (lower = more zoom)
+      
+      // Animation settings
+      const animationDuration = 6000; // 6 seconds for even smoother animation
+      let startTime = null;
+      let animationFrameId = null;
+
+      // Ensure any previous animation is stopped
+      if (window.currentCameraAnimationId) {
+        cancelAnimationFrame(window.currentCameraAnimationId);
+      }
+
+      // Store initial camera up vector to maintain orientation
+      const initialUp = cameraToAnimate.up.clone();
+
+      // Initialize film scanline effect variables
+      let filmEffectEnabled = false;
+      let scanlineIntensity = 0;
+      const maxScanlineIntensity = 0.8; // Maximum scanline intensity during transition
+      
+      // Try to find PostProcessingEffects component to control scanlines
+      const updateScanlineEffect = (intensity) => {
+        // First check if we can find it through the scene
+        const scene = cameraToAnimate.parent;
+        if (scene) {
+          // Look for PostProcessingEffects component in the scene
+          scene.traverse(child => {
+            if (child.type === 'PostProcessingEffects' || 
+                (child.userData && child.userData.isPostProcessingEffects)) {
+              child.filmScanlines = intensity;
+              filmEffectEnabled = true;
+            }
+          });
+        }
+        
+        // If we couldn't find it in the scene, update through window.postProcessingEffects if available
+        if (!filmEffectEnabled && window.postProcessingEffects) {
+          window.postProcessingEffects.filmScanlines = intensity;
+          filmEffectEnabled = true;
+        }
+        
+        // If we still couldn't find it, try to dispatch a custom event
+        if (!filmEffectEnabled) {
+          const event = new CustomEvent('update-post-processing', {
+            detail: { filmScanlines: intensity }
+          });
+          window.dispatchEvent(event);
+          filmEffectEnabled = true;
+        }
+      };
+
+      const animate = (now) => {
+        if (startTime === null) startTime = now;
+        const elapsedTime = now - startTime;
+        const progress = Math.min(elapsedTime / animationDuration, 1);
+
+        // Custom easing for very slow start and smooth deceleration
+        // This will make the camera start very slowly and accelerate gradually
+        const easedProgress = cubicBezier(0.05, 0.1, 0.3, 1, progress);
+        
+        // Interpolate position
+        cameraToAnimate.position.lerpVectors(initialPosition, targetPosition, easedProgress);
+        
+        // Interpolate FOV for zoom effect
+        cameraToAnimate.fov = initialFov - (initialFov - targetFov) * easedProgress;
+        
+        // Maintain camera's up direction to prevent tilting
+        cameraToAnimate.up.copy(initialUp);
+        
+        // Look at target and force the update every frame
+        cameraToAnimate.lookAt(lookAtTarget);
+        cameraToAnimate.updateProjectionMatrix();
+        
+        // If external controls exist, update their target
+        if (externalControls) {
+          externalControls.target.copy(lookAtTarget);
+        }
+        
+        // Film scanline effect handling
+        // Apply scanlines gradually in the middle of the animation then fade them out
+        if (progress > 0.3 && progress < 0.9) {
+          // Ramp up scanline intensity between 30% and 40% of the animation
+          if (progress < 0.4) {
+            scanlineIntensity = maxScanlineIntensity * ((progress - 0.3) / 0.1);
+          } 
+          // Hold steady between 40% and 80%
+          else if (progress < 0.8) {
+            scanlineIntensity = maxScanlineIntensity;
+          } 
+          // Fade out between 80% and 90%
+          else {
+            scanlineIntensity = maxScanlineIntensity * (1 - ((progress - 0.8) / 0.1));
+          }
+          updateScanlineEffect(scanlineIntensity);
+        } else if (scanlineIntensity > 0) {
+          // Ensure effect is disabled after animation
+          scanlineIntensity = 0;
+          updateScanlineEffect(0);
+        }
+
+        if (progress < 1) {
+          animationFrameId = requestAnimationFrame(animate);
+          window.currentCameraAnimationId = animationFrameId;
+        } else {
+          console.log("ThreeDVotiveStand: Camera animation complete. Final FOV:", cameraToAnimate.fov);
+          window.currentCameraAnimationId = null;
+          
+          // Ensure scanlines are reset
+          updateScanlineEffect(0);
+          
+          // Re-enable external controls
+          if (externalControls) {
+            console.log("ThreeDVotiveStand: Re-enabling external controls");
+            externalControls.enabled = true;
+            externalControls.target.copy(lookAtTarget);
+          }
+          
+          if (typeof onZoomCompleteCallback === 'function') {
+            onZoomCompleteCallback();
+          }
+        }
+      };
+      
+      // Cubic bezier easing function - provides extremely smooth motion
+      // Parameters: x1, y1, x2, y2, t
+      const cubicBezier = (x1, y1, x2, y2, t) => {
+        // The cubic bezier function for t in [0,1]
+        const cx = 3 * x1;
+        const bx = 3 * (x2 - x1) - cx;
+        const ax = 1 - cx - bx;
+        
+        const cy = 3 * y1;
+        const by = 3 * (y2 - y1) - cy;
+        const ay = 1 - cy - by;
+        
+        const bezierX = t => ((ax * t + bx) * t + cx) * t;
+        const bezierY = t => ((ay * t + by) * t + cy) * t;
+        
+        // Newton-Raphson iterations to solve for t
+        const sampleSize = 20;
+        let tForX = t;
+        
+        for (let i = 0; i < sampleSize; i++) {
+          const currentX = bezierX(tForX) - t;
+          if (Math.abs(currentX) < 0.0001) break;
+          
+          const currentSlope = (bezierX(tForX + 0.0001) - bezierX(tForX)) / 0.0001;
+          if (Math.abs(currentSlope) < 0.0001) break;
+          
+          tForX = tForX - currentX / currentSlope;
+        }
+        
+        return bezierY(tForX);
+      };
+      
+      animationFrameId = requestAnimationFrame(animate);
+      window.currentCameraAnimationId = animationFrameId;
+    },
+  }), []);
 
   // Add this right after your imports
   const MemoizedHolographicStatue = React.memo(HolographicStatue);
 
-  ThreeDVotiveStand.displayName = 'ThreeDVotiveStand';
-
   return (
-    <div style={{ width: "100%", height: "100vh" }}>
+    <div style={{ width: "100%", height: "100vh", }}>
       <Canvas
         dpr={currentDpr}
         performance={{ min: 0.5 }}
-        onCreated={({ gl, camera }) => {
-          cameraRef.current = camera;
-          rendererRef.current = gl;
-
-          // Clear background to a very dark color
-          gl.setClearColor(new THREE.Color("#040406"), 1);
-
-          // Explicitly set pixel ratio on the renderer
-          gl.setPixelRatio(currentDpr);
-
-          // Additional renderer settings for consistency
-          gl.outputColorSpace = THREE.SRGBColorSpace;
-          gl.toneMapping = THREE.ACESFilmicToneMapping;
-          gl.toneMappingExposure = 1;
-
-          // Set logarithmic depth buffer for better depth precision
-          gl.logarithmicDepthBuffer = true;
+        onCreated={({ gl, camera: createdCamera }) => {
+          sceneCameraRef.current = createdCamera;
+          // rendererRef.current = gl; // Assuming rendererRef is defined elsewhere
+          console.log("ThreeDVotiveStand: Canvas created, sceneCameraRef.current set via onCreated to:", sceneCameraRef.current?.name || "(default camera)");
+          // ... other onCreated logic like gl.setClearColor etc. ...
         }}
       >
         {/* {!isMobile && <AdaptiveDpr pixelated />} */}
@@ -623,6 +865,12 @@ const ThreeDVotiveStand = forwardRef(({
           showSpotify={showSpotify}
           monsterMode={monsterMode}
           onHoldStateChange={handleHoldStateChange}
+          onModelDataLoaded={({ scene, animations }) => { // Callback to get animations
+            // modelRef.current is already being set by the <primitive> in Model.jsx
+            // using the ref prop. We just need the animations here.
+            console.log("ThreeDVotiveStand: Received model data. Animations length:", animations?.length);
+            setMainGltfAnimations(animations || []);
+          }}
         />
 
         {/* Remove the conditional rendering - don't tie to is80sMode */}
@@ -632,11 +880,27 @@ const ThreeDVotiveStand = forwardRef(({
           <MoonScene
             ref={moonSceneRef}
             modelRef={modelRef}
+            modelAnimations={mainGltfAnimations}
             onSpawnReady={onSpawnReady}
             rocketModelVisible={rocketModelVisible}
             onControlsCreated={(controls) => {
               console.log('Controls created in MoonScene');
               controlsRef.current = controls;
+            }}
+            scrollMessage={scrollMessages[currentScrollMessageIndex]}
+            onOpenScrollDetail={(data) => {
+              console.log("ThreeDVotiveStand: onOpenScrollDetail called with (base data from MoonScene):", data);
+              
+              // Select a random message from the scrollMessages array
+              const randomIndex = Math.floor(Math.random() * scrollMessages.length);
+              const randomMessage = scrollMessages[randomIndex];
+              
+              setDetailViewScrollData({
+                ...data, // Spread original data (name, modelPath, animation info)
+                message: randomMessage // Use randomly selected message
+              });
+              
+              setIsScrollDetailVisible(true);
             }}
           />
         </Suspense>
@@ -659,7 +923,7 @@ const ThreeDVotiveStand = forwardRef(({
               onSpawnReady={onSpawnReady}
               is80sMode={is80sMode}
               userData={userData}
-              setIsStatueLoaded={setIsStatueLoaded}
+              onLoad={handleHolographicStatueLoad} // Use the memoized callback
             />
           {/* ) : (
             rocketModelVisible && <RocketModel is80sMode={is80sMode} userData={userData} />
@@ -685,6 +949,24 @@ const ThreeDVotiveStand = forwardRef(({
         {showFlyIn && <FlyInEffect cameraRef={cameraRef} controlsRef={controlsRef} />}
       </Canvas>
 
+      {/* ScrollDetailViewer is rendered here, as a sibling to the main Canvas */}
+      {isScrollDetailVisible && detailViewScrollData && (
+        <ScrollDetailViewer
+          isVisible={isScrollDetailVisible}
+          scrollData={detailViewScrollData}
+          onClose={() => {
+            setIsScrollDetailVisible(false);
+            setDetailViewScrollData(null);
+            // Trigger the in-scene scroll to close and hide
+            if (moonSceneRef.current?.closeInSceneScroll) {
+              moonSceneRef.current.closeInSceneScroll();
+            }
+            // Optional: Cycle message when detail view is closed if you want it to change next time
+            // cycleScrollMessage(); 
+          }}
+        />
+      )}
+
       {/* FloatingCandleViewer goes here, outside the Canvas */}
       {showFloatingViewer && selectedCandleData && (
         <FloatingCandleViewer
@@ -701,5 +983,13 @@ const ThreeDVotiveStand = forwardRef(({
   );
 });
 
-export default ThreeDVotiveStand;
+// Correct way to memoize a forwardRef component:
+const MemoizedThreeDVotiveStand = React.memo(ThreeDVotiveStand);
+
+// Ensure the default export is the one you intend to use (likely the memoized one)
+export default MemoizedThreeDVotiveStand;
+
+// Add display name for ESLint
+ThreeDVotiveStand.displayName = "ThreeDVotiveStand";
+
 

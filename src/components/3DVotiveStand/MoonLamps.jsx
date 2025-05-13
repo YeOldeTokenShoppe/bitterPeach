@@ -11,9 +11,11 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { TextureLoader } from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { ConvexGeometry } from 'three/examples/jsm/geometries/ConvexGeometry.js';
+import ScrollDetailViewer from './ScrollDetailViewer';
 
 const MoonScene = forwardRef(
-  ({ modelRef, modelCenter, onControlsCreated, onSpawnReady, rocketModelVisible }, ref) => {
+  ({ modelRef, modelAnimations, modelCenter, onControlsCreated, onSpawnReady, rocketModelVisible, onOpenScrollDetail, scrollMessage }, ref) => {
     const { scene, camera, gl } = useThree();
     const controlsRef = useRef();
     const moonsRef = useRef([]);
@@ -28,8 +30,26 @@ const MoonScene = forwardRef(
     // Add this state near the top of MoonScene component
     const [isMobile, setIsMobile] = useState(false);
 
-    const maxProjectiles = 50; // Increased from 20 to 50 for more projectiles
-    const projectileLifespan = 60000; // Increased to 60 seconds (1 minute) for much longer visibility
+    // State for alligator hit detection
+    const [isAlligatorHit, setIsAlligatorHit] = useState(false);
+    const alligatorHitTimeoutRef = useRef(null);
+    const alligatorSkinMeshRef = useRef(null); // Ref to store the alligator's SKIN mesh
+    const originalMaterialStatesRef = useRef([]); // Store array of { material, originalColor, originalEmissive, originalIntensity }
+
+    // Refs and state for Alligator Scroll interaction
+    const alligatorScrollObjectRef = useRef(null); // Parent object of the scroll
+    const scrollAnimationMixerRef = useRef(null);
+    const openScrollActionRef = useRef(null);
+    const closeScrollActionRef = useRef(null);
+    const animationsReadyRef = useRef(false); // To ensure animation setup runs once when ready
+    const [scrollObjectFound, setScrollObjectFound] = useState(false); // New state
+    const originalScrollMaterialStatesRef = useRef([]); // For scroll glow
+
+    // New ref for tracking scroll materials that need pulsing
+    const glowingScrollMaterialsRef = useRef([]);
+    
+    const maxProjectiles = 25; // Reduced from 50 to 25 for memory optimization
+    const projectileLifespan = 30000; // Reduced from 60000 to 30000 (30 seconds) to clean up projectiles faster
     const projectilePoolRef = useRef([]);
     const clockRef = useRef(new THREE.Clock());
 
@@ -63,15 +83,25 @@ const MoonScene = forwardRef(
 
       const controls = new OrbitControls(camera, gl.domElement);
       controls.autoRotate = true;
-      controls.autoRotateSpeed = -0.2;
+      controls.autoRotateSpeed = 0.2;
       controls.enableDamping = true;
       controls.enablePan = true;
       controls.enableZoom = true;
-      controls.minDistance = 10;
+      controls.minDistance = 1;
       controls.maxDistance = 100;
       controls.minPolarAngle = 0;
       controls.maxPolarAngle = Math.PI / 2;
       controls.zoomToCursor = true;
+      controls.zoomSpeed = 2.0; // Increase zoom speed
+    
+      
+      // Add a console log to verify controls settings
+      console.log("MoonScene: OrbitControls initialized with settings:", {
+        enableZoom: controls.enableZoom,
+        zoomSpeed: controls.zoomSpeed,
+        minDistance: controls.minDistance,
+        maxDistance: controls.maxDistance
+      });
 
       // Add vertical panning limits
       controls.maxPanUp = 10; // Limit upward panning to 10 units
@@ -284,7 +314,7 @@ const MoonScene = forwardRef(
 
             script.onload = () => {
               Ammo({
-                INITIAL_MEMORY: 128 * 1024 * 1024, // 128MB WebAssembly Heap
+                INITIAL_MEMORY: 256 * 1024 * 1024, // 256MB WebAssembly Heap (increased from 128MB)
               })
                 .then(resolve)
                 .catch(reject);
@@ -402,36 +432,72 @@ const MoonScene = forwardRef(
     }, [scene]);
 
     // Create convex hull for more accurate collision detection
-    const createConvexHullShape = geometry => {
+    const createConvexHullShape = (geometry, margin = 0.05) => {
       const AmmoLib = ammoRef.current;
       if (!AmmoLib) return null;
 
-      // Check cache first
-      const geometryId = geometry.id;
-      if (shapeCache.current.has(geometryId)) {
-        return shapeCache.current.get(geometryId);
+      // Cache key must be unique for geometry AND margin
+      const cacheKey = `${geometry.uuid}_margin_${margin}`;
+      if (shapeCache.current.has(cacheKey)) {
+        return shapeCache.current.get(cacheKey);
       }
 
       const shape = new AmmoLib.btConvexHullShape();
       const vertices = geometry.attributes.position.array;
       const tempBtVec = new AmmoLib.btVector3(0, 0, 0);
 
-      // Use decimation to reduce vertex count
-      const maxVertices = 100; // Limit number of vertices
-      const stride = Math.max(1, Math.floor(vertices.length / 3 / maxVertices));
-
+      // Use even fewer vertices for complex geometries to save memory
+      const maxVertices = 40; // Further reduced from 50 to 40
+      const vertexCount = vertices.length / 3;
+      const stride = Math.max(1, Math.floor(vertexCount / maxVertices));
+      
+      // Sample vertices more intelligently to preserve shape features
+      const vertexSet = new Set(); // Track used indices to avoid duplicates
+      let pointsAdded = 0; // Manual counter for number of points added
+      
+      // First add key vertices from the bounding corners if available
+      if (!geometry.boundingBox) {
+        geometry.computeBoundingBox();
+      }
+      
+      if (geometry.boundingBox) {
+        const { min, max } = geometry.boundingBox;
+        // Add 8 corners of the bounding box
+        const corners = [
+          [min.x, min.y, min.z], [min.x, min.y, max.z],
+          [min.x, max.y, min.z], [min.x, max.y, max.z],
+          [max.x, min.y, min.z], [max.x, min.y, max.z],
+          [max.x, max.y, min.z], [max.x, max.y, max.z]
+        ];
+        
+        corners.forEach(([x, y, z]) => {
+          tempBtVec.setValue(x, y, z);
+          shape.addPoint(tempBtVec, false);
+          pointsAdded++;
+        });
+      }
+      
+      // Then sample remaining vertices
       for (let i = 0; i < vertices.length; i += 3 * stride) {
         if (i >= vertices.length) break;
-        tempBtVec.setValue(vertices[i], vertices[i + 1], vertices[i + 2]);
-        // Only set lastOne true for the final point
-        const lastOne = i >= vertices.length - 3 * stride;
-        shape.addPoint(tempBtVec, lastOne);
+        
+        // Skip if we already have enough points
+        if (pointsAdded >= maxVertices) break;
+        
+        const index = Math.floor(i / 3);
+        if (!vertexSet.has(index)) {
+          vertexSet.add(index);
+          tempBtVec.setValue(vertices[i], vertices[i + 1], vertices[i + 2]);
+          const lastOne = i >= vertices.length - 3 * stride;
+          shape.addPoint(tempBtVec, lastOne);
+          pointsAdded++;
+        }
       }
 
-      shape.setMargin(0.005); // Small non-zero margin for stability
+      shape.setMargin(margin);  // Use the passed margin argument
+      // Removed: shape.optimizeConvexHull(); - This function doesn't exist
 
-      // Store in cache
-      shapeCache.current.set(geometryId, shape);
+      shapeCache.current.set(cacheKey, shape); // Store in cache with the margin-specific key
 
       return shape;
     };
@@ -744,25 +810,86 @@ const MoonScene = forwardRef(
 
         if (isAlligator) {
           console.log("Found alligator object for physics:", child.name);
-          shape = createConvexHullShape(child.geometry);
+          const alligatorMargin = 0.7; // Alligator needs a large margin
+          shape = createConvexHullShape(child.geometry, alligatorMargin);
           if (!shape) {
             console.log("Creating simple shape for alligator as fallback");
+            // If createSimpleShape also needs a margin, it should be parameterized too.
+            // For now, assuming createSimpleShape handles its own margin or uses a fixed small one.
             shape = createSimpleShape(child);
           }
           child.userData.isAlligator = true; // Mark the mesh
+
+          // ---- START: Visualizations for alligator ----
+          if (showDebugShape) {
+            // 2. Convex Hull from THREE.js Geometry (Blue)
+            console.log(`Attempting to create ConvexHull from THREE.js geometry for: ${child.name}`);
+            if (child.geometry && child.geometry.attributes.position) {
+              const positions = child.geometry.attributes.position.array;
+              const threeJsVertices = [];
+              for (let i = 0; i < positions.length; i += 3) {
+                threeJsVertices.push(new THREE.Vector3(positions[i], positions[i+1], positions[i+2]));
+              }
+
+              if (threeJsVertices.length > 3) {
+                try {
+                  const threeJsConvexGeom = new ConvexGeometry(threeJsVertices);
+                  const threeJsConvexMaterial = new THREE.MeshBasicMaterial({
+                    color: 0x0000ff, // Blue
+                    wireframe: true,
+                    transparent: true,
+                    opacity: 0.5,
+                    depthTest: false,
+                  });
+                  const threeJsConvexMesh = new THREE.Mesh(threeJsConvexGeom, threeJsConvexMaterial);
+                  // This mesh is based on local geometry, so its position should be (0,0,0) relative to the parent (child)
+                  child.add(threeJsConvexMesh);
+                  console.log(`SUCCESS: Added ConvexGeometry from THREE.js (blue) for ${child.name} with ${threeJsVertices.length} input vertices.`);
+                } catch (e) {
+                  console.error(`Error creating ConvexGeometry from THREE.js for ${child.name}:`, e);
+                }
+              } else {
+                console.warn(`Not enough vertices in THREE.js geometry to create ConvexGeometry for ${child.name}.`);
+              }
+            } else {
+              console.warn(`Cannot create ConvexHull from THREE.js geometry for ${child.name}: no geometry or position attribute.`);
+            }
+          }
+
+          // The rest of the physics setup for the alligator remains, using the original Ammo.js 'shape' (RE {kB: ...})
         } else if (isFloor2 || isFloor3) {
-          shape = createConvexHullShape(child.geometry);
-          if (!shape) shape = createTriangleMeshShape(child.geometry);
-          if (!shape) shape = createSimpleShape(child);
-          if (!shape) { console.error(`All shape creation failed for ${child.name}`); return; }
+          // For floors, prioritize TriangleMeshShape for better accuracy with static terrain
+          shape = createTriangleMeshShape(child.geometry); // Uses its own margin of 0.01
+          if (!shape) { 
+            console.error(`createTriangleMeshShape failed for ${child.name}, falling back to ConvexHullShape.`);
+            const floorMargin = 0.02; // Small margin if using convex hull for floor
+            shape = createConvexHullShape(child.geometry, floorMargin);
+          }
+          if (!shape) { 
+            console.error(`All shape creation failed for floor ${child.name}, falling back to simple box.`);
+            shape = createSimpleShape(child); // Fallback to simple box if others fail
+          }
+          if (!shape) { console.error(`CRITICAL: All shape creation failed for ${child.name}`); return; }
           child.userData.isFloor2 = isFloor2;
           child.userData.isFloor3 = isFloor3;
         } else if (isWallMesh) {
-          shape = createTriangleMeshShape(child.geometry);
-          if (!shape) shape = createSimpleShape(child);
+          // Walls might also benefit from TriangleMeshShape if they are complex static geometry
+          shape = createTriangleMeshShape(child.geometry); // Uses its own margin of 0.01
+          if (!shape) {
+            console.warn(`createTriangleMeshShape failed for wall ${child.name}, falling back to ConvexHullShape.`);
+            shape = createConvexHullShape(child.geometry); // Uses default margin (0.05)
+          }
+          if (!shape) { 
+             console.warn(`ConvexHullShape failed for wall ${child.name}, falling back to simple box.`);
+            shape = createSimpleShape(child); // Fallback to simple box
+          }
         } else {
-          shape = createConvexHullShape(child.geometry);
-          if (!shape) shape = createSimpleShape(child);
+          // For other generic static parts of the model
+          shape = createConvexHullShape(child.geometry); // Uses default margin (0.05)
+          if (!shape) { 
+            console.warn(`ConvexHullShape failed for generic mesh ${child.name}, falling back to simple box.`);
+            shape = createSimpleShape(child); // Fallback to simple box
+          }
         }
 
         if (!shape) {
@@ -815,7 +942,50 @@ const MoonScene = forwardRef(
           bodyCollisionGroup = COLLISION_GROUP_ALLIGATOR;
           bodyCollisionMask = COLLISION_GROUP_DEFAULT | COLLISION_GROUP_WALL | COLLISION_GROUP_MOON | COLLISION_GROUP_PROJECTILE;
           
-          console.log(`${child.name} alligator physics applied as KINEMATIC in ALLIGATOR group`);
+          // Mark alligator physics body and store mesh ref
+          if (child.isMesh && (child.name === "american alligator" || child.name.toLowerCase().includes("alligator") || child.name.toLowerCase().includes("gator"))) {
+            body.is_alligator_body = true; // Flag for physics
+
+            // Specifically find and store the 'skin' mesh for visual effects
+            if (child.material && child.material.name === 'skin') {
+              alligatorSkinMeshRef.current = child;
+              console.log("IMPORTANT: Alligator SKIN MESH ('" + child.name + "' with material '" + child.material.name + "') assigned to alligatorSkinMeshRef:", alligatorSkinMeshRef.current);
+            }
+          }
+          
+          // Separate traversal specifically for AlligatorScroll setup, as it might have a different structure
+          // and needs to be initialized once.
+          if (modelRef.current && !alligatorScrollObjectRef.current) { // Ensure this runs only once
+            console.log("Starting traversal to find AlligatorScroll parent object...");
+            modelRef.current.traverse((object) => {
+              // console.log(`Traversing for scroll parent: Name: '${object.name}', Parent: '${object.parent ? object.parent.name : "NO_PARENT"}'`);
+
+              if (object.name === 'AlligatorScroll') {
+                if (!alligatorScrollObjectRef.current) { // Check again to ensure single assignment
+                    alligatorScrollObjectRef.current = object;
+                    console.log("SUCCESS: Found AlligatorScroll main object (parent/group):", object);
+                    setScrollObjectFound(true); // Set state when found
+
+                    // Initially hide all visible mesh parts of the scroll group
+                    object.traverse((child) => {
+                        // if (child.name === 'AlligatorScroll.003') {
+                        //     // This was for animation target, will be handled in useEffect
+                        // }
+                        if (child.isMesh && child.name.startsWith('AlligatorScroll')) {
+                            console.log("Initially hiding scroll part:", child.name);
+                            child.visible = false;
+                        }
+                    });
+                    // DO NOT set up animations here yet, defer to useEffect
+                } 
+              } 
+            });
+            if (!alligatorScrollObjectRef.current) {
+                console.warn("AlligatorScroll main object NOT found after traversal.");
+            }
+          }
+          
+          console.log(`${child.name} (part of alligator model) physics applied as KINEMATIC in ALLIGATOR group`);
         } else if (isWallMesh) {
             body.setFriction(MODEL_FRICTION); 
             body.setRestitution(MODEL_RESTITUTION);
@@ -851,10 +1021,47 @@ const MoonScene = forwardRef(
       const size = new THREE.Vector3();
       bbox.getSize(size);
 
-      // Create box shape
-      const shape = new AmmoLib.btBoxShape(new AmmoLib.btVector3(size.x / 2, size.y / 2, size.z / 2));
-      shape.setMargin(0.01); // Explicitly set a small margin for box shapes
-      return shape;
+      // Use a simplified shape - prefer sphere for small objects
+      if (Math.max(size.x, size.y, size.z) < 5 && 
+          Math.abs(size.x - size.y) < 1 && 
+          Math.abs(size.x - size.z) < 1) {
+        // For roughly cube-shaped small objects, use sphere (more efficient)
+        const radius = (size.x + size.y + size.z) / 6; // Average half-extent
+        const shape = new AmmoLib.btSphereShape(radius);
+        shape.setMargin(0.01); // Small margin for better performance
+        return shape;
+      } else {
+        // For larger or non-cube shapes, use box shape
+        const shape = new AmmoLib.btBoxShape(
+          new AmmoLib.btVector3(
+            Math.max(0.1, size.x * 0.5), // Ensure minimum size of 0.1
+            Math.max(0.1, size.y * 0.5), 
+            Math.max(0.1, size.z * 0.5)
+          )
+        );
+        shape.setMargin(0.01); // Explicitly set a small margin for box shapes
+        return shape;
+      }
+    };
+    
+    // Helper function to assess how spherical an object is
+    const assessSphericity = (size) => {
+      // Calculate how close the object is to being a perfect sphere (1.0 = perfect sphere)
+      const maxDim = Math.max(size.x, size.y, size.z);
+      const minDim = Math.min(size.x, size.y, size.z);
+      
+      if (maxDim === 0) return 0; // Avoid division by zero
+      
+      // Ratio between smallest and largest dimension - closer to 1 means more spherical
+      const ratio = minDim / maxDim;
+      
+      // We also consider volume ratio compared to enclosing sphere
+      const boxVolume = size.x * size.y * size.z;
+      const sphereVolume = (4/3) * Math.PI * Math.pow(maxDim/2, 3);
+      const volumeRatio = boxVolume / sphereVolume;
+      
+      // Weighted combination
+      return (ratio * 0.6) + (volumeRatio * 0.4);
     };
 
     // Add a function to check if a point is inside the room
@@ -933,6 +1140,9 @@ const MoonScene = forwardRef(
       // Match original physics properties
       projectileBody.setFriction(0.8);
       projectileBody.setRestitution(0.2);
+
+      // Add custom flag for projectile collision detection
+      projectileBody.is_projectile_body = true;
 
       // Add to physics world - don't collide with walls at all
       physicsRef.current.world.addRigidBody(
@@ -1045,36 +1255,63 @@ const MoonScene = forwardRef(
     const doubleClickDelay = 300; // milliseconds, adjust as needed (~300ms is typical)
 
     useEffect(() => {
-      const handlePointerDown = event => {
+      const handlePointerDown = (event) => {
+        const mouse = new THREE.Vector2(
+          (event.clientX / window.innerWidth) * 2 - 1,
+          -(event.clientY / window.innerHeight) * 2 + 1
+        );
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(mouse, camera);
+
+        // Check for intersection with the visible scroll
+        // We no longer check if the scroll is open, just if it's visible
+        if (alligatorScrollObjectRef.current && 
+            alligatorScrollObjectRef.current.children.some(c => c.name.startsWith('AlligatorScroll') && c.visible)) {
+            const scrollPartsToTest = [];
+            alligatorScrollObjectRef.current.traverse(child => {
+                if (child.isMesh && child.name.startsWith('AlligatorScroll') && child.visible) {
+                    scrollPartsToTest.push(child);
+                }
+            });
+
+            if (scrollPartsToTest.length > 0) {
+                const intersects = raycaster.intersectObjects(scrollPartsToTest, false); 
+                if (intersects.length > 0) {
+                    console.log("Clicked on visible scroll part:", intersects[0].object.name);
+                    event.stopPropagation(); 
+                    // Pass data needed for ScrollDetailViewer.
+                    if (onOpenScrollDetail) { // Call prop passed from parent
+                        onOpenScrollDetail({ 
+                            name: 'AlligatorScroll', 
+                            modelPath: '/alligatorStroll1.glb', // Or more specifically /Scroll.glb if detail viewer loads its own
+                            animationTargetName: 'Armature', 
+                            openAnimationName: 'Armature|3_Opened Action _Armature',
+                        });
+                    }
+                    return; 
+                }
+            }
+        }
+
+        // If scroll not clicked, proceed with double-click to shoot logic
         const currentTime = performance.now();
         const timeSinceLastClick = currentTime - lastClickTime.current;
 
         if (timeSinceLastClick <= doubleClickDelay) {
-          // This is a double-click
-          const mouse = new THREE.Vector2(
-            (event.clientX / window.innerWidth) * 2 - 1,
-            -(event.clientY / window.innerHeight) * 2 + 1
-          );
-
-          const raycaster = new THREE.Raycaster();
-          raycaster.setFromCamera(mouse, camera);
-
           const direction = raycaster.ray.direction.clone().normalize();
-
-          // Spawn closer to camera to match original effect
           shootProjectile(
             camera.position.clone().add(direction.clone().multiplyScalar(2)),
             direction
           );
         }
-
-        // Update the last click timestamp
         lastClickTime.current = currentTime;
       };
 
       window.addEventListener("pointerdown", handlePointerDown);
       return () => window.removeEventListener("pointerdown", handlePointerDown);
-    }, [camera]);
+      // Dependencies: camera, doubleClickDelay, shootProjectile, and refs used for scroll clicking condition
+      // Also add onOpenScrollDetail to dependencies
+    }, [camera, doubleClickDelay, shootProjectile, alligatorScrollObjectRef, onOpenScrollDetail]); 
 
     // Initialize scene and physics (but don't spawn moons yet)
     useEffect(() => {
@@ -1087,12 +1324,44 @@ const MoonScene = forwardRef(
 
       startSimulation();
 
+      // Add periodic cleanup to prevent memory buildup
+      const cleanupInterval = setInterval(() => {
+        if (physicsRef.current.world && ammoRef.current) {
+          // Force garbage collection on physics bodies no longer in use
+          const currentBodies = [...bodiesRef.current];
+          for (let i = currentBodies.length - 1; i >= 0; i--) {
+            const body = currentBodies[i];
+            // Clean up any projectiles that are very old (over 20 seconds)
+            if (body.isProjectile && (Date.now() - body.createdAt > 20000)) {
+              recycleProjectile(body, i);
+            }
+          }
+          
+          // Manually run the garbage collector for Ammo.js if supported
+          if (typeof window.gc === 'function') {
+            try {
+              window.gc();
+            } catch (e) {
+              console.log('Manual GC not available');
+            }
+          }
+        }
+      }, 10000); // Run cleanup every 10 seconds
+
       return () => {
         // Cleanup physics resources
+        clearInterval(cleanupInterval);
+        
         if (physicsRef.current.world && ammoRef.current) {
-          // Proper Ammo.js cleanup would go here
+          // Clear all physics bodies to prevent memory leaks
+          bodiesRef.current.forEach(obj => {
+            if (obj.body) {
+              physicsRef.current.world.removeRigidBody(obj.body);
+            }
+          });
+          bodiesRef.current = [];
         }
-
+        
         // Clean up animation mixers
       };
     }, []); // Keep dependencies minimal
@@ -1100,14 +1369,11 @@ const MoonScene = forwardRef(
     // Expose the spawn function via useImperativeHandle
     useImperativeHandle(ref, () => ({
       triggerInitialSpawn: () => {
-        // Check if physics is ready before spawning
         if (isPhysicsInitialized.current && ammoRef.current) {
           console.log("MoonScene: triggerInitialSpawn called, spawning moons...");
-          // Spawn the initial set of moons
           for (let i = 0; i < 8; i++) {
             spawnMoon();
           }
-          // Call onSpawnReady if provided (optional)
           if (onSpawnReady) {
             onSpawnReady();
           }
@@ -1115,6 +1381,30 @@ const MoonScene = forwardRef(
           console.warn("MoonScene: triggerInitialSpawn called, but physics not ready.");
         }
       },
+      closeInSceneScroll: () => {
+        if (alligatorScrollObjectRef.current) {
+          console.log("MoonScene: closeInSceneScroll called by parent.");
+          
+          // Reset glow effect
+          originalScrollMaterialStatesRef.current.forEach(state => {
+            if (state.material.emissive) { 
+              state.material.emissive.setHex(state.originalEmissive);
+              state.material.emissiveIntensity = state.originalIntensity;
+            }
+          });
+          originalScrollMaterialStatesRef.current = []; 
+
+          // Immediately hide the scroll
+          alligatorScrollObjectRef.current.traverse((child) => {
+            if (child.isMesh && child.name.startsWith('AlligatorScroll')) {
+              child.visible = false;
+            }
+          });
+          console.log("MoonScene: In-scene scroll hidden immediately.");
+        } else {
+          console.warn("MoonScene: Could not hide scroll: scroll object not available.");
+        }
+      }
     }));
 
     // Add model to physics when it's available and physics is initialized
@@ -1138,20 +1428,40 @@ const MoonScene = forwardRef(
 
     // Replace your existing useFrame physics update with this
     useFrame((state, delta) => {
-      // Fixed timestep physics
-      if (physicsRef.current?.world) {
-        // Accumulate time and step physics with fixed timestep
-        accumulator += delta;
+      const currentAmmo = ammoRef.current;
+      const currentPhysicsWorld = physicsRef.current?.world;
 
-        // Step physics with fixed timestep for stability
-        while (accumulator >= fixedTimeStep) {
-          physicsRef.current.world.stepSimulation(fixedTimeStep, 1, fixedTimeStep);
-          accumulator -= fixedTimeStep;
+      // Guard: If Ammo or physics world isn't ready, only update essential non-physics parts and skip the rest.
+      if (!currentAmmo || !currentPhysicsWorld) {
+        if (controlsRef.current) {
+          controlsRef.current.update();
         }
+        // Animation mixers might be independent of physics state, so update them.
+        if (mixersRef.current.length > 0) {
+          mixersRef.current.forEach(mixer => {
+            mixer.update(delta);
+          });
+        }
+        // Update scroll animation mixer
+        if (scrollAnimationMixerRef.current) {
+          scrollAnimationMixerRef.current.update(delta);
+        }
+        return; // Skip physics simulation and related updates for this frame
       }
 
-      // Update controls
+      // Fixed timestep physics
+      // Accumulate time and step physics with fixed timestep
+      accumulator += delta;
+
+      // Step physics with fixed timestep for stability
+      while (accumulator >= fixedTimeStep) {
+        currentPhysicsWorld.stepSimulation(fixedTimeStep, 1, fixedTimeStep);
+        accumulator -= fixedTimeStep;
+      }
+
+      // Update controls - ALWAYS update controls regardless of physics state
       if (controlsRef.current) {
+        // Force update controls every frame
         controlsRef.current.update();
       }
 
@@ -1162,45 +1472,189 @@ const MoonScene = forwardRef(
         });
       }
 
+      // Update scroll animation mixer
+      if (scrollAnimationMixerRef.current) {
+        scrollAnimationMixerRef.current.update(delta);
+      }
+
       // Update meshes from physics bodies
-      if (physicsRef.current?.world && ammoRef.current) {
-        bodiesRef.current.forEach((obj, index) => {
-          if (!obj.mesh || !obj.body) return;
+      bodiesRef.current.forEach((obj, index) => {
+        if (!obj.mesh || !obj.body) return;
 
-          const motionState = obj.body.getMotionState();
-          if (motionState) {
-            const transform = new ammoRef.current.btTransform();
-            motionState.getWorldTransform(transform);
-            const origin = transform.getOrigin();
-            const rotation = transform.getRotation();
+        const motionState = obj.body.getMotionState();
+        if (motionState) {
+          const transform = new currentAmmo.btTransform(); // Use currentAmmo
+          motionState.getWorldTransform(transform);
+          const origin = transform.getOrigin();
+          const rotation = transform.getRotation();
 
-            obj.mesh.position.set(origin.x(), origin.y(), origin.z());
-            obj.mesh.quaternion.set(rotation.x(), rotation.y(), rotation.z(), rotation.w());
+          obj.mesh.position.set(origin.x(), origin.y(), origin.z());
+          obj.mesh.quaternion.set(rotation.x(), rotation.y(), rotation.z(), rotation.w());
+        }
+      });
+
+      // Collision detection for alligator and projectiles
+      if (currentPhysicsWorld.getDispatcher) {
+        const dispatcher = currentPhysicsWorld.getDispatcher();
+        const numManifolds = dispatcher.getNumManifolds();
+
+        for (let i = 0; i < numManifolds; i++) {
+          const manifold = dispatcher.getManifoldByIndexInternal(i);
+          const numContacts = manifold.getNumContacts();
+          if (numContacts === 0) continue;
+
+          const body0 = manifold.getBody0();
+          const body1 = manifold.getBody1();
+
+          const rb0 = currentAmmo.castObject(body0, currentAmmo.btRigidBody);
+          const rb1 = currentAmmo.castObject(body1, currentAmmo.btRigidBody);
+          
+          const b0IsAlligator = rb0 && rb0.is_alligator_body;
+          const b1IsAlligator = rb1 && rb1.is_alligator_body;
+          const b0IsProjectile = rb0 && rb0.is_projectile_body;
+          const b1IsProjectile = rb1 && rb1.is_projectile_body;
+
+          if ((b0IsAlligator && b1IsProjectile) || (b1IsAlligator && b0IsProjectile)) {
+            if (!isAlligatorHit) {
+              console.log("Alligator hit! Don't bother Saint Gr80, he's meditating");
+              setIsAlligatorHit(true);
+
+              // Reset text state when alligator is hit
+              handleAlligatorHit();
+
+              // Visual cue: Flash alligator color (on skin mesh)
+              if (alligatorSkinMeshRef.current && alligatorSkinMeshRef.current.material) {
+                console.log("Attempting to flash alligator. Target SKIN Object:", alligatorSkinMeshRef.current, "Material(s):", alligatorSkinMeshRef.current.material);
+                originalMaterialStatesRef.current = []; // Clear previous states
+                // The skin mesh should have a single material based on logs
+                const material = alligatorSkinMeshRef.current.material; 
+
+                // Ensure material has expected properties before trying to change them
+                const stateToStore = { material: material }; // material here is mat from forEach before, now it's the single skin material
+                if (material.color) {
+                  stateToStore.originalColor = material.color.getHex();
+                  material.color.setHex(0xff0000); // Bright red base color
+                }
+                if (material.emissive) {
+                  stateToStore.originalEmissive = material.emissive.getHex();
+                  material.emissive.setHex(0xff0000); // Bright red emissive
+                }
+                if (material.hasOwnProperty('emissiveIntensity')) { // Check for property existence
+                  stateToStore.originalIntensity = material.emissiveIntensity;
+                  material.emissiveIntensity = 2.0; // Strong emissive intensity
+                }
+                originalMaterialStatesRef.current.push(stateToStore);
+              }
+
+              // Scroll visibility and GLOW without animation
+              if (alligatorScrollObjectRef.current) {
+                console.log("Alligator hit, making scroll visible and applying glow.");
+                originalScrollMaterialStatesRef.current = []; // Clear previous states for scroll glow
+                glowingScrollMaterialsRef.current = []; // Clear previous tracked materials
+
+                // First make the scroll visible
+                alligatorScrollObjectRef.current.traverse((child) => {
+                  if (child.isMesh && child.name.startsWith('AlligatorScroll')) {
+                    child.visible = true;
+                  }
+                });
+                
+                // Add rotation to the scroll parent object for a slight angle
+                alligatorScrollObjectRef.current.rotation.set(
+                  THREE.MathUtils.degToRad(65), // Tilt forward slightly (X-axis)
+                  THREE.MathUtils.degToRad(0), // Rotate around Y-axis 
+                  THREE.MathUtils.degToRad(90)  // Slight Z-axis tilt
+                );
+                
+                // Make sure the scroll is in closed state
+                if (scrollAnimationMixerRef.current && closeScrollActionRef.current) {
+                  // Stop all actions, reset the mixer
+                  scrollAnimationMixerRef.current.stopAllAction();
+                  
+                  // Play the static closed action
+                  closeScrollActionRef.current.reset();
+                  closeScrollActionRef.current.time = closeScrollActionRef.current.getClip().duration;
+                  closeScrollActionRef.current.paused = false;
+                  closeScrollActionRef.current.play();
+                  
+                  console.log("Applied static closed state to scroll");
+                } else {
+                  console.warn("Could not apply closed state animation - mixer or action not ready");
+                }
+                
+                // Now apply glow
+                alligatorScrollObjectRef.current.traverse((child) => {
+                  if (child.isMesh && child.name.startsWith('AlligatorScroll') && child.visible) {
+                    // Apply glow
+                    if (child.material) {
+                      const materials = Array.isArray(child.material) ? child.material : [child.material];
+                      materials.forEach(mat => {
+                        if (mat.emissive) { // Check if material has emissive property
+                          originalScrollMaterialStatesRef.current.push({
+                            material: mat,
+                            originalEmissive: mat.emissive.getHex(),
+                            originalIntensity: mat.emissiveIntensity !== undefined ? mat.emissiveIntensity : 0,
+                          });
+                          mat.emissive.setHex(0xffff99); // Soft yellow glow
+                          mat.emissiveIntensity = 0.3; 
+                          
+                          // Add to the list of materials to animate
+                          glowingScrollMaterialsRef.current.push(mat);
+                        }
+                      });
+                    }
+                  }
+                });
+                
+                console.log("Scroll made visible in static closed position until clicked");
+              }
+
+              if (alligatorHitTimeoutRef.current) {
+                clearTimeout(alligatorHitTimeoutRef.current);
+              }
+              alligatorHitTimeoutRef.current = setTimeout(() => {
+                setIsAlligatorHit(false);
+                // Revert alligator color
+                console.log("Reverting alligator SKIN material. Stored states:", originalMaterialStatesRef.current);
+                originalMaterialStatesRef.current.forEach(state => {
+                  if (state.material.color && state.originalColor !== undefined) {
+                    state.material.color.setHex(state.originalColor);
+                  }
+                  if (state.material.emissive && state.originalEmissive !== undefined) {
+                    state.material.emissive.setHex(state.originalEmissive);
+                  }
+                  if (state.material.hasOwnProperty('emissiveIntensity') && state.originalIntensity !== undefined) {
+                    state.material.emissiveIntensity = state.originalIntensity;
+                  }
+                });
+                originalMaterialStatesRef.current = []; // Clear stored states
+              }, 1000); // Flash for 1 second, then revert
+            }
           }
-        });
+        }
+      }
 
-        // Check for projectiles that have exceeded their lifespan
-        const now = Date.now();
-        const toRemove = [];
+      // Check for projectiles that have exceeded their lifespan
+      const now = Date.now();
+      const toRemove = [];
 
-        bodiesRef.current.forEach((obj, index) => {
-          // Only remove projectiles if they've fallen extremely far (much lower threshold)
-          // or if they've exceeded their extended lifespan
-          if (
-            obj.mesh.position.y < -200 || // Much lower threshold to keep them visible longer
-            (obj.isProjectile && now - obj.createdAt > projectileLifespan)
-          ) {
-            toRemove.push(index);
-            scene.remove(obj.mesh);
-            physicsRef.current.world.removeRigidBody(obj.body);
-          }
-        });
+      bodiesRef.current.forEach((obj, index) => {
+        // Only remove projectiles if they've fallen extremely far (much lower threshold)
+        // or if they've exceeded their extended lifespan
+        if (
+          obj.mesh.position.y < -200 || // Much lower threshold to keep them visible longer
+          (obj.isProjectile && now - obj.createdAt > projectileLifespan)
+        ) {
+          toRemove.push(index);
+          scene.remove(obj.mesh);
+          physicsRef.current.world.removeRigidBody(obj.body);
+        }
+      });
 
-        // Remove from array in reverse order to avoid index issues
-        if (toRemove.length > 0) {
-          for (let i = toRemove.length - 1; i >= 0; i--) {
-            bodiesRef.current.splice(toRemove[i], 1);
-          }
+      // Remove from array in reverse order to avoid index issues
+      if (toRemove.length > 0) {
+        for (let i = toRemove.length - 1; i >= 0; i--) {
+          bodiesRef.current.splice(toRemove[i], 1);
         }
       }
 
@@ -1242,6 +1696,159 @@ const MoonScene = forwardRef(
       // Call the collision detection function every frame
       checkAlligatorCollisions();
     });
+
+    // Animate scroll glow with pulsing effect
+    useFrame((state) => {
+      // Apply pulsing effect to the alligator scroll if it's visible
+      if (glowingScrollMaterialsRef.current.length > 0) {
+        // Create a smooth pulse between 0 and 0.4 using sine wave
+        const pulseIntensity = (Math.sin(state.clock.elapsedTime * 2) * 0.5 + 0.5) * 0.4;
+        
+        // Apply to all tracked materials
+        glowingScrollMaterialsRef.current.forEach(material => {
+          material.emissiveIntensity = pulseIntensity;
+        });
+      }
+    });
+
+    // Modify collision handler
+    const handleAlligatorHit = () => {
+      // Just a placeholder function now that we've removed the text
+      console.log("Alligator hit - scroll will appear with glow effect");
+    };
+
+    // Add this new useEffect for logging scroll message
+    useEffect(() => {
+      // Log scroll message when component mounts
+      console.log("MoonScene mounted with scrollMessage:", scrollMessage);
+    }, [scrollMessage]);
+
+    useEffect(() => {
+      const handleWheel = (event) => {
+        // Prevent the default behavior to ensure our controls handle it
+        if (controlsRef.current && controlsRef.current.enableZoom) {
+          event.preventDefault();
+          console.log("Wheel event captured by MoonLamps");
+        }
+      };
+
+      // Add wheel event listener with passive: false to allow preventDefault
+      gl.domElement.addEventListener('wheel', handleWheel, { passive: false });
+
+      return () => {
+        // Clean up the event listener
+        gl.domElement.removeEventListener('wheel', handleWheel);
+      };
+    }, [gl.domElement]);
+
+    // Add useEffect to debug text positioning
+    useEffect(() => {
+      if (scrollMessage) {
+        console.log("Scroll has message:", scrollMessage);
+        
+        // We can add a debug box to show where the scroll appears if needed
+        /*
+        const debugBox = new THREE.Mesh(
+          new THREE.BoxGeometry(0.2, 0.2, 0.2),
+          new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true })
+        );
+        debugBox.position.set(0, 17, 0.3);
+        scene.add(debugBox);
+        
+        // Remove after 5 seconds
+        setTimeout(() => {
+          scene.remove(debugBox);
+        }, 5000);
+        */
+      }
+    }, [scrollMessage, scene]);
+
+    // Remove the HTML text implementation since we're using 3D text
+    useEffect(() => {
+      // Remove any existing scroll-text-overlay elements
+      const existingOverlay = document.getElementById('scroll-text-overlay');
+      if (existingOverlay) {
+        document.body.removeChild(existingOverlay);
+      }
+    }, []);
+
+    // Remove the debug box implementation too
+    useEffect(() => {
+      // Clean up any debug elements
+      const debugBox = scene.getObjectByName('scrollTextDebugBox');
+      if (debugBox) {
+        scene.remove(debugBox);
+      }
+    }, [scene]);
+
+    // Add useEffect for setting up scroll animations with focus on static closed state
+    useEffect(() => {
+      if (scrollObjectFound && alligatorScrollObjectRef.current && modelAnimations?.length > 0 && !animationsReadyRef.current) {
+        console.log("SCROLL_ANIM_SETUP: Setting up scroll closed state animation.");
+        animationsReadyRef.current = true; // Mark as attempted/done to prevent re-running needlessly
+
+        let animationTarget = null;
+        // Traverse under the AlligatorScroll Object3D to find the 'Armature'
+        alligatorScrollObjectRef.current.traverse((child) => {
+          if (child.name === 'Armature' || child.name === 'AlligatorScroll.003') { 
+            if (!animationTarget) { // Take the first one found
+              animationTarget = child;
+              console.log(`SCROLL_ANIM_SETUP: Found animation target ('${child.name}') for scroll:`, animationTarget);
+            }
+          }
+        });
+
+        if (!animationTarget) {
+          console.warn("SCROLL_ANIM_SETUP: Could not find 'Armature' or 'AlligatorScroll.003'. Using AlligatorScroll itself.");
+          animationTarget = alligatorScrollObjectRef.current;
+        }
+
+        scrollAnimationMixerRef.current = new THREE.AnimationMixer(animationTarget);
+        console.log("SCROLL_ANIM_SETUP: Available animations:", modelAnimations.map(a => a.name));
+
+        // Look specifically for the static closed state animation
+        const STATIC_CLOSED_CLIP_NAME = 'Armature|2_Close Static_Armature';
+        const CLOSE_CLIP_NAME = 'Armature|1_Close Action_Armature'; // Fallback
+
+        const staticClosedClip = THREE.AnimationClip.findByName(modelAnimations, STATIC_CLOSED_CLIP_NAME);
+        const closeClip = THREE.AnimationClip.findByName(modelAnimations, CLOSE_CLIP_NAME);
+
+        if (staticClosedClip) {
+            console.log(`SCROLL_ANIM_SETUP: Found STATIC CLOSED clip: '${STATIC_CLOSED_CLIP_NAME}'`, staticClosedClip);
+            closeScrollActionRef.current = scrollAnimationMixerRef.current.clipAction(staticClosedClip);
+            closeScrollActionRef.current.setLoop(THREE.LoopOnce);
+            closeScrollActionRef.current.clampWhenFinished = true;
+            closeScrollActionRef.current.timeScale = 1.0;
+            closeScrollActionRef.current.enabled = true;
+            closeScrollActionRef.current.paused = false;
+            
+            // Initially set to the end of the animation to show closed state without animation
+            closeScrollActionRef.current.time = staticClosedClip.duration;
+            closeScrollActionRef.current.play();
+            console.log("SCROLL_ANIM_SETUP: Static closed state set");
+        } else if (closeClip) {
+            console.warn(`SCROLL_ANIM_SETUP: Static closed animation not found, using close animation instead.`);
+            closeScrollActionRef.current = scrollAnimationMixerRef.current.clipAction(closeClip);
+            closeScrollActionRef.current.setLoop(THREE.LoopOnce);
+            closeScrollActionRef.current.clampWhenFinished = true;
+            closeScrollActionRef.current.timeScale = 1.0;
+            closeScrollActionRef.current.enabled = true;
+            closeScrollActionRef.current.paused = false;
+            
+            // Set to end of animation for closed state
+            closeScrollActionRef.current.time = closeClip.duration;
+            closeScrollActionRef.current.play();
+        } else {
+            console.error(`SCROLL_ANIM_SETUP: Neither static closed nor close animation found!`);
+        }
+      }
+    }, [scrollObjectFound, modelAnimations]); // Dependencies: scrollObjectFound and modelAnimations
+
+    return (
+      <>
+        {/* Remove the Text component */}
+      </>
+    );
   }
 );
 

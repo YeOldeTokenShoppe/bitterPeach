@@ -6,25 +6,28 @@ import { useThree } from "@react-three/fiber";
 useGLTF.preload("/marketFight.glb");
 useGLTF.preload("/whale.glb");
 useGLTF.preload("/starCandles.glb");
+useGLTF.preload("/InfinityStars.glb");
 
 function ConstellationModel({ isVisible = false }) {
   const { camera } = useThree();
   // Load all three models
   const { scene: marketScene } = useGLTF("/marketFight.glb");
   const { scene: whaleScene } = useGLTF("/whale.glb");
-  const { scene: starCandlesScene } = useGLTF("/starChart.glb");
+  const { scene: starCandlesScene } = useGLTF("/starAndArrow.glb");
+  const { scene: infinityStarsScene } = useGLTF("/InfinityStars.glb");
   const groupRef = useRef();
   const whaleModelRef = useRef();
 
   // Set up the models when they load
   useEffect(() => {
     // Ensure all scenes are loaded
-    if (!marketScene || !whaleScene || !starCandlesScene) return;
+    if (!marketScene || !whaleScene || !starCandlesScene || !infinityStarsScene) return;
 
     // Create copies to avoid modifying cached originals
     const marketClone = marketScene.clone();
     const whaleClone = whaleScene.clone();
     const starCandlesClone = starCandlesScene.clone();
+    const infinityStarsClone = infinityStarsScene.clone();
 
     // Helper function to process models
     const processModel = (modelScene, namePrefix = "", position = [0, 0, 0], scale = [1, 1, 1]) => {
@@ -52,9 +55,23 @@ function ConstellationModel({ isVisible = false }) {
               // Add a custom property to identify Bear stars
               child.userData.isBearStar = true;
               child.material.opacity = 0.15;
+            } else if (modelScene === infinityStarsClone) {
+              // Add a custom property to identify Infinity stars
+              child.userData.isInfinityStar = true;
+              child.material.opacity = 0.2;
             } else {
               child.material.opacity = 0.01;
             }
+          }
+        }
+        
+        // Handle Infinity lines specifically
+        if (child.isMesh && child.name.startsWith("Infinity")) {
+          // Make Infinity lines visible
+          child.visible = true;
+          if (child.material) {
+            child.material.transparent = true;
+            child.material.opacity = isVisible ? 0.3 : 0;
           }
         }
       });
@@ -64,7 +81,8 @@ function ConstellationModel({ isVisible = false }) {
         if (
           child.isMesh &&
           !child.name.startsWith("RedStar") &&
-          !child.name.startsWith("GreenStar")
+          !child.name.startsWith("GreenStar") &&
+          !child.name.startsWith("Infinity")
         ) {
           // Configure all meshes for better rendering in background
           child.castShadow = false;
@@ -80,6 +98,8 @@ function ConstellationModel({ isVisible = false }) {
             } else if (modelScene === starCandlesClone) {
               child.material.opacity = isVisible ? 0.1 : 0;
             } else if (modelScene === whaleClone) {
+              child.material.opacity = isVisible ? 0.15 : 0;
+            } else if (modelScene === infinityStarsClone) {
               child.material.opacity = isVisible ? 0.15 : 0;
             } else {
               child.material.opacity = isVisible ? 0.15 : 0;
@@ -108,12 +128,15 @@ function ConstellationModel({ isVisible = false }) {
     // Process and position each model
     processModel(marketClone, "Market", [10, 0, 0], [1, 1, 1]);
     processModel(whaleClone, "Whale", [18, -1, 34], [1, 1, 1]);
-    processModel(starCandlesClone, "StarCandles", [-10, -1, 27], [2.2 , 2.2, 2.2]);
+    processModel(starCandlesClone, "StarCandles", [-15, -2, 30], [1.8 , 1.8, 1.8]);
+    // Position InfinityStars far from other models
+    processModel(infinityStarsClone, "InfinityStars", [-10, 1, -12], [1.5, 1.5, 1.5]);
 
     // Store whale model reference and set its rotation
     whaleModelRef.current = whaleClone;
     whaleClone.rotation.y = Math.PI / 4;
     whaleClone.rotation.x = Math.PI / 12;
+    infinityStarsClone.rotation.z = Math.PI / 6;
 
     // Position the entire constellation group
     groupRef.current.position.z = -300;
@@ -121,7 +144,7 @@ function ConstellationModel({ isVisible = false }) {
 
     return () => {
       // Clean up all models
-      [marketClone, whaleClone, starCandlesClone].forEach(scene => {
+      [marketClone, whaleClone, starCandlesClone, infinityStarsClone].forEach(scene => {
         if (groupRef.current) {
           groupRef.current.remove(scene);
         }
@@ -137,7 +160,7 @@ function ConstellationModel({ isVisible = false }) {
         });
       });
     };
-  }, [marketScene, whaleScene, starCandlesScene, isVisible]);
+  }, [marketScene, whaleScene, starCandlesScene, infinityStarsScene, isVisible]);
 
   // Update visibility whenever isVisible changes
   useEffect(() => {
@@ -173,6 +196,15 @@ function ConstellationModel({ isVisible = false }) {
           }
         }
       }
+      
+      // Handle Infinity lines
+      if (child.isMesh && child.name.startsWith("Infinity")) {
+        child.visible = true;
+        if (child.material) {
+          child.material.transparent = true;
+          child.material.opacity = isVisible ? 0.3 : 0.1;
+        }
+      }
     });
 
     // Second pass: handle all other meshes
@@ -192,6 +224,8 @@ function ConstellationModel({ isVisible = false }) {
             child.material.opacity = isVisible ? 0.1 : 0;
           } else if (child.name.includes("Whale")) {
             child.material.opacity = isVisible ? 0.1 : 0;
+          } else if (child.name.includes("InfinityStars")) {
+            child.material.opacity = isVisible ? 0.1 : 0;  
           } else {
             child.material.opacity = isVisible ? 0.1 : 0;
           }
@@ -209,15 +243,17 @@ function ConstellationModel({ isVisible = false }) {
       // Check if groupRef.current exists before trying to traverse it
       if (!groupRef.current) return;
 
-      // First, find all parent objects and ensure they're visible
+      // First, find all parent objects and ensure they're visible for star visibility
       groupRef.current.traverse(child => {
         if (
           child.name &&
           (child.name.includes("Whale") ||
             child.name.includes("Bear") ||
-            child.name.includes("StarCandles"))
+            child.name.includes("StarCandles") ||
+            child.name.includes("InfinityStars"))
         ) {
-          // Make sure the parent is visible
+          // Make parent visible ONLY FOR STAR ACCESS, but respect isVisible for actual rendering
+          // This allows stars to be accessible even when parent is technically invisible
           child.visible = true;
         }
       });
@@ -240,11 +276,63 @@ function ConstellationModel({ isVisible = false }) {
             } else if (child.parent && child.parent.name.includes("Bear")) {
               child.material.opacity = 0.15;
               child.scale.set(0.12, 0.12, 0.12);
+            } else if (child.parent && child.parent.name.includes("InfinityStars")) {
+              child.material.opacity = 0.2;
+              child.scale.set(0.18, 0.18, 0.18);
             } else {
               child.material.opacity = 0.05;
               // child.scale.set(0.12, 0.12, 0.12);
             }
           }
+        }
+        
+        // Make Infinity lines respect isVisible for their opacity
+        if (child.isMesh && child.name.startsWith("Infinity")) {
+          // Keep lines accessible in the scene graph, but control their visibility through opacity
+          child.visible = true;
+          if (child.material) {
+            child.material.transparent = true;
+            child.material.opacity = isVisible ? 0.3 : 0;
+          }
+        }
+        
+        // For all non-star, non-line meshes in InfinityStars model, respect isVisible
+        if (
+          child.isMesh && 
+          !child.name.startsWith("RedStar") && 
+          !child.name.startsWith("GreenStar") &&
+          !child.name.startsWith("Infinity") &&
+          child.parent && 
+          child.parent.name.includes("InfinityStars")
+        ) {
+          child.visible = isVisible;
+          if (child.material) {
+            child.material.transparent = true;
+            child.material.opacity = isVisible ? 0.15 : 0;
+          }
+        }
+      });
+      
+      // After all stars are set up, apply final visibility to parent models based on isVisible
+      groupRef.current.traverse(child => {
+        if (
+          child.name &&
+          (child.name.includes("InfinityStars"))
+        ) {
+          // For InfinityStars model, need to re-check child mesh visibility based on isVisible
+          child.traverse(innerChild => {
+            if (
+              innerChild.isMesh && 
+              !innerChild.name.startsWith("RedStar") && 
+              !innerChild.name.startsWith("GreenStar") &&
+              !innerChild.name.startsWith("Infinity")
+            ) {
+              innerChild.visible = isVisible;
+              if (innerChild.material) {
+                innerChild.material.opacity = isVisible ? 0.15 : 0;
+              }
+            }
+          });
         }
       });
     };
@@ -268,7 +356,7 @@ function ConstellationModel({ isVisible = false }) {
         cancelAnimationFrame(animationFrameId);
       }
     };
-  }, []);
+  }, [isVisible]);
 
   return <group ref={groupRef} />;
 }

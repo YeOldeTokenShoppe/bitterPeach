@@ -27,14 +27,8 @@ import {
   SignInButton,
   useClerk,
 } from "@clerk/nextjs"; // Use Clerk's useUser for user management
-import {
-  Button,
-  Image as ChakraImage,
-  Input,
-  Text,
-  Heading,
-  Box,
-} from "@chakra-ui/react";
+import { Button, Input } from "./ui/button";
+import Image from "next/image";
 import { useRouter } from "next/router";
 // import { useActiveAccount } from "thirdweb/react";
 import StyledPopup from "./StyledPopup";
@@ -1200,13 +1194,13 @@ const Carousel = ({ images, setCarouselLoaded }) => {
                 }}
                 onClick={(e) => e.stopPropagation()} // Prevent click from closing pop-up
               >
-                <Heading>{selectedImage.title}</Heading>
-                <ChakraImage
+                <h2 className="text-xl font-bold">{selectedImage.title}</h2>
+                <Image
                   src={selectedImage.src}
                   alt={selectedImage.title}
+                  width={80}
+                  height={80}
                   style={{
-                    width: "8rem",
-                    height: "8rem",
                     objectFit: "contain",
                   }}
                 />
@@ -1277,19 +1271,9 @@ const Carousel = ({ images, setCarouselLoaded }) => {
               ×
             </button>
 
-            <Heading
-              mt={1}
-              mb={1}
-              lineHeight={0.9}
-              style={{
-                fontSize: "2em",
-                overflowWrap: "normal",
-                zIndex: "1",
-                color: "#e1b67e",
-              }}
-            >
+            <h1 className="text-2xl font-bold mt-1 mb-1 leading-tight text-[#e1b67e] z-[1]">
               Chat Box
-            </Heading>
+            </h1>
             <div
               style={{ marginTop: "5px", fontSize: "12px", color: "#e1b67e" }}
             >
@@ -1424,33 +1408,16 @@ const Carousel = ({ images, setCarouselLoaded }) => {
           justifyContent: "center",
           textAlign: "center"
         }}>
-        <Text
-          fontSize="2rem"
-          fontWeight="bold"
-          fontFamily="Oleo Script"
-          lineHeight="1"
-          color="#c48901"
-          marginBottom="1rem"
-          textAlign="center"
-          width="100%"
-        >
-          Ride or Die: RL80 is Your Hail Mary for the Markets
-        </Text>
+        <h2 className="text-4xl font-bold font-['Oleo_Script'] leading-none text-[#c48901] mb-4 text-center w-full">
+          Ride or Die with RL80
+        </h2>
 
-        <Text  
-          fontSize="1.5rem"
-          // fontWeight="bold"
-          fontFamily="Roboto"
-          lineHeight="1.2"
-          textAlign="center"
-          width="100%"
-          color="white"
-        >
+        <p className="text-xl font-['Roboto'] leading-tight text-white text-center w-full">
           They say fortune favors the bold. Charter a ride on the charts and careen carefree with the ups and
           downs of the crypto market. Must be at least 36&quot; tall and hold
           RL80 or NFIN80 reward tokens. 10 minutes per ride. Your username and
           avatar will be displayed live! Messages are not saved. Click on any available beast to ride.
-        </Text>
+        </p>
       </div>
     </div>
   );

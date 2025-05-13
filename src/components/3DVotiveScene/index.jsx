@@ -18,7 +18,7 @@ import RocketModel from "./RocketModel";
 import { CONTROL_SETTINGS } from "./controlSettings";
 
 // import { getScreenCategory } from "./screenCategories";
-import { Box } from "@chakra-ui/react";
+
 // import CameraGUI from "./CameraGUI";
 import { PerspectiveCamera } from "@react-three/drei";
 

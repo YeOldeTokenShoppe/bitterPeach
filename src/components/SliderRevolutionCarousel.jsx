@@ -1,8 +1,8 @@
-import { Box, Flex, useMediaQuery } from "@chakra-ui/react";
+import useMediaQuery from "./hooks/useMediaQuery";
 
 function SliderRevolutionCarousel() {
-  const [isLargerThan768] = useMediaQuery("(min-width: 768px)");
-  const [isSmallerThan30rem] = useMediaQuery("(max-width: 30rem)");
+  const isLargerThan768 = useMediaQuery("(min-width: 768px)");
+  const isSmallerThan30rem = useMediaQuery("(max-width: 30rem)");
 
   const iframeSrc = isSmallerThan30rem
     ? "https://ourlady.io/645-2/"

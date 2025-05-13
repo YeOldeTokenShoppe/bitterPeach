@@ -21,7 +21,7 @@ function DeLoreanModel() {
   
   // Handle statue loaded notification
   const handleStatueLoaded = () => {
-    console.log('Dashboard holograph loaded');
+
     setIsStatueLoaded(true);
   };
   
@@ -135,7 +135,7 @@ function CameraControls() {
     if (window.camera) {
       window.camera.lookAt(TARGET_POSITION);
       window.camera.updateMatrixWorld();
-      console.log('Camera looking at target:', TARGET_POSITION);
+
     }
   };
   
@@ -151,7 +151,7 @@ function CameraControls() {
       };
       
       setSavedPositions(prev => [...prev, newPosition]);
-      console.log('Saved camera position:', newPosition);
+
       
       return newPosition;
     }
@@ -187,7 +187,7 @@ function CameraControls() {
             },
             onComplete: () => {
               setIsAnimating(false);
-              console.log('Animation complete');
+      
             }
           });
         }
@@ -209,7 +209,7 @@ function CameraControls() {
       }
       
       const target = autoPlaySequence[currentIndex];
-      console.log(`Animating to position ${currentIndex + 1}`);
+ 
       
       // Animate position and FOV simultaneously
       const timeline = gsap.timeline({
@@ -273,7 +273,7 @@ function CameraControls() {
       }
       
       const target = savedPositions[currentIndex];
-      console.log(`Animating to position ${currentIndex + 1}: ${target.name}`);
+   
       
       gsap.to(window.camera.position, {
         x: target.x,
@@ -319,7 +319,7 @@ function CameraControls() {
     // Wait for camera to be initialized
     const timer = setTimeout(() => {
       if (window.camera) {
-        console.log("Starting auto camera sequence");
+
         playAutoSequence();
       }
     }, 2000); // 2 second delay to ensure scene is loaded
@@ -400,14 +400,7 @@ function CameraControls() {
         case ' ':
           lookAtTarget();
           break;
-        case 'p':
-          console.log('Current camera position:', {
-            x: window.camera.position.x,
-            y: window.camera.position.y,
-            z: window.camera.position.z,
-            fov: window.camera.fov
-          });
-          break;
+
         case 'r':
           if (e.ctrlKey || e.metaKey) {
             // Save position with Ctrl+R
@@ -457,22 +450,13 @@ function Synthwave() {
       switch (e.key.toLowerCase()) {
         case 'c': // 'C' to toggle camera controls
           setControlsEnabled(prev => !prev);
-          console.log(`Camera controls ${!controlsEnabled ? 'enabled' : 'disabled'}`);
+     
           break;
         case 'l': // 'L' to toggle light helper
           setShowLightHelper(prev => !prev);
-          console.log(`Light helper ${!showLightHelper ? 'shown' : 'hidden'}`);
+         
           break;
-        case 'p': // 'P' to print camera position
-          if (window.camera) {
-            console.log('Current camera position:', {
-              x: window.camera.position.x.toFixed(3),
-              y: window.camera.position.y.toFixed(3),
-              z: window.camera.position.z.toFixed(3),
-              fov: window.camera.fov
-            });
-          }
-          break;
+        
         default:
           break;
       }
@@ -492,7 +476,7 @@ function Synthwave() {
           far: 300
         }}
         onCreated={({ camera, gl }) => {
-          console.log('Camera initialized at:', camera.position);
+     
           window.camera = camera; // Make camera globally accessible
           camera.up.set(0, 1, 0);
           // Look at target point immediately

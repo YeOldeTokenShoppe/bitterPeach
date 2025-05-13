@@ -1,23 +1,15 @@
 "use client";
 import React, { useState, useEffect } from "react";
+
+import Image from "next/image";
 import {
-  Button,
-  Flex,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-  NumberInput,
-  NumberInputField,
-  NumberInputStepper,
-  NumberIncrementStepper,
-  NumberDecrementStepper,
-  Box,
-  Image as ChakraImage,
-  Text,
-} from "@chakra-ui/react";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "./ui/dialog";
+import { Button, Input } from "./ui/button";
 import { useDisconnect } from "thirdweb/react";
 import { ethers } from "ethers";
 import { useActiveAccount, TransactionButton } from "thirdweb/react";
@@ -30,6 +22,7 @@ import { auth } from "../utilities/firebaseClient";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../utilities/firebaseClient";
 import { useUser } from "@clerk/nextjs";
+// import { NumberInput } from "@/components/ui/number-input";
 
 function BurnModal({
   isOpen,
@@ -146,7 +139,7 @@ function BurnModal({
   // Ensure the fetched image is displayed correctly, including the frame
   {
     selectedImage && selectedImage.src && (
-      <Box
+      <div
         as="img"
         src={getFormattedImageUrl(selectedImage.src)}
         alt="Selected"
@@ -158,7 +151,7 @@ function BurnModal({
         height="auto"
         zIndex="-1"
         borderRadius={selectedImage.isFirstImage ? "50%" : "0"}
-      />
+        />
     );
   }
 
@@ -205,212 +198,188 @@ function BurnModal({
 
   return (
     <>
-      <Modal isOpen={isOpen} onClose={handleClose} size="md" motionPreset="2">
-        <ModalOverlay style={{ backdropFilter: "blur(8px)" }} />
-        <ModalContent
-          bg="#1b1724"
-          borderRadius="lg"
-          border="2px"
-          borderColor="#8e662b"
+      <Dialog open={isOpen} onOpenChange={handleClose}>
+        <DialogContent 
+          className="bg-[#1b1724] rounded-lg border-2 border-[#8e662b] max-w-md mx-auto"
+          style={{
+            backdropFilter: "blur(8px)",
+          }}
         >
-          <ModalHeader
-            fontSize="2.3rem"
-            fontFamily={"UnifrakturCook"}
-            color="#8e662b"
-            style={{ borderBottom: "1px solid #8e662b" }}
-          >
-            {transactionStatus === "completed"
-              ? "Transaction Complete!"
-              : "Burn an Offering?"}
-          </ModalHeader>
+          <DialogHeader>
+            <DialogTitle className="text-4xl font-['UnifrakturCook'] text-[#8e662b] border-b border-[#8e662b]">
+              {transactionStatus === "completed"
+                ? "Transaction Complete!"
+                : "Burn an Offering?"}
+            </DialogTitle>
+          </DialogHeader>
 
           {transactionStatus === "completed" && isResultSaved && (
-            <Text fontSize="large" align={"center"} ml={7} mr={7} m={3}>
+            <p className="text-lg text-center mx-7 my-3">
               {saveMessage
                 ? saveMessage
                 : "Your transaction has been completed successfully."}
-            </Text>
+            </p>
           )}
-          <ModalBody
-            mt={"-3rem"}
-            className={
+          
+          <div className="-mt-12">
+            <div className={
               transactionStatus === "completed" && isResultSaved
                 ? ""
                 : isFlameVisible
                 ? "gradient-background"
                 : ""
-            }
-          >
-            {transactionStatus === "pending" ? (
-              <Flex
-                justifyContent="center"
-                alignItems="center"
-                flexDirection="column"
-                marginTop="10rem"
-                marginBottom="3rem"
-              >
-                <TokenText />
-                <Text
-                  className="blink"
-                  style={{ fontSize: "20px", marginTop: "2rem" }}
-                >
-                  Please wait - transaction pending...
-                </Text>
-              </Flex>
-            ) : (
-              <div style={{ position: "relative", marginTop: "5rem" }}>
-                <div className="holder" style={{ margin: "0 auto" }}>
-                  <div
-                    className="candle"
-                    style={{
-                      position: "relative",
-                      transform: isScaledDown ? "scale(0.5)" : "scale(1)",
-                      transition: "transform 0.5s ease",
-                      top: isCandleLowered ? "0rem" : "7rem",
-                    }}
-                  >
-                    <div className="thread"></div>
-                    {isFlameVisible ? (
-                      <>
-                        <div className="blinking-glow"></div>
-                        <div className="glow"></div>
-                        <div className="flame"></div>
-                      </>
-                    ) : (
-                      <div className="unlit-candle"></div>
-                    )}
+            }>
+              {transactionStatus === "pending" ? (
+                <div className="flex justify-center items-center flex-col mt-40 mb-12">
+                  <TokenText />
+                  <p className="blink text-xl mt-8">
+                    Please wait - transaction pending...
+                  </p>
+                </div>
+              ) : (
+                <div className="relative mt-20">
+                  <div className="holder mx-auto">
+                    <div
+                      className="candle"
+                      style={{
+                        position: "relative",
+                        transform: isScaledDown ? "scale(0.5)" : "scale(1)",
+                        transition: "transform 0.5s ease",
+                        top: isCandleLowered ? "0rem" : "7rem",
+                      }}
+                    >
+                      <div className="thread"></div>
+                      {isFlameVisible ? (
+                        <>
+                          <div className="blinking-glow"></div>
+                          <div className="glow"></div>
+                          <div className="flame"></div>
+                        </>
+                      ) : (
+                        <div className="unlit-candle"></div>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
-            {transactionStatus === "completed" && !isResultSaved && (
-              <>
-                <div>
-                  <p style={{ marginTop: "2rem" }}>{`Thanks, ${userName}!`}</p>
-                </div>
-              </>
-            )}
+              )}
+              {transactionStatus === "completed" && !isResultSaved && (
+                <>
+                  <div>
+                    <p className="mt-8">{`Thanks, ${userName}!`}</p>
+                  </div>
+                </>
+              )}
 
-            {transactionStatus === "completed" && isResultSaved && (
-              <div style={{ textAlign: "center" }}>
-                <Box
-                  position="absolute"
-                  top={"7rem"}
-                  display="flex"
-                  justifyContent="center"
-                  alignItems="center"
-                  height="12rem"
-                  width="90%"
-                  mt="5"
-                  zIndex={-1}
-                >
-                  {selectedImage &&
-                    !selectedImage.isVideo &&
-                    selectedImage.frameChoice &&
-                    shouldShowFrame(selectedImage.src) && (
-                      <ChakraImage
-                        src={`/${selectedImage.frameChoice}.png`}
-                        alt="Frame"
-                        position="absolute"
-                        top="0"
-                        left="0"
-                        width="100%"
-                        height="100%"
-                        objectFit="contain"
-                        zIndex="200"
-                        unoptimized
-                      />
-                    )}
-
-                  {selectedImage && selectedImage.src && (
-                    <>
-                      {selectedImage.isVideo ? (
-                        <Box
-                          position="relative"
-                          width="100%"
-                          height="auto"
-                          justifyContent="center"
-                          alignItems="center"
-                        >
-                          <Box
-                            as="video"
-                            src={getFormattedImageUrl(selectedImage.src)}
-                            autoPlay
-                            loop
-                            muted
-                            playsInline
-                            style={{
-                              position: "absolute",
-                              width: "100%",
-                              height: "auto",
-                              zIndex: "1",
-                            }}
-                          />
-                        </Box>
-                      ) : (
-                        <Box
-                          display="flex"
-                          justifyContent="center"
-                          alignItems="center"
+              {transactionStatus === "completed" && isResultSaved && (
+                <div className="text-center">
+                  <div
+                    position="absolute"
+                    top={"7rem"}
+                    display="flex"
+                    justifyContent="center"
+                    alignItems="center"
+                    height="12rem"
+                    width="90%"
+                    mt="5"
+                    zIndex={-1}
+                  >
+                    {selectedImage &&
+                      !selectedImage.isVideo &&
+                      selectedImage.frameChoice &&
+                      shouldShowFrame(selectedImage.src) && (
+                        <Image
+                          src={`/${selectedImage.frameChoice}.png`}
+                          alt="Frame"
+                          position="absolute"
+                          top="0"
+                          left="0"
                           width="100%"
                           height="100%"
-                        >
-                          <Box
-                            as="img"
-                            src={getFormattedImageUrl(selectedImage.src)}
-                            alt="Selected Image"
-                            style={{
-                              width: "8rem",
-                              height: "auto",
-                              zIndex: "1",
-                              borderRadius: selectedImage.isFirstImage
-                                ? "50%"
-                                : "0",
-                            }}
-                          />
-                        </Box>
+                          objectFit="contain"
+                          zIndex="200"
+                          unoptimized
+                        />
                       )}
-                    </>
-                  )}
-                </Box>
-                <p>{userMessage}</p>
-                <p>{saveMessage}</p>
-              </div>
-            )}
-            {transactionStatus === "idle" && (
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "center",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  paddingTop: "20px",
-                }}
-              >
-                <p style={{ paddingBottom: "15px", marginTop: "2rem" }}>
-                  Choose token amount to burn.
-                </p>
-                <NumberInput
-                  size="lg"
-                  maxW={32}
-                  defaultValue={1000}
-                  min={0}
-                  step={1000}
-                  value={value}
-                  onChange={(valueAsString, valueAsNumber) =>
-                    setValue(valueAsNumber)
-                  }
+
+                    {selectedImage && selectedImage.src && (
+                      <>
+                        {selectedImage.isVideo ? (
+                          <div
+                            position="relative"
+                            width="100%"
+                            height="auto"
+                            justifyContent="center"
+                            alignItems="center"
+                          >
+                            <div
+                              as="video"
+                              src={getFormattedImageUrl(selectedImage.src)}
+                              autoPlay
+                              loop
+                              muted
+                              playsInline
+                              style={{
+                                position: "absolute",
+                                width: "100%",
+                                height: "auto",
+                                zIndex: "1",
+                              }}
+                            />
+                          </div>
+                        ) : (
+                          <div
+                            display="flex"
+                            justifyContent="center"
+                            alignItems="center"
+                            width="100%"
+                            height="100%"
+                          >
+                            <div
+                              as="img"
+                              src={getFormattedImageUrl(selectedImage.src)}
+                              alt="Selected Image"
+                              style={{
+                                width: "8rem",
+                                height: "auto",
+                                zIndex: "1",
+                                borderRadius: selectedImage.isFirstImage
+                                  ? "50%"
+                                  : "0",
+                              }}
+                            />
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                  <p>{userMessage}</p>
+                  <p>{saveMessage}</p>
+                </div>
+              )}
+              {transactionStatus === "idle" && (
+                <div
+                  className="flex justify-center flex-col items-center pt-5"
                 >
-                  <NumberInputField color="white" />
-                  <NumberInputStepper>
-                    <NumberIncrementStepper color="white" />
-                    <NumberDecrementStepper color="white" />
-                  </NumberInputStepper>
-                </NumberInput>
-              </div>
-            )}
-          </ModalBody>
-          <ModalFooter justifyContent="center">
+                  <p className="pb-4 mt-8">
+                    Choose token amount to burn.
+                  </p>
+                  <Input
+                    size="lg"
+                    defaultValue={1000}
+                    min={0}
+                    step={1000}
+                    value={value}
+                    onChange={(valueAsString, valueAsNumber) =>
+                      setValue(valueAsNumber)
+                    }
+                    className="max-w-[8rem]"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <DialogFooter className="justify-center">
             {!account ? (
               <ConnectButton2 />
             ) : transactionStatus !== "completed" && !isResultSaved ? (
@@ -452,8 +421,7 @@ function BurnModal({
               </TransactionButton>
             ) : transactionCompleted && !isResultSaved ? (
               <Button
-                width="30%"
-                className="shimmer-button"
+                className="w-[30%] shimmer-button"
                 onClick={handleOpenImageSelectionModal}
               >
                 <span className="text">
@@ -464,32 +432,31 @@ function BurnModal({
               </Button>
             ) : (
               <Button
-                mt={"-3rem"}
-                className="shimmer-button"
+                className="-mt-12 shimmer-button"
                 onClick={handleClose}
               >
                 Return to Gallery
                 <span className="shimmer"></span>
               </Button>
             )}
-          </ModalFooter>
-        </ModalContent>
-        <ImageSelectionModal
-          isOpen={isImageSelectionModalOpen}
-          setIsImageSelectionModalOpen={setIsImageSelectionModalOpen}
-          onClose={handleCloseImageSelectionModal}
-          setSelectedImage={setSelectedImage}
-          burnedAmount={burnedAmount}
-          setIsResultSaved={setIsResultSaved}
-          setSaveMessage={setSaveMessage}
-          onSaveResult={(savedImage) => {
-            console.log("Saving image in BurnModal:", savedImage);
-            setSelectedImage(savedImage);
-            setIsResultSaved(true);
-            setIsScaledDown(true); // Scale down the candle when the result is saved
-          }}
-        />
-      </Modal>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <ImageSelectionModal
+        isOpen={isImageSelectionModalOpen}
+        setIsImageSelectionModalOpen={setIsImageSelectionModalOpen}
+        onClose={handleCloseImageSelectionModal}
+        setSelectedImage={setSelectedImage}
+        burnedAmount={burnedAmount}
+        setIsResultSaved={setIsResultSaved}
+        setSaveMessage={setSaveMessage}
+        onSaveResult={(savedImage) => {
+          console.log("Saving image in BurnModal:", savedImage);
+          setSelectedImage(savedImage);
+          setIsResultSaved(true);
+          setIsScaledDown(true); // Scale down the candle when the result is saved
+        }}
+      />
     </>
   );
 }
