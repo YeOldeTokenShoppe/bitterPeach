@@ -12,7 +12,8 @@ import {
 } from "@react-three/postprocessing";
 import { BlendFunction, GlitchMode } from "postprocessing";
 
-const PostProcessingEffects = ({ is80sMode }) => {
+// Set default is80sMode to false so component can be used without props
+const PostProcessingEffects = ({ is80sMode = false }) => {
   const { scene } = useThree();
   const composerRef = useRef();
   const timeRef = useRef(0);
@@ -22,28 +23,42 @@ const PostProcessingEffects = ({ is80sMode }) => {
     timeRef.current += delta;
   });
 
-  // Regular effects for normal mode
+  // Make the component visible from window for debugging
+  useEffect(() => {
+    // Store a reference to this component on window for external access
+    window.postProcessingEffects = {
+      composerRef,
+      filmScanlines: 0
+    };
+    
+    return () => {
+      delete window.postProcessingEffects;
+    };
+  }, []);
+
+  // Regular effects for normal mode with enhanced sunset bloom
   const normalEffects = (
     <>
       <Bloom
-        intensity={0.8}
-        luminanceThreshold={0.4}
-        luminanceSmoothing={0.9}
-        height={300}
+        intensity={1.2}           // Increased from 0.8
+        luminanceThreshold={0.3}  // Lowered from 0.4 to catch more of the sunset colors
+        luminanceSmoothing={0.7}  // Adjusted from 0.9 for sharper bloom edges
+        height={400}              // Increased from 300 for more detail
+        blendFunction={BlendFunction.SCREEN} // Use SCREEN blend mode for a more natural glow
       />
-      {/* <Noise opacity={0.02} /> */}
-      {/* <Vignette eskil={false} offset={0.1} darkness={0.5} /> */}
+      <Vignette eskil={false} offset={0.15} darkness={0.35} />
     </>
   );
 
-  // Enhanced effects for 80s mode
+  // Enhanced effects for 80s mode with even stronger bloom
   const eightiesEffects = (
     <>
       <Bloom
-        intensity={1.5}
-        luminanceThreshold={0.1}
-        luminanceSmoothing={0.5}
-        height={300}
+        intensity={1.8}           // Increased from 1.5
+        luminanceThreshold={0.05} // Lowered from 0.1 to catch more colors
+        luminanceSmoothing={0.3}  // Decreased for sharper bloom
+        height={400}              // Increased for more detail
+        blendFunction={BlendFunction.SCREEN}
       />
       <ChromaticAberration
         offset={[0.005, 0.005]}
@@ -57,20 +72,13 @@ const PostProcessingEffects = ({ is80sMode }) => {
       />
       <Noise opacity={0.08} />
       <Vignette eskil={false} offset={0.1} darkness={0.7} />
-      {/* <Glitch
-        delay={[1.5, 3.5]} // min and max delay between glitches
-        duration={[0.1, 0.3]} // min and max duration of a glitch
-        strength={[0.3, 0.6]} // min and max strength
-        mode={GlitchMode.CONSTANT} // glitch mode
-        active={true} // turn on/off the effect (switches between "mode" prop and GlitchMode.DISABLED)
-        ratio={0.85} // Threshold for strong glitches, 0 - no weak glitches, 1 - no strong glitches.
-      /> */}
     </>
   );
 
   return (
     <EffectComposer ref={composerRef}>
-      {is80sMode ? eightiesEffects : normalEffects}
+      {/* In Synthwave context, we'll always use normalEffects */}
+      {normalEffects}
     </EffectComposer>
   );
 };

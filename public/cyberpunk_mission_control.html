@@ -3027,7 +3027,7 @@ function startCharacterInteraction() {
 
         <button class="control-button" data-action="ignition">
           <span class="button-prefix">//OPS</span>
-          <span class="button-label">CRUSADE</span>
+          <span class="button-label">MISSION</span>
         </button>
 
         <button class="control-button" data-action="launch">
@@ -6129,10 +6129,11 @@ function startCharacterInteraction() {
 
       // Function to handle ignition button click
       function handleIgnitionClick() {
-        console.log('Ignition button clicked: Requesting synthwave transition with camera zoom.');
+        console.log('Ignition button clicked: Requesting pre-transition camera zoom and then synthwave transition.');
         
-        // Send message to parent window to initiate the camera zoom and then the model switch
-        window.parent.postMessage({ type: 'START_SYNTHWAVE_TRANSITION' }, '*');
+        // Send message to parent window to initiate the camera zoom first,
+        // and then the parent will handle the model switch.
+        window.parent.postMessage({ type: 'PRE_TRANSITION_CAMERA_ZOOM' }, '*');
         
         // Add visual feedback
         const ignitionButton = document.querySelector('.control-button[data-action="ignition"]');

@@ -57,6 +57,7 @@ const SidePanel = ({
   toggleConstellationVisibility,
   setShowSpotify,
   handleIgnition,
+  onRequestZoomAndSwitch,
 }) => {
   const [isTextBoxVisible, setIsTextBoxVisible] = useState(true);
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
@@ -589,13 +590,30 @@ const SidePanel = ({
   useEffect(() => {
     const handleMessage = (event) => {
       console.log('Received message in SidePanel:', event.data);
-      if (event.data && event.data.type === 'IGNITION_CLICK') {
-        console.log('Ignition click received from iframe');
-        handleIgnitionClick();
+      if (event.data && event.data.type === 'PRE_TRANSITION_CAMERA_ZOOM') {
+        console.log('PRE_TRANSITION_CAMERA_ZOOM received from iframe, calling onRequestZoomAndSwitch');
+        if (onRequestZoomAndSwitch) {
+          onRequestZoomAndSwitch();
+        } else {
+          console.warn('onRequestZoomAndSwitch prop not provided to SidePanel. Falling back to direct ignition.');
+          if (handleIgnition) handleIgnition(); // Fallback to old behavior
+        }
       }
-      else if (event.data && event.data.type === 'START_SYNTHWAVE_TRANSITION') {
-        console.log('START_SYNTHWAVE_TRANSITION received from iframe');
-        handleIgnitionClick();
+      else if (event.data && event.data.type === 'IGNITION_CLICK') { // Keep existing IGNITION_CLICK for now, but prefer PRE_TRANSITION_CAMERA_ZOOM
+        console.log('Legacy IGNITION_CLICK received from iframe. Prefer PRE_TRANSITION_CAMERA_ZOOM.');
+        if (onRequestZoomAndSwitch) {
+          onRequestZoomAndSwitch();
+        } else {
+          if (handleIgnition) handleIgnition();
+        }
+      }
+      else if (event.data && event.data.type === 'START_SYNTHWAVE_TRANSITION') { // Keep existing for now
+        console.log('Legacy START_SYNTHWAVE_TRANSITION received from iframe. Prefer PRE_TRANSITION_CAMERA_ZOOM.');
+         if (onRequestZoomAndSwitch) {
+          onRequestZoomAndSwitch();
+        } else {
+          if (handleIgnition) handleIgnition();
+        }
       }
       else if (event.data && event.data.type === 'CONSTELLATION_TOGGLE') {
         console.log('Constellation toggle received from iframe');
@@ -623,7 +641,7 @@ const SidePanel = ({
     return () => {
       window.removeEventListener('message', handleMessage);
     };
-  }, [handleIgnitionClick, handleConstellationToggle, localConstellationsVisible, missionControlIframeRef, router]);
+  }, [handleIgnitionClick, handleConstellationToggle, localConstellationsVisible, missionControlIframeRef, router, onRequestZoomAndSwitch, handleIgnition]);
 
   // Add useEffect to handle iframe loading
   useEffect(() => {

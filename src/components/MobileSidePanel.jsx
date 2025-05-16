@@ -35,6 +35,7 @@ const MobileSidePanel = ({
   toggleConstellationVisibility,
   isConstellationsVisible,
   handleIgnition,
+  onRequestZoomAndSwitch, // New prop
 }) => {
   const [isVideoScreenOpen, setIsVideoScreenOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -1795,9 +1796,22 @@ const MobileSidePanel = ({
   // Update the message handler to handle START_SYNTHWAVE_TRANSITION
   useEffect(() => {
     const handleMessage = (event) => {
-      if (event.data && event.data.type === 'START_SYNTHWAVE_TRANSITION') {
-        console.log('START_SYNTHWAVE_TRANSITION received from iframe');
-        handleIgnitionClick();
+      if (event.data && event.data.type === 'PRE_TRANSITION_CAMERA_ZOOM') {
+        console.log('Mobile: PRE_TRANSITION_CAMERA_ZOOM received, calling onRequestZoomAndSwitch');
+        if (onRequestZoomAndSwitch) {
+          onRequestZoomAndSwitch();
+        } else {
+          console.warn('Mobile: onRequestZoomAndSwitch prop not provided. Falling back to direct ignition.');
+          if (handleIgnition) handleIgnition(); // Fallback to old behavior
+        }
+      }
+      else if (event.data && event.data.type === 'START_SYNTHWAVE_TRANSITION') { // Keep existing for now
+        console.log('Mobile: Legacy START_SYNTHWAVE_TRANSITION received. Prefer PRE_TRANSITION_CAMERA_ZOOM.');
+        if (onRequestZoomAndSwitch) {
+          onRequestZoomAndSwitch();
+        } else {
+          if (handleIgnition) handleIgnition();
+        }
       }
       // Handle other message types...
     };
@@ -1806,7 +1820,7 @@ const MobileSidePanel = ({
     return () => {
       window.removeEventListener('message', handleMessage);
     };
-  }, [handleIgnitionClick]);
+  }, [handleIgnitionClick, isConstellationsVisible, toggleConstellationVisibility, router, user, isSignedIn, updateVideoPosition, connectionPhase, isMuted, sitepalSceneLoaded, updateSignalButtonState, onRequestZoomAndSwitch, handleIgnition]); // Added onRequestZoomAndSwitch and handleIgnition
 
   return (
     <>

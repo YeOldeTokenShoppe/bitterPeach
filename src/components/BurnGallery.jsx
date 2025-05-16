@@ -336,6 +336,34 @@ function BurnGallery({
   // Add ref for Synthwave component
   const synthwaveRef = useRef(null);
 
+  // New function to handle the zoom and then switch
+  const performZoomAndSwitch = useCallback(async () => {
+    console.log("BurnGallery: performZoomAndSwitch called");
+    if (!synthwaveMode && threeDVotiveStandRef.current && typeof threeDVotiveStandRef.current.zoomInForTransition === 'function') {
+      try {
+        console.log("BurnGallery: Calling zoomInForTransition on ThreeDVotiveStand");
+        await threeDVotiveStandRef.current.zoomInForTransition(); // Assume this returns a Promise
+        console.log("BurnGallery: Zoom animation presumed complete.");
+      } catch (error) {
+        console.error("BurnGallery: Error during zoomInForTransition or animation:", error);
+        // Decide if you want to proceed even if zoom fails, or just log and stop.
+        // For now, we'll proceed to ignition.
+      }
+    } else if (!synthwaveMode) {
+      console.warn("BurnGallery: zoomInForTransition method not found on ThreeDVotiveStand ref or already in synthwave mode. Simulating delay.");
+      // Fallback if the zoom function isn't available, simulate a delay
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Adjust delay as needed
+    }
+
+    // After zoom (or delay), call the original handleIgnition to switch mode
+    if (handleIgnition) {
+      console.log("BurnGallery: Calling handleIgnition to switch to Synthwave.");
+      handleIgnition();
+    } else {
+      console.error("BurnGallery: handleIgnition prop is not defined.");
+    }
+  }, [handleIgnition, synthwaveMode]); // Added synthwaveMode to dependencies
+
   return (
     <div
       position="relative"
@@ -396,6 +424,7 @@ function BurnGallery({
             toggleConstellationVisibility={toggleConstellationVisibility}
             isConstellationsVisible={isConstellationsVisible}
             handleIgnition={handleIgnition}
+            onRequestZoomAndSwitch={performZoomAndSwitch}
           />
         ) : (
           <SidePanel
@@ -411,6 +440,7 @@ function BurnGallery({
             toggleConstellationVisibility={toggleConstellationVisibility}
             isConstellationsVisible={isConstellationsVisible}
             handleIgnition={handleIgnition}
+            onRequestZoomAndSwitch={performZoomAndSwitch}
           />
         )
       )}

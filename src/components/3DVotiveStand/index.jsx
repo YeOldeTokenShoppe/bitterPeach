@@ -823,7 +823,81 @@ const ThreeDVotiveStand = forwardRef(({
       animationFrameId = requestAnimationFrame(animate);
       window.currentCameraAnimationId = animationFrameId;
     },
-  }), []);
+    zoomInForTransition: () => {
+      return new Promise((resolve) => {
+        console.log("ThreeDVotiveStand: zoomInForTransition called.");
+        const cameraToAnimate = sceneCameraRef.current;
+
+        if (!cameraToAnimate) {
+          console.error("ThreeDVotiveStand: Camera not found for zoomInForTransition.");
+          resolve(); // Resolve immediately if no camera
+          return;
+        }
+
+        const externalControls = controlsRef.current;
+        if (externalControls) {
+          console.log("ThreeDVotiveStand: Disabling OrbitControls for zoomInForTransition.");
+          externalControls.enabled = false; // Disable orbit controls during animation
+        }
+
+        const initialPosition = cameraToAnimate.position.clone();
+        const initialFov = cameraToAnimate.fov;
+
+        // Define a higher target to look at (e.g., slightly above the modelCenter)
+        // Assuming modelCenter is available and represents the main point of interest.
+        // If modelCenter is not consistently set, you might use a fixed point.
+        // For this example, let's aim slightly above the origin (0, Y_OFFSET, 0)
+        const Y_OFFSET_LOOKAT = modelCenter.y + 11; // Look 2 units above the model's perceived center y
+        const targetLookAtPosition = new THREE.Vector3(modelCenter.x, Y_OFFSET_LOOKAT, modelCenter.z);
+
+        // Define where the camera should move to
+        // Closer to the target, and slightly higher
+        const targetCameraPosition = new THREE.Vector3(
+          initialPosition.x * 0.5, // Move closer on X
+          initialPosition.y * 0.7 + 9,  // Move higher and closer on Y
+          initialPosition.z * 0.6   // Move closer on Z
+        );
+        
+        // Adjust FOV for a moderate zoom effect along with the position change
+        const targetFov = initialFov * 0.05; // Less drastic FOV change, e.g., 30% zoom
+
+        const animationDuration = 4500; // 2.5 seconds for the zoom
+        let startTime = null;
+        
+        const animateZoom = (now) => {
+          if (startTime === null) startTime = now;
+          const elapsedTime = now - startTime;
+          const progress = Math.min(elapsedTime / animationDuration, 1);
+          
+          const easedProgress = 1 - Math.pow(1 - progress, 3); // Ease-out
+
+          // Animate camera position
+          cameraToAnimate.position.lerpVectors(initialPosition, targetCameraPosition, easedProgress);
+          
+          // Animate FOV
+          cameraToAnimate.fov = initialFov - (initialFov - targetFov) * easedProgress;
+          
+          // Update camera to look at the higher target
+          cameraToAnimate.lookAt(targetLookAtPosition);
+          cameraToAnimate.updateProjectionMatrix();
+
+          // If external controls exist, ensure their target is also updated (though they are disabled)
+          if (externalControls) {
+            externalControls.target.copy(targetLookAtPosition);
+          }
+
+          if (progress < 1) {
+            requestAnimationFrame(animateZoom);
+          } else {
+            console.log("ThreeDVotiveStand: zoomInForTransition animation complete.");
+            // OrbitControls remain disabled, as the next scene will take over.
+            resolve();
+          }
+        };
+        requestAnimationFrame(animateZoom);
+      });
+    }
+  }), [sceneCameraRef, controlsRef, modelCenter]); // Added modelCenter to dependencies
 
   // Add this right after your imports
   const MemoizedHolographicStatue = React.memo(HolographicStatue);
