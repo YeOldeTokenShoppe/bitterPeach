@@ -16,7 +16,7 @@ import { db } from "../../utilities/firebaseClient";
 import { gsap } from "gsap";
 
 // Configure draco loader for useGLTF
-useGLTF.preload("/alligatorStroll1.glb");
+useGLTF.preload("/alligatorStroll.glb");
 const dracoLoader = new DRACOLoader();
 dracoLoader.setDecoderPath("/draco/");
 // Set up GLTFLoader to use Draco compression
@@ -51,10 +51,9 @@ function Model({
   cameraControlsRef,
   onCandleClick,
   onHoldStateChange,
-  onModelDataLoaded,
 }) {
   // STATE VARIABLES - consolidated in one place
-  const [modelUrl, setModelUrl] = useState("/alligatorStroll1.glb");
+  const [modelUrl, setModelUrl] = useState("/alligatorStroll.glb");
   const { progress } = useProgress();
   const gltf = useGLTF(modelUrl, true);
   const { camera, scene } = useThree();
@@ -258,7 +257,7 @@ function Model({
         const obj = intersection.object;
         if (
           obj.isMesh &&
-          (
+          (obj.name === "Floor" ||
             obj.name === "Floor2.002" ||
             obj.name.includes("Floor2") ||
             obj.name.includes("goldCircuit"))
@@ -274,13 +273,10 @@ function Model({
         mouseIsDownRef.current = true;
         mouseDownTime.current = Date.now();
         // Use the point from the actual floor intersection
-        // Store face and object for normal checking
         mouseDownPosition.current = {
           x: event.clientX,
           y: event.clientY,
           point: floorIntersection.point.clone(),
-          face: floorIntersection.face,       
-          object: floorIntersection.object    
         };
         candlePlacedRef.current = false;
 
@@ -291,50 +287,23 @@ function Model({
           console.log("  - !candlePlacedRef.current:", !candlePlacedRef.current);
           console.log("  - placeCandleFunc.current:", !!placeCandleFunc.current);
           console.log("  - mouseDownPosition.current?.point:", !!mouseDownPosition.current?.point);
-          console.log("  - mouseDownPosition.current?.face:", !!mouseDownPosition.current?.face);
-          console.log("  - mouseDownPosition.current?.object:", !!mouseDownPosition.current?.object);
-
 
           if (
             mouseIsDownRef.current &&
             !candlePlacedRef.current &&
             placeCandleFunc.current &&
-            mouseDownPosition.current?.point &&
-            mouseDownPosition.current?.face &&    
-            mouseDownPosition.current?.object  
+            mouseDownPosition.current?.point
           ) {
-            const { point, face, object: intersectedObject } = mouseDownPosition.current;
-
-            // --- START NORMAL CHECK ---
-            const localNormal = face.normal;
-            const worldNormal = localNormal.clone();
-            // Ensure intersectedObject.matrixWorld is up to date if the object might be moving/animated
-            // For static objects like Floor2, it should be fine.
-            intersectedObject.updateMatrixWorld(); 
-            const normalMatrix = new THREE.Matrix3().getNormalMatrix(intersectedObject.matrixWorld);
-            worldNormal.applyMatrix3(normalMatrix).normalize();
-
-            const worldUp = new THREE.Vector3(0, 1, 0);
-            // Adjust threshold as needed (e.g., 30-45 degrees for "mostly up")
-            // A higher threshold means more tolerance for steeper surfaces.
-            const angleThreshold = THREE.MathUtils.degToRad(35); // e.g., 35 degrees from horizontal
-            const angleToUp = worldNormal.angleTo(worldUp);
-
-            if (angleToUp < angleThreshold) {
-              console.log(`[Timeout Callback] Surface is suitable (angle: ${THREE.MathUtils.radToDeg(angleToUp).toFixed(1)}°). Placing candle.`);
-              placeCandleFunc.current(point); 
-              candlePlacedRef.current = true;
-            } else {
-              console.warn(`[Timeout Callback] Surface normal not suitable for candle. Angle to up: ${THREE.MathUtils.radToDeg(angleToUp).toFixed(1)}°.`);
-            }
-            // --- END NORMAL CHECK ---
+            console.log("[Timeout Callback] Conditions met, calling placeCandleFunc");
+            placeCandleFunc.current(mouseDownPosition.current.point);
+            candlePlacedRef.current = true;
           } else {
-            console.log("[Timeout Callback] Conditions NOT met (or missing face/object data), candle not placed.");
+            console.log("[Timeout Callback] Conditions NOT met, candle not placed.");
           }
         }, HOLD_THRESHOLD);
       }
     },
-    [HOLD_THRESHOLD, placeCandleFunc] // Added placeCandleFunc to dependencies if it's stable
+    [HOLD_THRESHOLD]
   );
 
   const handlePointerMove = useCallback(
@@ -399,7 +368,7 @@ function Model({
       gltf.scene.traverse(obj => {
         if (
           obj.isMesh &&
-          (
+          (obj.name === "Floor" ||
             obj.name === "Floor2.002" ||
             obj.name.includes("Floor2") ||
             obj.name.includes("goldCircuit"))
@@ -575,42 +544,42 @@ function Model({
   );
 
   // Add a function to show the user how many candles are available
-  // const getRemainingCandleCount = useCallback(() => {
-  //   return maxFloorCandles - candleCount;
-  // }, [maxFloorCandles, candleCount]);
+  const getRemainingCandleCount = useCallback(() => {
+    return maxFloorCandles - candleCount;
+  }, [maxFloorCandles, candleCount]);
 
-  // // Add a reset function (optional)
-  // const resetCandles = useCallback(() => {
-  //   // Remove all placed candles
-  //   scene.children.forEach(child => {
-  //     if (child.userData && child.userData.isCandle) {
-  //       scene.remove(child);
-  //     }
-  //   });
+  // Add a reset function (optional)
+  const resetCandles = useCallback(() => {
+    // Remove all placed candles
+    scene.children.forEach(child => {
+      if (child.userData && child.userData.isCandle) {
+        scene.remove(child);
+      }
+    });
 
-  //   // Reset counter
-  //   setCandleCount(0);
-  // }, [scene, maxFloorCandles]);
+    // Reset counter
+    setCandleCount(0);
+  }, [scene, maxFloorCandles]);
 
   // Optional helper function to save candles to Firestore
-  // const saveCandleToFirestore = async candleData => {
-  //   try {
-  //     const docRef = await addDoc(collection(db, "userCandles"), {
-  //       position: candleData.position,
-  //       rotation: candleData.rotation,
-  //       scale: candleData.scale,
-  //       instanceId: candleData.id,
-  //       createdAt: candleData.createdAt,
-  //       // Add any other metadata you want
-  //       userName: "Anonymous", // Could be dynamic
-  //       message: "", // Could prompt user for a message
-  //     });
+  const saveCandleToFirestore = async candleData => {
+    try {
+      const docRef = await addDoc(collection(db, "userCandles"), {
+        position: candleData.position,
+        rotation: candleData.rotation,
+        scale: candleData.scale,
+        instanceId: candleData.id,
+        createdAt: candleData.createdAt,
+        // Add any other metadata you want
+        userName: "Anonymous", // Could be dynamic
+        message: "", // Could prompt user for a message
+      });
 
-  //     return docRef.id;
-  //   } catch (error) {
-  //     return null;
-  //   }
-  // };
+      return docRef.id;
+    } catch (error) {
+      return null;
+    }
+  };
 
   useEffect(() => {
     return () => {
@@ -631,7 +600,7 @@ function Model({
     gltf.scene.traverse(child => {
       if (
         child.isMesh &&
-        (child.name === "Floor2.002" || child.name === "goldCircuit")
+        (child.name === "Floor" || child.name === "Floor2.002" || child.name === "goldCircuit")
       ) {
         // Store original material for hover effects (optional)
         if (!child.userData.originalMaterial) {
@@ -813,118 +782,117 @@ function Model({
     }
   }, [gltf]);
 
-  useEffect(() => {
-    if (is80sMode !== undefined) {
-    }
-  }, [is80sMode]);
+// Toggle floor textures when 80s mode changes
+useEffect(() => {
+  if (!gltf || !gltf.scene) return;
 
-  // Toggle floor textures when 80s mode changes
-  useEffect(() => {
-    if (!gltf || !gltf.scene) return;
+  // Create a texture loader
+  const textureLoader = new THREE.TextureLoader();
 
-    // Create a texture loader
-    const textureLoader = new THREE.TextureLoader();
+  // Texture configuration - Edit these values to experiment with different textures
+  const textureConfig = {
+    path: "/80carpet.png", // Path to texture file
+    repeat: { x: 4, y: 4 }, // Tiling (higher numbers = smaller pattern)
+    offset: { x: 0.5, y: 0.5 }, // Offset (0-1 range)
+    anisotropy: 16, // Texture quality at angles (higher = better quality)
+    rotation: 0, // Rotation in radians (Math.PI/4 = 45 degrees)
+    emissive: true, // Enable emissive effect for neon glow
+    emissiveIntensity: 1.2, // Intensity of the glow (0-1 range)
+    // emissiveColor: 0xffffff, // Neutral white to preserve original colors
+  };
 
-    // Texture configuration - Edit these values to experiment with different textures
-    const textureConfig = {
-      path: "/80carpet.png", // Path to texture file
-      repeat: { x: 4, y: 4 }, // Tiling (higher numbers = smaller pattern)
-      offset: { x: 0.5, y: 0.5 }, // Offset (0-1 range)
-      anisotropy: 16, // Texture quality at angles (higher = better quality)
-      rotation: 0, // Rotation in radians (Math.PI/4 = 45 degrees)
-      emissive: true, // Enable emissive effect for neon glow
-      emissiveIntensity: 1.2, // Intensity of the glow (0-1 range)
-      // emissiveColor: 0xffffff, // Neutral white to preserve original colors
-    };
+  // Function to apply texture with settings
+  const applyTextureWithSettings = (texture, config) => {
+    texture.encoding = THREE.sRGBEncoding;
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(config.repeat.x, config.repeat.y);
+    texture.offset.set(config.offset.x, config.offset.y);
+    texture.anisotropy = config.anisotropy;
+    texture.rotation = config.rotation;
+    texture.needsUpdate = true;
+    return texture;
+  };
 
-    // Function to apply texture with settings
-    const applyTextureWithSettings = (texture, config) => {
-      texture.encoding = THREE.sRGBEncoding;
-      texture.wrapS = THREE.RepeatWrapping;
-      texture.wrapT = THREE.RepeatWrapping;
-      texture.repeat.set(config.repeat.x, config.repeat.y);
-      texture.offset.set(config.offset.x, config.offset.y);
-      texture.anisotropy = config.anisotropy;
-      texture.rotation = config.rotation;
-      texture.needsUpdate = true;
-      return texture;
-    };
+  // Find floor objects in the model
+  gltf.scene.traverse((child) => {
+    // Check for any mesh with "Floor" in its name (case insensitive)
+    if (child.isMesh && child.name === "Floor") {
+      // Store the original texture if we haven't already
+      if (
+        !child.userData.originalTexture &&
+        child.material &&
+        child.material.map
+      ) {
+        child.userData.originalTexture = child.material.map;
+        child.userData.originalMaterial = child.material.clone();
+      }
 
-    // Find floor objects in the model
-    gltf.scene.traverse(child => {
-      // Check for any mesh with "Floor" in its name (case insensitive)
-      if (child.isMesh && child.name === "Floor2.002") {
-        // Store the original texture if we haven't already
-        if (!child.userData.originalTexture && child.material && child.material.map) {
-          child.userData.originalTexture = child.material.map;
-          child.userData.originalMaterial = child.material.clone();
-        }
+      // Toggle between original and 80s texture
+      if (is80sMode) {
+        textureLoader.load(textureConfig.path, (texture) => {
+          // Apply all texture settings
+          applyTextureWithSettings(texture, textureConfig);
 
-        // Toggle between original and 80s texture
-        if (is80sMode) {
-          textureLoader.load(textureConfig.path, texture => {
-            // Apply all texture settings
-            applyTextureWithSettings(texture, textureConfig);
+          if (child.material) {
+            // Create a new material or update existing one
+            const applyMaterial = (mat) => {
+              mat.map = texture;
 
-            if (child.material) {
-              // Create a new material or update existing one
-              const applyMaterial = mat => {
-                mat.map = texture;
+              // Add emissive properties if configured
+              if (textureConfig.emissive) {
+                // Use white as emissive color to preserve the original colors
+                mat.emissive = new THREE.Color(textureConfig.emissiveColor);
+                mat.emissiveMap = texture; // Use same texture for emissive map
+                mat.emissiveIntensity = textureConfig.emissiveIntensity;
 
-                // Add emissive properties if configured
-                if (textureConfig.emissive) {
-                  // Use white as emissive color to preserve the original colors
-                  mat.emissive = new THREE.Color(textureConfig.emissiveColor);
-                  mat.emissiveMap = texture; // Use same texture for emissive map
-                  mat.emissiveIntensity = textureConfig.emissiveIntensity;
-
-                  // Make the black background truly black by adjusting material properties
-                  mat.roughness = 0.8; // Less shiny
-                  mat.metalness = 0.2; // Slight metallic look for neon effect
-                }
-
-                mat.needsUpdate = true;
-              };
-
-              // If the material is an array, update all materials
-              if (Array.isArray(child.material)) {
-                child.material.forEach(applyMaterial);
-              } else {
-                // Single material
-                applyMaterial(child.material);
+                // Make the black background truly black by adjusting material properties
+                mat.roughness = 0.8; // Less shiny
+                mat.metalness = 0.2; // Slight metallic look for neon effect
               }
-            }
-          });
-        } else if (child.userData.originalMaterial) {
-          // Restore original material
 
-          if (Array.isArray(child.material)) {
-            // For material arrays, we need to restore properties individually
-            child.material.forEach((mat, index) => {
-              if (Array.isArray(child.userData.originalMaterial)) {
-                const origMat = child.userData.originalMaterial[index];
-                mat.copy(origMat);
-              } else {
-                mat.map = child.userData.originalTexture;
-                mat.emissive = new THREE.Color(0x000000);
-                mat.emissiveIntensity = 0;
-                mat.emissiveMap = null;
-              }
               mat.needsUpdate = true;
-            });
-          } else {
-            // Single material
-            if (Array.isArray(child.userData.originalMaterial)) {
-              child.material.copy(child.userData.originalMaterial[0]);
+            };
+
+            // If the material is an array, update all materials
+            if (Array.isArray(child.material)) {
+              child.material.forEach(applyMaterial);
             } else {
-              child.material.copy(child.userData.originalMaterial);
+              // Single material
+              applyMaterial(child.material);
             }
-            child.material.needsUpdate = true;
           }
+        });
+      } else if (child.userData.originalMaterial) {
+        // Restore original material
+
+        if (Array.isArray(child.material)) {
+          // For material arrays, we need to restore properties individually
+          child.material.forEach((mat, index) => {
+            if (Array.isArray(child.userData.originalMaterial)) {
+              const origMat = child.userData.originalMaterial[index];
+              mat.copy(origMat);
+            } else {
+              mat.map = child.userData.originalTexture;
+              mat.emissive = new THREE.Color(0x000000);
+              mat.emissiveIntensity = 0;
+              mat.emissiveMap = null;
+            }
+            mat.needsUpdate = true;
+          });
+        } else {
+          // Single material
+          if (Array.isArray(child.userData.originalMaterial)) {
+            child.material.copy(child.userData.originalMaterial[0]);
+          } else {
+            child.material.copy(child.userData.originalMaterial);
+          }
+          child.material.needsUpdate = true;
         }
       }
-    });
-  }, [is80sMode, gltf]);
+    }
+  });
+}, [is80sMode, gltf]);
 
   // Modify your applyUserImageToLabel function
   const applyUserImageToLabel = (candle, user) => {
@@ -1321,7 +1289,7 @@ function Model({
     gltf.scene.traverse(obj => {
       if (
         obj.isMesh &&
-        (
+        (obj.name === "Floor" ||
           obj.name === "Floor2.002" ||
           obj.name.includes("Floor2") ||
           obj.name.includes("goldCircuit"))
@@ -1483,17 +1451,6 @@ function Model({
     }
   }, [gltf]);
 
-  // NEW useEffect to pass animations up and notify load
-  useEffect(() => {
-    if (gltf.scene && gltf.animations && setIsModelLoaded && onModelDataLoaded) {
-      // modelRef.current is already being set by the <primitive> component using the ref prop.
-      // We are just confirming that the data is ready to be passed up.
-      console.log("Model.jsx: GLTF Scene and Animations loaded. Calling onModelDataLoaded.");
-      onModelDataLoaded({ scene: gltf.scene, animations: gltf.animations });
-      setIsModelLoaded(true); // Notify parent that model (scene graph part) is ready
-    }
-  }, [gltf.scene, gltf.animations, setIsModelLoaded, onModelDataLoaded]);
-
   return (
     <>
       <primitive
@@ -1521,9 +1478,7 @@ function Model({
 }
 
 // Preload both models
-useGLTF.preload("/alligatorStroll1.glb");
+useGLTF.preload("/alligatorStroll.glb");
 useGLTF.preload("/XCandle1.glb");
 
 export default Model;
-
-

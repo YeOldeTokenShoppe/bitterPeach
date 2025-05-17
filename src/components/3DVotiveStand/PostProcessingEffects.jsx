@@ -78,7 +78,7 @@ const PostProcessingEffects = ({ is80sMode = false }) => {
   return (
     <EffectComposer ref={composerRef}>
       {/* In Synthwave context, we'll always use normalEffects */}
-      {normalEffects}
+      {is80sMode ? eightiesEffects : normalEffects}
     </EffectComposer>
   );
 };

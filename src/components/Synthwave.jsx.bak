@@ -10,9 +10,6 @@ import { FaMapMarkerAlt } from 'react-icons/fa';
 // Import HolographicStatue component
 import DashboardHolograph from './3DVotiveStand/DashboardHolograph';
 
-// Create a context for music control
-const MusicContext = React.createContext(null);
-
 // Specialized post-processing effects for sunset/sunrise visuals
 function SunriseSunsetEffects() {
   const { scene } = useThree();
@@ -28,14 +25,13 @@ function SunriseSunsetEffects() {
     <EffectComposer ref={composerRef}>
       {/* Specialized bloom with settings for sunset segments */}
       <Bloom 
-        intensity={5}            // Increased intensity for the darker colors to still pop
-        luminanceThreshold={0.1}   // Lower threshold to catch the darker amber tones
-        luminanceSmoothing={0.25}    // Slightly reduced smoothing for more definition between bands
+        intensity={0.85}            // Increased intensity for the darker colors to still pop
+        luminanceThreshold={0.3}   // Lower threshold to catch the darker amber tones
+        luminanceSmoothing={0.7}    // Slightly reduced smoothing for more definition between bands
         height={512}                // Keep high resolution
         width={512}
-        mipmapBlur={true}
+        mipmapBlur
         blendFunction={BlendFunction.SCREEN}
-        radius={1.5}
       />
       
       {/* Stronger vignette for a moodier atmosphere */}
@@ -151,7 +147,7 @@ function SynthwaveMarker({ position = [0, 0.7, 0.2], onClick }) {
   
   // Map marker colors with synthwave gradient
   const markerStyle = {
-    fontSize: '48px',
+    fontSize: '32px',
     animation: 'pulse 2s infinite',
     filter: 'drop-shadow(0 0 8px #ff00cc)',
     color: '#ff00cc',
@@ -183,21 +179,19 @@ function SynthwaveMarker({ position = [0, 0.7, 0.2], onClick }) {
         <style>{pulseAnimation}</style>
       </Html>
       
-      {/* Map Marker Icon - only visible when popup is not shown */}
-      {!showPopup && (
-        <Html center>
-          <div style={{ cursor: 'pointer', pointerEvents: 'auto' }} onClick={handleMarkerClick}>
-            <FaMapMarkerAlt style={markerStyle} />
-          </div>
-        </Html>
-      )}
+      {/* Map Marker Icon */}
+      <Html center>
+        <div style={{ cursor: 'pointer', pointerEvents: 'auto' }} onClick={handleMarkerClick}>
+          <FaMapMarkerAlt style={markerStyle} />
+        </div>
+      </Html>
       
       {/* HTML popup */}
       {showPopup && (
-        <Html position={[0.12, 0.1, 0.01]} center>
+        <Html position={[0.12, 0.1, 0]} center>
           <div style={{
             width: '200px',
-            backgroundColor: '#000000',
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
             border: '2px solid #ff00aa',
             borderRadius: '10px',
             padding: '15px',
@@ -276,8 +270,7 @@ function CameraDataProvider({ children }) {
 
 // Simple model component without target finding
 function DeLoreanModel() {
-  // Force reloading the model when component mounts to reset its state
-  const { scene, animations } = useGLTF('/lamboScene.glb', true); // true enables refresh
+  const { scene, animations } = useGLTF('/lamboScene.glb');
   const [isStatueLoaded, setIsStatueLoaded] = useState(false);
   const modelRef = useRef();
   const [headTargetInfo, setHeadTargetInfo] = useState(null);
@@ -300,10 +293,6 @@ function DeLoreanModel() {
       // Find animation named "Animation.002"
       const targetAnimation = animations.find(anim => anim.name === "Animation.002");
       
-      // Find KEY animation
-      const keyAnimation = animations.find(anim => anim.name === "KEYAction");
-      
-      // Set up the door animation
       if (targetAnimation) {
         console.log("Found Animation.002, ready to play");
         // Create action but don't play immediately
@@ -324,500 +313,20 @@ function DeLoreanModel() {
           }
         });
         
-        // Create KEY animation action
-        let keyAction = null;
-        if (keyAnimation) {
-          console.log("Found KEYAction animation, ready to play on click");
-          keyAction = mixer.clipAction(keyAnimation);
-          keyAction.loop = THREE.LoopOnce;
-          keyAction.clampWhenFinished = true;
-        } else {
-          console.log("KEYAction animation not found in model", animations.map(a => a.name));
-        }
-        
-        // Store actions on the window for access from camera controls
+        // Store action on the window for access from camera controls
         window.modelAnimations = {
           playAnimation001: () => {
             console.log("Playing Animation.002");
             action.reset();
             action.play();
-          },
-          playKeyAnimation: () => {
-            if (keyAction) {
-              console.log("Playing KEYAction");
-              keyAction.reset();
-              keyAction.play();
-            }
           }
         };
-        
-        // Find and add click listener to the KEY object
-        scene.traverse((object) => {
-          if (object.name === 'KEY') {
-            console.log('Found KEY object, adding click listener');
-            
-            // Make the KEY interactive
-            object.userData.clickable = true;
-            
-            // Ensure the KEY has proper material for interaction highlight
-            if (object.material) {
-              // Store original material properties
-              const originalEmissive = object.material.emissive ? object.material.emissive.clone() : new THREE.Color(0, 0, 0);
-              
-              // Store original properties in userData
-              object.userData.originalEmissive = originalEmissive;
-              
-              // Make the KEY slightly glow to indicate interactivity
-              object.material.emissive = new THREE.Color(0.2, 0.2, 0.4);
-              object.material.emissiveIntensity = 0.5;
-            }
-          }
-        });
       } else {
         console.log("Animation.002 not found in model", animations.map(a => a.name));
       }
     }
-    
-    // Clean up mixer and animations when component unmounts
-    return () => {
-      if (mixerRef.current) {
-        mixerRef.current.stopAllAction();
-        mixerRef.current.uncacheRoot(scene);
-      }
-      
-      // Reset any smoke visibility
-      if (smokeRef.current) {
-        smokeRef.current.forEach(smoke => {
-          if (smoke) smoke.visible = true;
-        });
-      }
-    };
   }, [scene, animations]);
   
-  // Add click handling for interactive objects
-  useEffect(() => {
-    if (!scene) return;
-    
-    // Set up raycaster for click detection
-    const raycaster = new THREE.Raycaster();
-    const mouse = new THREE.Vector2();
-    
-    // Track current song index
-    let currentSongIndex = 0;
-    
-    // Setup actual songs (as global variables to avoid hooks)
-    const songUrls = [
-      "https://storage.googleapis.com/bitter-peach.appspot.com/audio/320k/for-those-about-to-rock-ac-dc.m4a",
-      "https://storage.googleapis.com/bitter-peach.appspot.com/audio/320k/dirty-cash.m4a",
-      "https://storage.googleapis.com/bitter-peach.appspot.com/audio/320k/intergalactic-beastie-boys.m4a",
-      "https://storage.googleapis.com/bitter-peach.appspot.com/audio/320k/good-life-inner-city.m4a",
-      "https://storage.googleapis.com/bitter-peach.appspot.com/audio/320k/like-a-prayer-madonna.m4a",
-      "https://storage.googleapis.com/bitter-peach.appspot.com/audio/320k/99-luftballoons-nena.m4a",
-      "https://storage.googleapis.com/bitter-peach.appspot.com/audio/320k/sweet-dreams-eurythmics.m4a"
-    ];
-    
-    // Setup local fallback songs (in case cloud storage doesn't work)
-    const localSongUrls = [
-      "/audio/synthwave-beat.mp3",
-      "/audio/retro-beat.mp3",
-      "/audio/cyberpunk-loop.mp3",
-      "/audio/neon-city.mp3",
-      "/audio/digital-dreams.mp3",
-      "/audio/night-drive.mp3",
-      "/audio/future-retro.mp3"
-    ];
-    
-    // Use a guaranteed-to-work MP3 data URL
-    // This is a 1-second beep sound encoded as base64
-    const testToneUrl = "data:audio/mpeg;base64,//uQxAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAAFAAAGUACFhYWFhYWFhYWFhYWFhYWFhYWFvb29vb29vb29vb29vb29vb29vb3T09PT09PT09PT09PT09PT09PT0+np6enp6enp6enp6enp6enp6ekAAABQTEFNRTMuMTAwBEgAAAAAAAAAABUgJAMGQQABmgAABlAiznawAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//sQxAADwAABpAAAACAAADSAAAAETEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVU=";
-    
-    // Direct MP3 URLs that *should* work (short beep sounds)
-    const workingAudioUrls = [
-        "data:audio/mpeg;base64,//uQxAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAAFAAAGUACFhYWFhYWFhYWFhYWFhYWFhYWFvb29vb29vb29vb29vb29vb29vb3T09PT09PT09PT09PT09PT09PT0+np6enp6enp6enp6enp6enp6ekAAABQTEFNRTMuMTAwBEgAAAAAAAAAABUgJAMGQQABmgAABlAiznawAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//sQxAADwAABpAAAACAAADSAAAAETEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVU=",
-        "data:audio/mpeg;base64,//uQxAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAAFAAAGUACFhYWFhYWFhYWFhYWFhYWFhYWFvb29vb29vb29vb29vb29vb29vb3T09PT09PT09PT09PT09PT09PT0+np6enp6enp6enp6enp6enp6ekAAABQTEFNRTMuMTAwBEgAAAAAAAAAABUgJAMGQQABmgAABlAiznawAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//sQxAADwAABpAAAACAAADSAAAAETEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVU=",
-        "data:audio/mpeg;base64,//uQxAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAAFAAAGUACFhYWFhYWFhYWFhYWFhYWFhYWFvb29vb29vb29vb29vb29vb29vb3T09PT09PT09PT09PT09PT09PT0+np6enp6enp6enp6enp6enp6ekAAABQTEFNRTMuMTAwBEgAAAAAAAAAABUgJAMGQQABmgAABlAiznawAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//sQxAADwAABpAAAACAAADSAAAAETEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVU=",
-        "data:audio/mpeg;base64,//uQxAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAAFAAAGUACFhYWFhYWFhYWFhYWFhYWFhYWFvb29vb29vb29vb29vb29vb29vb3T09PT09PT09PT09PT09PT09PT0+np6enp6enp6enp6enp6enp6ekAAABQTEFNRTMuMTAwBEgAAAAAAAAAABUgJAMGQQABmgAABlAiznawAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//sQxAADwAABpAAAACAAADSAAAAETEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVU=",
-        "data:audio/mpeg;base64,//uQxAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAAFAAAGUACFhYWFhYWFhYWFhYWFhYWFhYWFvb29vb29vb29vb29vb29vb29vb3T09PT09PT09PT09PT09PT09PT0+np6enp6enp6enp6enp6enp6ekAAABQTEFNRTMuMTAwBEgAAAAAAAAAABUgJAMGQQABmgAABlAiznawAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//sQxAADwAABpAAAACAAADSAAAAETEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVU=",
-        "data:audio/mpeg;base64,//uQxAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAAFAAAGUACFhYWFhYWFhYWFhYWFhYWFhYWFvb29vb29vb29vb29vb29vb29vb3T09PT09PT09PT09PT09PT09PT0+np6enp6enp6enp6enp6enp6ekAAABQTEFNRTMuMTAwBEgAAAAAAAAAABUgJAMGQQABmgAABlAiznawAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//sQxAADwAABpAAAACAAADSAAAAETEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVU=",
-    ];
-    
-    // Song names for display
-    const songNames = [
-      "For Those About To Rock - AC/DC",
-      "Dirty Cash - The Adventures of Stevie V",
-      "Intergalactic - Beastie Boys",
-      "Good Life - Inner City",
-      "Like A Prayer - Madonna",
-      "99 Luftballoons - Nena",
-      "Sweet Dreams - Eurythmics",
-    ];
-    
-    // Helper function for trying playback with fallbacks
-    const tryPlayWithFallbacks = (index, tryCount = 0) => {
-      const audio = window.radioAudio;
-      if (!audio) return;
-      
-      let sourceUrl;
-      if (tryCount === 0) {
-        // Just use the direct MP3 data URL immediately - guaranteed to work
-        sourceUrl = workingAudioUrls[index % workingAudioUrls.length];
-        console.log(`Radio: Using direct MP3 data URL for song ${index}`);
-      } else {
-        // Test tone as backup
-        sourceUrl = testToneUrl;
-        console.log(`Radio: Using test tone as fallback for song ${index}`);
-      }
-      
-      // Set source and play
-      audio.src = sourceUrl;
-      return audio.play()
-        .then(() => console.log(`Radio: Successfully playing song ${index} (${songNames[index]})`))
-        .catch(err => {
-          console.error(`Radio: Playback failed for song ${index} (attempt ${tryCount + 1}):`, err);
-          
-          // Try fallback if first attempt failed
-          if (tryCount < 1) {
-            console.log(`Radio: Trying fallback option for song ${index}...`);
-            return tryPlayWithFallbacks(index, tryCount + 1);
-          } else {
-            console.error(`Radio: All playback options failed for song ${index}`);
-            throw err;
-          }
-        });
-    };
-
-    // Create a static Audio API object and radio state
-    if (typeof window !== 'undefined') {
-      if (!window.radioAudio) {
-        window.radioAudio = new Audio();
-        window.radioAudio.volume = 0.5;
-        
-        // Handle autoplay of next song when current one ends
-        window.radioAudio.addEventListener('ended', () => {
-          console.log('Song ended, playing again');
-          
-          // Just play the same song on loop
-          window.radioAudio.currentTime = 0;
-          window.radioAudio.play()
-            .catch(err => console.error('Error replaying song:', err));
-        });
-      }
-      
-      // Initialize radio state if not already done
-      if (window.radioState === undefined) {
-        // States: 0 = OFF, 1 = Intergalactic, 2 = Good Life
-        window.radioState = 0;
-      }
-    }
-
-    // Store refs in window for access from event handlers
-    window.smokeRef = smokeRef;
-    window.mixerRef = mixerRef;
-      
-    // Function to handle radio interaction - cycles through different "stations"
-    const handleRadioClick = () => {
-      const audio = window.radioAudio;
-      if (!audio) {
-        console.error('Radio audio not initialized (browser may not support Audio API)');
-        return;
-      }
-      
-      // Advance to next state (cycle through radio stations)
-      window.radioState = (window.radioState + 1) % 3; // Cycle: 0 -> 1 -> 2 -> 0
-      
-      // Stop any current playback
-      audio.pause();
-      
-      // Handle based on new state
-      switch(window.radioState) {
-        case 0: // OFF
-          console.log('Radio: Turned off');
-          audio.currentTime = 0; // Reset position
-          break;
-          
-        case 1: // SONG 1 - Intergalactic
-          console.log('Radio: Playing Station 1 - Intergalactic by Beastie Boys');
-          audio.src = '/Intergalactic Beastie Boys.m4a';
-          audio.play()
-            .then(() => console.log('Radio: Playback started successfully'))
-            .catch(err => console.error('Radio: Playback failed:', err));
-          break;
-          
-        case 2: // SONG 2 - Good Life
-          console.log('Radio: Playing Station 2 - Good Life by Inner City');
-          audio.src = '/good-life-inner-city.m4a';
-          audio.play()
-            .then(() => console.log('Radio: Playback started successfully'))
-            .catch(err => console.error('Radio: Playback failed:', err));
-          break;
-      }
-      
-      // Make radio object glow to indicate state
-      scene.traverse((object) => {
-        if (object.name === 'radio') {
-          if (object.material) {
-            // Cancel any existing pulse animation
-            if (object.userData.pulseAnimationId) {
-              cancelAnimationFrame(object.userData.pulseAnimationId);
-              object.userData.pulseAnimationId = null;
-            }
-            
-            // Set color based on radio state
-            switch(window.radioState) {
-              case 0: // OFF - dim gray glow
-                object.material.emissive = new THREE.Color(0.3, 0.3, 0.3);
-                object.material.emissiveIntensity = 0.3;
-                break;
-              
-              case 1: // SONG 1 - Intergalactic - blue glow
-                object.material.emissive = new THREE.Color(0.2, 0.6, 1); // Blue-ish color
-                object.material.emissiveIntensity = 1;
-                
-                // Pulse effect for playing state
-                const pulseAnimation1 = () => {
-                  if (!object.material) return;
-                  
-                  const time = Date.now() * 0.001; // Get time in seconds
-                  const pulseValue = 0.5 + Math.sin(time * 3) * 0.3; // Pulsing between 0.2 and 0.8
-                  
-                  object.material.emissiveIntensity = pulseValue;
-                  
-                  // Continue animation if object still exists and still on this song
-                  if (object.material && window.radioState === 1) {
-                    object.userData.pulseAnimationId = requestAnimationFrame(pulseAnimation1);
-                  }
-                };
-                
-                // Start pulse animation
-                pulseAnimation1();
-                break;
-              
-              case 2: // SONG 2 - Good Life - green glow
-                object.material.emissive = new THREE.Color(0.0, 0.9, 0.4); // Green color
-                object.material.emissiveIntensity = 1;
-                
-                // Pulse effect for playing state (different pattern)
-                const pulseAnimation2 = () => {
-                  if (!object.material) return;
-                  
-                  const time = Date.now() * 0.001; // Get time in seconds
-                  // Different pulse pattern for second song
-                  const pulseValue = 0.5 + Math.sin(time * 5) * 0.4; // Faster, stronger pulse
-                  
-                  object.material.emissiveIntensity = pulseValue;
-                  
-                  // Continue animation if object still exists and still on this song
-                  if (object.material && window.radioState === 2) {
-                    object.userData.pulseAnimationId = requestAnimationFrame(pulseAnimation2);
-                  }
-                };
-                
-                // Start pulse animation
-                pulseAnimation2();
-                break;
-            }
-          }
-        }
-      });
-      
-      // Display song info as floating text above the radio
-      if (!audio.paused) {
-        console.log('Now playing: Intergalactic - Beastie Boys');
-      } else {
-        console.log('Music paused');
-      }
-    };
-    
-    // Click handler function
-    const handleClick = (event) => {
-      // Calculate mouse position in normalized device coordinates (-1 to +1)
-      const canvas = document.querySelector('canvas');
-      if (!canvas) return;
-      
-      const rect = canvas.getBoundingClientRect();
-      mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-      
-      // Update the picking ray with the camera and mouse position
-      raycaster.setFromCamera(mouse, window.camera);
-      
-      // Calculate objects intersecting the picking ray
-      const intersects = raycaster.intersectObjects(scene.children, true);
-      
-      // Check if we hit an interactive object
-      for (let i = 0; i < intersects.length; i++) {
-        const object = intersects[i].object;
-        
-        // Check if the clicked object is the KEY
-        if (object.name === 'KEY' || object.parent?.name === 'KEY') {
-          console.log('KEY clicked!');
-          if (window.modelAnimations && window.modelAnimations.playKeyAnimation) {
-            window.modelAnimations.playKeyAnimation();
-          }
-          
-          // Play the door animation in reverse (close the doors)
-          // and make smoke visible again
-          if (window.modelAnimations && window.modelAnimations.playAnimation001) {
-            // Create a flag to track door state (open/closed)
-            if (window.doorState === undefined) {
-              window.doorState = 'open'; // Initial state (doors are open)
-            }
-            
-            // Toggle door state
-            if (window.doorState === 'open') {
-              console.log('Closing doors...');
-              
-               // Play Animation.002 in reverse to close the doors
-               // First get the mixer and find the Animation.002 action
-               if (window.mixerRef && window.mixerRef.current) {
-                 // Find all actions in the mixer
-                 const actions = window.mixerRef.current._actions || [];
-                 const doorAction = actions.find(action => 
-                   action._clip && action._clip.name === "Animation.002"
-                 );
-                 
-                 if (doorAction) {
-                   // Set time scale to negative for reverse playback
-                   doorAction.timeScale = -1;
-                   
-                   // Make sure we start from the end
-                   doorAction.time = doorAction._clip.duration;
-                   doorAction.paused = false;
-                   doorAction.enabled = true;
-                   doorAction.play();
-                   
-                   // Make smoke visible again when animation ends
-                   doorAction.getMixer().addEventListener('finished', function onFinished(e) {
-                     if (e.action === doorAction) {
-                       console.log("Door closing animation completed, making smoke visible");
-                       // Show all smoke objects
-                       if (window.smokeRef && window.smokeRef.current) {
-                         window.smokeRef.current.forEach(smoke => {
-                           smoke.visible = true;
-                         });
-                       }
-                      
-                      // Remove this event listener to avoid duplicates
-                      doorAction.getMixer().removeEventListener('finished', onFinished);
-                      
-                      // Reset timeScale back to positive for next time
-                      doorAction.timeScale = 1;
-                      
-                      // Update door state
-                      window.doorState = 'closed';
-                    }
-                  });
-                } else {
-                  console.warn("Could not find Animation.002 action for reverse playback");
-                }
-              }
-            } else {
-              // Doors are closed, open them
-              console.log('Opening doors...');
-              
-              // Hide smoke objects BEFORE playing the door opening animation
-              if (window.smokeRef && window.smokeRef.current) {
-                console.log("Hiding smoke objects before door opens");
-                window.smokeRef.current.forEach(smoke => {
-                  smoke.visible = false;
-                });
-              }
-              
-              // Then play the door opening animation
-              window.modelAnimations.playAnimation001();
-              window.doorState = 'open';
-            }
-          }
-          
-          // Find the StartButton and toggle its glow
-          scene.traverse((sceneObject) => {
-            if (sceneObject.name === 'StartButton') {
-              console.log('Found StartButton, toggling green glow');
-              
-              // Store original material state if not already stored
-              if (!sceneObject.userData.originalMaterial) {
-                sceneObject.userData.originalMaterial = {
-                  emissive: sceneObject.material?.emissive ? sceneObject.material.emissive.clone() : new THREE.Color(0, 0, 0),
-                  emissiveIntensity: sceneObject.material?.emissiveIntensity || 0,
-                  color: sceneObject.material?.color ? sceneObject.material.color.clone() : new THREE.Color(1, 1, 1)
-                };
-              }
-              
-              // Toggle between green glow and original state
-              if (sceneObject.material) {
-                // Check if the button is currently glowing
-                const isGlowing = sceneObject.userData.isGlowing;
-                
-                if (isGlowing) {
-                  // Turn off glow - restore original material properties
-                  console.log('Turning off green glow');
-                  const original = sceneObject.userData.originalMaterial;
-                  sceneObject.material.emissive = original.emissive;
-                  sceneObject.material.emissiveIntensity = original.emissiveIntensity;
-                  
-                  // Stop any existing pulse animation
-                  if (sceneObject.userData.pulseAnimationId) {
-                    cancelAnimationFrame(sceneObject.userData.pulseAnimationId);
-                    sceneObject.userData.pulseAnimationId = null;
-                  }
-                  
-                  // Update state
-                  sceneObject.userData.isGlowing = false;
-                } else {
-                  // Turn on green glow
-                  console.log('Turning on green glow');
-                  sceneObject.material.emissive = new THREE.Color(0, 1, 0); // Bright green glow
-                  sceneObject.material.emissiveIntensity = 2.0; // Stronger glow
-                  
-                  // Optional: add pulse animation
-                  const pulseAnimation = () => {
-                    if (!sceneObject.material) return; // Safety check
-                    
-                    const time = Date.now() * 0.001; // Get time in seconds
-                    const pulseValue = 1.0 + Math.sin(time * 3) * 0.5; // Pulsing between 0.5 and 1.5
-                    
-                    sceneObject.material.emissiveIntensity = pulseValue;
-                    
-                    // Continue animation if object still exists and should be glowing
-                    if (sceneObject.material && sceneObject.userData.isGlowing) {
-                      sceneObject.userData.pulseAnimationId = requestAnimationFrame(pulseAnimation);
-                    }
-                  };
-                  
-                  // Start pulse animation
-                  sceneObject.userData.isGlowing = true;
-                  pulseAnimation();
-                }
-              }
-            }
-          });
-          
-          break;
-        }
-        
-        // Check if the clicked object is the radio
-        if (object.name === 'radio' || object.parent?.name === 'radio') {
-          console.log('Radio clicked!');
-          handleRadioClick();
-          break;
-        }
-      }
-    };
-    
-    // Add click event listener to the canvas
-    const canvas = document.querySelector('canvas');
-    if (canvas) {
-      canvas.addEventListener('click', handleClick);
-    }
-    
-    // Clean up event listener
-    return () => {
-      if (canvas) {
-        canvas.removeEventListener('click', handleClick);
-      }
-    };
-  }, [scene]);
-
   // Create a video texture and apply it to the 'Display' object
   useEffect(() => {
     if (scene) {
@@ -1102,18 +611,18 @@ function LookAtHelper() {
 }
 
 // Simplified Point Light Helper
-// function PointLightHelper({ position, color, intensity }) {
-//   const lightRef = useRef();
+function PointLightHelper({ position, color, intensity }) {
+  const lightRef = useRef();
   
-//   return (
-//     <pointLight 
-//       ref={lightRef} 
-//       position={position}
-//       intensity={1} 
-//       color={color} 
-//     />
-//   );
-// }
+  return (
+    <pointLight 
+      ref={lightRef} 
+      position={position}
+      intensity={1} 
+      color={color} 
+    />
+  );
+}
 
 // Simple camera controls component
 function CameraControls({ onAnimationComplete }) {
@@ -1509,16 +1018,14 @@ function DirectionalLightVisualizer({ position, intensity, color = "white", targ
         intensity={intensity} 
         color={color}
         castShadow
-        shadow-mapSize-width={2048}
-        shadow-mapSize-height={2048}
+        shadow-mapSize-width={1024}
+        shadow-mapSize-height={1024}
         shadow-camera-near={0.01}
-        shadow-camera-far={10}
-        shadow-camera-left={-2}
-        shadow-camera-right={2}
-        shadow-camera-top={2}
-        shadow-camera-bottom={-2}
-        shadow-bias={-0.0001}
-        shadow-normalBias={0.02}
+        shadow-camera-far={5}
+        shadow-camera-left={-1}
+        shadow-camera-right={1}
+        shadow-camera-top={1}
+        shadow-camera-bottom={-1}
       />
       {/* Visualize light position */}
       <mesh position={position}>
@@ -1547,12 +1054,13 @@ function HemisphereLightVisualizer({ position, intensity, skyColor, groundColor 
   
   return (
     <>
-         <hemisphereLight 
-              skyColor="#ff7e5f" // Warm orange/pink for sky
-              groundColor="#371e57" // Deep purple for ground
-              intensity={1.5}
-              position={[0, 5, 0]}
-            />
+      <hemisphereLight 
+        ref={lightRef} 
+        position={position}
+        intensity={intensity} 
+        skyColor={skyColor}
+        groundColor={groundColor}
+      />
       
       {/* Visualize hemisphere with half-spheres */}
       <group position={position}>
@@ -1604,74 +1112,6 @@ function Synthwave() {
   const [showMarker, setShowMarker] = useState(false);
   const controlsRef = useRef();
   const pinkLightRef = useRef();
-  
-  // Radio music state
-  const [currentSong, setCurrentSong] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
-  
-  // Array of song information
-  const songs = [
-    { id: 1, title: "Synthwave Dreams", file: "/music/synthwave-dreams.mp3" },
-    { id: 2, title: "Neon Cruise", file: "/music/neon-cruise.mp3" },
-    { id: 3, title: "Digital Sunset", file: "/music/digital-sunset.mp3" }
-  ];
-  
-  // Function to control music from parent component
-  const playNextSong = () => {
-    setCurrentSong((prev) => (prev + 1) % songs.length);
-    setIsPlaying(true);
-    
-    // Notify parent component to change song via window event
-    window.dispatchEvent(new CustomEvent('playSynthwaveSong', { 
-      detail: { 
-        songIndex: (currentSong + 1) % songs.length,
-        songInfo: songs[(currentSong + 1) % songs.length],
-        play: true 
-      } 
-    }));
-  };
-  
-  const togglePlayPause = () => {
-    const newIsPlaying = !isPlaying;
-    setIsPlaying(newIsPlaying);
-    
-    // Notify parent component to toggle play/pause via window event
-    window.dispatchEvent(new CustomEvent('toggleSynthwaveMusic', { 
-      detail: { 
-        songIndex: currentSong,
-        songInfo: songs[currentSong],
-        play: newIsPlaying 
-      } 
-    }));
-  };
-  
-  // Expose music controls to child components via context
-  const musicContextValue = {
-    currentSong,
-    isPlaying,
-    songs,
-    playNextSong,
-    togglePlayPause
-  };
-  
-  // Create a ref to track all timeouts for cleanup
-  useEffect(() => {
-    // Initialize array to track timeout IDs
-    window.timeoutIds = [];
-    
-    // Override setTimeout to track IDs
-    const originalSetTimeout = window.setTimeout;
-    window.setTimeout = function(callback, delay, ...args) {
-      const id = originalSetTimeout(callback, delay, ...args);
-      window.timeoutIds.push(id);
-      return id;
-    };
-    
-    return () => {
-      // Restore original setTimeout
-      window.setTimeout = originalSetTimeout;
-    };
-  }, []);
   
   // Store orbit controls ref in window for access in camera functions
   useEffect(() => {
@@ -1829,34 +1269,6 @@ function Synthwave() {
       console.log(`Showing marker after animation ${wasInterrupted ? 'interruption' : 'completes'}`);
     }, delay);
   };
-  
-  // Reset component state when unmounting (when Back button is clicked)
-  useEffect(() => {
-    return () => {
-      // Reset all state
-      console.log('Component unmounting - resetting animations and state');
-      
-      // Reset camera animation timeline if it exists
-      if (window.cameraTimeline) {
-        window.cameraTimeline.kill();
-      }
-      
-      // Reset animation mixer and animations
-      if (window.modelAnimations) {
-        // Delete the animation functions to prevent them from being called after unmount
-        delete window.modelAnimations;
-      }
-      
-      // Clear any timeouts/intervals
-      const existingTimeouts = window.timeoutIds || [];
-      existingTimeouts.forEach(id => clearTimeout(id));
-      
-      // Reset any other global state
-      if (window.orbitControlsRef) {
-        window.orbitControlsRef = null;
-      }
-    };
-  }, []);
 
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
@@ -1894,9 +1306,9 @@ function Synthwave() {
             <Environment preset="night" />
 
             {/* Custom synthwave environment setup */}
-            {/* <Environment background={false} preset={null}> */}
+            <Environment background={false} preset={null}>
               {/* Custom environment for reflections */}
-              <ambientLight intensity={2} color="#b0c4ff" /> {/* Increased intensity with hint of blue */}
+              <ambientLight intensity={0.4} color="#b0c4ff" /> {/* Increased intensity with hint of blue */}
               {/* <directionalLight 
                 position={[5, 5, 5]} 
                 intensity={0.6}
@@ -1913,20 +1325,7 @@ function Synthwave() {
                 intensity={0.5}
                 color="#ffffff" 
               /> */}
-            {/* </Environment> */}
-            <mesh>
-              <sphereGeometry args={[50, 32, 32]} />
-              <meshStandardMaterial 
-                side={THREE.BackSide}
-                color="#000000"
-                emissive="#560088"
-                emissiveIntensity={0.3}
-                metalness={0.8}
-                roughness={0.4}
-                wireframe={false}
-                fog={false}
-              />
-            </mesh>
+            </Environment>
             
             {/* Background sphere with deep space gradient for the sky */}
             <mesh scale={150}>
@@ -2004,9 +1403,9 @@ function Synthwave() {
             
             {/* Directional light */}
             <directionalLight
-              position={[0, 3, 1]}
+              position={[0, 2, -2.8]}
               intensity={1.8}
-              color="#ff7e5f"
+              color="#ffffff"
               castShadow
               shadow-mapSize-width={1024}
               shadow-mapSize-height={1024}
@@ -2019,7 +1418,7 @@ function Synthwave() {
             />
             
             {/* Hemisphere light */}
-            {/* {showHemisphereHelper ? (
+            {showHemisphereHelper ? (
               <HemisphereLightVisualizer
                 position={hemiLightPosition}
                 intensity={hemiLightIntensity}
@@ -2033,53 +1432,16 @@ function Synthwave() {
                 intensity={hemiLightIntensity}
                 position={hemiLightPosition}
               />
-            )} */}
+            )}
 
-            {/* Additional fill light for the statue  enhance blue color */}
+            {/* Additional fill light for the car body to enhance blue color */}
             <pointLight 
-              position={[0.026, 0.471, 0.38]} 
-              intensity={0.4} 
+              position={[2, 1, 1]} 
+              intensity={0.8} 
               color="#8ebbff"
-              distance={.4}
-              decay={0.1}
-              width={1}
+              distance={10}
+              decay={2}
             />
-         
-            {/* Optimized directional light for car exterior illumination */}
-            <directionalLight
-              position={[1.5, 3.2, 2]}
-              intensity={1.2}
-              color="#ff7e5f"
-              castShadow
-              shadow-mapSize-width={2048}
-              shadow-mapSize-height={2048}
-              shadow-camera-near={0.01}
-              shadow-camera-far={10}
-              shadow-camera-left={-2}
-              shadow-camera-right={2}
-              shadow-camera-top={2}
-              shadow-camera-bottom={-2}
-              shadow-bias={-0.0001}
-              shadow-normalBias={0.02}
-            />
-
-            {/* Add rim light for car edges */}
-            <directionalLight
-              position={[-1.5, 0.8, -2]}
-              intensity={0.7}
-              color="#ff9e7a"
-              castShadow={false}
-            />
-
-            <mesh position={[0, 10, -80]} rotation={[0, 0, 0]}>
-              <planeGeometry args={[300, 50]} />
-              <meshBasicMaterial 
-                side={THREE.DoubleSide}
-                transparent={true}
-                opacity={0.6}
-                color="#ff0066"
-              />
-            </mesh>
 
             {/* Pink point light with helper */}
             {showLightHelper ? (
@@ -2098,43 +1460,9 @@ function Synthwave() {
                 castShadow
               />
             )}
-         <pointLight position={[0.015, 0.13, 0.51]} intensity={0.5} color="#ff00ff" />
-
-         {/* <hemisphereLight 
-              skyColor="#ff7e5f" // Warm orange/pink for sky
-              groundColor="#371e57" // Deep purple for ground
-              intensity={1.5}
-              position={[0, 5, 0]}
-            /> */}
-            <Sky 
-              distance={450000} 
-              sunPosition={[0, -0.05, -1]} 
-              inclination={0.1} 
-              azimuth={0.25}
-              turbidity={10}
-              rayleigh={1.5}
-              mieCoefficient={0.005}
-              mieDirectionalG={0.8}
-              moonPosition={[3, 0.5, -1]}
-              exposure={0.6}
-            />
-            {/* Additional pink point lights */}
-            {/* <pointLight
-              position={[-0.0674, 0.1888, 0.2725]}
-              intensity={.01  }
-              color="#ff00cc"
-              castShadow
-            /> */}
-            {/* <pointLight
-              position={[0.0126, 0.3188, 0.0075]}
-       
-              intensity={.1}
-              color="#ff00cc"
-              castShadow
-            /> */}
 
             {/* Replace PostProcessingEffects with our custom sunset effects */}
-            {/* <SunriseSunsetEffects /> */}
+            <SunriseSunsetEffects />
           </Suspense>
           
           <OrbitControls
@@ -2160,7 +1488,7 @@ function Synthwave() {
       </Canvas>
       
       {/* Camera position capture button */}
-      {/* <button 
+      <button 
         onClick={logCameraPosition}
         style={{
           position: 'absolute',
@@ -2180,7 +1508,7 @@ function Synthwave() {
         }}
       >
         Capture Camera Position
-      </button> */}
+      </button>
       
       {/* Camera GUI outside of Canvas - guaranteed to be visible */}
       {showCameraGUI && (
@@ -2207,16 +1535,16 @@ function Synthwave() {
       {/* Light position controls */}
       {showLightHelper && (
         <div style={{
-          // position: 'absolute',
-          // top: '300px',
-          // left: '10px',
-          // backgroundColor: 'rgba(0,0,0,0.7)',
-          // color: '#ff00ff',
-          // padding: '10px',
-          // borderRadius: '5px',
-          // fontFamily: 'monospace',
-          // fontSize: '12px',
-          // zIndex: 1000
+          position: 'absolute',
+          top: '300px',
+          left: '10px',
+          backgroundColor: 'rgba(0,0,0,0.7)',
+          color: '#ff00ff',
+          padding: '10px',
+          borderRadius: '5px',
+          fontFamily: 'monospace',
+          fontSize: '12px',
+          zIndex: 1000
         }}>
           <div><b>Light Position:</b> [{lightPosition[0].toFixed(4)}, {lightPosition[1].toFixed(4)}, {lightPosition[2].toFixed(4)}]</div>
           <div><b>Intensity:</b> {lightIntensity}</div>
@@ -2267,7 +1595,75 @@ function Synthwave() {
         </div>
       )}
       
-   
+      {/* Sun glow controls */}
+      {showSunHelper && (
+        <div style={{
+          position: 'absolute',
+          top: '300px',
+          right: '10px',
+          backgroundColor: 'rgba(0,0,0,0.7)',
+          color: '#ff6600',
+          padding: '10px',
+          borderRadius: '5px',
+          fontFamily: 'monospace',
+          fontSize: '12px',
+          zIndex: 1000
+        }}>
+          <div><b>Sun Position:</b> [{dirLightPosition[0].toFixed(2)}, {dirLightPosition[1].toFixed(2)}, {dirLightPosition[2].toFixed(2)}]</div>
+          <div><b>Intensity:</b> {dirLightIntensity.toFixed(2)}</div>
+          
+          <div style={{marginTop: '10px'}}>
+            <button 
+              onClick={() => setDirLightIntensity(Math.max(0.1, dirLightIntensity - 0.1))} 
+              style={{marginRight: '5px', width: '30px'}}
+            >-</button>
+            Intensity
+            <button 
+              onClick={() => setDirLightIntensity(dirLightIntensity + 0.1)} 
+              style={{marginLeft: '5px', width: '30px'}}
+            >+</button>
+          </div>
+          
+          <div style={{marginTop: '10px'}}><b>Position:</b></div>
+          <div style={{display: 'flex', marginTop: '5px'}}>
+            <div>
+              <button 
+                onClick={() => setDirLightPosition([dirLightPosition[0] - 0.1, dirLightPosition[1], dirLightPosition[2]])} 
+                style={{marginRight: '5px', width: '30px'}}
+              >-</button>
+              X
+              <button 
+                onClick={() => setDirLightPosition([dirLightPosition[0] + 0.1, dirLightPosition[1], dirLightPosition[2]])} 
+                style={{marginLeft: '5px', width: '30px'}}
+              >+</button>
+            </div>
+            <div style={{marginLeft: '10px'}}>
+              <button 
+                onClick={() => setDirLightPosition([dirLightPosition[0], dirLightPosition[1] - 0.1, dirLightPosition[2]])} 
+                style={{marginRight: '5px', width: '30px'}}
+              >-</button>
+              Y
+              <button 
+                onClick={() => setDirLightPosition([dirLightPosition[0], dirLightPosition[1] + 0.1, dirLightPosition[2]])} 
+                style={{marginLeft: '5px', width: '30px'}}
+              >+</button>
+            </div>
+            <div style={{marginLeft: '10px'}}>
+              <button 
+                onClick={() => setDirLightPosition([dirLightPosition[0], dirLightPosition[1], dirLightPosition[2] - 0.1])} 
+                style={{marginRight: '5px', width: '30px'}}
+              >-</button>
+              Z
+              <button 
+                onClick={() => setDirLightPosition([dirLightPosition[0], dirLightPosition[1], dirLightPosition[2] + 0.1])} 
+                style={{marginLeft: '5px', width: '30px'}}
+              >+</button>
+            </div>
+          </div>
+          
+          <div style={{marginTop: '10px'}}>Use D key to toggle helper visibility</div>
+        </div>
+      )}
                   {/* Additional fill light for the car body to enhance blue color */}
                   <pointLight 
               position={[2, 1, 1]} 
@@ -2278,7 +1674,7 @@ function Synthwave() {
             />
 
             {/* Pink point light with helper */}
-            {/* {showLightHelper ? (
+            {showLightHelper ? (
               <PointLightVisualizer
                 position={lightPosition}
                 intensity={lightIntensity}
@@ -2293,8 +1689,7 @@ function Synthwave() {
                 color="#ff00cc"
                 castShadow
               />
-            )} */}
-  
+            )}
 
             {/* Replace PostProcessingEffects with our custom sunset effects */}
       {/* Hemisphere light controls */}
