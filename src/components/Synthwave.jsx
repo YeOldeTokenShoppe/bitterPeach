@@ -1,6 +1,6 @@
 import React, { useRef, Suspense, useState, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { useGLTF, OrbitControls, Environment, ContactShadows, Html, Sky, GradientTexture } from '@react-three/drei';
+import { useGLTF, OrbitControls, Environment, ContactShadows, AccumulativeShadows, Html, Sky, GradientTexture } from '@react-three/drei';
 import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
 import { BlendFunction } from 'postprocessing';
 import * as THREE from 'three';
@@ -28,14 +28,14 @@ function SunriseSunsetEffects() {
     <EffectComposer ref={composerRef}>
       {/* Specialized bloom with settings for sunset segments */}
       <Bloom 
-        intensity={5}            // Increased intensity for the darker colors to still pop
-        luminanceThreshold={0.1}   // Lower threshold to catch the darker amber tones
-        luminanceSmoothing={0.25}    // Slightly reduced smoothing for more definition between bands
+        intensity={7}            // Increased intensity for the darker colors to still pop
+        luminanceThreshold={0.05}   // Lower threshold to catch the darker amber tones
+        luminanceSmoothing={0.4}    // Slightly reduced smoothing for more definition between bands
         height={512}                // Keep high resolution
         width={512}
         mipmapBlur={true}
         blendFunction={BlendFunction.SCREEN}
-        radius={1.5}
+        radius={2.5}
       />
       
       {/* Stronger vignette for a moodier atmosphere */}
@@ -906,9 +906,11 @@ function DeLoreanModel() {
             color: colorSet.color,
             emissive: colorSet.emissive,
             emissiveIntensity: colorSet.intensity,
-            toneMapped: false,                // Prevents tone mapping from reducing brightness
-            metalness: 0.1,                   // Slight metalness for reflectivity
-            roughness: 0.7                    // More roughness for a diffuse glow
+            toneMapped: false,
+            metalness: 0.1,
+            roughness: 0.7,
+            transparent: true,           // Add transparency
+            opacity: 0.85,               // Slight transparency
           });
           
           // Apply the material to this segment
@@ -1885,6 +1887,9 @@ function Synthwave() {
           // Enable better shadow mapping
           gl.shadowMap.enabled = true;
           gl.shadowMap.type = THREE.PCFSoftShadowMap;
+          
+          // Add near the top of your Synthwave component  
+          // scene.fog = new THREE.FogExp2('#200030', 0.05);
         }}
       >
         <CameraDataProvider>
@@ -1896,7 +1901,7 @@ function Synthwave() {
             {/* Custom synthwave environment setup */}
             {/* <Environment background={false} preset={null}> */}
               {/* Custom environment for reflections */}
-              <ambientLight intensity={2} color="#b0c4ff" /> {/* Increased intensity with hint of blue */}
+              <ambientLight intensity={2} color="#b0c4ff" /> 
               {/* <directionalLight 
                 position={[5, 5, 5]} 
                 intensity={0.6}
@@ -1914,7 +1919,7 @@ function Synthwave() {
                 color="#ffffff" 
               /> */}
             {/* </Environment> */}
-            <mesh>
+            {/* <mesh>
               <sphereGeometry args={[50, 32, 32]} />
               <meshStandardMaterial 
                 side={THREE.BackSide}
@@ -1926,10 +1931,10 @@ function Synthwave() {
                 wireframe={false}
                 fog={false}
               />
-            </mesh>
+            </mesh> */}
             
             {/* Background sphere with deep space gradient for the sky */}
-            <mesh scale={150}>
+            {/* <mesh scale={150} rotation={[-Math.PI/2, 0, -Math.PI/3]}> 
               <sphereGeometry args={[1, 32, 32]} />
               <meshBasicMaterial 
                 side={THREE.BackSide}
@@ -1942,15 +1947,37 @@ function Synthwave() {
                   size={1024}
                 />
               </meshBasicMaterial>
-            </mesh>
+            </mesh> */}
             
             {/* Add the marker after animation completes */}
             {showMarker && <SynthwaveMarker position={[0.47, 0.77, -0.25]} />}
+            {/* <Sky 
+  distance={450000}
+  sunPosition={[0, -.038, -1]}
+  turbidity={0.1}
+  rayleigh={0.7}
+  inclination={0.1}
+  azimuth={0.25}
+  mieCoefficient={0.001}
+  mieDirectionalG={0.65}
+  exposure={0.25}
+/> */}
+<mesh scale={[100, 100, 100]} rotation={[0, 0, 0]}>
+  <sphereGeometry args={[1, 64, 64]} />
+  <meshBasicMaterial side={THREE.BackSide} fog={false} opacity={0.2} transparent={true}>
+
+    <GradientTexture 
+      stops={[0, 0.3, 0.6, 1]} 
+      colors={["#000000", "#300350", "#5f0096", "#ff0066"]} 
+      size={1024}
+    />
+  </meshBasicMaterial>
+</mesh>
             
             {/* Sky component with synthwave colors */}
             <Sky 
               distance={450000} 
-              sunPosition={[-5, -5, -25]} 
+              sunPosition={[5, -5, -2]} 
               inclination={0.1} 
               azimuth={0.25}
               turbidity={10}
@@ -1962,10 +1989,11 @@ function Synthwave() {
             />
             
             {/* Synthwave background sphere */}
-            <mesh>
+            {/* <mesh>
               <sphereGeometry args={[50, 32, 32]} />
               <meshStandardMaterial 
                 side={THREE.BackSide}
+                // position={[0, 2, 0]}
                 color="#000000"
                 emissive="#560088"
                 emissiveIntensity={0.3}
@@ -1975,19 +2003,26 @@ function Synthwave() {
                 fog={false}
                 depthWrite={true}
               />
-            </mesh>
+            </mesh> */}
             
             {/* Grid floor for synthwave effect */}
-            <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.7, 0]}>
-              <planeGeometry args={[500, 500, 200, 200]} />
+            {/* <mesh rotation={[-Math.PI / 2, -Math.PI, 0]} position={[0, -0.8, 0]}>
+              <planeGeometry args={[300, 300, 300, 300]} />
               <meshStandardMaterial 
-                color="#070f33"
-                emissive="#5485b6"
+                color="#0000000"
+                emissive="#000000"
                 emissiveIntensity={0.2}
-                wireframe={true}
+        
+                wireframe={true} // Enable wireframe
+                wireframeLinewidth={8.5} // Optional: control line thickness
+              wireframeLinecap='miter'
+                metalness={0.8}
+                roughness={0.4}
+                depthWrite={true}
+                vertexColors={true}
                 fog={true}
               />
-            </mesh>
+            </mesh> */}
             
             {/* Debugging sphere to visually confirm target */}
             {/* <mesh position={[TARGET_POSITION.x, TARGET_POSITION.y, TARGET_POSITION.z]}>
@@ -1995,11 +2030,11 @@ function Synthwave() {
               <meshBasicMaterial color="yellow" />
             </mesh> */}
             <ContactShadows
-              position={[0, -0.5, 0]}
-              opacity={0.5}
-              scale={10}
-              blur={1}
-              far={4}
+              position={[5, -0.1, 0]}
+              opacity={1}
+              scale={7}
+              blur={2}
+              far={2}
             />
             
             {/* Directional light */}
@@ -2017,6 +2052,7 @@ function Synthwave() {
               shadow-camera-top={1}
               shadow-camera-bottom={-1}
             />
+        
             
             {/* Hemisphere light */}
             {/* {showHemisphereHelper ? (
@@ -2037,12 +2073,12 @@ function Synthwave() {
 
             {/* Additional fill light for the statue  enhance blue color */}
             <pointLight 
-              position={[0.026, 0.471, 0.38]} 
-              intensity={0.4} 
-              color="#8ebbff"
-              distance={.4}
-              decay={0.1}
-              width={1}
+              position={[0.025, 0.455, 0.38]} 
+              intensity={0.6} 
+              color="#ff00ff"
+              distance={.7}
+              decay={0.2}
+              width={.9}
             />
          
             {/* Optimized directional light for car exterior illumination */}
@@ -2071,7 +2107,7 @@ function Synthwave() {
               castShadow={false}
             />
 
-            <mesh position={[0, 10, -80]} rotation={[0, 0, 0]}>
+            {/* <mesh position={[0, 10, -80]} rotation={[0, 0, 0]}>
               <planeGeometry args={[300, 50]} />
               <meshBasicMaterial 
                 side={THREE.DoubleSide}
@@ -2079,10 +2115,10 @@ function Synthwave() {
                 opacity={0.6}
                 color="#ff0066"
               />
-            </mesh>
+            </mesh> */}
 
             {/* Pink point light with helper */}
-            {showLightHelper ? (
+            {/* {showLightHelper ? (
               <PointLightVisualizer
                 position={lightPosition}
                 intensity={lightIntensity}
@@ -2097,27 +2133,28 @@ function Synthwave() {
                 color="#ff00cc"
                 castShadow
               />
-            )}
-         <pointLight position={[0.015, 0.13, 0.51]} intensity={0.5} color="#ff00ff" />
+            )} */}
+         <pointLight position={[0.015, 0.13, 0.51]} intensity={0.8} color="#ff00ff" />
 
          {/* <hemisphereLight 
               skyColor="#ff7e5f" // Warm orange/pink for sky
               groundColor="#371e57" // Deep purple for ground
-              intensity={1.5}
-              position={[0, 5, 0]}
+              intensity={3.5}
+              position={[0, 3, 0]}
             /> */}
-            <Sky 
-              distance={450000} 
-              sunPosition={[0, -0.05, -1]} 
-              inclination={0.1} 
+            {/* <Sky 
+              distance={850000} 
+              sunPosition={[0, 0, -Math.PI/1.5]} 
+              inclination={-0.7} 
               azimuth={0.25}
-              turbidity={10}
-              rayleigh={1.5}
+              turbidity={2.9}
+              rayleigh={3.5}
               mieCoefficient={0.005}
-              mieDirectionalG={0.8}
+              mieDirectionalG={0.95}
               moonPosition={[3, 0.5, -1]}
-              exposure={0.6}
-            />
+
+
+            /> */}
             {/* Additional pink point lights */}
             {/* <pointLight
               position={[-0.0674, 0.1888, 0.2725]}
@@ -2143,17 +2180,17 @@ function Synthwave() {
             enablePan={true}
             enableZoom={true}
             enableRotate={true}
-            autoRotate={false}
+            autoRotate={true}
             autoRotateSpeed={.7}
             enabled={controlsEnabled}
             zoomToCursor={true}
             near={0.1}
-            far={100}
+            far={15}
             minDistance={0.1}
-            maxDistance={10}
+            maxDistance={7}
             minPolarAngle={0}
             maxPolarAngle={Math.PI / 2.2}
-            dampingFactor={0.05}
+            dampingFactor={0.1}
             enableDamping={true}
           />
         </CameraDataProvider>
@@ -2269,13 +2306,13 @@ function Synthwave() {
       
    
                   {/* Additional fill light for the car body to enhance blue color */}
-                  <pointLight 
+                  {/* <pointLight 
               position={[2, 1, 1]} 
               intensity={0.8} 
               color="#8ebbff"
               distance={10}
               decay={2}
-            />
+            /> */}
 
             {/* Pink point light with helper */}
             {/* {showLightHelper ? (

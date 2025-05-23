@@ -1557,31 +1557,42 @@ const MoonScene = forwardRef(
         if (!modelRef.current || !ammoRef.current || !physicsRef.current.world) return;
         const AmmoLib = ammoRef.current;
 
+        // Create reusable objects outside the traverse loop
+        const position = new THREE.Vector3();
+        const quaternion = new THREE.Quaternion();
+        const transform = new AmmoLib.btTransform();
+        const btPosition = new AmmoLib.btVector3(0, 0, 0);
+        const btQuaternion = new AmmoLib.btQuaternion(0, 0, 0, 1);
+
         modelRef.current.traverse(object => {
-            // Check if this object is the alligator and has a physics body
             if (object.isMesh && object.userData && object.userData.isAlligator && object.userData.physicsBody) {
                 const alligatorMesh = object;
                 const alligatorBody = object.userData.physicsBody;
 
-                // Ensure the mesh's world matrix is up to date
-                alligatorMesh.updateWorldMatrix(true, false); 
-                const position = new THREE.Vector3();
-                const quaternion = new THREE.Quaternion();
-                // Decompose the world matrix to get world position and rotation
-                alligatorMesh.matrixWorld.decompose(position, quaternion, new THREE.Vector3()); 
+                // Update world matrix
+                alligatorMesh.updateWorldMatrix(true, false);
+                
+                // Reuse position and quaternion objects
+                alligatorMesh.matrixWorld.decompose(position, quaternion, new THREE.Vector3());
 
-                const transform = new AmmoLib.btTransform();
+                // Reuse transform and vector objects
                 transform.setIdentity();
-                transform.setOrigin(new AmmoLib.btVector3(position.x, position.y, position.z));
-                transform.setRotation(new AmmoLib.btQuaternion(
-                    quaternion.x, quaternion.y, quaternion.z, quaternion.w
-                ));
+                btPosition.setValue(position.x, position.y, position.z);
+                transform.setOrigin(btPosition);
+                
+                btQuaternion.setValue(quaternion.x, quaternion.y, quaternion.z, quaternion.w);
+                transform.setRotation(btQuaternion);
 
                 alligatorBody.getMotionState().setWorldTransform(transform);
-                alligatorBody.setCenterOfMassTransform(transform); 
-                alligatorBody.activate(true); 
+                alligatorBody.setCenterOfMassTransform(transform);
+                alligatorBody.activate(true);
             }
         });
+
+        // Clean up Ammo.js objects
+        AmmoLib.destroy(btPosition);
+        AmmoLib.destroy(btQuaternion);
+        AmmoLib.destroy(transform);
       };
       
       // Call the collision detection function every frame

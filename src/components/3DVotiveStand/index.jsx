@@ -980,12 +980,12 @@ const ThreeDVotiveStand = forwardRef(({
         </Suspense>
 
         {/* Conditionally render HolographicStatue or RocketModel based on monsterMode */}
-        <Suspense fallback={null}>
-          {/* {console.log("ThreeDVotiveStand render:", {
+        {/* <Suspense fallback={null}>
+          {console.log("ThreeDVotiveStand render:", {
             monsterMode,
             rocketModelVisible,
           })}
-          {!monsterMode ? ( */}
+          {!monsterMode ? (
             <MemoizedHolographicStatue
               key="holographic-statue"
               isInMarkerView={isInMarkerView}
@@ -999,9 +999,31 @@ const ThreeDVotiveStand = forwardRef(({
               userData={userData}
               onLoad={handleHolographicStatueLoad} // Use the memoized callback
             />
-          {/* ) : (
+          ) : (
             rocketModelVisible && <RocketModel is80sMode={is80sMode} userData={userData} />
-          )} */}
+          )}
+        </Suspense> */}
+        <Suspense fallback={null}>
+          {console.log("ThreeDVotiveStand render:", {
+            monsterMode,
+            rocketModelVisible,
+          })}
+          {!monsterMode ? (
+            <HolographicStatue
+              isInMarkerView={isInMarkerView}
+              isMobileView={isMobileView}
+              setShowSpotify={setShowSpotify}
+              showSpotify={showSpotify}
+              isModalOpen={isModalOpen}
+              setIsModalOpen={setIsModalOpen}
+              onSpawnReady={onSpawnReady}
+              is80sMode={is80sMode}
+              userData={userData}
+              onLoad={handleHolographicStatueLoad} // Use the memoized callback
+            />
+          ) : (
+            rocketModelVisible && <RocketModel is80sMode={is80sMode} userData={userData} />
+          )}
         </Suspense>
         <Suspense fallback={null}>
           <TickerDisplay modelRef={modelRef} />

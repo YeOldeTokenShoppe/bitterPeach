@@ -38,6 +38,7 @@ function MyApp({ Component, pageProps }) {
   const isCommunionPage = router.pathname === "/communion";
   const isScenePage = router.pathname === "/scene";
   const isRocketPage = router.pathname === "/rocket";
+  const isMoonScenePage = router.pathname === "/moon-scene";
 
 
   useEffect(() => {
@@ -47,7 +48,7 @@ function MyApp({ Component, pageProps }) {
     html.style.colorScheme = "dark";
 
     // Add appropriate class to the body
-    document.body.classList.remove("gallery-page", "scene-page", "rocket-page", "index-page", "communion-page");
+    document.body.classList.remove("gallery-page", "scene-page", "rocket-page", "index-page", "communion-page", "moon-scene-page");
 
     if (isGalleryPage) {
       document.body.classList.add("gallery-page");
@@ -60,6 +61,9 @@ function MyApp({ Component, pageProps }) {
     }
     else if (isCommunionPage) {
       document.body.classList.add("communion-page");
+    }
+    else if (isMoonScenePage) {
+      document.body.classList.add("moon-scene-page");
     }
   }, [isGalleryPage, isScenePage, isRocketPage, isIndexPage, isCommunionPage, router.pathname]);
 
@@ -93,7 +97,7 @@ function MyApp({ Component, pageProps }) {
         body.style.overflow = "";
       }
     };
-  }, [isGalleryPage, isScenePage, isRocketPage, isIndexPage, isCommunionPage, router.pathname]);
+  }, [isGalleryPage, isScenePage, isRocketPage, isIndexPage, isCommunionPage, isMoonScenePage, router.pathname]);
 
   // Dynamically choose the theme
   const special = isGalleryPage
@@ -105,7 +109,7 @@ function MyApp({ Component, pageProps }) {
   let HeaderComponent = null;
   if (isGalleryPage) {
     HeaderComponent = Header3;
-  } else if (!(isIndexPage || isScenePage || isRocketPage || isCommunionPage)) {
+  } else if (!(isIndexPage || isScenePage || isRocketPage || isCommunionPage || isMoonScenePage)) {
     HeaderComponent = Header;
   }
 

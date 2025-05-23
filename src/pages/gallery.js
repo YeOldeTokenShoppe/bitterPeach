@@ -35,6 +35,9 @@ export default function GalleryPage() {
   const [isMobileView, setIsMobileView] = useState(false);
   const [componentLoaded, setComponentLoaded] = useState(false);
   const [threeDSceneLoaded, setThreeDSceneLoaded] = useState(false);
+  const [userHelmetTextures, setUserHelmetTextures] = useState([]);
+
+  
 
   // Handle window resize
   useEffect(() => {
@@ -116,6 +119,7 @@ export default function GalleryPage() {
 
   // Update loading progress based on component and 3D scene loading states
   useEffect(() => {
+    
     if (componentLoaded && threeDSceneLoaded) {
       // Both components are loaded, set progress to 100%
       setLoadingProgress(100);
@@ -315,6 +319,8 @@ export default function GalleryPage() {
     }
   }, [is80sMode, showSpotify]); // Dependencies include both states that need syncing
 
+  console.log("gallery.js: Rendering with userHelmetTextures state:", userHelmetTextures);
+
   return (
     <div
       style={{
@@ -420,6 +426,7 @@ export default function GalleryPage() {
             setSynthwaveMode={setSynthwaveMode}
             handleIgnition={handleIgnition}
             handleReturnFromSynthwave={handleReturnFromSynthwave}
+            userHelmetTextures={userHelmetTextures}
           />
         )}
       </div>

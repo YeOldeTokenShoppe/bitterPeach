@@ -6,6 +6,7 @@ export default function Document() {
       data-theme="dark"
       style={{ colorScheme: "dark" }}
       suppressHydrationWarning
+      lang="en"
     >
       <Head>
         <meta name="description" content="A token to believe in." />

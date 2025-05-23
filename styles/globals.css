@@ -6109,3 +6109,28 @@ body.index-page {
   margin: 0 !important;
   padding: 0 !important;
 }
+
+
+.astronaut-annotation {
+  transition: all 0.5s ease-in-out;
+  box-shadow: inset 0 0 0 0.01rem white;
+  cursor: pointer;
+  outline: none;
+  border: none;
+  font-size: 0.05rem;
+  font-weight: 300;
+  background: indianred; /* Or your desired background */
+  color: white;         /* Or your desired text color */
+  padding: 0.02rem 0.05rem;
+  border-radius: 1rem;
+  letter-spacing: 0.05rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.025rem;
+}
+
+.astronaut-annotation:hover {
+  box-shadow: inset 1rem 0 0 0 white;
+  color:red;
+}
