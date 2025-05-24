@@ -56,7 +56,6 @@ const SidePanel = ({
   toggleRocketModel,
   toggleConstellationVisibility,
   setShowSpotify,
-  handleIgnition,
 }) => {
   const [isTextBoxVisible, setIsTextBoxVisible] = useState(true);
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
@@ -144,9 +143,6 @@ const SidePanel = ({
 
   // Add a ref for the mission control iframe
   const missionControlIframeRef = useRef(null);
-
-  // Add a local state to track constellation visibility in SidePanel
-  const [localConstellationsVisible, setLocalConstellationsVisible] = useState(false);
 
   // Detect touch devices
   useEffect(() => {
@@ -495,37 +491,28 @@ const SidePanel = ({
   };
 
   // Add this function to send messages to the iframe
-  const sendMessageToIframe = useCallback((message) => {
-    console.log('Sending message to iframe:', message);
-    const iframe = document.querySelector('iframe');
-    console.log('Found iframe:', iframe);
-    
+  const sendMessageToIframe = (message) => {
+    const iframe = document.querySelector(
+      'iframe[title="Mission Control Panel"]'
+    );
     if (iframe && iframe.contentWindow) {
-      console.log('Posting message to iframe');
       try {
-        iframe.contentWindow.postMessage(message, '*');
-        console.log('Message posted to iframe successfully');
+    
+        iframe.contentWindow.postMessage(message, "*"); // Use specific origin in production
+
+        // Add special handling for SitePal mic activation if still needed
+        if (message.type === "ACTIVATE_SITEPAL_MIC") {
+          console.log("Special mic activation message detected");
+          // Simplified - rely on the iframe's internal handling now
+          // We might remove this block entirely later if not needed
+        }
       } catch (error) {
-        console.error('Error posting message to iframe:', error);
+        console.error("Error sending message to iframe:", error);
       }
     } else {
-      console.warn('Iframe or contentWindow not found');
+      console.warn("Mission Control iframe not found");
     }
-  }, []);
-
-  // Add this new function
-  const handleIgnitionClick = useCallback(() => {
-    console.log('Ignition button clicked in SidePanel');
-    if (handleIgnition) {
-      console.log('Calling handleIgnition prop');
-      handleIgnition();
-      // Also send message to iframe to update its state
-      sendMessageToIframe({ type: 'IGNITION_CLICKED' });
-    } else {
-      console.warn('handleIgnition prop not provided to SidePanel');
-    }
-  }, [handleIgnition, sendMessageToIframe]);
-
+  };
   const updateVideoPosition = useCallback(() => {
     const iframe = missionControlIframeRef.current;
     if (iframe && iframe.contentWindow) {
@@ -551,107 +538,233 @@ const SidePanel = ({
     }
   }, []);
 
-  // Add a function to handle constellation visibility toggle
-  const handleConstellationToggle = useCallback(() => {
-    // Call the toggle function provided as prop
-    if (toggleConstellationVisibility) {
-      toggleConstellationVisibility();
-      
-      // Update local state
-      setLocalConstellationsVisible(prev => !prev);
-      
-      // Send message to iframe to update the UI state with proper state value
-      if (missionControlIframeRef.current && missionControlIframeRef.current.contentWindow) {
-        const newState = !localConstellationsVisible;
-        console.log("Sending SYNC_STATE with constellations:", newState);
-        
-        // Add a small delay to ensure state has been updated
-        setTimeout(() => {
-          missionControlIframeRef.current.contentWindow.postMessage(
-            {
-              type: "SYNC_STATE",
-              isConstellationsEnabled: newState
-            },
-            "*"
-          );
-        }, 50);
-      }
-    }
-  }, [toggleConstellationVisibility, localConstellationsVisible, missionControlIframeRef]);
-
-  // Add an effect to sync constellation visibility with iframe
-  useEffect(() => {
-    // This would ideally use a state variable like isConstellationsVisible
-    // but since we don't have that prop in SidePanel, we're handling toggle events directly
-  }, []);
-
   // Update the useEffect for message handling
   useEffect(() => {
     const handleMessage = (event) => {
-      console.log('Received message in SidePanel:', event.data);
-      if (event.data && event.data.type === 'IGNITION_CLICK') {
-        console.log('Ignition click received from iframe');
-        handleIgnitionClick();
-      }
-      else if (event.data && event.data.type === 'CONSTELLATION_TOGGLE') {
-        console.log('Constellation toggle received from iframe');
-        handleConstellationToggle();
-      }
-      else if (event.data && event.data.type === 'REQUEST_STATE') {
-        console.log('Received state request from iframe');
+      if (!event.data || !event.data.type) return;
+
+      // Add origin check for security in production
+      // if (event.origin !== 'YOUR_EXPECTED_PARENT_ORIGIN') return;
+
+      // ---> ADD: Handle Avatar Request FIRST <--- 
+      if (event.data && event.data.type === 'REQUEST_AVATAR') {
+        console.log("[Parent SidePanel] Received REQUEST_AVATAR from iframe.");
+
         if (missionControlIframeRef.current && missionControlIframeRef.current.contentWindow) {
-          missionControlIframeRef.current.contentWindow.postMessage(
-            {
-              type: "SYNC_STATE",
-              isConstellationsEnabled: localConstellationsVisible
-            },
-            "*"
-          );
+          const avatarUrl = isSignedIn ? getUserImageUrl(user) : null; // Get the best URL or null if signed out
+           console.log("[Parent SidePanel] Sending AVATAR_RESPONSE with URL:", avatarUrl);
+          missionControlIframeRef.current.contentWindow.postMessage({
+            type: 'AVATAR_RESPONSE',
+            avatarUrl: avatarUrl
+          }, '*'); // Use specific origin instead of '*' in production
+        } else {
+           console.warn("[Parent SidePanel] Iframe ref or contentWindow not available.");
         }
+        return; // Exit after handling avatar request
       }
-      else if (event.data && event.data.type === 'NAVIGATE_TO_HOME') {
-        console.log('Navigation to home request received from iframe');
-        router.push('/home');
+      // --- End Avatar Request Handling ---
+
+      // ---> ADD: Handle Signal Button State <---
+      if (event.data && event.data.type === 'SIGNAL_BUTTON_STATE') {
+        console.log("[Parent SidePanel] Received SIGNAL_BUTTON_STATE:", event.data);
+        // You can add UI feedback here if needed
+        // For example, you could show a tooltip or notification explaining why the button is disabled
+        return;
+      }
+      // --- End Signal Button State Handling ---
+
+      // ---> Keep Existing Logic Below <--- 
+      // console.log(
+      //   `SidePanel: Switching on event.data.type: '${event.data.type}'`
+      // );
+
+      switch (event.data.type) {
+        case "REQUEST_FIREBASE_CONFIG":
+   
+          // Construct config from environment variables
+          const firebaseConfig = {
+            apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+            authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+            // databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL, // Optional
+            projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+            storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+            messagingSenderId:
+              process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+            appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+            // measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID, // Optional
+          };
+          // Send config back to the iframe using the existing function
+          sendMessageToIframe({
+            type: "FIREBASE_CONFIG_RESPONSE",
+            config: firebaseConfig,
+          });
+      
+          break;
+
+        case "EIGHTIES_MODE_CHANGE": // Received from iframe toggle
+ 
+          toggle80sMode(); // Call the function passed via props
+          break;
+
+        // Add new case for rocket model toggle
+        case "TOGGLE_ROCKET_MODEL":
+
+          handleRocketModelToggle();
+          break;
+
+        // Modify handling for stereo power based on mode from iframe
+        /*
+        case "STEREO_POWER_STATE": // Received from iframe power button
+            console.log("Stereo power state from iframe:", event.data);
+            if (event.data.mode === 'spotify' && !is80sMode) { // Check !is80sMode here too
+                const shouldBeActive = event.data.isActive;
+                // setShowSpotify(shouldBeActive); // REMOVED - Causes error
+                // Optionally tell MusicPlayer2 to play/pause via ref
+                if (musicPlayer2Ref.current) {
+                    if (!shouldBeActive) {
+                       musicPlayer2Ref.current.pause(); // Ensure pause on power off
+                    }
+                    // We probably don't want to auto-play on power ON from iframe click
+                }
+                // console.log("Set showSpotify based on iframe spotify mode power: ", shouldBeActive);
+            } else {
+                console.log("Ignoring stereo power state change in 80s mode or mode mismatch.");
+            }
+            break;
+        */
+
+        // Remove MUSIC_PLAYER_NEXT/PREV cases
+        /*
+        case "MUSIC_PLAYER_NEXT": // Received from iframe Next button
+            if (!is80sMode && musicPlayer2Ref.current) {
+                console.log("Relaying NEXT track to MusicPlayer2");
+                musicPlayer2Ref.current.nextTrack();
+            } else {
+                console.log("Ignoring NEXT track in 80s mode or player ref not ready.");
+            }
+            break;
+        case "MUSIC_PLAYER_PREV": // Received from iframe Prev button
+            if (!is80sMode && musicPlayer2Ref.current) {
+                console.log("Relaying PREV track to MusicPlayer2");
+                musicPlayer2Ref.current.prevTrack();
+    } else {
+                console.log("Ignoring PREV track in 80s mode or player ref not ready.");
+            }
+            break;
+        */
+        // --- End Removed cases ---
+
+        // Existing SitePal messages
+        case "SITEPAL_READY":
+
+          setIsIframeLoaded(true);
+          break;
+        case "SITEPAL_STATE_CHANGE":
+
+          setIsMuted(!event.data.isListening);
+          break;
+        case "SITEPAL_ERROR":
+          console.error("SitePal error:", event.data.error);
+          break;
+
+        // Existing messages we might need to keep
+        case "LAUNCH_MODE_TOGGLE": // Assuming this is still relevant
+   
+          if (is80sMode) {
+            toggle80sMode();
+          }
+
+          if (monsterMode) {
+            // If monster mode is active, toggle it off and hide rocket
+            toggleMonsterMode();
+          } else {
+            // If monster mode is not active, turn it on and show rocket
+            toggleMonsterMode();
+            if (!rocketModelVisible) {
+              toggleRocketModel();
+            }
+          }
+          break;
+
+        // We might not need MUSIC_TOGGLE from iframe anymore if STEREO_POWER_STATE handles it
+        // case "MUSIC_TOGGLE":
+        //   console.log("Music toggle requested");
+        //   setShowSpotify(!showSpotify);
+        //   break;
+
+        // IFRAME_MUSIC_STATE might be useful for debugging
+        case "IFRAME_MUSIC_STATE":
+ 
+          break;
+
+        // ---> ADD: Handle Constellation Toggle <---
+        case "CONSTELLATION_TOGGLE":
+   
+          if (toggleConstellationVisibility) {
+            toggleConstellationVisibility();
+          } else {
+            console.error(
+              "SidePanel: toggleConstellationVisibility function not received as prop"
+            );
+          }
+          break;
+
+        // Handle navigation to home page
+        case "NAVIGATE_TO_HOME":
+
+          router.push("/home");
+          break;
+
+        // Handle video-related messages to position the vaporwave video
+        case "RESIZE":
+        case "LAYOUT_CHANGE":
+          if (is80sMode) {
+            updateVideoPosition();
+          }
+          break;
+        case "EXPAND_VIDEO_SCREEN":
+          if (is80sMode) {
+            updateVideoPosition();
+          }
+          break;
+        case "SITEPAL_LOADED":
+          if (is80sMode && missionControlIframeRef.current) {
+            // Re-expand video screen after SitePal loads
+            missionControlIframeRef.current.contentWindow.postMessage(
+              {
+                type: "EXPAND_VIDEO_SCREEN",
+                expanded: true,
+              },
+              "*"
+            );
+          }
+          break;
+
+        default:
+          // Log unhandled message types
+          if (event.data.type !== "FIREBASE_CONFIG_RESPONSE") {
+            // Avoid logging the config response itself
+    
+          }
+          break;
       }
     };
 
-    window.addEventListener('message', handleMessage);
-    return () => {
-      window.removeEventListener('message', handleMessage);
-    };
-  }, [handleIgnitionClick, handleConstellationToggle, localConstellationsVisible, missionControlIframeRef, router]);
-
-  // Add useEffect to handle iframe loading
-  useEffect(() => {
-    const iframe = document.querySelector('iframe');
-    if (iframe) {
-      iframe.onload = () => {
-        console.log('Iframe loaded, sending initial state');
-        sendMessageToIframe({ 
-          type: 'INITIAL_STATE',
-          showSpotify,
-          is80sMode,
-          monsterMode,
-          rocketModelVisible,
-          isConstellationsVisible: localConstellationsVisible // Use local state here
-        });
-      };
-    }
-  }, [showSpotify, is80sMode, monsterMode, rocketModelVisible, sendMessageToIframe, localConstellationsVisible]);
-
-  // Add an effect to sync constellation visibility with iframe when it changes
-  useEffect(() => {
-    if (missionControlIframeRef.current && missionControlIframeRef.current.contentWindow) {
-      console.log("Syncing constellation state:", localConstellationsVisible);
-      missionControlIframeRef.current.contentWindow.postMessage(
-        {
-          type: "SYNC_STATE",
-          isConstellationsEnabled: localConstellationsVisible
-        },
-        "*"
-      );
-    }
-  }, [localConstellationsVisible]);
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [
+    toggle80sMode,
+    toggleMonsterMode,
+    monsterMode,
+    is80sMode,
+    rocketModelVisible,
+    toggleRocketModel,
+    toggleConstellationVisibility,
+    updateVideoPosition,
+    router,
+    user,
+    isSignedIn,
+  ]);
 
   // Sync all states with iframe
   useEffect(() => {
@@ -676,7 +789,7 @@ const SidePanel = ({
         isMusicActive: showSpotify
       }, "*");
     }
-  }, [is80sMode, monsterMode, showSpotify, sendMessageToIframe]);
+  }, [is80sMode, monsterMode, showSpotify]);
 
   // Update the useEffect cleanup to be simpler
   useEffect(() => {
@@ -1028,22 +1141,18 @@ const SidePanel = ({
         {/* Mission Control iframe in a flex container taking most of the space */}
         <Box flex="1" minHeight="0" overflow="hidden">
           <iframe
-            src="/cyberpunk_mission_control.html"
             ref={missionControlIframeRef}
-            style={{ width: '100%', height: '100%', border: 'none' }}
-            onLoad={() => {
-              console.log('Iframe loaded, sending initial state');
-              setSitepalLoaded(true);
-              // Send initial state to iframe with a small delay
-              setTimeout(() => {
-                sendMessageToIframe({
-                  type: 'INITIAL_STATE',
-                  data: {
-                    // No need to send the function anymore
-                  }
-                });
-              }, 200);
+            src="/cyberpunk_mission_control.html"
+            style={{
+              width: "100%",
+              height: "100%",
+              border: "none",
+              overflow: "hidden",
+              display: "block",
+              backgroundColor: "transparent",
             }}
+            title="Mission Control Panel"
+            onLoad={handleIframeLoad}
           />
         </Box>
         

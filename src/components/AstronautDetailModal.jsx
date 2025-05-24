@@ -5,7 +5,7 @@ import * as THREE from 'three';
 
 // Astronaut model specifically for the modal
 function ModalAstronaut({ helmetTextureUrl }) {
-  const { scene } = useGLTF('/astronaut1.glb'); 
+  const { scene } = useGLTF('/Astronaut2.glb'); 
 
   const astronautModel = useMemo(() => {
     const clonedScene = scene.clone();
@@ -14,7 +14,7 @@ function ModalAstronaut({ helmetTextureUrl }) {
     if (helmetTextureUrl instanceof THREE.Texture) {
       textureToApply = helmetTextureUrl;
     } else if (typeof helmetTextureUrl === 'string') {
-      console.log("ModalAstronaut received texture URL (needs loading - not implemented yet for strings):", helmetTextureUrl);
+      // console.log("ModalAstronaut received texture URL (needs loading - not implemented yet for strings):", helmetTextureUrl);
     }
 
     clonedScene.traverse((child) => {
@@ -129,4 +129,4 @@ export default function AstronautDetailModal({ isOpen, onClose, astronautData })
   );
 }
 
-useGLTF.preload('/astronaut1.glb'); 
+useGLTF.preload('/Astronaut2.glb'); 

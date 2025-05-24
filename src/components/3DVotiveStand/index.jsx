@@ -1088,4 +1088,3 @@ export default MemoizedThreeDVotiveStand;
 // Add display name for ESLint
 ThreeDVotiveStand.displayName = "ThreeDVotiveStand";
 
-

@@ -1,6 +1,5 @@
 import React, { useState, useEffect, Suspense } from "react";
 import dynamic from "next/dynamic";
-import Head from "next/head";
 import NavBar from "../components/NavBar.client";
 import Communion3 from "../components/Communion3";
 import Loader from "../components/Loader";
@@ -35,9 +34,6 @@ export default function GalleryPage() {
   const [isMobileView, setIsMobileView] = useState(false);
   const [componentLoaded, setComponentLoaded] = useState(false);
   const [threeDSceneLoaded, setThreeDSceneLoaded] = useState(false);
-  const [userHelmetTextures, setUserHelmetTextures] = useState([]);
-
-  
 
   // Handle window resize
   useEffect(() => {
@@ -119,7 +115,6 @@ export default function GalleryPage() {
 
   // Update loading progress based on component and 3D scene loading states
   useEffect(() => {
-    
     if (componentLoaded && threeDSceneLoaded) {
       // Both components are loaded, set progress to 100%
       setLoadingProgress(100);
@@ -319,8 +314,6 @@ export default function GalleryPage() {
     }
   }, [is80sMode, showSpotify]); // Dependencies include both states that need syncing
 
-  console.log("gallery.js: Rendering with userHelmetTextures state:", userHelmetTextures);
-
   return (
     <div
       style={{
@@ -338,68 +331,6 @@ export default function GalleryPage() {
         overflow: "auto",
       }}
     >
-      <Head>
-        {/* No font import needed here as it's now in _document.jsx */}
-      </Head>
-      
-      {/* Text effect in top left corner */}
-      <style jsx global>{`
-        .text__copy {
-          position: absolute;
-          z-index: -1;
-          top: 0;
-          left: 0;
-          filter: blur(0.1rem);
-        }
-      `}</style>
-      
-      <div className="textLight" id="textLight" style={{
-        position: "absolute",
-        top: "20px", 
-        left: "20px",
-        zIndex: 100,
-        borderRadius: "8px",
-        padding: "10px",
-        pointerEvents: "none"
-      }}>
-        <div 
-          id="text"
-          style={{
-            position: "relative",
-            fontFamily: "'UnifrakturMaguntia', cursive",
-            fontSize: "4rem",
-            color: "#ffffff",
-          }}
-        >
-          RL80
-          {Array.from({length: 100}).map((_, i) => {
-            const index = i + 1;
-            return (
-              <div
-                key={index}
-                className="text__copy"
-                style={{
-                  position: "absolute",
-                  pointerEvents: "none",
-                  zIndex: -1,
-                  top: 0,
-                  left: 0,
-                  color: `rgba(${255 - index * 2}, ${255 - index * 3}, ${255 - index * 2})`,
-                  filter: "blur(0.1rem)",
-                  transform: `translate(
-                    ${index * 0.1}rem, 
-                    ${index * 0.1}rem
-                  ) scale(${1 + index * 0.01})`,
-                  opacity: (1 / index) * 1.5,
-                }}
-              >
-                RL80
-              </div>
-            );
-          })}
-        </div>
-      </div>
-      
       {/* Loader with progress */}
       {isLoading && <Loader progress={loadingProgress} />}
 
@@ -426,7 +357,6 @@ export default function GalleryPage() {
             setSynthwaveMode={setSynthwaveMode}
             handleIgnition={handleIgnition}
             handleReturnFromSynthwave={handleReturnFromSynthwave}
-            userHelmetTextures={userHelmetTextures}
           />
         )}
       </div>

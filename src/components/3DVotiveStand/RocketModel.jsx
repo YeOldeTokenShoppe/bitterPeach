@@ -1224,7 +1224,7 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch 
               // Calculate the correct URL based on the current path
               const currentPath = window.location.pathname;
               const basePath = currentPath.substring(0, currentPath.lastIndexOf('/') + 1);
-              const newPath = `${basePath}rocket`;
+              const newPath = `${basePath}moon-scene`;
               
               // Navigate to the new page
               window.location.href = newPath;

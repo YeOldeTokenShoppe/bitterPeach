@@ -3017,7 +3017,6 @@ function startCharacterInteraction() {
         </div>
       </div>
 
-      <!-- Button Grid -->
       <div class="button-grid">
         <button class="control-button" data-action="signal">
           <!-- <span class="button-prefix">//SIGNAL</span> -->
@@ -5584,7 +5583,7 @@ function startCharacterInteraction() {
         setTimeout(() => {
           const tapToStart = loadingIndicator.querySelector(".tap-to-start");
           if (tapToStart && window.innerWidth <= 768) {
-            tapToStart.style.opacity = "1"; 
+            tapToStart.style.opacity = "1";
           }
         }, 2000);
       }
@@ -5802,44 +5801,44 @@ function startCharacterInteraction() {
         const signalButton = document.querySelector('.control-button[data-action="signal"]');
         const orientationViewed = localStorage.getItem("orientationViewed") === "true";
 
-        // if (signalButton) {
-        //   const buttonLabel = signalButton.querySelector(".button-label");
-        //   if (buttonLabel) {
-        //     buttonLabel.textContent = orientationViewed ? "CONNECT" : "COMMS";
-        //   }
+        if (signalButton) {
+          const buttonLabel = signalButton.querySelector(".button-label");
+          if (buttonLabel) {
+            buttonLabel.textContent = orientationViewed ? "📡" : "👽";
+          }
 
-        //   // Check if 80s mode or music is active
-        //   const is80sModeActive = document.body.classList.contains("eighties-mode");
-        //   const isMusicActive = document.body.classList.contains("music-enabled");
+          // Check if 80s mode or music is active
+          const is80sModeActive = document.body.classList.contains("eighties-mode");
+          const isMusicActive = document.body.classList.contains("music-enabled");
 
-        //   // Disable button if either mode is active
-        //   if (is80sModeActive || isMusicActive) {
-        //     signalButton.classList.add("disabled");
-        //     signalButton.setAttribute("disabled", "true");
+          // Disable button if either mode is active
+          if (is80sModeActive || isMusicActive) {
+            signalButton.classList.add("disabled");
+            signalButton.setAttribute("disabled", "true");
 
-        //     // Notify parent component about button state
-        //     window.parent.postMessage(
-        //       {
-        //         type: "SIGNAL_BUTTON_STATE",
-        //         disabled: true,
-        //         reason: is80sModeActive ? "80s mode active" : "music active",
-        //       },
-        //       "*"
-        //     );
-        //   } else {
-        //     signalButton.classList.remove("disabled");
-        //     signalButton.removeAttribute("disabled");
+            // Notify parent component about button state
+            window.parent.postMessage(
+              {
+                type: "SIGNAL_BUTTON_STATE",
+                disabled: true,
+                reason: is80sModeActive ? "80s mode active" : "music active",
+              },
+              "*"
+            );
+          } else {
+            signalButton.classList.remove("disabled");
+            signalButton.removeAttribute("disabled");
 
-        //     // Notify parent component about button state
-        //     window.parent.postMessage(
-        //       {
-        //         type: "SIGNAL_BUTTON_STATE",
-        //         disabled: false,
-        //       },
-        //       "*"
-        //     );
-        //   }
-        // }
+            // Notify parent component about button state
+            window.parent.postMessage(
+              {
+                type: "SIGNAL_BUTTON_STATE",
+                disabled: false,
+              },
+              "*"
+            );
+          }
+        }
       }
     </script>
 
@@ -5910,7 +5909,7 @@ function startCharacterInteraction() {
       // Visual feedback - add active class
       this.classList.add('active');
       
-      // // Set indicator to show button is active
+      // Set indicator to show button is active
       // const indicator = this.querySelector('.button-indicator');
       // indicator.style.backgroundColor = '#ff3300';
       
@@ -5931,25 +5930,25 @@ function startCharacterInteraction() {
       }
       
       // Also attempt to call the global function if available (backup method)
-      setTimeout(() => {
-        if (window.parent && window.parent.rocketLaunch) {
-          console.log("Attempting to use parent.rocketLaunch() method");
-          try {
-            const result = window.parent.rocketLaunch();
-            console.log("Result from parent.rocketLaunch():", result);
-          } catch (err) {
-            console.error("Error calling parent.rocketLaunch():", err);
-          }
-        } else {
-          console.log("parent.rocketLaunch not available");
-        }
-      }, 300);
+      // setTimeout(() => {
+      //   if (window.parent && window.parent.rocketLaunch) {
+      //     console.log("Attempting to use parent.rocketLaunch() method");
+      //     try {
+      //       const result = window.parent.rocketLaunch();
+      //       console.log("Result from parent.rocketLaunch():", result);
+      //     } catch (err) {
+      //       console.error("Error calling parent.rocketLaunch():", err);
+      //     }
+      //   } else {
+      //     console.log("parent.rocketLaunch not available");
+      //   }
+      // }, 300);
       
       // Reset the button after a delay
-      // setTimeout(() => {
-      //   this.classList.remove('active');
-      //   indicator.style.backgroundColor = '';
-      // }, 2000);
+      setTimeout(() => {
+        this.classList.remove('active');
+        indicator.style.backgroundColor = '';
+      }, 2000);
     });
 
     // ... rest of existing script ...
@@ -6089,94 +6088,5 @@ function startCharacterInteraction() {
         });
       }
     </script>
-
-<script>
-  // console.log('Cyberpunk mission control script loaded');
-  // let handleIgnition = null;
-
-  // // Listen for messages from the parent window
-  // window.addEventListener('message', (event) => {
-  //   console.log('Received message in iframe:', event.data);
-  //   if (event.data.type === 'INITIAL_STATE') {
-  //     console.log('Setting handleIgnition from parent');
-  //     handleIgnition = event.data.data.handleIgnition;
-  //   }
-  // });
-
-  // Make the function globally accessible
-  window.handleIgnitionClick = function() {
-    console.log('Ignition button clicked in iframe - starting synthwave mode');
-    // Send message to parent window with correct message type
-    window.parent.postMessage({ type: 'IGNITION_COMMAND' }, '*');
-    
-    // Add visual feedback
-    const ignitionButton = document.querySelector('.control-button[data-action="ignition"]');
-    if (ignitionButton) {
-      ignitionButton.classList.add('active');
-      setTimeout(() => {
-        ignitionButton.classList.remove('active');
-      }, 2000);
-    }
-  };
-
-  // Log when the script is executed
-  console.log('Script execution completed');
-</script>
-
-<!-- Add ignition button handling -->
-<script>
-  // Add debug logging
-  console.log('Ignition script loaded in cyberpunk_mission_control.html');
-
-  // Function to handle ignition button click
-  function handleIgnitionClick() {
-    console.log('Ignition button clicked in iframe - starting synthwave mode');
-    // Send message to parent window with correct message type
-    window.parent.postMessage({ type: 'IGNITION_COMMAND' }, '*');
-    
-    // Add visual feedback
-    const ignitionButton = document.querySelector('.control-button[data-action="ignition"]');
-    if (ignitionButton) {
-      ignitionButton.classList.add('active');
-      setTimeout(() => {
-        ignitionButton.classList.remove('active');
-      }, 2000);
-    }
-  }
-
-  // Add message listener
-  window.addEventListener('message', function(event) {
-    console.log('Received message in iframe:', event.data);
-    
-    if (event.data && event.data.type === 'INITIAL_STATE') {
-      console.log('Received initial state:', event.data);
-      // Update local state based on parent state
-      if (event.data.showSpotify !== undefined) {
-        // Update showSpotify state
-      }
-      if (event.data.is80sMode !== undefined) {
-        // Update 80s mode state
-      }
-      if (event.data.monsterMode !== undefined) {
-        // Update monster mode state
-      }
-      if (event.data.rocketModelVisible !== undefined) {
-        // Update rocket model visibility
-      }
-    }
-  });
-
-  // Add click handler to ignition button
-  document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM loaded in iframe');
-    const ignitionButton = document.querySelector('.control-button[data-action="ignition"]');
-    if (ignitionButton) {
-      console.log('Found ignition button');
-      ignitionButton.addEventListener('click', handleIgnitionClick);
-    } else {
-      console.warn('Ignition button not found');
-    }
-  });
-</script>
   </body>
 </html>

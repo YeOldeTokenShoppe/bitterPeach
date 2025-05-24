@@ -6134,3 +6134,6 @@ body.index-page {
   box-shadow: inset 1rem 0 0 0 white;
   color:red;
 }
+@keyframes hue-rotate-bg {
+  100% { filter: hue-rotate(360deg); }
+}

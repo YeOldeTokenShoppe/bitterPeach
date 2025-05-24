@@ -7,10 +7,30 @@ import React, {
   useRef,
   memo,
 } from "react";
-
 import { useRouter } from "next/router";
-// import { Button } from "./ui/button"; 
-import { Button } from "@chakra-ui/react";
+import {
+  Accordion,
+  Avatar,
+  AccordionButton,
+  AccordionIcon,
+  AccordionItem,
+  AccordionPanel,
+  Link,
+  Box,
+  Button,
+  Flex,
+  Heading,
+  Image,
+  Text,
+  Grid,
+  GridItem,
+  Badge,
+  Stat,
+  StatGroup,
+  StatLabel,
+  StatNumber,
+  StatHelpText,
+} from "@chakra-ui/react";
 import AnimatedRadioButtons from "./3DVotiveStand/CyberButtons";
 import SidePanel from "./SidePanel";
 import {
@@ -33,16 +53,12 @@ import { Canvas } from "@react-three/fiber";
 import { getUserImageUrl, getUsername, createUserData } from "../utilities/clerkHelpers";
 
 import ThreeDVotiveStand from "./3DVotiveStand/index";
+
 import Communion3 from "./Communion3";
+
 import Model from "./3DVotiveStand/Model";
 import * as THREE from "three";
 import MobileSidePanel from "./MobileSidePanel";
-
-// Dynamically import the Synthwave component to prevent it from loading until needed
-const DynamicSynthwave = dynamic(() => import("./Synthwave"), {
-  ssr: false,
-  loading: () => <div>Loading Synthwave...</div>,
-});
 
 const BurnModal = dynamic(() => import("./BurnModal"), {
   ssr: false,
@@ -75,10 +91,6 @@ function BurnGallery({
   setIsModalOpen,
   is80sMode,
   toggle80sMode,
-  synthwaveMode,
-  setSynthwaveMode,
-  handleIgnition,
-  handleReturnFromSynthwave
 }) {
   useEffect(() => {
     setComponentLoaded(true);
@@ -330,136 +342,109 @@ function BurnGallery({
     return () => clearTimeout(fallbackTimer);
   }, [setThreeDSceneLoaded]);
 
-  // Add ref for ThreeDVotiveStand
-  const threeDVotiveStandRef = useRef(null);
-  
-  // Add ref for Synthwave component
-  const synthwaveRef = useRef(null);
-
-  // New function to handle the zoom and then switch
-  const performZoomAndSwitch = useCallback(async () => {
-    console.log("BurnGallery: performZoomAndSwitch called");
-    if (!synthwaveMode && threeDVotiveStandRef.current && typeof threeDVotiveStandRef.current.zoomInForTransition === 'function') {
-      try {
-        console.log("BurnGallery: Calling zoomInForTransition on ThreeDVotiveStand");
-        await threeDVotiveStandRef.current.zoomInForTransition(); // Assume this returns a Promise
-        console.log("BurnGallery: Zoom animation presumed complete.");
-      } catch (error) {
-        console.error("BurnGallery: Error during zoomInForTransition or animation:", error);
-        // Decide if you want to proceed even if zoom fails, or just log and stop.
-        // For now, we'll proceed to ignition.
-      }
-    } else if (!synthwaveMode) {
-      console.warn("BurnGallery: zoomInForTransition method not found on ThreeDVotiveStand ref or already in synthwave mode. Simulating delay.");
-      // Fallback if the zoom function isn't available, simulate a delay
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Adjust delay as needed
-    }
-
-    // After zoom (or delay), call the original handleIgnition to switch mode
-    if (handleIgnition) {
-      console.log("BurnGallery: Calling handleIgnition to switch to Synthwave.");
-      handleIgnition();
-    } else {
-      console.error("BurnGallery: handleIgnition prop is not defined.");
-    }
-  }, [handleIgnition, synthwaveMode]); // Added synthwaveMode to dependencies
-
   return (
-    <div
-      position="relative"
-      minH="100vh"
-      minW="100vw"
-      overflow="hidden"
-      backgroundColor="#131416"
-    >
-      <div className="grid grid-cols-1">
-        <div>
-          {/* Conditionally render either ThreeDVotiveStand or Synthwave based on synthwaveMode */}
-          {!synthwaveMode ? (
-            <ThreeDVotiveStand
-              ref={threeDVotiveStandRef}
-              setIsLoading={setIsLoading}
-              isInMarkerView={isInMarkerView}
-              isMobileView={isMobileView}
-              setShowSpotify={setShowSpotify}
-              isModalOpen={isModalOpen}
-              setIsModalOpen={setIsModalOpen}
-              onSpawnReady={setSpawnFunction}
+    <>
+      <Box
+        position="relative"
+        minH="100vh"
+        minW="100vw"
+        overflow="hidden"
+        backgroundColor="#131416"
+      >
+        <Grid
+          templateColumns="1fr"
+          gap={0}
+          height="100%"
+          width="100%"
+          overflow="hidden"
+        >
+          <GridItem colSpan={1} height="100%" overflow="hidden">
+            {currentView === "main" ? (
+              <MemoizedThreeDVotiveStand
+                setIsLoading={setIsModelLoaded}
+                isInMarkerView={isInMarkerView}
+                isMobileView={isMobileView}
+                setShowSpotify={setShowSpotify}
+                showSpotify={showSpotify}
+                isModalOpen={isModalOpen}
+                setIsModalOpen={setIsModalOpen}
+                onSpawnReady={setSpawnFunction}
+                is80sMode={is80sMode}
+                monsterMode={monsterMode}
+                userData={clerkUserData}
+                setIsStatueLoaded={setIsStatueLoaded}
+                rocketModelVisible={rocketModelVisible}
+                isConstellationsVisible={isConstellationsVisible}
+                toggleConstellationVisibility={toggleConstellationVisibility}
+              />
+            ) : null}
+          </GridItem>
+        </Grid>
+
+        {/* Conditionally render desktop or mobile panel */}
+        {currentView === "main" &&
+          (isMobileView ? (
+            <MobileSidePanel
+              onButtonClick={handleButtonClick}
               is80sMode={is80sMode}
-              showSpotify={showSpotify}
+              toggle80sMode={toggle80sMode}
               monsterMode={monsterMode}
-              userData={clerkUserData}
-              setIsStatueLoaded={setIsStatueLoaded}
+              toggleMonsterMode={toggleMonsterMode}
+              showSpotify={showSpotify}
+              setShowSpotify={setShowSpotify}
               rocketModelVisible={rocketModelVisible}
-              isConstellationsVisible={isConstellationsVisible}
+              toggleRocketModel={toggleRocketModel}
               toggleConstellationVisibility={toggleConstellationVisibility}
-              handleIgnition={handleIgnition}
+              isConstellationsVisible={isConstellationsVisible}
             />
           ) : (
-            <Suspense fallback={<div>Loading Synthwave...</div>}>
-              <div style={{ position: "absolute", top: 0, right: 0, zIndex: 10, padding: "1rem" }}>
-                <Button onClick={handleReturnFromSynthwave} colorScheme="teal">
-                  Return
-                </Button>
-              </div>
-              <DynamicSynthwave ref={synthwaveRef} />
-            </Suspense>
-          )}
-        </div>
-      </div>
+            <SidePanel
+              onButtonClick={handleButtonClick}
+              is80sMode={is80sMode}
+              toggle80sMode={toggle80sMode}
+              monsterMode={monsterMode}
+              toggleMonsterMode={toggleMonsterMode}
+              showSpotify={showSpotify}
+              setShowSpotify={setShowSpotify}
+              rocketModelVisible={rocketModelVisible}
+              toggleRocketModel={toggleRocketModel}
+              toggleConstellationVisibility={toggleConstellationVisibility}
+              isConstellationsVisible={isConstellationsVisible}
+            />
+          ))}
+        {/* <Box
+            display="flex"
+            justifyContent="center"
+            alignItems="center"
+            mt={5}
+            mb={5}
+          >
+            <Button
+              width="7rem"
+              className="burnButton"
+              onClick={handleOpenBurnModal}
+            >
+              Burn Tokens
+            </Button>
+          </Box> */}
+        {/* </Box>  */}
 
-      {/* Only show the panels when not in synthwave mode */}
-      {currentView === "main" && !synthwaveMode && (
-        isMobileView ? (
-          <MobileSidePanel
-            onButtonClick={handleButtonClick}
-            is80sMode={is80sMode}
-            toggle80sMode={toggle80sMode}
-            monsterMode={monsterMode}
-            toggleMonsterMode={toggleMonsterMode}
-            showSpotify={showSpotify}
-            setShowSpotify={setShowSpotify}
-            rocketModelVisible={rocketModelVisible}
-            toggleRocketModel={toggleRocketModel}
-            toggleConstellationVisibility={toggleConstellationVisibility}
-            isConstellationsVisible={isConstellationsVisible}
-            handleIgnition={handleIgnition}
-            onRequestZoomAndSwitch={performZoomAndSwitch}
+        {isBurnModalOpen && (
+          <BurnModal
+            isOpen={isBurnModalOpen}
+            onClose={() => setIsBurnModalOpen(false)}
+            selectedImage={selectedImage}
+            setSelectedImage={setSelectedImage}
+            burnedAmount={burnedAmount}
+            setBurnedAmount={setBurnedAmount}
+            setIsResultSaved={setIsResultSaved}
+            setSaveMessage={setSaveMessage}
+            isResultSaved={isResultSaved}
+            saveMessage={saveMessage}
           />
-        ) : (
-          <SidePanel
-            onButtonClick={handleButtonClick}
-            is80sMode={is80sMode}
-            toggle80sMode={toggle80sMode}
-            monsterMode={monsterMode}
-            toggleMonsterMode={toggleMonsterMode}
-            showSpotify={showSpotify}
-            setShowSpotify={setShowSpotify}
-            rocketModelVisible={rocketModelVisible}
-            toggleRocketModel={toggleRocketModel}
-            toggleConstellationVisibility={toggleConstellationVisibility}
-            isConstellationsVisible={isConstellationsVisible}
-            handleIgnition={handleIgnition}
-            onRequestZoomAndSwitch={performZoomAndSwitch}
-          />
-        )
-      )}
-
-      {isBurnModalOpen && (
-        <BurnModal
-          isOpen={isBurnModalOpen}
-          onClose={() => setIsBurnModalOpen(false)}
-          selectedImage={selectedImage}
-          setSelectedImage={setSelectedImage}
-          burnedAmount={burnedAmount}
-          setBurnedAmount={setBurnedAmount}
-          setIsResultSaved={setIsResultSaved}
-          setSaveMessage={setSaveMessage}
-          isResultSaved={isResultSaved}
-          saveMessage={saveMessage}
-        />
-      )}
-    </div>
+        )}
+      </Box>
+    </>
   );
 }
 

@@ -11,6 +11,24 @@ function SimpleAstronautViewer({ modelPath, textureUrl }) {
     const modelRef = useRef();
     const [texture, setTexture] = useState(null);
     
+    // Add debug logging for model position
+    useEffect(() => {
+      if (scene) {
+        console.log(`Model loaded: ${modelPath}`);
+        console.log('Initial position:', scene.position);
+        console.log('Initial rotation:', scene.rotation);
+        console.log('Initial scale:', scene.scale);
+        
+        // Reset position and rotation only - scale will be handled by primitive props
+        scene.position.set(0, 0, 0);
+        scene.rotation.set(0, -Math.PI * 0.5, 0);
+        scene.updateMatrixWorld(true);
+        
+        // Remove manual centering - let the Center component handle it
+        // The double centering was causing the initial offset issue
+      }
+    }, [scene, modelPath]);
+    
     // Load the texture when textureUrl changes
     useEffect(() => {
       console.log("Loading texture from URL:", textureUrl);
@@ -94,14 +112,13 @@ function SimpleAstronautViewer({ modelPath, textureUrl }) {
     return <primitive 
       ref={modelRef} 
       object={scene} 
-      scale={1.4} 
-      rotation={[0, -Math.PI*0.5, 0]} // Rotate -90 degrees around Y axis
+      scale={1.4}
     />;
   }
   
   return (
     <div style={{ width: '100%', height: '100%', backgroundColor: '#2a3644', borderRadius: '8px' }}>
-      <Canvas camera={{ position: [0, 0, 6], fov: 40 }}>
+      <Canvas camera={{ position: [0, 0, 8], fov: 40 }}>
         {/* Simple lighting setup */}
         <ambientLight intensity={1.5} />
         <directionalLight position={[5, 5, 5]} intensity={1} />
@@ -110,18 +127,19 @@ function SimpleAstronautViewer({ modelPath, textureUrl }) {
         <color attach="background" args={['#2a3644']} />
         
         {/* Center the model */}
-        <Center>
+        <Center key={modelPath}>
           <AstronautModel />
         </Center>
         
         {/* Controls */}
         <OrbitControls 
-          enableZoom={false}
+          enableZoom={true}
           enablePan={false}
           autoRotate={false}
-          autoRotateSpeed={2}
+
           minPolarAngle={Math.PI / 3}
           maxPolarAngle={Math.PI / 2}
+          zoomToCursor={true}
 
         />
       </Canvas>
@@ -143,7 +161,7 @@ export default function AstronautCustomizerModal({ isOpen, onClose, onSave, defa
   const astronautModels = [
     { id: 'astronaut1', name: 'Classic Astronaut', path: '/astronaut.glb' },
     // Temporarily comment out models that don't exist yet
-    // { id: 'astronaut2', name: 'Space Explorer', path: '/astronaut_explorer.glb' },
+    { id: 'astronaut2', name: 'Space Explorer', path: '/Astronaut2.glb' },
     // { id: 'astronaut3', name: 'Cosmic Voyager', path: '/astronaut_voyager.glb' }
   ];
   
@@ -231,10 +249,89 @@ export default function AstronautCustomizerModal({ isOpen, onClose, onSave, defa
         {/* 3D preview of astronaut with applied texture */}
         <div style={{ height: '28rem', marginBottom: '1rem' }}>
           <SimpleAstronautViewer 
-            key={activeTextureUrl}
+            key={`${selectedModel}-${activeTextureUrl}`}
             modelPath={astronautModels.find(model => model.id === selectedModel)?.path || '/astronaut.glb'} 
             textureUrl={activeTextureUrl}
           />
+        </div>
+        
+        {/* Model selection carousel */}
+        <div style={{ marginBottom: '1rem' }}>
+          <label style={{ display: 'block', color: 'white', marginBottom: '0.5rem' }}>
+            Select Astronaut Model
+          </label>
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'space-between',
+            backgroundColor: '#374151',
+            borderRadius: '0.5rem',
+            padding: '0.5rem'
+          }}>
+            <button
+              onClick={() => {
+                const currentIndex = astronautModels.findIndex(m => m.id === selectedModel);
+                const prevIndex = (currentIndex - 1 + astronautModels.length) % astronautModels.length;
+                setSelectedModel(astronautModels[prevIndex].id);
+              }}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'white',
+                fontSize: '1.5rem',
+                cursor: 'pointer',
+                padding: '0.5rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '40px',
+                height: '40px',
+                borderRadius: '50%',
+                transition: 'background-color 0.2s'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#4b5563'}
+              onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+            >
+              ←
+            </button>
+            
+            <div style={{ 
+              color: 'white', 
+              fontWeight: '500',
+              textAlign: 'center',
+              flex: 1,
+              padding: '0 1rem'
+            }}>
+              {astronautModels.find(m => m.id === selectedModel)?.name}
+            </div>
+            
+            <button
+              onClick={() => {
+                const currentIndex = astronautModels.findIndex(m => m.id === selectedModel);
+                const nextIndex = (currentIndex + 1) % astronautModels.length;
+                setSelectedModel(astronautModels[nextIndex].id);
+              }}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'white',
+                fontSize: '1.5rem',
+                cursor: 'pointer',
+                padding: '0.5rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '40px',
+                height: '40px',
+                borderRadius: '50%',
+                transition: 'background-color 0.2s'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#4b5563'}
+              onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+            >
+              →
+            </button>
+          </div>
         </div>
         
         {/* Image selection */}
@@ -300,4 +397,4 @@ export default function AstronautCustomizerModal({ isOpen, onClose, onSave, defa
 
 // Preload models
 useGLTF.preload('/astronaut.glb');
-// 
+useGLTF.preload('/Astronaut2.glb');
