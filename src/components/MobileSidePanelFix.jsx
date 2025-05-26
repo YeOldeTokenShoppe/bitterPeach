@@ -1032,7 +1032,7 @@ const MobileSidePanel = ({
               {/* Video overlay - not needed anymore since we're creating the video inside the iframe */}
               <iframe
                 ref={missionControlIframeRef}
-                src="/cyberpunk_mission_control.html"
+                src="/cyberpunk_mission_control_clean.html"
                 style={{
                   width: "100%",
                   maxWidth: "450px",

@@ -2953,6 +2953,37 @@ function startCharacterInteraction() {
                   //   }, 500);
                   // }
                 }
+
+                function cleanupSitePal() {
+                  console.log("🧹 Cleaning up SitePal...");
+                  
+                  const sitepalContainer = document.getElementById("sitepal-container");
+                  if (sitepalContainer) {
+                    sitepalContainer.innerHTML = `
+                      <div id="vhss_aiPlayer"></div>
+                      <div id="vhss-aiplayer-aiformlogs"></div>
+                      <div id="vhss-aiplayer-aiformtranscript"></div>
+                      <div id="vhss-aiplayer-aiformstatus"></div>
+                    `;
+                    sitepalContainer.dataset.initialized = "false";
+                    sitepalContainer.classList.remove("active");
+                  }
+                  
+                  // Clean up any SitePal API functions
+                  if (window.AI_vhost_api && typeof window.AI_vhost_api === "function") {
+                    try {
+                      window.AI_vhost_api("stopListening");
+                    } catch (e) {
+                      console.log("Could not stop listening:", e);
+                    }
+                  }
+                  
+                  // Clear any SitePal-related window functions
+                  window.saySilent = undefined;
+                  window.sayText = undefined;
+                  window.stopListening = undefined;
+                  window.stopSpeaking = undefined;
+                }
               </script>
 
               <div id="vhss_aiPlayer"></div>
@@ -5928,21 +5959,6 @@ function startCharacterInteraction() {
       } catch (err) {
         console.error("Error sending launch message:", err);
       }
-      
-      // Also attempt to call the global function if available (backup method)
-      // setTimeout(() => {
-      //   if (window.parent && window.parent.rocketLaunch) {
-      //     console.log("Attempting to use parent.rocketLaunch() method");
-      //     try {
-      //       const result = window.parent.rocketLaunch();
-      //       console.log("Result from parent.rocketLaunch():", result);
-      //     } catch (err) {
-      //       console.error("Error calling parent.rocketLaunch():", err);
-      //     }
-      //   } else {
-      //     console.log("parent.rocketLaunch not available");
-      //   }
-      // }, 300);
       
       // Reset the button after a delay
       setTimeout(() => {

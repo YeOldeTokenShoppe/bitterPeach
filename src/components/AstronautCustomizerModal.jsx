@@ -4,30 +4,31 @@ import { OrbitControls, useGLTF, Center } from '@react-three/drei';
 import * as THREE from 'three';
 
 // Simple inline astronaut viewer specifically for the customizer
-function SimpleAstronautViewer({ modelPath, textureUrl }) {
+function SimpleAstronautViewer({ modelPath, textureUrl, textureOffset = { x: 0, y: 0 }, textureScale = 1 }) {
   // Model component
   function AstronautModel() {
     const { scene } = useGLTF(modelPath);
     const modelRef = useRef();
     const [texture, setTexture] = useState(null);
     
+    // Clone the scene to avoid conflicts between different instances
+    const clonedScene = scene.clone();
+    
     // Add debug logging for model position
     useEffect(() => {
-      if (scene) {
+      if (clonedScene) {
         console.log(`Model loaded: ${modelPath}`);
-        console.log('Initial position:', scene.position);
-        console.log('Initial rotation:', scene.rotation);
-        console.log('Initial scale:', scene.scale);
+        console.log('Initial position:', clonedScene.position);
+        console.log('Initial rotation:', clonedScene.rotation);
+        console.log('Initial scale:', clonedScene.scale);
         
-        // Reset position and rotation only - scale will be handled by primitive props
-        scene.position.set(0, 0, 0);
-        scene.rotation.set(0, -Math.PI * 0.5, 0);
-        scene.updateMatrixWorld(true);
-        
-        // Remove manual centering - let the Center component handle it
-        // The double centering was causing the initial offset issue
+        // Reset position and rotation - ensure clean state for each model
+        clonedScene.position.set(0, -0.8, 0);
+        clonedScene.rotation.set(0, -Math.PI * 0.5, 0);
+        clonedScene.scale.set(2, 2, 2);
+        clonedScene.updateMatrixWorld(true);
       }
-    }, [scene, modelPath]);
+    }, [clonedScene, modelPath]);
     
     // Load the texture when textureUrl changes
     useEffect(() => {
@@ -47,8 +48,9 @@ function SimpleAstronautViewer({ modelPath, textureUrl }) {
         loadedTexture.center = new THREE.Vector2(0.5, 0.5);
         loadedTexture.rotation = Math.PI; // 180 degrees in radians
         
-        // Flip the texture horizontally by setting a negative scale
-        loadedTexture.repeat.set(-1, 1);
+        // Apply scale and offset
+        loadedTexture.repeat.set(-textureScale, textureScale);
+        loadedTexture.offset.set(textureOffset.x, textureOffset.y);
         
         setTexture(loadedTexture);
       });
@@ -60,14 +62,23 @@ function SimpleAstronautViewer({ modelPath, textureUrl }) {
           texture.dispose();
         }
       };
-    }, [textureUrl, texture]);
+    }, [textureUrl, texture, textureOffset, textureScale]);
+    
+    // Update texture offset and scale when they change
+    useEffect(() => {
+      if (texture) {
+        texture.repeat.set(-textureScale, textureScale);
+        texture.offset.set(textureOffset.x, textureOffset.y);
+        texture.needsUpdate = true;
+      }
+    }, [texture, textureOffset, textureScale]);
     
     // Apply texture to the model
     useEffect(() => {
-      if (!scene || !texture) return;
+      if (!clonedScene || !texture) return;
       
       console.log("Applying new texture to model:", texture.uuid);
-      scene.traverse((child) => {
+      clonedScene.traverse((child) => {
         if (child.isMesh) {
           const nameLower = child.name.toLowerCase();
           
@@ -107,11 +118,11 @@ function SimpleAstronautViewer({ modelPath, textureUrl }) {
           }
         }
       });
-    }, [scene, texture]);
+    }, [clonedScene, texture]);
     
     return <primitive 
       ref={modelRef} 
-      object={scene} 
+      object={clonedScene} 
       scale={1.4}
     />;
   }
@@ -152,6 +163,9 @@ export default function AstronautCustomizerModal({ isOpen, onClose, onSave, defa
   const [selectedModel, setSelectedModel] = useState('astronaut1');
   const [customImageUrl, setCustomImageUrl] = useState(null);
   const [activeTextureUrl, setActiveTextureUrl] = useState(defaultProfileImage);
+  const [textureOffset, setTextureOffset] = useState({ x: 0, y: 0 });
+  const [textureScale, setTextureScale] = useState(1);
+  const [viewerKey, setViewerKey] = useState(0);
   
   // Debug logging
   console.log('AstronautCustomizerModal: Rendering with isOpen:', isOpen);
@@ -181,9 +195,11 @@ export default function AstronautCustomizerModal({ isOpen, onClose, onSave, defa
         const result = event.target.result;
         console.log("Custom image loaded successfully");
         
-        // Update states
+        // Update states and reset transformations
         setCustomImageUrl(result);
         setActiveTextureUrl(result);
+        setTextureOffset({ x: 0, y: 0 });
+        setTextureScale(1);
       };
       
       reader.readAsDataURL(file);
@@ -194,9 +210,12 @@ export default function AstronautCustomizerModal({ isOpen, onClose, onSave, defa
   const handleSave = () => {
     const astronautModel = astronautModels.find(model => model.id === selectedModel);
     console.log("Saving customized astronaut with", customImageUrl ? "custom image" : "default image");
+    
     onSave({
       modelPath: astronautModel.path,
-      customImage: customImageUrl || defaultProfileImage
+      customImage: customImageUrl || defaultProfileImage,
+      textureOffset,
+      textureScale,
     });
     onClose();
   };
@@ -220,8 +239,10 @@ export default function AstronautCustomizerModal({ isOpen, onClose, onSave, defa
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 9999
+        zIndex: 9999,
+        padding: '1rem'
       }}
+      onClick={onClose}
     >
       <div 
         style={{
@@ -231,8 +252,11 @@ export default function AstronautCustomizerModal({ isOpen, onClose, onSave, defa
           padding: '1.5rem',
           borderRadius: '0.5rem',
           maxWidth: '400px',
-          width: '90%'
+          width: '90%',
+          maxHeight: '90vh',
+          overflowY: 'auto'
         }}
+        onClick={(e) => e.stopPropagation()}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
           <h2 style={{ fontSize: '1.25rem', color: 'white', margin: 0 }}>
@@ -247,11 +271,13 @@ export default function AstronautCustomizerModal({ isOpen, onClose, onSave, defa
         </div>
         
         {/* 3D preview of astronaut with applied texture */}
-        <div style={{ height: '28rem', marginBottom: '1rem' }}>
+        <div style={{ height: '20rem', marginBottom: '1rem' }}>
           <SimpleAstronautViewer 
-            key={`${selectedModel}-${activeTextureUrl}`}
+            key={`${selectedModel}-${viewerKey}`}
             modelPath={astronautModels.find(model => model.id === selectedModel)?.path || '/astronaut.glb'} 
             textureUrl={activeTextureUrl}
+            textureOffset={textureOffset}
+            textureScale={textureScale}
           />
         </div>
         
@@ -273,6 +299,7 @@ export default function AstronautCustomizerModal({ isOpen, onClose, onSave, defa
                 const currentIndex = astronautModels.findIndex(m => m.id === selectedModel);
                 const prevIndex = (currentIndex - 1 + astronautModels.length) % astronautModels.length;
                 setSelectedModel(astronautModels[prevIndex].id);
+                setViewerKey(prev => prev + 1);
               }}
               style={{
                 background: 'none',
@@ -310,6 +337,7 @@ export default function AstronautCustomizerModal({ isOpen, onClose, onSave, defa
                 const currentIndex = astronautModels.findIndex(m => m.id === selectedModel);
                 const nextIndex = (currentIndex + 1) % astronautModels.length;
                 setSelectedModel(astronautModels[nextIndex].id);
+                setViewerKey(prev => prev + 1);
               }}
               style={{
                 background: 'none',
@@ -359,6 +387,112 @@ export default function AstronautCustomizerModal({ isOpen, onClose, onSave, defa
               style={{ display: 'none' }}
             />
           </label>
+          
+          {/* Image transformation controls */}
+          {activeTextureUrl && (
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ display: 'block', color: 'white', marginBottom: '0.5rem', fontSize: '0.875rem' }}>
+                Image Adjustments
+              </label>
+              
+              {/* Compact grid layout for controls */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                {/* Scale control */}
+                <div>
+                  <label style={{ display: 'block', color: '#d1d5db', marginBottom: '0.25rem', fontSize: '0.75rem' }}>
+                    Zoom: {textureScale.toFixed(1)}x
+                  </label>
+                  <input
+                    type="range"
+                    min="0.5"
+                    max="3"
+                    step="0.1"
+                    value={textureScale}
+                    onChange={(e) => setTextureScale(parseFloat(e.target.value))}
+                    style={{
+                      width: '100%',
+                      height: '4px',
+                      borderRadius: '2px',
+                      background: '#374151',
+                      outline: 'none',
+                      cursor: 'pointer'
+                    }}
+                  />
+                </div>
+                
+                {/* Reset button */}
+                <div style={{ display: 'flex', alignItems: 'end' }}>
+                  <button
+                    onClick={() => {
+                      setTextureOffset({ x: 0, y: 0 });
+                      setTextureScale(1);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '0.25rem',
+                      backgroundColor: '#6b7280',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '0.25rem',
+                      cursor: 'pointer',
+                      fontSize: '0.75rem'
+                    }}
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
+              
+              {/* Position controls in grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                {/* X offset control */}
+                <div>
+                  <label style={{ display: 'block', color: '#d1d5db', marginBottom: '0.25rem', fontSize: '0.75rem' }}>
+                    H-Pos: {textureOffset.x.toFixed(2)}
+                  </label>
+                  <input
+                    type="range"
+                    min="-1"
+                    max="1"
+                    step="0.01"
+                    value={textureOffset.x}
+                    onChange={(e) => setTextureOffset(prev => ({ ...prev, x: parseFloat(e.target.value) }))}
+                    style={{
+                      width: '100%',
+                      height: '4px',
+                      borderRadius: '2px',
+                      background: '#374151',
+                      outline: 'none',
+                      cursor: 'pointer'
+                    }}
+                  />
+                </div>
+                
+                {/* Y offset control */}
+                <div>
+                  <label style={{ display: 'block', color: '#d1d5db', marginBottom: '0.25rem', fontSize: '0.75rem' }}>
+                    V-Pos: {textureOffset.y.toFixed(2)}
+                  </label>
+                  <input
+                    type="range"
+                    min="-1"
+                    max="1"
+                    step="0.01"
+                    value={textureOffset.y}
+                    onChange={(e) => setTextureOffset(prev => ({ ...prev, y: parseFloat(e.target.value) }))}
+                    style={{
+                      width: '100%',
+                      height: '4px',
+                      borderRadius: '2px',
+                      background: '#374151',
+                      outline: 'none',
+                      cursor: 'pointer'
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
           
           {/* Action buttons */}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>

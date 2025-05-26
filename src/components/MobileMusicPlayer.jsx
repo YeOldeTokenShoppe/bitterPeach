@@ -1,0 +1,546 @@
+import React, { useState, useRef, useEffect } from "react";
+import { Box, Text } from "@chakra-ui/react";
+import { storage } from "../utilities/firebaseClient";
+import { ref as storageRefUtil, getDownloadURL } from "firebase/storage";
+
+const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = false, onModeChange }) => {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
+  const [trackUrl, setTrackUrl] = useState("");
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
+  const [showModeChoice, setShowModeChoice] = useState(false);
+  const [longPressTimer, setLongPressTimer] = useState(null);
+  const audioRef = useRef(null);
+
+  // Track lists
+  const non80sTrackNames = [
+    "Rocket Man - Steven Drozd",
+    "Magnetic - Tunde Adebimpe",
+  ];
+  const non80sFirebasePaths = [
+    "audio/320k/rocket-man---steven-drozd.m4a",
+    "audio/320k/01-magnetic.m4a",
+
+  ];
+
+  const eightyTrackNames = [
+    "For Those About To Rock - AC/DC",
+    "Dirty Cash - The Adventures of Stevie V", 
+    "Intergalactic - Beastie Boys",
+    "Good Life - Inner City",
+    "Like A Prayer - Madonna",
+    "99 Luftballoons - Nena",
+    "Sweet Dreams - Eurythmics",
+  ];
+  const eightyFirebasePaths = [
+    "audio/320k/for-those-about-to-rock-ac-dc.m4a",
+    "audio/320k/dirty-cash.m4a", 
+    "audio/320k/intergalactic-beastie-boys.m4a",
+    "audio/320k/good-life-inner-city.m4a",
+    "audio/320k/like-a-prayer-madonna.m4a",
+    "audio/320k/99-luftballoons-nena.m4a",
+    "audio/320k/sweet-dreams-eurythmics.m4a",
+  ];
+
+  const trackNames = is80sMode ? eightyTrackNames : non80sTrackNames;
+  const firebasePaths = is80sMode ? eightyFirebasePaths : non80sFirebasePaths;
+
+  // Load track from Firebase
+  const loadTrack = async (index) => {
+    try {
+      const audioRef = storageRefUtil(storage, firebasePaths[index]);
+      const url = await getDownloadURL(audioRef);
+      setTrackUrl(url);
+      setCurrentTrackIndex(index);
+      setIsLoaded(true);
+      console.log(`✅ Mobile: Loaded track ${index}: ${trackNames[index]}`);
+    } catch (error) {
+      console.error("❌ Mobile: Error loading track:", error);
+    }
+  };
+
+  // Initialize with first track
+  useEffect(() => {
+    if (isVisible && trackNames.length > 0) {
+      loadTrack(0);
+    }
+  }, [isVisible, is80sMode]);
+
+  // Auto-play when track loads
+  useEffect(() => {
+    if (trackUrl && autoPlay && audioRef.current && isVisible) {
+      // Small delay to ensure audio element is ready
+      setTimeout(() => {
+        if (audioRef.current) {
+          audioRef.current.play().then(() => {
+            setIsPlaying(true);
+            console.log("🎵 Mobile: Auto-playing track");
+          }).catch(e => {
+            console.log("🔇 Mobile: Auto-play blocked by browser");
+          });
+        }
+      }, 100);
+    }
+  }, [trackUrl, autoPlay, isVisible]);
+
+  // Handle track end
+  const handleTrackEnd = () => {
+    const nextIndex = (currentTrackIndex + 1) % trackNames.length;
+    loadTrack(nextIndex);
+  };
+
+  // Toggle play/pause
+  const togglePlayPause = () => {
+    if (!audioRef.current) return;
+
+    if (isPlaying) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    } else {
+      audioRef.current.play().then(() => {
+        setIsPlaying(true);
+      }).catch(e => {
+        console.log("🔇 Mobile: Play blocked by browser");
+      });
+    }
+  };
+
+  // Skip to next track
+  const skipNext = () => {
+    if (trackNames.length <= 1) {
+      console.log("🎵 Mobile: Only one track available, cannot skip");
+      return;
+    }
+    const nextIndex = (currentTrackIndex + 1) % trackNames.length;
+    console.log(`🎵 Mobile: Skipping to next track ${nextIndex}: ${trackNames[nextIndex]} (from ${currentTrackIndex})`);
+    setIsPlaying(false); // Stop current track
+    loadTrack(nextIndex);
+  };
+
+  // Skip to previous track
+  const skipPrevious = () => {
+    if (trackNames.length <= 1) {
+      console.log("🎵 Mobile: Only one track available, cannot skip");
+      return;
+    }
+    const prevIndex = currentTrackIndex === 0 ? trackNames.length - 1 : currentTrackIndex - 1;
+    console.log(`🎵 Mobile: Skipping to previous track ${prevIndex}: ${trackNames[prevIndex]} (from ${currentTrackIndex})`);
+    setIsPlaying(false); // Stop current track
+    loadTrack(prevIndex);
+  };
+
+  // Long press handlers for genre switching
+  const handleLongPressStart = () => {
+    const timer = setTimeout(() => {
+      console.log("🎵 Mobile: Long press detected - showing mode choice");
+      setShowModeChoice(true);
+    }, 800); // 800ms long press
+    setLongPressTimer(timer);
+  };
+
+  const handleLongPressEnd = () => {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      setLongPressTimer(null);
+    }
+  };
+
+  // Handle mode change from popup
+  const handleModeChoice = (enable80s) => {
+    setShowModeChoice(false);
+    
+    if (onModeChange) {
+      const wasPlaying = isPlaying;
+      setIsPlaying(false); // Stop current track
+      setCurrentTrackIndex(0); // Reset to first track of new mode
+      onModeChange(enable80s);
+      
+      // After mode change, if we were playing, start the new track
+      if (wasPlaying) {
+        setTimeout(() => {
+          loadTrack(0);
+        }, 200);
+      }
+    }
+  };
+
+  if (!isVisible) {
+    console.log("🎵 Mobile music player: not visible, showSpotify =", isVisible);
+    return null;
+  }
+
+  console.log("🎵 Mobile music player: rendering with isVisible =", isVisible, "is80sMode =", is80sMode);
+
+  return (
+    <Box
+      position="fixed"
+      bottom={isMinimized ? "11px" : "100px"} // Move to exact bottom nav button position when minimized
+      left={isMinimized ? "calc((100% / 5) * 0.5 - 24px)" : "50%"} // Position at leftmost button location when minimized
+      transform={isMinimized ? "none" : "translateX(-50%)"}
+      width={isMinimized ? "48px" : "280px"} // Match button size when minimized
+      height={isMinimized ? "48px" : "100px"}
+      bg={isMinimized ? "transparent" : "rgba(15, 23, 42, 0.95)"}
+      border={isMinimized ? "2px solid #22d3ee" : "2px solid #22d3ee"}
+      borderRadius={isMinimized ? "50%" : "12px"}
+      backdropFilter={isMinimized ? "none" : "blur(10px)"}
+      boxShadow={isMinimized ? "0 0 10px rgba(6, 182, 212, 0.3), inset 0 0 6px rgba(6, 182, 212, 0.2)" : "0 4px 20px rgba(6, 182, 212, 0.8)"}
+      display="flex"
+      alignItems="center"
+      justifyContent={isMinimized ? "center" : "flex-start"}
+      gap={isMinimized ? 0 : 3}
+      p={isMinimized ? 0 : 2}
+      zIndex={isMinimized ? "1001" : "9999"} // Lower z-index when minimized to blend with nav
+      transition="all 0.5s ease"
+    >
+      {/* Audio Element */}
+      {trackUrl && (
+        <audio
+          ref={audioRef}
+          src={trackUrl}
+          onEnded={handleTrackEnd}
+          onLoadedData={() => setIsLoaded(true)}
+          preload="metadata"
+        />
+      )}
+
+      {/* Album Art - Only when minimized (becomes the button) */}
+      {isMinimized && (
+        <Box
+          role="group"
+          width="48px"
+          height="48px"
+          borderRadius="50%"
+          backgroundImage="url('/virginRecords.jpg')"
+          backgroundSize="cover"
+          backgroundPosition="center"
+          display="flex"
+          alignItems="center"
+          justifyContent="center"
+          position="relative"
+          cursor="pointer"
+          onClick={() => setIsMinimized(false)}
+          onDoubleClick={onClose}
+          transition="all 0.5s ease"
+          _hover={{
+            transform: "scale(1.08)",
+            boxShadow: "0 0 15px rgba(6, 182, 212, 0.5)"
+          }}
+          sx={{
+            animation: isPlaying ? "spin 3s linear infinite" : "none",
+            "@keyframes spin": {
+              "0%": { transform: "rotate(0deg)" },
+              "100%": { transform: "rotate(360deg)" }
+            }
+          }}
+        >
+          {/* Play/Pause Icon Overlay - Only when minimized */}
+          <Box
+            position="absolute"
+            top="50%"
+            left="50%"
+            transform="translate(-50%, -50%)"
+            width="20px"
+            height="20px"
+            borderRadius="50%"
+            bg="rgba(0, 0, 0, 0.7)"
+            display="flex"
+            alignItems="center"
+            justifyContent="center"
+            color="white"
+            fontSize="10px"
+            userSelect="none"
+            cursor="pointer"
+            onClick={(e) => {
+              e.stopPropagation();
+              togglePlayPause();
+            }}
+          >
+            {isPlaying ? "⏸️" : "▶️"}
+          </Box>
+          
+          {/* Expand hint on hover when minimized */}
+          <Box
+            position="absolute"
+            bottom="-20px"
+            left="50%"
+            transform="translateX(-50%)"
+            fontSize="7px"
+            color="#22d3ee"
+            opacity="0"
+            transition="opacity 0.3s ease"
+            pointerEvents="none"
+            userSelect="none"
+            textAlign="center"
+            _groupHover={{ opacity: 1 }}
+          >
+            <Text fontSize="8px">⬆</Text>
+            <Text fontSize="6px" mt="-2px">2x = close</Text>
+          </Box>
+        </Box>
+      )}
+
+      {/* Track Info - Hidden when minimized */}
+      {!isMinimized && (
+        <Box flex="1" minWidth="0" px={3}>
+          <Text
+            fontSize="0.75rem"
+            fontWeight="bold"
+            color="#22d3ee"
+            fontFamily="monospace"
+            overflow="hidden"
+            textOverflow="ellipsis"
+            whiteSpace="nowrap"
+            mb={2}
+            textAlign="center"
+          >
+            {trackNames[currentTrackIndex] || "Loading..."}
+          </Text>
+          <Box display="flex" flexDirection="column" gap={1}>
+            {/* Centered Forward/Album/Back Controls */}
+            <Box display="flex" gap={6} justifyContent="center" alignItems="center">
+              <Text
+                fontSize="1.5rem"
+                color="#67e8f9"
+                cursor="pointer"
+                p={2}
+                borderRadius="8px"
+                _hover={{ 
+                  color: "#22d3ee",
+                  bg: "rgba(34, 211, 238, 0.15)",
+                  transform: "scale(1.15)"
+                }}
+                onClick={skipPrevious}
+                userSelect="none"
+                transition="all 0.2s ease"
+              >
+                ⏮️
+              </Text>
+              
+              {/* Central Album Art with Play/Pause */}
+              <Box
+                width="60px"
+                height="60px"
+                minWidth="60px"
+                minHeight="60px"
+                borderRadius="50%"
+                backgroundImage="url('/virginRecords.jpg')"
+                backgroundSize="cover"
+                backgroundPosition="center"
+                backgroundRepeat="no-repeat"
+                display="flex"
+                alignItems="center"
+                justifyContent="center"
+                position="relative"
+                cursor="pointer"
+                onClick={togglePlayPause}
+                onMouseDown={handleLongPressStart}
+                onMouseUp={handleLongPressEnd}
+                onMouseLeave={handleLongPressEnd}
+                onTouchStart={handleLongPressStart}
+                onTouchEnd={handleLongPressEnd}
+                transition="all 0.3s ease"
+                border="2px solid #22d3ee"
+                flexShrink="0"
+                _hover={{
+                  transform: "scale(1.1)",
+                  boxShadow: "0 0 15px rgba(34, 211, 238, 0.6)"
+                }}
+                sx={{
+                  animation: isPlaying ? "spin 3s linear infinite" : "none",
+                  "@keyframes spin": {
+                    "0%": { transform: "rotate(0deg)" },
+                    "100%": { transform: "rotate(360deg)" }
+                  }
+                }}
+              >
+                {/* Play/Pause Icon Overlay */}
+                <Box
+                  position="absolute"
+                  top="50%"
+                  left="50%"
+                  transform="translate(-50%, -50%)"
+                  width="28px"
+                  height="28px"
+                  borderRadius="50%"
+                  bg="rgba(0, 0, 0, 0.7)"
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="center"
+                  color="white"
+                  fontSize="14px"
+                  userSelect="none"
+                >
+                  {isPlaying ? "⏸️" : "▶️"}
+                </Box>
+              </Box>
+              
+              <Text
+                fontSize="1.5rem"
+                color="#67e8f9"
+                cursor="pointer"
+                p={2}
+                borderRadius="8px"
+                _hover={{ 
+                  color: "#22d3ee",
+                  bg: "rgba(34, 211, 238, 0.15)",
+                  transform: "scale(1.15)"
+                }}
+                onClick={skipNext}
+                userSelect="none"
+                transition="all 0.2s ease"
+              >
+                ⏭️
+              </Text>
+            </Box>
+            
+            {/* Mode Indicator */}
+            <Box textAlign="center">
+              <Text
+                fontSize="0.6rem"
+                color="#67e8f9"
+                userSelect="none"
+              >
+                {is80sMode ? "80s" : "Alt"}
+              </Text>
+            </Box>
+          </Box>
+        </Box>
+      )}
+
+      {/* Minimize Button - Right side of controls */}
+      {!isMinimized && (
+        <Box>
+          <Box
+            width="40px"
+            height="40px"
+            borderRadius="50%"
+            bg="rgba(34, 211, 238, 0.25)"
+            border="2px solid #22d3ee"
+            display="flex"
+            alignItems="center"
+            justifyContent="center"
+            cursor="pointer"
+            fontSize="1.2rem"
+            color="#22d3ee"
+            boxShadow="0 0 12px rgba(34, 211, 238, 0.4)"
+            _hover={{
+              bg: "rgba(34, 211, 238, 0.4)",
+              boxShadow: "0 0 20px rgba(34, 211, 238, 0.7)",
+              transform: "scale(1.15)"
+            }}
+            onClick={() => setIsMinimized(!isMinimized)}
+            transition="all 0.2s ease"
+          >
+            ⬇
+          </Box>
+        </Box>
+      )}
+      
+      {/* Mode Choice Popup */}
+      {showModeChoice && (
+        <Box
+          position="fixed"
+          top="0"
+          left="0"
+          width="100%"
+          height="100%"
+          bg="rgba(0, 0, 0, 0.7)"
+          display="flex"
+          alignItems="center"
+          justifyContent="center"
+          zIndex="10001"
+          onClick={() => setShowModeChoice(false)}
+        >
+          <Box
+            bg="rgba(15, 23, 42, 0.95)"
+            border="2px solid #22d3ee"
+            borderRadius="16px"
+            p={6}
+            backdropFilter="blur(10px)"
+            boxShadow="0 4px 20px rgba(6, 182, 212, 0.8)"
+            onClick={(e) => e.stopPropagation()}
+            maxWidth="300px"
+            width="90%"
+          >
+            <Text
+              fontSize="1.2rem"
+              fontWeight="bold"
+              color="#22d3ee"
+              textAlign="center"
+              mb={4}
+              fontFamily="monospace"
+            >
+              Switch Music Mode
+            </Text>
+            
+            <Box display="flex" flexDirection="column" gap={3}>
+              <Box
+                as="button"
+                width="100%"
+                bg="rgba(34, 211, 238, 0.2)"
+                border="1px solid #22d3ee"
+                color="#22d3ee"
+                borderRadius="8px"
+                p={4}
+                onClick={() => handleModeChoice(true)}
+                _hover={{
+                  bg: "rgba(34, 211, 238, 0.3)",
+                  transform: "scale(1.02)"
+                }}
+                transition="all 0.2s ease"
+              >
+                <Box textAlign="center">
+                  <Text fontSize="1rem" fontWeight="bold">🌊 80s Mode</Text>
+                  <Text fontSize="0.8rem" opacity={0.8}>Synthwave & Retro Hits</Text>
+                </Box>
+              </Box>
+              
+              <Box
+                as="button"
+                width="100%"
+                bg="rgba(34, 211, 238, 0.2)"
+                border="1px solid #22d3ee"
+                color="#22d3ee"
+                borderRadius="8px"
+                p={4}
+                onClick={() => handleModeChoice(false)}
+                _hover={{
+                  bg: "rgba(34, 211, 238, 0.3)",
+                  transform: "scale(1.02)"
+                }}
+                transition="all 0.2s ease"
+              >
+                <Box textAlign="center">
+                  <Text fontSize="1rem" fontWeight="bold">🚀 Alternative</Text>
+                  <Text fontSize="0.8rem" opacity={0.8}>Space & Ambient Tracks</Text>
+                </Box>
+              </Box>
+            </Box>
+            
+            <Box
+              as="button"
+              width="100%"
+              mt={4}
+              bg="transparent"
+              border="1px solid #6b7280"
+              color="#6b7280"
+              borderRadius="8px"
+              p={2}
+              onClick={() => setShowModeChoice(false)}
+              _hover={{
+                bg: "rgba(107, 114, 128, 0.1)"
+              }}
+              transition="all 0.2s ease"
+            >
+              Cancel
+            </Box>
+          </Box>
+        </Box>
+      )}
+      
+    </Box>
+  );
+};
+
+export default MobileMusicPlayer;

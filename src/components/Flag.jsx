@@ -181,7 +181,7 @@ flagRef
   }, [flagRef]);
 
   return (
-<group ref={meshRef} position={[0, 0, 0]}>
+<group ref={meshRef} position={[0, 0, 0]} scale={[2, 2, 2]}>
   {/* Flag Cloth */}
   <mesh
     geometry={clothGeom}

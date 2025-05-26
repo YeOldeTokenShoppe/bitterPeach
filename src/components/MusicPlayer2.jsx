@@ -27,10 +27,12 @@ const MusicPlayer = React.forwardRef(
     // --- Track List for Non-80s Mode ---
     const non80sTrackNames = [
       "Rocket Man - Steven Drozd",
+      "Magnetic - Tunde Adebimpe",
       // Add more track names here later
     ];
     const non80sFirebasePaths = [
       "audio/320k/rocket-man---steven-drozd.m4a", // Ensure this path is correct in your storage
+      "audio/320k/01-magnetic.m4a",
       // Add corresponding Firebase paths here
     ];
     // --- End Track List ---

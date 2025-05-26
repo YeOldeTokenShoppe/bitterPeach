@@ -820,7 +820,11 @@ function Model({
 
   // Toggle floor textures when 80s mode changes
   useEffect(() => {
-    if (!gltf || !gltf.scene) return;
+    console.log('🎛️ Model.jsx: 80s mode changed to:', is80sMode);
+    if (!gltf || !gltf.scene) {
+      console.warn('⚠️ Model.jsx: gltf or scene not available');
+      return;
+    }
 
     // Create a texture loader
     const textureLoader = new THREE.TextureLoader();
@@ -851,9 +855,18 @@ function Model({
     };
 
     // Find floor objects in the model
+    console.log('🔍 Model.jsx: Searching for Floor2.002 object...');
+    let floorFound = false;
     gltf.scene.traverse(child => {
+      // Log all mesh names for debugging
+      if (child.isMesh) {
+        console.log('🔍 Found mesh:', child.name);
+      }
+      
       // Check for any mesh with "Floor" in its name (case insensitive)
-      if (child.isMesh && child.name === "Floor2.002") {
+      if (child.isMesh && (child.name === "Floor" || child.name === "Floor2.002")) {
+        floorFound = true;
+        console.log('✅ Found floor object for texture application:', child.name);
         // Store the original texture if we haven't already
         if (!child.userData.originalTexture && child.material && child.material.map) {
           child.userData.originalTexture = child.material.map;
@@ -862,39 +875,55 @@ function Model({
 
         // Toggle between original and 80s texture
         if (is80sMode) {
-          textureLoader.load(textureConfig.path, texture => {
-            // Apply all texture settings
-            applyTextureWithSettings(texture, textureConfig);
+          console.log('🌊 Loading 80s carpet texture:', textureConfig.path);
+          textureLoader.load(
+            textureConfig.path, 
+            // Success callback
+            texture => {
+              console.log('✅ 80s carpet texture loaded successfully!');
+              // Apply all texture settings
+              applyTextureWithSettings(texture, textureConfig);
 
-            if (child.material) {
-              // Create a new material or update existing one
-              const applyMaterial = mat => {
-                mat.map = texture;
+              if (child.material) {
+                // Create a new material or update existing one
+                const applyMaterial = mat => {
+                  mat.map = texture;
 
-                // Add emissive properties if configured
-                if (textureConfig.emissive) {
-                  // Use white as emissive color to preserve the original colors
-                  mat.emissive = new THREE.Color(textureConfig.emissiveColor);
-                  mat.emissiveMap = texture; // Use same texture for emissive map
-                  mat.emissiveIntensity = textureConfig.emissiveIntensity;
+                  // Add emissive properties if configured
+                  if (textureConfig.emissive) {
+                    // Use white as emissive color to preserve the original colors
+                    mat.emissive = new THREE.Color(textureConfig.emissiveColor);
+                    mat.emissiveMap = texture; // Use same texture for emissive map
+                    mat.emissiveIntensity = textureConfig.emissiveIntensity;
 
-                  // Make the black background truly black by adjusting material properties
-                  mat.roughness = 0.8; // Less shiny
-                  mat.metalness = 0.2; // Slight metallic look for neon effect
+                    // Make the black background truly black by adjusting material properties
+                    mat.roughness = 0.8; // Less shiny
+                    mat.metalness = 0.2; // Slight metallic look for neon effect
+                  }
+
+                  mat.needsUpdate = true;
+                };
+
+                // If the material is an array, update all materials
+                if (Array.isArray(child.material)) {
+                  child.material.forEach(applyMaterial);
+                } else {
+                  // Single material
+                  applyMaterial(child.material);
                 }
-
-                mat.needsUpdate = true;
-              };
-
-              // If the material is an array, update all materials
-              if (Array.isArray(child.material)) {
-                child.material.forEach(applyMaterial);
-              } else {
-                // Single material
-                applyMaterial(child.material);
+                console.log('🎨 Applied 80s carpet texture to', child.name);
               }
+            },
+            // Progress callback
+            progress => {
+              console.log('📊 Loading 80s carpet texture progress:', progress);
+            },
+            // Error callback
+            error => {
+              console.error('❌ Failed to load 80s carpet texture:', error);
+              console.error('❌ Texture path was:', textureConfig.path);
             }
-          });
+          );
         } else if (child.userData.originalMaterial) {
           // Restore original material
 
@@ -924,6 +953,10 @@ function Model({
         }
       }
     });
+    
+    if (!floorFound) {
+      console.warn('⚠️ Floor2.002 object not found in the model');
+    }
   }, [is80sMode, gltf]);
 
   // Modify your applyUserImageToLabel function

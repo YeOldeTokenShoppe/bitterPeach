@@ -606,6 +606,14 @@ const SidePanel = ({
           toggle80sMode(); // Call the function passed via props
           break;
 
+        case "SYNC_80S_STATE": // Received from iframe for PostProcessingEffects
+          console.log("[SidePanel] Received SYNC_80S_STATE:", event.data.enabled);
+          // Update the 80s mode state to match the iframe state
+          if (event.data.enabled !== is80sMode) {
+            toggle80sMode();
+          }
+          break;
+
         // Add new case for rocket model toggle
         case "TOGGLE_ROCKET_MODEL":
 
@@ -686,11 +694,12 @@ const SidePanel = ({
           }
           break;
 
-        // We might not need MUSIC_TOGGLE from iframe anymore if STEREO_POWER_STATE handles it
-        // case "MUSIC_TOGGLE":
-        //   console.log("Music toggle requested");
-        //   setShowSpotify(!showSpotify);
-        //   break;
+        // Handle music toggle from cyberpunk mission control
+        case "MUSIC_TOGGLE":
+          console.log("🎵 Music toggle requested from iframe:", event.data);
+          console.log("🎵 Setting showSpotify to:", event.data.enabled);
+          setShowSpotify(event.data.enabled);
+          break;
 
         // IFRAME_MUSIC_STATE might be useful for debugging
         case "IFRAME_MUSIC_STATE":
@@ -706,6 +715,18 @@ const SidePanel = ({
             console.error(
               "SidePanel: toggleConstellationVisibility function not received as prop"
             );
+          }
+          break;
+
+        // Handle rocket launch action
+        case "ROCKET_LAUNCH":
+          console.log("🚀 Rocket launch triggered from cyberpunk mission control");
+          // Send launch message to the rocket model component
+          if (window.parent) {
+            window.parent.postMessage({
+              type: "ROCKET_LAUNCH_EXECUTE",
+              timestamp: Date.now()
+            }, "*");
           }
           break;
 
@@ -919,13 +940,23 @@ const SidePanel = ({
 
   // Add a function to handle rocket model toggle
   const handleRocketModelToggle = () => {
-
-    toggleRocketModel();
+    
+    // First ensure monster mode is enabled (required for rocket to appear)
+    if (!monsterMode) {
+      console.log("🚀 Enabling monster mode for rocket model");
+      toggleMonsterMode();
+    }
+    
+    // Then toggle rocket model visibility
+    if (!rocketModelVisible) {
+      console.log("🚀 Making rocket model visible");
+      toggleRocketModel();
+    }
 
     // Send message to iframe
     sendMessageToIframe({
       type: "SET_ROCKET_MODEL_VISIBLE",
-      isVisible: !rocketModelVisible,
+      isVisible: true, // Always set to true when ignition is triggered
     });
   };
 
@@ -1142,7 +1173,7 @@ const SidePanel = ({
         <Box flex="1" minHeight="0" overflow="hidden">
           <iframe
             ref={missionControlIframeRef}
-            src="/cyberpunk_mission_control.html"
+            src="/cyberpunk_mission_control_clean.html"
             style={{
               width: "100%",
               height: "100%",

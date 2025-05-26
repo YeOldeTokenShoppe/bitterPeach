@@ -1034,7 +1034,11 @@ const ThreeDVotiveStand = forwardRef(({
 
         {/* Add the constellation model before the star field */}
         <Suspense fallback={null}>
-          <ConstellationModel isVisible={isConstellationsVisible} />
+          <ConstellationModel 
+            isVisible={isConstellationsVisible} 
+            groupScale={[30, 30, 30]} // Original scale for 3DVotiveStand
+            groupPosition={[0, 0, -300]} // Original position for 3DVotiveStand
+          />
         </Suspense>
 
         {/* Render the stars last */}

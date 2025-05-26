@@ -22,6 +22,11 @@ const MusicPlayer2 = dynamic(() => import("./MusicPlayer2"), {
   ssr: false,
 });
 
+// Dynamically import the Mobile Music Player component
+const MobileMusicPlayer = dynamic(() => import("./MobileMusicPlayer"), {
+  ssr: false,
+});
+
 const MobileSidePanel = ({
   onButtonClick,
   is80sMode,
@@ -48,6 +53,9 @@ const MobileSidePanel = ({
   const [sitePalState, setSitePalState] = useState("loading");
   const [sitePalError, setSitePalError] = useState(null);
   const [eightiesMode, setEightiesMode] = useState(false);
+  const [rocketButtonMode, setRocketButtonMode] = useState('navigate'); // 'navigate' or 'launch'
+  const [showMobileMusicPlayer, setShowMobileMusicPlayer] = useState(false);
+  const [musicPlayerVisible, setMusicPlayerVisible] = useState(false);
   const [modeIndex, setModeIndex] = useState(0);
   const [recording, setRecording] = useState(false);
   const [processingVisible, setProcessingVisible] = useState(false);
@@ -74,19 +82,50 @@ const MobileSidePanel = ({
   const openSettings = () => setIsSettingsOpen(true);
   const closeSettings = () => setIsSettingsOpen(false);
 
+  // Music player handlers
+  const handleMusicModeChange = (newMode) => {
+    if (newMode === '80s' && !is80sMode) {
+      toggle80sMode();
+    } else if (newMode === 'space' && is80sMode) {
+      toggle80sMode();
+    }
+  };
+
+  const handleMusicPlayerClose = () => {
+    setShowMobileMusicPlayer(false);
+    setMusicPlayerVisible(false);
+  };
+
+  // Auto-show music player when 80s mode is activated
+  useEffect(() => {
+    if (is80sMode) {
+      setShowMobileMusicPlayer(true);
+      setMusicPlayerVisible(true);
+    } else {
+      setShowMobileMusicPlayer(false);
+      setMusicPlayerVisible(false);
+    }
+  }, [is80sMode]);
+
   // Function to toggle rocket model visibility - now uses the prop function
   const handleRocketModelToggle = () => {
-    toggleRocketModel();
-    // Send message to iframe
-    if (missionControlIframeRef.current) {
-      missionControlIframeRef.current.contentWindow.postMessage(
-        {
-          type: "rocketModelToggle",
-          visible: !rocketModelVisible,
-        },
-        "*"
-      );
+    // First ensure monster mode is enabled (required for rocket to appear)
+    if (!monsterMode) {
+      console.log("🚀 Enabling monster mode for rocket model (mobile)");
+      toggleMonsterMode();
     }
+    
+    // Then toggle rocket model visibility
+    if (!rocketModelVisible) {
+      console.log("🚀 Making rocket model visible (mobile)");
+      toggleRocketModel();
+    }
+
+    // Send message to iframe
+    sendMessageToMissionControl({
+      type: "SET_ROCKET_MODEL_VISIBLE",
+      isVisible: true, // Always set to true when ignition is triggered
+    });
   };
 
   // Function to log the state of video screen elements for debugging
@@ -358,8 +397,8 @@ const MobileSidePanel = ({
   // Effect to sync rocket model state with iframe
   useEffect(() => {
     sendMessageToMissionControl({
-      type: "SYNC_ROCKET_MODEL_STATE",
-      enabled: rocketModelVisible,
+      type: "SET_ROCKET_MODEL_VISIBLE",
+      isVisible: rocketModelVisible,
     });
   }, [rocketModelVisible]); // Re-run when rocketModelVisible changes
 
@@ -402,11 +441,11 @@ const MobileSidePanel = ({
               setConnectionPhase(2);
               setActiveCall(true);
               break;
-            case "unmute":
+            case "textchat":
               setConnectionPhase(3);
               setActiveCall(true);
               setSitepalSceneLoaded(true);
-              setIsMuted(true);
+              setIsMuted(false); // Not using microphone for text
               break;
             case "disconnect":
               setConnectionPhase(4);
@@ -450,20 +489,61 @@ const MobileSidePanel = ({
               console.warn("MUSIC_TOGGLE message received without boolean 'enabled' property.");
             }
             break;
+          
+          // Add new case for rocket model toggle
+          case "TOGGLE_ROCKET_MODEL":
+            handleRocketModelToggle();
+            break;
+
+          // Handle constellation toggle
+          case "CONSTELLATION_TOGGLE":
+            if (toggleConstellationVisibility) {
+              toggleConstellationVisibility();
+            } else {
+              console.error("MobileSidePanel: toggleConstellationVisibility function not received as prop");
+            }
+            break;
+
+          // Handle rocket launch action
+          case "ROCKET_LAUNCH":
+            console.log("🚀 Rocket launch triggered from cyberpunk mission control (mobile)");
+            // Send launch message to the rocket model component
+            if (window.parent) {
+              window.parent.postMessage({
+                type: "ROCKET_LAUNCH_EXECUTE",
+                timestamp: Date.now()
+              }, "*");
+            }
+            break;
+
+          // Handle 80s mode sync for PostProcessingEffects
+          case "SYNC_80S_STATE":
+            console.log("[MobileSidePanel] Received SYNC_80S_STATE:", event.data.enabled);
+            // Update the 80s mode state to match the iframe state
+            if (event.data.enabled !== is80sMode) {
+              toggle80sMode();
+            }
+            break;
+
           case "SITEPAL_SCENE_LOADED":
             console.log("Mobile: Received SITEPAL_SCENE_LOADED");
             setSitepalSceneLoaded(true);
             // If we're in the right phase, update UI
             if (connectionPhase === 2) {
-              // We're in CONNECT phase and scene is loaded, progress to UN-MUTE phase
-              // Update the signal button to move to UN-MUTE phase
+              // We're in CONNECT phase and scene is loaded, progress to TEXT CHAT phase
+              // Hide the signal button and show text input interface
               const signalButton = document.getElementById("signal-button");
               if (signalButton) {
-                signalButton.textContent = "UN-MUTE";
-                signalButton.classList.remove("connect-pulse");
-                signalButton.classList.add("unmute");
-                setConnectionPhase(3);
+                signalButton.style.display = "none";
               }
+              
+              // Show text input interface
+              const textInputContainer = document.getElementById("text-input-container");
+              if (textInputContainer) {
+                textInputContainer.style.display = "flex";
+              }
+              
+              setConnectionPhase(3);
               
               // Fade out the transition video
               const transitionVideo = document.querySelector("video[data-transition]");
@@ -662,18 +742,23 @@ const MobileSidePanel = ({
       const safetyTimeout = setTimeout(() => {
         // Check if we're still in the connecting phase
         if (connectionPhase === 2) {
-          console.log("SitePal safety timeout triggered - forcing progress to UN-MUTE state");
-          // Force progress to the UN-MUTE state
+          console.log("SitePal safety timeout triggered - forcing progress to TEXT CHAT state");
+          // Force progress to the TEXT CHAT state
           setSitepalSceneLoaded(true);
           
-          // Update UI
+          // Update UI - hide signal button and show text input
           const signalButton = document.getElementById("signal-button");
           if (signalButton) {
-            signalButton.textContent = "UN-MUTE";
-            signalButton.classList.remove("connect-pulse");
-            signalButton.classList.add("unmute");
-            setConnectionPhase(3);
+            signalButton.style.display = "none";
           }
+          
+          // Show text input interface
+          const textInputContainer = document.getElementById("text-input-container");
+          if (textInputContainer) {
+            textInputContainer.style.display = "flex";
+          }
+          
+          setConnectionPhase(3);
           
           // Fade out the transition video
           const transitionVideo = document.querySelector("video[data-transition]");
@@ -690,18 +775,7 @@ const MobileSidePanel = ({
         }
       }, 10000); // 10 second timeout
     }
-    // UN-MUTE button clicked
-    else if (buttonText === "UN-MUTE") {
-      // Update UI
-      setConnectionPhase(4);
-      signalButton.textContent = "DISCONNECT";
-      signalButton.classList.remove("unmute");
-      signalButton.classList.add("disconnect");
-      setIsMuted(false);
-      
-      // Activate microphone directly
-      activateSitepalMicDirect();
-    }
+    // Text input is now handled separately - no UN-MUTE button needed
     // DISCONNECT button clicked
     else if (buttonText === "DISCONNECT") {
       // Update UI
@@ -819,17 +893,52 @@ const MobileSidePanel = ({
       // Set SitePal state
       setSitepalSceneLoaded(true);
       
-      // Update UI to UN-MUTE state
+      // Speak a greeting first
+      setTimeout(() => {
+        // Try multiple SitePal speaking functions
+        if (window.sayText && typeof window.sayText === 'function') {
+          try {
+            window.sayText("Welcome to the cyberpunk mission control. I'm ready to assist you through text communication.");
+            console.log("✅ SitePal greeting spoken via sayText");
+          } catch (e) {
+            console.warn("⚠️ Could not speak greeting via sayText:", e);
+          }
+        } else if (window.vhss_sayText && typeof window.vhss_sayText === 'function') {
+          try {
+            window.vhss_sayText("Welcome to the cyberpunk mission control. I'm ready to assist you through text communication.");
+            console.log("✅ SitePal greeting spoken via vhss_sayText");
+          } catch (e) {
+            console.warn("⚠️ Could not speak greeting via vhss_sayText:", e);
+          }
+        } else {
+          console.warn("⚠️ No SitePal speaking function available for greeting");
+          console.log("Available window functions:", Object.keys(window).filter(key => key.includes('say') || key.includes('vhss')));
+        }
+      }, 2000); // Increased delay to ensure SitePal is fully loaded
+      
+      // Update UI to TEXT CHAT state
       const signalButton = document.getElementById("signal-button");
       if (signalButton) {
-        signalButton.textContent = "UN-MUTE";
-        signalButton.classList.remove("connect-pulse");
-        signalButton.classList.add("unmute");
-        setConnectionPhase(3);
+        signalButton.style.display = "none";
       }
       
-      // Request microphone permission preemptively
-      requestMicrophonePermission();
+      // Show text input interface
+      const textInputContainer = document.getElementById("text-input-container");
+      if (textInputContainer) {
+        textInputContainer.style.display = "flex";
+        
+        // Focus the text input for better UX
+        setTimeout(() => {
+          const textInput = document.getElementById("sitepal-text-input");
+          if (textInput) {
+            textInput.focus();
+          }
+        }, 100);
+      }
+      
+      setConnectionPhase(3);
+      
+      // No microphone permission needed for text communication
     };
     
     // Function to request microphone permissions ahead of time
@@ -1456,8 +1565,8 @@ const MobileSidePanel = ({
       );
       missionControlIframeRef.current.contentWindow.postMessage(
         {
-          type: "SYNC_ROCKET_MODEL_STATE",
-          enabled: rocketModelVisible,
+          type: "SET_ROCKET_MODEL_VISIBLE",
+          isVisible: rocketModelVisible,
         },
         "*"
       );
@@ -1470,24 +1579,23 @@ const MobileSidePanel = ({
     
     return (
       <Box
-        position={isVideoScreenOpen ? "relative" : "fixed"}
-        bottom={isVideoScreenOpen ? "auto" : "0"}
+        position="fixed"
+        bottom="0"
         left="0"
         width="100%"
         maxWidth="450px"
         margin="0 auto"
-        marginTop={isVideoScreenOpen ? "auto" : "0"}
         background="transparent"
         overflow="hidden"
         borderRadius="0"
-        zIndex={isVideoScreenOpen ? "10" : "-1"}
-        marginLeft={isVideoScreenOpen ? "0" : "auto"}
-        marginRight={isVideoScreenOpen ? "0" : "auto"}
+        zIndex="1000"
+        marginLeft="auto"
+        marginRight="auto"
         right="0"
-        opacity={isVideoScreenOpen ? 1 : 0}
-        visibility={isVideoScreenOpen ? "visible" : "hidden"}
-        height={isVideoScreenOpen ? "auto" : "0"}
-        pointerEvents={isVideoScreenOpen ? "auto" : "none"}
+        opacity={1}
+        visibility="visible"
+        height="auto"
+        pointerEvents="auto"
       >
         <MusicPlayer2
           isVisible={showSpotify}
@@ -1524,8 +1632,8 @@ const MobileSidePanel = ({
         { time: 0, text: "Welcome to the Cyberpunk Mission Control interface." },
         { time: 3, text: "This orientation will guide you through the basic functions." },
         { time: 7, text: "You can connect with our AI assistant by clicking the CONNECT button." },
-        { time: 12, text: "Once connected, you'll be able to interact through voice commands." },
-        { time: 16, text: "The UN-MUTE button will activate your microphone." },
+        { time: 12, text: "Once connected, you'll be able to interact through text messages." },
+        { time: 16, text: "A text input field will appear for sending messages." },
         { time: 20, text: "You can disconnect at any time to end the session." },
         { time: 24, text: "For text transcription, the CC button will show this panel." },
         { time: 28, text: "Enjoy your exploration of our cyberpunk universe!" }
@@ -1534,8 +1642,8 @@ const MobileSidePanel = ({
         { time: 0, text: "Bienvenido a la interfaz de Control de Misión Cyberpunk." },
         { time: 3, text: "Esta orientación te guiará a través de las funciones básicas." },
         { time: 7, text: "Puedes conectarte con nuestro asistente de IA haciendo clic en el botón CONECTAR." },
-        { time: 12, text: "Una vez conectado, podrás interactuar mediante comandos de voz." },
-        { time: 16, text: "El botón ACTIVAR MICRÓFONO activará tu micrófono." },
+        { time: 12, text: "Una vez conectado, podrás interactuar mediante mensajes de texto." },
+        { time: 16, text: "Aparecerá un campo de texto para enviar mensajes." },
         { time: 20, text: "Puedes desconectarte en cualquier momento para finalizar la sesión." },
         { time: 24, text: "Para la transcripción de texto, el botón CC mostrará este panel." },
         { time: 28, text: "¡Disfruta tu exploración de nuestro universo cyberpunk!" }
@@ -1544,8 +1652,8 @@ const MobileSidePanel = ({
         { time: 0, text: "Bienvenue dans l'interface de Contrôle de Mission Cyberpunk." },
         { time: 3, text: "Cette orientation vous guidera à travers les fonctions de base." },
         { time: 7, text: "Vous pouvez vous connecter avec notre assistant IA en cliquant sur le bouton CONNECTER." },
-        { time: 12, text: "Une fois connecté, vous pourrez interagir via des commandes vocales." },
-        { time: 16, text: "Le bouton ACTIVER MICRO activera votre microphone." },
+        { time: 12, text: "Une fois connecté, vous pourrez interagir via des messages texte." },
+        { time: 16, text: "Un champ de texte apparaîtra pour envoyer des messages." },
         { time: 20, text: "Vous pouvez vous déconnecter à tout moment pour terminer la session." },
         { time: 24, text: "Pour la transcription du texte, le bouton CC affichera ce panneau." },
         { time: 28, text: "Profitez de votre exploration de notre univers cyberpunk!" }
@@ -1629,13 +1737,21 @@ const MobileSidePanel = ({
         }
       }
       
-      // Show the CC button
+      // Show the CC button (but keep transcript hidden by default)
       const ccButton = document.getElementById("transcript-toggle-btn");
       if (ccButton) {
         ccButton.style.display = "flex";
+        ccButton.style.backgroundColor = "#1f2937"; // Ensure inactive state
+        ccButton.style.boxShadow = "0 0 5px rgba(6, 182, 212, 0.3)";
       }
       
-      // Load the default transcript
+      // Ensure transcript container starts hidden
+      const transcriptContainer = document.getElementById("transcript-container");
+      if (transcriptContainer) {
+        transcriptContainer.style.display = "none";
+      }
+      
+      // Pre-load the default transcript (but keep it hidden)
       loadTranscript('en');
       
       // 2. Check if we already have an orientation video
@@ -1813,6 +1929,32 @@ const MobileSidePanel = ({
           if (handleIgnition) handleIgnition();
         }
       }
+      else if (event.data && event.data.type === 'SITEPAL_TEXT_MESSAGE') {
+        // Handle text message to SitePal
+        console.log('Received text message for SitePal:', event.data.message);
+        
+        // Try to send directly to SitePal AI functions first
+        if (window.vhss_ai_sayPreAI && typeof window.vhss_ai_sayPreAI === 'function') {
+          try {
+            window.vhss_ai_sayPreAI(event.data.message);
+            console.log("✅ Message forwarded to SitePal via vhss_ai_sayPreAI");
+          } catch (e) {
+            console.warn("⚠️ Error forwarding via vhss_ai_sayPreAI:", e);
+          }
+        } else {
+          // Fallback: Forward to SitePal iframe if available
+          const iframe = document.querySelector('#video-feed iframe');
+          if (iframe) {
+            iframe.contentWindow.postMessage({
+              type: 'SITEPAL_TEXT_MESSAGE',
+              message: event.data.message
+            }, '*');
+            console.log("📤 Message forwarded to iframe");
+          } else {
+            console.warn("⚠️ No SitePal function or iframe available");
+          }
+        }
+      }
       // Handle other message types...
     };
 
@@ -1885,49 +2027,138 @@ const MobileSidePanel = ({
           }
         }}
       >
-        {/* IGNITION Button (Left Side) */}
-        <IconButton
-          aria-label="Ignition"
-          icon={
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M12 8V16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M8 12H16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          }
-          color="#67e8f9"
-          bg="rgba(13, 25, 42, 0.95)"
-          borderRadius="full"
-          boxShadow="0 0 10px rgba(6, 182, 212, 0.3), inset 0 0 6px rgba(6, 182, 212, 0.2)"
-          border="1px solid #0e7490"
-          onClick={toggle80sMode}
-          _hover={{
-            bg: "rgba(19, 36, 63, 0.95)",
-            transform: "scale(1.08)",
-            boxShadow: "0 0 15px rgba(6, 182, 212, 0.5)",
-          }}
-          size="lg"
-        />
+        {/* MUSIC Button (Left Side) - Virgin Records or Music Player */}
+        {!musicPlayerVisible ? (
+          <IconButton
+            aria-label="Virgin Records Music"
+            icon={
+              <img 
+                src="/virginRecords.jpg" 
+                alt="Virgin Records" 
+                style={{ 
+                  width: '100%', 
+                  height: '100%', 
+                  borderRadius: '50%',
+                  objectFit: 'cover'
+                }} 
+              />
+            }
+            color="#67e8f9"
+            bg="rgba(13, 25, 42, 0.95)"
+            borderRadius="full"
+            boxShadow="0 0 10px rgba(6, 182, 212, 0.3), inset 0 0 6px rgba(6, 182, 212, 0.2)"
+            border="1px solid #0e7490"
+            onClick={() => {
+              if (!showMobileMusicPlayer) {
+                setShowMobileMusicPlayer(true);
+                setMusicPlayerVisible(true);
+              }
+            }}
+            _hover={{
+              bg: "rgba(19, 36, 63, 0.95)",
+              transform: "scale(1.08)",
+              boxShadow: "0 0 15px rgba(6, 182, 212, 0.5)",
+            }}
+            size="lg"
+          />
+        ) : (
+          // Music Player in place of button when visible
+          <Box
+            position="relative"
+            width="48px"
+            height="48px"
+          >
+            <MobileMusicPlayer
+              isVisible={showMobileMusicPlayer}
+              onClose={handleMusicPlayerClose}
+              autoPlay={true}
+              is80sMode={is80sMode}
+              onModeChange={handleMusicModeChange}
+            />
+          </Box>
+        )}
         
-        {/* LAUNCH Button (Left-Mid Side) */}
+        {/* ROCKET MODEL Button (Left-Mid Side) - Dual State Navigation/Launch */}
         <IconButton
-          aria-label="Launch"
+          aria-label={rocketButtonMode === 'launch' ? "Launch Rocket" : "Show Rocket"}
           icon={
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M22 2L11 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
+            rocketButtonMode === 'launch' ? (
+              // Moon and stars icon when in launch mode (destination reached)
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9"/>
+                <path d="M20 3v4"/>
+                <path d="M22 5h-4"/>
+              </svg>
+            ) : (
+              // Rocket icon when in navigate mode (show rocket)
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/>
+                <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/>
+                <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/>
+                <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/>
+              </svg>
+            )
           }
-          color="#67e8f9"
-          bg="rgba(13, 25, 42, 0.95)"
+          color={rocketButtonMode === 'launch' ? "#ff6b6b" : "#67e8f9"}
+          bg={rocketButtonMode === 'launch' ? "rgba(255, 107, 107, 0.15)" : "rgba(13, 25, 42, 0.95)"}
           borderRadius="full"
-          boxShadow="0 0 10px rgba(6, 182, 212, 0.3), inset 0 0 6px rgba(6, 182, 212, 0.2)"
-          border="1px solid #0e7490"
-          onClick={toggleMonsterMode}
+          boxShadow={rocketButtonMode === 'launch' ? 
+            "0 0 15px rgba(255, 107, 107, 0.4), inset 0 0 8px rgba(255, 107, 107, 0.2)" :
+            "0 0 10px rgba(6, 182, 212, 0.3), inset 0 0 6px rgba(6, 182, 212, 0.2)"
+          }
+          border={rocketButtonMode === 'launch' ? "1px solid #ff6b6b" : "1px solid #0e7490"}
+          onClick={() => {
+            if (rocketButtonMode === 'navigate') {
+              // Navigate state → Show rocket model and switch to launch mode
+              console.log("🚀 Mobile: Navigate mode - Showing rocket model (TOGGLE_ROCKET_MODEL)");
+              handleRocketModelToggle();
+              setRocketButtonMode('launch'); // Switch to launch mode
+              
+              // Send standard toggle message first
+              if (window.parent) {
+                window.parent.postMessage({
+                  type: 'TOGGLE_ROCKET_MODEL'
+                }, '*');
+              }
+              
+              // Send message to iframe if needed
+              if (missionControlIframeRef.current) {
+                missionControlIframeRef.current.contentWindow.postMessage({
+                  type: 'TOGGLE_ROCKET_MODEL'
+                }, '*');
+              }
+              
+            } else {
+              // Launch state → Execute launch sequence (same as cyberpunk mission control)
+              console.log("🚀 Mobile: Executing launch sequence");
+              
+              // Reset button to NAVIGATE state FIRST (like original)
+              setRocketButtonMode('navigate');
+              
+              // Send launch message to parent window (like desktop version)
+              if (window.parent) {
+                window.parent.postMessage({
+                  type: 'ROCKET_LAUNCH',
+                  timestamp: Date.now()
+                }, '*');
+              }
+              
+              // Also send to iframe for compatibility
+              if (missionControlIframeRef.current) {
+                missionControlIframeRef.current.contentWindow.postMessage({
+                  type: 'ROCKET_LAUNCH'
+                }, '*');
+              }
+              
+              console.log("🚀 Mobile: Button reset to navigate state, launch message sent");
+            }
+          }}
           _hover={{
-            bg: "rgba(19, 36, 63, 0.95)",
+            bg: rocketButtonMode === 'launch' ? "rgba(255, 107, 107, 0.25)" : "rgba(19, 36, 63, 0.95)",
             transform: "scale(1.08)",
-            boxShadow: "0 0 15px rgba(6, 182, 212, 0.5)",
+            boxShadow: rocketButtonMode === 'launch' ?
+              "0 0 20px rgba(255, 107, 107, 0.6)" :
+              "0 0 15px rgba(6, 182, 212, 0.5)",
           }}
           size="lg"
         />
@@ -2066,14 +2297,46 @@ const MobileSidePanel = ({
           </Text>
         </Button>
         
-        {/* EXIT Button (Right-Mid Side) */}
+        {/* CANDLE Button (Right-Mid Side) - Inactive */}
         <IconButton
-          aria-label="Exit"
+          aria-label="Candle (Inactive)"
           icon={
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M9 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M16 17L21 12L16 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M21 12H9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 5v4"/>
+              <rect width="4" height="6" x="7" y="9" rx="1"/>
+              <path d="M9 15v2"/>
+              <path d="M17 3v2"/>
+              <rect width="4" height="8" x="15" y="5" rx="1"/>
+              <path d="M17 13v3"/>
+              <path d="M3 3v16a2 2 0 0 0 2 2h16"/>
+            </svg>
+          }
+          color="#64748b"
+          bg="rgba(13, 25, 42, 0.5)"
+          borderRadius="full"
+          boxShadow="0 0 5px rgba(100, 116, 139, 0.2), inset 0 0 3px rgba(100, 116, 139, 0.1)"
+          border="1px solid #475569"
+          isDisabled={true}
+          cursor="not-allowed"
+          opacity={0.6}
+          _hover={{}}
+          _disabled={{
+            opacity: 0.6,
+            cursor: "not-allowed",
+            bg: "rgba(13, 25, 42, 0.5)",
+            color: "#64748b"
+          }}
+          size="lg"
+        />
+        
+        {/* EXIT Button (Right Side) - Link to Home */}
+        <IconButton
+          aria-label="Exit to Home"
+          icon={
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m16 17 5-5-5-5"/>
+              <path d="M21 12H9"/>
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
             </svg>
           }
           color="#67e8f9"
@@ -2082,29 +2345,6 @@ const MobileSidePanel = ({
           boxShadow="0 0 10px rgba(6, 182, 212, 0.3), inset 0 0 6px rgba(6, 182, 212, 0.2)"
           border="1px solid #0e7490"
           onClick={() => router.push("/home")}
-          _hover={{
-            bg: "rgba(19, 36, 63, 0.95)",
-            transform: "scale(1.08)",
-            boxShadow: "0 0 15px rgba(6, 182, 212, 0.5)",
-          }}
-          size="lg"
-        />
-        
-        {/* Settings Button (Right Side) */}
-        <IconButton
-          aria-label="Settings"
-          icon={
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M19.4 15C19.2669 15.3016 19.2272 15.6362 19.286 15.9606C19.3448 16.285 19.4995 16.5843 19.73 16.82L19.79 16.88C19.976 17.0657 20.1235 17.2863 20.2241 17.5291C20.3248 17.7719 20.3766 18.0322 20.3766 18.295C20.3766 18.5578 20.3248 18.8181 20.2241 19.0609C20.1235 19.3037 19.976 19.5243 19.79 19.71C19.6043 19.896 19.3837 20.0435 19.1409 20.1441C18.8981 20.2448 18.6378 20.2966 18.375 20.2966C18.1122 20.2966 17.8519 20.2448 17.6091 20.1441C17.3663 20.0435 17.1457 19.896 16.96 19.71L16.9 19.65C16.6643 19.4195 16.365 19.2648 16.0406 19.206C15.7162 19.1472 15.3816 19.1869 15.08 19.32C14.7842 19.4468 14.532 19.6572 14.3543 19.9255C14.1766 20.1938 14.0813 20.5082 14.08 20.83V21C14.08 21.5304 13.8693 22.0391 13.4942 22.4142C13.1191 22.7893 12.6104 23 12.08 23C11.5496 23 11.0409 22.7893 10.6658 22.4142C10.2907 22.0391 10.08 21.5304 10.08 21V20.91C10.0723 20.579 9.96512 20.258 9.77251 19.9887C9.5799 19.7194 9.31074 19.5143 9 19.4C8.69838 19.2669 8.36381 19.2272 8.03941 19.286C7.71502 19.3448 7.41568 19.4995 7.18 19.73L7.12 19.79C6.93425 19.976 6.71368 20.1235 6.47088 20.2241C6.22808 20.3248 5.96783 20.3766 5.705 20.3766C5.44217 20.3766 5.18192 20.3248 4.93912 20.2241C4.69632 20.1235 4.47575 19.976 4.29 19.79C4.10405 19.6043 3.95653 19.3837 3.85588 19.1409C3.75523 18.8981 3.70343 18.6378 3.70343 18.375C3.70343 18.1122 3.75523 17.8519 3.85588 17.6091C3.95653 17.3663 4.10405 17.1457 4.29 16.96L4.35 16.9C4.58054 16.6643 4.73519 16.365 4.794 16.0406C4.85282 15.7162 4.81312 15.3816 4.68 15.08C4.55324 14.7842 4.34276 14.532 4.07447 14.3543C3.80618 14.1766 3.49179 14.0813 3.17 14.08H3C2.46957 14.08 1.96086 13.8693 1.58579 13.4942C1.21071 13.1191 1 12.6104 1 12.08C1 11.5496 1.21071 11.0409 1.58579 10.6658C1.96086 10.2907 2.46957 10.08 3 10.08H3.09C3.42099 10.0723 3.742 9.96512 4.0113 9.77251C4.28059 9.5799 4.48572 9.31074 4.6 9C4.73312 8.69838 4.77282 8.36381 4.714 8.03941C4.65519 7.71502 4.50054 7.41568 4.27 7.18L4.21 7.12C4.02405 6.93425 3.87653 6.71368 3.77588 6.47088C3.67523 6.22808 3.62343 5.96783 3.62343 5.705C3.62343 5.44217 3.67523 5.18192 3.77588 4.93912C3.87653 4.69632 4.02405 4.47575 4.21 4.29C4.39575 4.10405 4.61632 3.95653 4.85912 3.85588C5.10192 3.75523 5.36217 3.70343 5.625 3.70343C5.88783 3.70343 6.14808 3.75523 6.39088 3.85588C6.63368 3.95653 6.85425 4.10405 7.04 4.29L7.1 4.35C7.33568 4.58054 7.63502 4.73519 7.95941 4.794C8.28381 4.85282 8.61838 4.81312 8.92 4.68H9C9.29577 4.55324 9.54802 4.34276 9.72569 4.07447C9.90337 3.80618 9.99872 3.49179 10 3.17V3C10 2.46957 10.2107 1.96086 10.5858 1.58579C10.9609 1.21071 11.4696 1 12 1C12.5304 1 13.0391 1.21071 13.4142 1.58579C13.7893 1.96086 14 2.46957 14 3V3.09C14.0013 3.41179 14.0966 3.72618 14.2743 3.99447C14.452 4.26276 14.7042 4.47324 15 4.6C15.3016 4.73312 15.6362 4.77282 15.9606 4.714C16.285 4.65519 16.5843 4.50054 16.82 4.27L16.88 4.21C17.0657 4.02405 17.2863 3.87653 17.5291 3.77588C17.7719 3.67523 18.0322 3.62343 18.295 3.62343C18.5578 3.62343 18.8181 3.67523 19.0609 3.77588C19.3037 3.87653 19.5243 4.02405 19.71 4.21C19.896 4.39575 20.0435 4.61632 20.1441 4.85912C20.2448 5.10192 20.2966 5.36217 20.2966 5.625C20.2966 5.88783 20.2448 6.14808 20.1441 6.39088C20.0435 6.63368 19.896 6.85425 19.71 7.04L19.65 7.1C19.4195 7.33568 19.2648 7.63502 19.206 7.95941C19.1472 8.28381 19.1869 8.61838 19.32 8.92V9C19.4468 9.29577 19.6572 9.54802 19.9255 9.72569C20.1938 9.90337 20.5082 9.99872 20.83 10H21C21.5304 10 22.0391 10.2107 22.4142 10.5858C22.7893 10.9609 23 11.4696 23 12C23 12.5304 22.7893 13.0391 22.4142 13.4142C22.0391 13.7893 21.5304 14 21 14H20.91C20.5882 14.0013 20.2738 14.0966 20.0055 14.2743C19.7372 14.452 19.5268 14.7042 19.4 15Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          }
-          color="#67e8f9"
-          bg="rgba(13, 25, 42, 0.95)"
-          borderRadius="full"
-          boxShadow="0 0 10px rgba(6, 182, 212, 0.3), inset 0 0 6px rgba(6, 182, 212, 0.2)"
-          border="1px solid #0e7490"
-          onClick={openSettings}
           _hover={{
             bg: "rgba(19, 36, 63, 0.95)",
             transform: "scale(1.08)",
@@ -2194,6 +2434,7 @@ const MobileSidePanel = ({
             <Box
               width="100%"
               position="relative"
+              minHeight="17rem"
               borderRadius="16px 16px 0 0"
               overflow="hidden"
               bg="#111827"
@@ -2331,11 +2572,30 @@ const MobileSidePanel = ({
                     border="1px solid #134e4a"
                     boxShadow="0 0 5px rgba(6, 182, 212, 0.3)"
                     id="transcript-toggle-btn"
-                    onClick={() => {
+                    onClick={(e) => {
                       const transcriptContainer = document.getElementById("transcript-container");
+                      const button = e.target;
+                      
                       if (transcriptContainer) {
                         const isVisible = transcriptContainer.style.display === "block";
-                        transcriptContainer.style.display = isVisible ? "none" : "block";
+                        
+                        if (isVisible) {
+                          // Hiding transcript
+                          transcriptContainer.style.display = "none";
+                          button.style.backgroundColor = "#1f2937";
+                          button.style.boxShadow = "0 0 5px rgba(6, 182, 212, 0.3)";
+                        } else {
+                          // Showing transcript
+                          transcriptContainer.style.display = "block";
+                          button.style.backgroundColor = "#0e7490";
+                          button.style.boxShadow = "0 0 8px rgba(6, 182, 212, 0.6)";
+                          
+                          // Load default transcript if not already loaded
+                          const transcriptContent = document.getElementById("transcript-content");
+                          if (transcriptContent && !transcriptContent.children.length) {
+                            loadTranscript('en');
+                          }
+                        }
                       }
                     }}
                     _hover={{
@@ -2349,50 +2609,174 @@ const MobileSidePanel = ({
               </Box>
             </Box>
             
-            {/* Transcript Area */}
+            {/* Transcript Area - Compact Mobile Design */}
             <Box
               width="100%"
-              maxHeight="120px"
-              bg="#0f172a"
+              maxHeight="90px"
+              bg="rgba(15, 23, 42, 0.95)"
               border="1px solid #134e4a"
               borderRadius="0 0 16px 16px"
               overflow="hidden"
               fontFamily="monospace"
               color="#22d3ee"
-              fontSize="0.75rem"
+              fontSize="0.7rem"
               display="none"
               id="transcript-container"
+              backdropFilter="blur(8px)"
+              boxShadow="0 -2px 8px rgba(0, 0, 0, 0.4)"
             >
               <Box
                 display="flex"
                 justifyContent="space-between"
                 alignItems="center"
-                p={2}
-                bg="#1f2937"
+                p={1}
+                bg="rgba(31, 41, 55, 0.9)"
                 borderBottom="1px solid #134e4a"
               >
-                <Text fontSize="0.75rem" fontWeight="bold">Video Transcript</Text>
+                <Text fontSize="0.65rem" fontWeight="bold" color="#67e8f9">Video Transcript</Text>
                 <Box as="select" 
-                  fontSize="0.75rem" 
-                  bg="#1f2937" 
+                  fontSize="0.6rem" 
+                  bg="rgba(31, 41, 55, 0.9)" 
                   color="#22d3ee" 
                   border="1px solid #134e4a" 
-                  borderRadius="4px" 
-                  py={1} 
-                  px={2}
+                  borderRadius="3px" 
+                  py={0.5} 
+                  px={1}
                   onChange={(e) => {
                     const language = e.target.value;
                     loadTranscript(language);
                   }}
                 >
-                  <option value="en">English</option>
-                  <option value="es">Español</option>
-                  <option value="fr">Français</option>
+                  <option value="en">EN</option>
+                  <option value="es">ES</option>
+                  <option value="fr">FR</option>
                 </Box>
               </Box>
               
-              <Box p={2} maxHeight="80px" overflowY="auto" id="transcript-content">
+              <Box p={1} maxHeight="65px" overflowY="auto" id="transcript-content" 
+                lineHeight="1.2"
+              >
                 {/* Transcript content will appear here */}
+              </Box>
+            </Box>
+            
+            {/* Text Input Interface for SitePal Communication */}
+            <Box
+              id="text-input-container"
+              display="none"
+              position="absolute"
+              bottom="0"
+              left="0"
+              width="100%"
+              bg="rgba(15, 23, 42, 0.95)"
+              border="1px solid #134e4a"
+              borderRadius="0 0 16px 16px"
+              p={3}
+              pt={12}
+              pb={0}
+              backdropFilter="blur(8px)"
+              boxShadow="0 -2px 8px rgba(0, 0, 0, 0.4)"
+            >
+              <Box position="relative" width="100%">
+                <input
+                  type="text"
+                  id="sitepal-text-input"
+                  placeholder="Type your message and press Enter..."
+                  style={{
+                    width: "100%",
+                    padding: "12px 50px 12px 16px",
+                    background: "rgba(31, 41, 55, 0.9)",
+                    border: "1px solid #134e4a",
+                    borderRadius: "8px",
+                    color: "#22d3ee",
+                    fontFamily: "monospace",
+                    fontSize: "0.85rem",
+                    outline: "none",
+                    height: "48px",
+                    boxSizing: "border-box"
+                  }}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      const textInput = e.target;
+                      const message = textInput.value.trim();
+                      
+                      if (message) {
+                        console.log('Sending message to SitePal:', message);
+                        
+                        // Try to send directly to SitePal AI functions (similar to desktop version)
+                        if (window.vhss_ai_sayPreAI && typeof window.vhss_ai_sayPreAI === 'function') {
+                          try {
+                            window.vhss_ai_sayPreAI(message);
+                            console.log("✅ Message sent to SitePal via vhss_ai_sayPreAI");
+                          } catch (e) {
+                            console.warn("⚠️ Error sending via vhss_ai_sayPreAI:", e);
+                          }
+                        } else if (window.parent) {
+                          // Fallback: send to parent window
+                          window.parent.postMessage({
+                            type: 'SITEPAL_TEXT_MESSAGE',
+                            message: message
+                          }, '*');
+                          console.log("📤 Message sent to parent window");
+                        } else {
+                          console.warn("⚠️ No SitePal AI function available");
+                          console.log("Available window functions:", Object.keys(window).filter(key => key.includes('vhss') || key.includes('ai')));
+                        }
+                        
+                        // Clear input
+                        textInput.value = '';
+                      }
+                    }
+                  }}
+                />
+                {/* Send Icon */}
+                <Box
+                  position="absolute"
+                  right="12px"
+                  top="50%"
+                  transform="translateY(-50%)"
+                  cursor="pointer"
+                  color="#22d3ee"
+                  fontSize="1.2rem"
+                  _hover={{
+                    color: "#67e8f9",
+                    transform: "translateY(-50%) scale(1.1)"
+                  }}
+                  onClick={() => {
+                    const textInput = document.getElementById('sitepal-text-input');
+                    const message = textInput.value.trim();
+                    
+                    if (message) {
+                      console.log('Sending message to SitePal:', message);
+                      
+                      // Try to send directly to SitePal AI functions (similar to desktop version)
+                      if (window.vhss_ai_sayPreAI && typeof window.vhss_ai_sayPreAI === 'function') {
+                        try {
+                          window.vhss_ai_sayPreAI(message);
+                          console.log("✅ Message sent to SitePal via vhss_ai_sayPreAI");
+                        } catch (e) {
+                          console.warn("⚠️ Error sending via vhss_ai_sayPreAI:", e);
+                        }
+                      } else if (window.parent) {
+                        // Fallback: send to parent window
+                        window.parent.postMessage({
+                          type: 'SITEPAL_TEXT_MESSAGE',
+                          message: message
+                        }, '*');
+                        console.log("📤 Message sent to parent window");
+                      } else {
+                        console.warn("⚠️ No SitePal AI function available");
+                        console.log("Available window functions:", Object.keys(window).filter(key => key.includes('vhss') || key.includes('ai')));
+                      }
+                      
+                      // Clear input
+                      textInput.value = '';
+                      textInput.focus();
+                    }
+                  }}
+                >
+                  ➤
+                </Box>
               </Box>
             </Box>
             
@@ -2431,6 +2815,7 @@ const MobileSidePanel = ({
             left="0"
             right="0"
             width="90%"
+            minHeight="17"
             maxWidth="350px"
             margin="0 auto"
             bg="rgba(13, 25, 42, 0.95)"
@@ -2537,7 +2922,7 @@ const MobileSidePanel = ({
       {/* Hidden iframes for mission control and SitePal */}
       <iframe
         ref={missionControlIframeRef}
-        src="/cyberpunk_mission_control.html"
+        src="/cyberpunk_mission_control_clean.html"
         style={{
           width: "1px",
           height: "1px",
@@ -2622,17 +3007,31 @@ const MobileSidePanel = ({
           }
         }
         
-        /* Transcript highlight styles */
+        /* Mobile-optimized transcript styles */
         #transcript-content p {
           transition: all 0.3s ease;
+          margin: 2px 0;
+          padding: 2px 4px;
+          font-size: 0.65rem;
+          line-height: 1.2;
+          opacity: 0.7;
+          border-radius: 2px;
         }
         
         #transcript-content p.active {
           color: #67e8f9;
           opacity: 1;
           font-weight: bold;
-          padding-left: 5px;
+          padding-left: 8px;
           border-left: 2px solid #67e8f9;
+          background: rgba(103, 232, 249, 0.1);
+          transform: translateX(2px);
+        }
+        
+        /* Ensure CC button shows active state */
+        #transcript-toggle-btn.active {
+          background-color: #0e7490 !important;
+          box-shadow: 0 0 8px rgba(6, 182, 212, 0.6) !important;
         }
       `}</style>
     </>

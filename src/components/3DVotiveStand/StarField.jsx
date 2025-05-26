@@ -73,7 +73,7 @@ const getRandomParticlePos = (particleCount, radius = 200) => {
   return { positions: arr, sizes, colors };
 };
 
-const StarField = ({ count1 = 250, count2 = 150, is80sMode = false }) => {
+const StarField = ({ count1 = 250, count2 = 150, is80sMode = false, radius = 200 }) => {
   const starsGroup = useRef();
   const smallStars = useRef();
   const largeStars = useRef();
@@ -88,7 +88,7 @@ const StarField = ({ count1 = 250, count2 = 150, is80sMode = false }) => {
   // Create the geometry on component mount
   const [geometry1] = useState(() => {
     const geo = new THREE.BufferGeometry();
-    const { positions, sizes, colors } = getRandomParticlePos(count1);
+    const { positions, sizes, colors } = getRandomParticlePos(count1, radius);
     geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
     geo.setAttribute("size", new THREE.BufferAttribute(sizes, 1));
     geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
@@ -97,7 +97,7 @@ const StarField = ({ count1 = 250, count2 = 150, is80sMode = false }) => {
 
   const [geometry2] = useState(() => {
     const geo = new THREE.BufferGeometry();
-    const { positions, sizes, colors } = getRandomParticlePos(count2, 220);
+    const { positions, sizes, colors } = getRandomParticlePos(count2, radius * 1.1);
     geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
     geo.setAttribute("size", new THREE.BufferAttribute(sizes, 1));
     geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));

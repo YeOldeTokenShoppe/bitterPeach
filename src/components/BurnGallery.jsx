@@ -297,17 +297,19 @@ function BurnGallery({
     }
   }, [isLoaded, isSignedIn, user]);
 
-  // Add some debugging
+  // Add some debugging with stack trace
   useEffect(() => {
-    console.log("BurnGallery showSpotify state:", showSpotify);
-  }, [showSpotify]);
+    console.log("🎵 BurnGallery showSpotify state changed to:", showSpotify);
+    console.log("🎵 Current is80sMode:", is80sMode);
+    console.trace("🎵 Stack trace for showSpotify change:");
+  }, [showSpotify, is80sMode]);
 
-  // Add this effect to ensure music player visibility syncs with 80s mode
-  useEffect(() => {
-    if (is80sMode) {
-      setShowSpotify(true);
-    }
-  }, [is80sMode, setShowSpotify]);
+  // Music player visibility is now controlled by cyberpunk mission control
+  // useEffect(() => {
+  //   if (is80sMode) {
+  //     setShowSpotify(true);
+  //   }
+  // }, [is80sMode, setShowSpotify]);
 
   // Update the loading state when both model and statue are loaded
   useEffect(() => {

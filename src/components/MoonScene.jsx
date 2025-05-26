@@ -1,7 +1,8 @@
 import React, { useRef, useState, useEffect, Suspense, useCallback } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import HolographicStatueMoon from './3DVotiveStand/HolographicStatueMoon';
-// Loader for finding flag position and hiding flag placeholder
+import ConstellationModel from "./3DVotiveStand/ConstellationModel";
+import StarField from "./3DVotiveStand/StarField";
 
 import { 
   OrbitControls, 
@@ -46,12 +47,22 @@ function Loader() {
   </Html>;
 }
 
+// Component to report readiness once mounted after Suspense
+function ReportReady({ onReady }) {
+  useEffect(() => {
+    if (onReady) {
+      onReady();
+    }
+  }, [onReady]);
+  return null; // This component doesn't render anything visible
+}
+
 // Moon model component
 function Moon(props) {
   const { onMoonClick } = props;
   const moonRef = useRef();
   const flagRef = useRef();
-  const { scene } = useGLTF('/low_poly_moon2.glb');
+  const { scene } = useGLTF('/Ochi_moon01.glb');
 
   // Add debug logging for moon model structure
   useEffect(() => {
@@ -109,10 +120,6 @@ function Moon(props) {
   useEffect(() => {
     if (flagAnchor && flagRef.current) {
       flagAnchor.add(flagRef.current);
-      // Optionally reset local transform here
-      // flagRef.current.position.set(0, 0, 0);
-      // flagRef.current.rotation.set(0, 0, 0);
-      // flagRef.current.scale.set(1, 1, 1);
     }
   }, [flagAnchor, flagRef]);
   
@@ -121,8 +128,8 @@ function Moon(props) {
     scene.traverse((child) => {
       if (child.isMesh && child.material) {
         child.material = child.material.clone(); // Clone to avoid affecting other instances
-        child.material.emissive = new THREE.Color(0x404080); // Subtle blue-white glow
-        child.material.emissiveIntensity = 0.3; // Moderate intensity
+        child.material.emissive = new THREE.Color(0xf7efef); // Subtle blue-white glow
+        child.material.emissiveIntensity = 0.02; // Moderate intensity
         child.material.depthTest = true;
         child.material.depthWrite = true;
         child.material.needsUpdate = true;
@@ -160,11 +167,8 @@ function Moon(props) {
       {maryPosition && (
         <>
           {/* Debug marker */}
-          <mesh position={[3.059, 100.845, 19.877]}>
-            <sphereGeometry args={[0.1, 16, 16]} />
-            <meshBasicMaterial color="red" />
-          </mesh>
-          <HolographicStatue
+         
+          {/* <HolographicStatue
             position={[3.059, 100.845, 19.877]}
             scale={[0.01, 0.01, 0.01]} // Much smaller scale to match moon's scale
             rotation={[0, 0, 0]}
@@ -184,7 +188,7 @@ function Moon(props) {
             onLoad={() => {
               console.log("HolographicStatue loaded at local position:", [3.059, 100.845, 19.877]);
             }}
-          />
+          /> */}
         </>
       )}
       {lightAnchor && (
@@ -336,46 +340,119 @@ function Astronauts(props) {
     if (mixerRef.current) {
       mixerRef.current.update(delta);
     }
-  });
 
+    if (!initialInstanceData.length || !instancesRef.current || !instancesRef.current.children) return;
+    const time = state.clock.getElapsedTime();
+
+    initialInstanceData.forEach((data, index) => {
+      const instance = instancesRef.current.children[index];
+      if (!instance || !instance.userData || instance.userData.astronautIndex === undefined) {
+        return;
+      }
+
+      const isFocused = focusedAstronaut && focusedAstronaut.index === index;
+
+      // Common bobbing calculations - Amplitude significantly reduced
+      const bobAmplitude = 0.03; // Reduced for less bobbing
+      const bobSpeed = 0.8; 
+
+      const bobHeightOffset = Math.sin(time * bobSpeed + index * 0.5) * bobAmplitude;
+      const bobSideOffset = Math.cos(time * bobSpeed * 0.7 + index * 1.0) * bobAmplitude * 0.7;
+      const circleRadius = bobAmplitude * 0.5; // Will also be smaller due to reduced bobAmplitude
+      const circleXOffset = Math.cos(time * bobSpeed * 0.5 + index * 1.5) * circleRadius;
+      const circleZOffset = Math.sin(time * bobSpeed * 0.5 + index * 2.0) * circleRadius;
+
+      // Tumbling parameters (common for focused model and non-focused instance)
+      const tumbleRange = Math.PI / 4; 
+      const zTumbleRange = Math.PI / 2; 
+      const xTumbleRange = Math.PI / 2; 
+
+      const phaseX = data.initialRotation.x;
+      const phaseY = data.initialRotation.y + 1; 
+      const phaseZ = data.initialRotation.z + 2;
+
+      // Calculate tumble angles based on individual rotation speed and phase
+      const currentTumbleX = Math.sin(time * data.rotationSpeed.x + phaseX) * xTumbleRange;
+      const currentTumbleY_local = Math.sin(time * data.rotationSpeed.y + phaseY) * tumbleRange; // For local Y tumble
+      const currentTumbleZ = Math.cos(time * data.rotationSpeed.z + phaseZ) * zTumbleRange;
+
+      if (isFocused) {
+        const focusedAnimatedModel = instance.getObjectByName(animatedScene.name) || (instance.children.length > 0 && instance.children[0].type === "Scene" ? instance.children[0] : null);
+
+        if (focusedAnimatedModel) {
+            // Apply subtle bobbing to the local position of the animated model
+            focusedAnimatedModel.position.set(
+                bobSideOffset + circleXOffset, 
+                bobHeightOffset, 
+                circleZOffset
+            );
+            
+            // Apply procedural tumbling directly to the animated model's local rotation
+            // This is in addition to its own GLB animation's rotation changes.
+            // We use initialRotation as a base offset for the procedural tumble.
+            focusedAnimatedModel.rotation.set(
+                data.initialRotation.x + currentTumbleX,
+                data.initialRotation.y + currentTumbleY_local, // Apply local Y tumble
+                data.initialRotation.z + currentTumbleZ
+            );
+        }
+      } else {
+        // For non-focused astronauts:
+        // Apply bobbing to the main instance position
+        const basePosition = data.initialPosition.clone();
+        instance.position.copy(basePosition);
+        instance.position.y += bobHeightOffset;
+        instance.position.x += bobSideOffset + circleXOffset;
+        instance.position.z += circleZOffset;
+        
+        // Apply tumbling rotation to the main instance, keeping it facing outward
+        const directionFromMoonAfterBob = instance.position.clone().normalize();
+        let currentRotationY_facingOut = Math.atan2(directionFromMoonAfterBob.z, directionFromMoonAfterBob.x);
+        
+        instance.rotation.set(
+          data.initialRotation.x + currentTumbleX, // Use pre-calculated tumble
+          currentRotationY_facingOut + currentTumbleY_local, // Combine outward facing with local Y tumble
+          data.initialRotation.z + currentTumbleZ  // Use pre-calculated tumble
+        );
+      }
+      
+      // Universal minimum distance check for the astronaut's group position
+      const distanceToMoonCenter = instance.position.length();
+      if (distanceToMoonCenter < MIN_DISTANCE) {
+        const direction = instance.position.clone().normalize();
+        instance.position.copy(direction.multiplyScalar(MIN_DISTANCE));
+      }
+    });
+  }, -1);
+
+  // Astronaut positioning and instance data
   useEffect(() => {
-    if (!staticScene || !animatedScene || !userHelmetTextures || !userHelmetTextures.length) return;
-    
-    const numInstances = userHelmetTextures.length;
+    if (!staticScene || !animatedScene || !userHelmetTextures) return;
 
+    const numInstances = userHelmetTextures.length;
+    const newInstanceData = [];
+    const moonRadius = 3.5;
+
+    // Clear existing instances
     if (instancesRef.current) {
       while (instancesRef.current.children.length > 0) {
         instancesRef.current.remove(instancesRef.current.children[0]);
       }
     }
-    
-    const moonRadius = 3.5;
-    const newInstanceData = [];
-    
+
     for (let i = 0; i < numInstances; i++) {
       const userData = userHelmetTextures[i];
-      // Only clone the static scene
+      
+      // Clone the static scene for this astronaut
       const staticAstronautScene = staticScene.clone();
       
-      // Find the Astronaut_2 parent and helmet objects in static scene
-      let staticAstronautParent = null;
+      // Find and apply textures to helmet objects in static scene
       let staticHelmetObjects = [];
-      
       staticAstronautScene.traverse((child) => {
-        if (child.name === 'Astronaut_2') {
-          staticAstronautParent = child;
-        }
         if (child.name && child.name.toLowerCase().includes('helmet')) {
           staticHelmetObjects.push(child);
         }
       });
-
-      if (DEBUG_MODE) {
-        console.log(`Astronaut ${i} structure:`, {
-          hasStaticAstronautParent: !!staticAstronautParent,
-          staticHelmetCount: staticHelmetObjects.length
-        });
-      }
 
       // Apply materials to static helmet objects
       staticHelmetObjects.forEach(helmet => {
@@ -407,8 +484,30 @@ function Astronauts(props) {
           child.userData = { astronautIndex: i, userData: userData };
         }
       });
+
+      // Simple random distribution around the moon
+      const phi = Math.acos(-1 + (2 * i) / numInstances);
+      const theta = Math.sqrt(numInstances * Math.PI) * phi;
+      let x = moonRadius * Math.sin(phi) * Math.cos(theta);
+      let y = moonRadius * Math.sin(phi) * Math.sin(theta);
+      let z = moonRadius * Math.cos(phi);
       
-      // Create a group for the astronaut and its label
+      const randomDisplacementFactor = (Math.random() - 0.5) * 0.5;
+      const displacement = new THREE.Vector3(x, y, z).normalize().multiplyScalar(randomDisplacementFactor);
+      
+      const initialPosition = new THREE.Vector3(x + displacement.x, y + displacement.y, z + displacement.z);
+
+      // Calculate rotation to face outward from moon center
+      const direction = initialPosition.clone().normalize();
+      const up = new THREE.Vector3(0, 1, 0);
+      const right = new THREE.Vector3().crossVectors(up, direction).normalize();
+      const correctedUp = new THREE.Vector3().crossVectors(direction, right).normalize();
+
+      const rotationMatrix = new THREE.Matrix4();
+      rotationMatrix.makeBasis(right, correctedUp, direction);
+      const initialRotation = new THREE.Euler().setFromRotationMatrix(rotationMatrix);
+
+      // Create a group for the astronaut
       const astronautGroup = new THREE.Group();
       astronautGroup.userData = { 
         astronautIndex: i, 
@@ -421,23 +520,13 @@ function Astronauts(props) {
       staticAstronautScene.scale.set(0.15, 0.15, 0.15);
       astronautGroup.add(staticAstronautScene);
       
-      // Calculate position and rotation
-      const phi = Math.acos(-1 + (2 * i) / numInstances);
-      const theta = Math.sqrt(numInstances * Math.PI) * phi;
-      let x = moonRadius * Math.sin(phi) * Math.cos(theta);
-      let y = moonRadius * Math.sin(phi) * Math.sin(theta);
-      let z = moonRadius * Math.cos(phi);
+      // Set the group position and rotation
+      astronautGroup.position.copy(initialPosition);
+      astronautGroup.rotation.copy(initialRotation);
       
-      const randomDisplacementFactor = (Math.random() - 0.5) * 0.5;
-      const displacement = new THREE.Vector3(x, y, z).normalize().multiplyScalar(randomDisplacementFactor);
-      
-      const initialPosition = new THREE.Vector3(x + displacement.x, y + displacement.y, z + displacement.z);
-      const initialRotation = new THREE.Euler(
-        Math.random() * 2 * Math.PI,
-        Math.random() * 2 * Math.PI,
-        Math.random() * 2 * Math.PI
-      );
-      
+      // Add the group to the scene
+      instancesRef.current.add(astronautGroup);
+
       newInstanceData.push({
         initialPosition,
         initialRotation,
@@ -446,20 +535,13 @@ function Astronauts(props) {
         bobSpeed: Math.random() * 0.05 + 0.02,
         bobAmplitude: Math.random() * 0.015 + 0.005,
         rotationSpeed: new THREE.Vector3(
-          (Math.random() - 0.5) * 0.2,
+          (Math.random() - 0.5) * 0.9,
           (Math.random() - 0.5) * 0.2,
           (Math.random() - 0.5) * 0.2
         )
       });
-      
-      // Set the group position and rotation
-      astronautGroup.position.copy(initialPosition);
-      astronautGroup.rotation.copy(initialRotation);
-      
-      // Add the group to the scene
-      instancesRef.current.add(astronautGroup);
     }
-    
+
     setInitialInstanceData(newInstanceData);
   }, [staticScene, animatedScene, userHelmetTextures, onAstronautClick]);
 
@@ -558,92 +640,6 @@ function Astronauts(props) {
     }
   };
 
-  // Animate the astronauts
-  useFrame((state, delta) => {
-    if (!initialInstanceData.length || !instancesRef.current) return;
-    const time = state.clock.getElapsedTime();
-    initialInstanceData.forEach((data, index) => {
-      const instance = instancesRef.current.children[index];
-      if (!instance || instance.userData.astronautIndex === undefined) return;
-
-      // Skip floating motion for focused astronaut (it has its own animation)
-      if (focusedAstronaut && focusedAstronaut.index === index) {
-        return;
-      }
-
-      // Enhanced floating motion
-      const basePosition = data.initialPosition.clone();
-      
-      // Increased movement values for more noticeable motion
-      const bobAmplitude = 0.1;
-      const bobSpeed = 0.5;
-      
-      // Gentle bobbing motion
-      const bobHeight = Math.sin(time * bobSpeed + index) * bobAmplitude;
-      const bobSide = Math.cos(time * bobSpeed * 0.7 + index * 1.5) * bobAmplitude * 0.7;
-      
-      // Add a slight circular motion
-      const circleRadius = bobAmplitude * 0.5;
-      const circleX = Math.cos(time * bobSpeed * 0.5 + index) * circleRadius;
-      const circleZ = Math.sin(time * bobSpeed * 0.5 + index) * circleRadius;
-      
-      // Combine all motions
-      instance.position.copy(basePosition);
-      instance.position.y += bobHeight;
-      instance.position.x += bobSide + circleX;
-      instance.position.z += circleZ;
-      
-      if (DEBUG_MODE && index === 0) {
-        console.log('Astronaut position:', {
-          base: basePosition,
-          current: instance.position,
-          bobHeight,
-          bobSide,
-          circleX,
-          circleZ
-        });
-      }
-      
-      // Ensure minimum distance from moon
-      const distanceToMoonCenter = instance.position.length();
-      if (distanceToMoonCenter < MIN_DISTANCE) {
-        const direction = instance.position.clone().normalize();
-        instance.position.copy(direction.multiplyScalar(MIN_DISTANCE));
-      }
-      
-      // Enhanced rotation for tumbling effect
-      const tumbleSpeed = 0.3;
-      const tumbleRange = Math.PI / 4; // Increased from PI/6 to PI/4 (45 degrees)
-      const zTumbleRange = Math.PI / 2; // Increased from PI/3 to PI/2 (90 degrees)
-      const xTumbleRange = Math.PI / 2; // New specific range for X-axis (90 degrees)
-      
-      // Base rotation that keeps astronaut facing outward from moon
-      const directionFromMoon = instance.position.clone().normalize();
-      let currentRotationY = Math.atan2(directionFromMoon.z, directionFromMoon.x);
-      
-      // Create a more complex tumbling motion
-      const tumbleX = Math.sin(time * tumbleSpeed * 0.7) * xTumbleRange; // Using new X range
-      const tumbleY = Math.sin(time * tumbleSpeed * 0.5 + 1) * tumbleRange;
-      const tumbleZ = Math.cos(time * tumbleSpeed * 0.3 + 2) * zTumbleRange;
-      
-      // Combine base rotation with tumbling
-      instance.rotation.set(
-        data.initialRotation.x + tumbleX,
-        currentRotationY + tumbleY,
-        data.initialRotation.z + tumbleZ
-      );
-
-      if (DEBUG_MODE && index === 0) {
-        console.log('Astronaut rotation:', {
-          tumbleX,
-          tumbleY,
-          tumbleZ,
-          current: instance.rotation
-        });
-      }
-    });
-  }, -1);
-  
   return (
     <group ref={instancesRef} onClick={handleClick} {...props}>
       {initialInstanceData.map((data, i) => 
@@ -652,29 +648,28 @@ function Astronauts(props) {
             key={i}
             transform
             sprite
+            scale={0.3}
             depthTest={true}
             depthWrite={false}
             geometry={<planeGeometry args={[.15, .15]} />}
             distanceFactor={8}
-            position={[0.0, 0.2, 0]} // Position slightly above astronaut
+            position={[0.0, 0.2, -0.2]} // Position slightly above astronaut
             style={{
               pointerEvents: 'none',
               userSelect: 'none',
             }}
             {...{ parent: instancesRef.current ? instancesRef.current.children[i] : null }}
-            attachCamera={true}
-            needsUpdate={true}
           >
             <div style={{
               background: 'rgba(255,0,0,0.0)',
               color: 'white',
               borderRadius: '5%',
-              marginTop: '0.03em',
-              paddingTop: '0.03em',
+              marginTop: '2px',
+              paddingTop: '2px',
               width: '120%',
               height: '100%',
               fontFamily: 'UnifrakturMaguntia',
-              fontSize: '0.08em',
+              fontSize: '14px',
               display: 'block',
               textAlign: 'center',
               textShadow: '0 0 0.1em #fff, 0 0 0.2em #0ff, 0 0 0.3em #f0f',
@@ -707,30 +702,38 @@ function SceneSetup() {
 
   return (
     <>
-      {/* Adding ambient light for overall illumination */}
-      <ambientLight intensity={0.3} />
+      {/* Reduced ambient light for more dramatic shadows */}
+      <ambientLight intensity={0.15} />
       
-      {/* Main directional light to simulate sun */}
+      {/* Main directional light from the left side of screen - simulates sun */}
       <directionalLight 
-        position={[5, 5, 5]} 
-        intensity={1.5} 
+        position={[-10, 2, 5]} 
+        intensity={2.0} 
         castShadow 
-        shadow-mapSize-width={1024} 
-        shadow-mapSize-height={1024} 
+        shadow-mapSize-width={2048} 
+        shadow-mapSize-height={2048}
+        shadow-camera-far={50}
+        shadow-camera-left={-10}
+        shadow-camera-right={10}
+        shadow-camera-top={10}
+        shadow-camera-bottom={-10}
+        color="#ffffff"
       />
       
-      {/* Rim light to highlight the edges */}
+      {/* Subtle rim light from the opposite side for depth */}
       <directionalLight 
-        position={[-5, 5, -5]} 
-        intensity={0.4} 
-        color="#a0a0ff" 
+        position={[8, -2, -3]} 
+        intensity={0.3} 
+        color="#4a90e2" 
       />
       
-      {/* Bottom fill light */}
+      {/* Very subtle fill light from below to prevent pure black shadows */}
       <pointLight 
-        position={[0, -5, 0]} 
-        intensity={0.2} 
-        color="#404060" 
+        position={[0, -8, 0]} 
+        intensity={0.1} 
+        color="#6b7280" 
+        distance={20}
+        decay={2}
       />
     </>
   );
@@ -979,7 +982,7 @@ function ModelInspector() {
 
 
 
-function SceneManager({ userHelmetTextures, focusedTarget, onAstronautClick, onSceneObjectClick }) {
+function SceneManager({ userHelmetTextures, focusedTarget, onAstronautClick, onSceneObjectClick, onReady, isConstellationsVisible, is80sMode }) {
   const handleMoonOrRocketClick = (event) => {
     event.stopPropagation(); // Stop event from bubbling to canvas click handler
     let clickedObjectName = event.object.name;
@@ -1019,14 +1022,7 @@ function SceneManager({ userHelmetTextures, focusedTarget, onAstronautClick, onS
         onAstronautClick={onAstronautClick}
         focusedAstronaut={focusedTarget?.type === 'astronaut' ? focusedTarget : null}
       />
-      <Stars radius={50} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
-      {/* <ContactShadows 
-        position={[0, -2.6, 0]}   // Lowered to be below moon (radius 2.5)
-        opacity={0.4} 
-        scale={10}  // Increased scale to cover more area if plane is lower
-        blur={2.5} 
-        far={3}     // Adjusted far for potentially larger shadow casting area
-      /> */}
+      
       <EffectComposer>
         <Bloom 
           intensity={0.5} 
@@ -1040,11 +1036,12 @@ function SceneManager({ userHelmetTextures, focusedTarget, onAstronautClick, onS
         />
       </EffectComposer>
       <SimpleOrbitCamera focusedTarget={focusedTarget} />
+      <ReportReady onReady={onReady} /> {/* Call onReady when this part of the scene is ready */}
     </>
   );
 }
 
-export default function MoonScene({userHelmetTextures, currentUser}) {
+export default function MoonSceneComponent({userHelmetTextures, currentUser, onSceneReady}) {
   const [focusedTarget, setFocusedTarget] = useState(null);
   const [isCustomizerOpen, setIsCustomizerOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -1086,11 +1083,6 @@ export default function MoonScene({userHelmetTextures, currentUser}) {
 
   const toggleConstellationVisibility = useCallback(() => {
     setIsConstellationsVisible(prev => !prev);
-  }, []);
-
-  const handleButtonClick = useCallback((key) => {
-    console.log(`MoonScene: Button clicked with key: ${key}`);
-    // Add any button click handling logic here
   }, []);
 
   const handleAstronautClick = (index, astronautObject, userData) => {
@@ -1181,6 +1173,24 @@ export default function MoonScene({userHelmetTextures, currentUser}) {
       <Canvas shadows dpr={[1, 2]} camera={{ fov: 50, position: [0,0,8], near: 0.1, far: 1000 }}   onClick={handleCanvasClick}>
         {/* <color attach="background" args={['#000010']} /> */}
         <fog attach="fog" args={['#000010', 10, 50]} />
+           {/* <Stars radius={50} depth={50} count={5000} factor={4} saturation={0} fade speed={1} /> */}
+            {/* Add the constellation model before the star field */}
+            <Suspense fallback={null}>
+          <ConstellationModel 
+            isVisible={isConstellationsVisible} 
+            groupScale={[1, 1, 1]} // Significantly smaller scale for MoonScene
+            groupPosition={[0, 0, -15]}   // Positioned behind the default moon view
+            groupRotation={[0, 0, 0]}
+          />
+        </Suspense>
+
+        {/* Render the stars last */}
+        <Suspense fallback={null}>
+          <StarField 
+            is80sMode={is80sMode} 
+            radius={40} // Smaller radius for MoonScene
+          />
+        </Suspense>
         <Suspense fallback={<Loader />}>
           {/* <ParticleBackground /> */}
           <SceneManager
@@ -1188,6 +1198,9 @@ export default function MoonScene({userHelmetTextures, currentUser}) {
             focusedTarget={focusedTarget}
             onAstronautClick={handleAstronautClick}
             onSceneObjectClick={handleSceneObjectClick}
+            onReady={onSceneReady}
+            isConstellationsVisible={isConstellationsVisible}
+            is80sMode={is80sMode}
           />
         </Suspense>
       </Canvas>
@@ -1195,7 +1208,7 @@ export default function MoonScene({userHelmetTextures, currentUser}) {
       {/* Add SidePanel/MobileSidePanel */}
       {isMobileView ? (
         <MobileSidePanel
-          onButtonClick={handleButtonClick}
+          onButtonClick={() => {}}
           is80sMode={is80sMode}
           toggle80sMode={toggle80sMode}
           monsterMode={monsterMode}
@@ -1209,7 +1222,7 @@ export default function MoonScene({userHelmetTextures, currentUser}) {
         />
       ) : (
         <SidePanel
-          onButtonClick={handleButtonClick}
+          onButtonClick={() => {}}
           is80sMode={is80sMode}
           toggle80sMode={toggle80sMode}
           monsterMode={monsterMode}
@@ -1261,6 +1274,7 @@ export default function MoonScene({userHelmetTextures, currentUser}) {
           <span>Customize Astronaut</span>
         </button>
       </div>
+      
       <AstronautCustomizerModal
         isOpen={isCustomizerOpen}
         onClose={() => {
@@ -1281,8 +1295,6 @@ export default function MoonScene({userHelmetTextures, currentUser}) {
   );
 }
 
-useGLTF.preload('/low_poly_moon2.glb');
+useGLTF.preload('/Ochi_moon01.glb');
 useGLTF.preload('/Astronaut2.glb');
-// Ensure these paths are correct and files exist in your public folder if you re-enable them
-// useGLTF.preload('/astronaut.glb');
-// useGLTF.preload('/astronaut_voyager.glb'); 
+useGLTF.preload('/Astronaut02.glb');

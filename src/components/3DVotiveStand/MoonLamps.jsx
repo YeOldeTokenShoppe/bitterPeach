@@ -134,9 +134,8 @@ const MoonScene = forwardRef(
 
     // Add a new useEffect specifically to force camera positioning
     useEffect(() => {
-      // Ensure camera positioning takes effect after a slight delay
-      // This can help override any other code that might be setting the camera position
-      const timer = setTimeout(() => {
+      // Apply camera positioning immediately for rocket scenarios, with delay for others
+      const applySettings = () => {
         if (camera && controlsRef.current) {
           const targetPosition = modelCenter || new THREE.Vector3(0, 5, 0);
 
@@ -144,7 +143,7 @@ const MoonScene = forwardRef(
           if (isMobile) {
             camera.fov = 50; // Smaller FOV for mobile
             if (rocketModelVisible) {
-              // camera.position.set(0, 0, 60); // Much further back position for mobile when rocket is visible
+              camera.position.set(0, 0, 60); // Much further back position for mobile when rocket is visible
               console.log("Applying MOBILE camera settings with ROCKET:", {
                 fov: camera.fov,
                 pos: camera.position,
@@ -160,7 +159,7 @@ const MoonScene = forwardRef(
           else {
             camera.fov = 35; // Original desktop FOV
             if (rocketModelVisible) {
-              // camera.position.set(0, 0, 100); // Further back position for desktop when rocket is visible
+              camera.position.set(0, 0, 100); // Further back position for desktop when rocket is visible
               console.log("Applying DESKTOP camera settings with ROCKET:", {
                 fov: camera.fov,
                 pos: camera.position,
@@ -180,9 +179,16 @@ const MoonScene = forwardRef(
           camera.updateProjectionMatrix(); // Important after changing fov or position
           controlsRef.current.update();
         }
-      }, 500); // Keep the delay
+      };
 
-      return () => clearTimeout(timer);
+      // For rocket scenarios, apply immediately to prevent visual jump
+      if (rocketModelVisible) {
+        applySettings();
+      } else {
+        // For non-rocket scenarios, keep the original delay
+        const timer = setTimeout(applySettings, 500);
+        return () => clearTimeout(timer);
+      }
     }, [camera, modelCenter, isMobile, rocketModelVisible]); // Add rocketModelVisible to dependency array
 
     useEffect(() => {

@@ -54,7 +54,7 @@ export default function GalleryPage() {
     // Try to find the mission control iframe
     const iframes = document.querySelectorAll("iframe");
     for (const iframe of iframes) {
-      if (iframe.src && iframe.src.includes("cyberpunk_mission_control.html")) {
+      if (iframe.src && iframe.src.includes("cyberpunk_mission_control_clean.html")) {
         return iframe;
       }
     }
@@ -66,32 +66,8 @@ export default function GalleryPage() {
     const newMode = !is80sMode;
     setIs80sMode(newMode);
 
-    // Ensure music player is shown when 80s mode is enabled
-    if (newMode) {
-      setShowSpotify(true);
-
-      // Get iframe reference
-      const iframe = getMissionControlIframe();
-
-      // Notify mission control about music state
-      if (iframe && iframe.contentWindow) {
-        // Use direct communication with the iframe
-        iframe.contentWindow.postMessage(
-          { type: "STEREO_POWER_STATE", isActive: true, mode: "80s" },
-          "*"
-        );
-
-        // Explicitly update the music toggle in mission control to show it's active
-        iframe.contentWindow.postMessage(
-          { type: "SET_MUSIC_STATE", isPlaying: true },
-          "*"
-        );
-      } else {
-        console.warn("Mission control iframe not found");
-      }
-    }
-
-   
+    // Music state is now controlled by cyberpunk mission control
+    // No need to directly modify showSpotify here anymore
   };
 
   // Handle close for music player

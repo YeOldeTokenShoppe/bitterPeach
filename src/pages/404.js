@@ -52,7 +52,7 @@ export default function Custom404() {
         </h2>
         
         <p style={{ marginBottom: "2rem", fontSize: "1.2rem" }}>
-          The page you're looking for doesn't exist or has been moved.
+          The page you are looking for does not exist or has been moved.
         </p>
         
         <Link 
