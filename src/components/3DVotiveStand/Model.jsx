@@ -48,6 +48,7 @@ function Model({
   isLaunching,
 
   monsterMode,
+  rocketModelVisible,
   cameraControlsRef,
   onCandleClick,
   onHoldStateChange,
@@ -701,6 +702,18 @@ function Model({
       window.removeEventListener('resize', handleResize);
     };
   }, [gltf]);
+
+  // Hide Object_3 when rocket is visible
+  useEffect(() => {
+    if (!gltf || !gltf.scene) return;
+    
+    gltf.scene.traverse(object => {
+      if (object.name === 'Object_3') {
+        object.visible = !rocketModelVisible;
+        console.log(`🚀 Object_3 visibility set to: ${!rocketModelVisible} (rocket visible: ${rocketModelVisible})`);
+      }
+    });
+  }, [rocketModelVisible, gltf]);
 
   const loadUserCandles = useCallback(async () => {
     if (!instancedXCandleRef.current) {

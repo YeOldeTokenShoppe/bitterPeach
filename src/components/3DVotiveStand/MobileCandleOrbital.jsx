@@ -3,9 +3,11 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
 // Orbital candle component that receives a cloned VCANDLE
-function OrbitalCandle({ angle, radius, candleObject, userData, index, onClick, isLeader, transitionState }) {
+function OrbitalCandle({ angle, radius, candleObject, userData, index, onClick, isLeader, transitionState, isViewerOpen }) {
   const groupRef = useRef();
   const candleRef = useRef();
+  const frozenTimeRef = useRef(null);
+  const frozenRotationRef = useRef(null);
   
   // Setup candle on mount
   useEffect(() => {
@@ -89,6 +91,25 @@ function OrbitalCandle({ angle, radius, candleObject, userData, index, onClick, 
   
   useFrame((state) => {
     if (groupRef.current) {
+      // Check if viewer is open
+      const viewerOpen = isViewerOpen;
+      
+      // Manage frozen time
+      if (viewerOpen && frozenTimeRef.current === null) {
+        // Just opened - freeze the time
+        frozenTimeRef.current = state.clock.elapsedTime;
+        if (candleRef.current) {
+          frozenRotationRef.current = candleRef.current.rotation.y;
+        }
+      } else if (!viewerOpen && frozenTimeRef.current !== null) {
+        // Just closed - unfreeze
+        frozenTimeRef.current = null;
+        frozenRotationRef.current = null;
+      }
+      
+      // Use frozen time if viewer is open
+      const currentTime = frozenTimeRef.current !== null ? frozenTimeRef.current : state.clock.elapsedTime;
+      
       // Check if we're in a transition
       if (transitionState && transitionState.isTransitioning && transitionState.progress !== undefined) {
         const { progress, isFadingOut } = transitionState;
@@ -132,7 +153,7 @@ function OrbitalCandle({ angle, radius, candleObject, userData, index, onClick, 
           }
         } else {
           // Fade in phase - spiral inward
-          const time = state.clock.elapsedTime * 0.25;
+          const time = currentTime * 0.25;
           const targetOrbitAngle = angle + time;
           
           // Calculate where the candle should be in its normal orbit
@@ -140,7 +161,7 @@ function OrbitalCandle({ angle, radius, candleObject, userData, index, onClick, 
           const targetEffectiveRadius = radius + targetRadiusVariation;
           const targetX = Math.cos(targetOrbitAngle) * targetEffectiveRadius * 1.3;
           const targetZ = Math.sin(targetOrbitAngle) * targetEffectiveRadius * 0.7;
-          const targetY = Math.sin(targetOrbitAngle * 2) * 0.3 + Math.sin(state.clock.elapsedTime * 2 + index) * 0.1;
+          const targetY = Math.sin(targetOrbitAngle * 2) * 0.3 + Math.sin(currentTime * 2 + index) * 0.1;
           
           // Start from far out and spiral in to the target position
           const spiralOffset = (1 - progress) * Math.PI * 2;
@@ -177,7 +198,7 @@ function OrbitalCandle({ angle, radius, candleObject, userData, index, onClick, 
         }
       } else {
         // Normal orbital animation
-        const time = state.clock.elapsedTime * 0.25;
+        const time = currentTime * 0.25;
         const orbitAngle = angle + time;
         
         const radiusVariation = Math.sin(orbitAngle * 3) * 0.3;
@@ -185,12 +206,12 @@ function OrbitalCandle({ angle, radius, candleObject, userData, index, onClick, 
         
         const x = Math.cos(orbitAngle) * effectiveRadius * 1.3;
         const z = Math.sin(orbitAngle) * effectiveRadius * 0.7;
-        const y = Math.sin(orbitAngle * 2) * 0.3 + Math.sin(state.clock.elapsedTime * 2 + index) * 0.1;
+        const y = Math.sin(orbitAngle * 2) * 0.3 + Math.sin(currentTime * 2 + index) * 0.1;
         
         groupRef.current.position.set(x, y, z);
         
         if (candleRef.current) {
-          candleRef.current.rotation.y = state.clock.elapsedTime * 0.5;
+          candleRef.current.rotation.y = frozenRotationRef.current !== null ? frozenRotationRef.current : currentTime * 0.5;
         }
         
         const frontness = (z + radius * 0.7) / (radius * 1.4);
@@ -228,11 +249,16 @@ function OrbitalCandle({ angle, radius, candleObject, userData, index, onClick, 
 }
 
 // Main orbital system to be added to existing scene
-export default function MobileCandleOrbital({ candleData = [], onCandleClick, modelRef, onPaginationChange }) {
+export default function MobileCandleOrbital({ candleData = [], onCandleClick, modelRef, onPaginationChange, isViewerOpen = false }) {
   const groupRef = useRef();
   const [vcandleObjects, setVcandleObjects] = useState([]);
   const [currentPage, setCurrentPage] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  
+  // Debug log
+  useEffect(() => {
+    console.log('MobileCandleOrbital isViewerOpen prop changed:', isViewerOpen);
+  }, [isViewerOpen]);
   const [transitionStartTime, setTransitionStartTime] = useState(0);
   const [nextPage, setNextPage] = useState(0); // Store the page we're transitioning to
   
@@ -383,8 +409,15 @@ export default function MobileCandleOrbital({ candleData = [], onCandleClick, mo
   
   // Create a stable setCurrentPage function (moved here to avoid circular dependency)
   const handleSetCurrentPage = useCallback((page) => {
-    console.log('MobileCandleOrbital: setCurrentPage called with page:', page);
+    console.log('MobileCandleOrbital: setCurrentPage called with page:', page, 'isViewerOpen:', isViewerOpen);
     setAutoRotate(false);
+    
+    // If viewer is open, just change page without transition animation
+    if (isViewerOpen) {
+      console.log('Viewer is open - changing page without transition animation');
+      setCurrentPage(page);
+      return;
+    }
     
     // Start transition with current candles
     setIsTransitioning(true);
@@ -417,12 +450,17 @@ export default function MobileCandleOrbital({ candleData = [], onCandleClick, mo
         setTransitionStartTime(0);
       }, TRANSITION_DURATION / 2);
     }, TRANSITION_DURATION / 2); // Change page halfway through transition
-  }, [TRANSITION_DURATION]);
+  }, [TRANSITION_DURATION, isViewerOpen]);
   
   useEffect(() => {
     if (totalPages <= 1 || !autoRotate) return; // No need to rotate if only one page or manual mode
     
     const interval = setInterval(() => {
+      // Check if candle viewer is open
+      if (isViewerOpen) {
+        return; // Skip rotation if viewer is open
+      }
+      
       // Use the same transition logic as manual navigation
       const nextPageValue = (currentPage + 1) % totalPages;
       handleSetCurrentPage(nextPageValue);
@@ -434,14 +472,20 @@ export default function MobileCandleOrbital({ candleData = [], onCandleClick, mo
   // Create transition state to pass to children
   const [transitionState, setTransitionState] = useState(null);
   
+  
   // Add a slow overall rotation to the entire group
   useFrame((state) => {
     if (groupRef.current) {
-      // Very slow rotation of the entire orbital system
-      groupRef.current.rotation.y = state.clock.elapsedTime * 0.05;
-      
-      // Update transition state
-      if (isTransitioning && transitionStartTime > 0) {
+      if (isViewerOpen) {
+        // Don't update rotation when viewer is open
+      } else {
+        // Only rotate when viewer is closed
+        groupRef.current.rotation.y = state.clock.elapsedTime * 0.05;
+      }
+    }
+    
+    // Update transition state
+    if (groupRef.current && isTransitioning && transitionStartTime > 0) {
         const elapsed = Date.now() - transitionStartTime;
         const halfDuration = TRANSITION_DURATION / 2;
         
@@ -469,10 +513,9 @@ export default function MobileCandleOrbital({ candleData = [], onCandleClick, mo
             childrenCount: groupRef.current.children.length
           });
         }
-      } else if (transitionState) {
-        // Clear transition state when not transitioning
-        setTransitionState(null);
-      }
+    } else if (transitionState) {
+      // Clear transition state when not transitioning
+      setTransitionState(null);
     }
   });
   
@@ -495,6 +538,14 @@ export default function MobileCandleOrbital({ candleData = [], onCandleClick, mo
 
   return (
     <group ref={groupRef} position={[0, 0, 0]}>
+      {/* Debug indicator - red box when viewer is open */}
+      {isViewerOpen && (
+        <mesh position={[0, 5, 0]}>
+          <boxGeometry args={[2, 2, 2]} />
+          <meshBasicMaterial color="red" />
+        </mesh>
+      )}
+      
       {/* The candles */}
       {combinedData.map((item, index) => {
         const angle = (index / Math.min(combinedData.length, 8)) * Math.PI * 2;
@@ -509,6 +560,7 @@ export default function MobileCandleOrbital({ candleData = [], onCandleClick, mo
             onClick={onCandleClick}
             isLeader={index === 0}
             transitionState={transitionState}
+            isViewerOpen={isViewerOpen}
           />
         );
       })}

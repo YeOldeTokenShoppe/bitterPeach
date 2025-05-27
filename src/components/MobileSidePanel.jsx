@@ -65,6 +65,7 @@ const MobileSidePanel = ({
   const [connectionPhase, setConnectionPhase] = useState(0);
   const [isMuted, setIsMuted] = useState(true);
   const [showVaporwaveVideo, setShowVaporwaveVideo] = useState(false);
+  const [showUnmuteOverlay, setShowUnmuteOverlay] = useState(false);
   const microphoneStreamRef = useRef(null);
   const messageQueueRef = useRef([]);
   const missionControlIframeRef = useRef(null);
@@ -568,13 +569,37 @@ const MobileSidePanel = ({
               const transitionVideo = document.querySelector("video[data-transition]");
               if (transitionVideo) {
                 transitionVideo.style.opacity = "0";
-                transitionVideo.style.zIndex = "5"; // Move behind SitePal
+                transitionVideo.style.zIndex = "1"; // Move behind SitePal and unmute overlay
                 
                 // After fade completes, pause the video
                 setTimeout(() => {
                   transitionVideo.pause();
                   transitionVideo.style.display = "none";
                 }, 500); // Match the CSS transition time
+              }
+              
+              // Show unmute overlay on mobile devices
+              // Use window.innerWidth as a more reliable check for mobile
+              const isMobile = window.innerWidth <= 768 || /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+              console.log("Device check:", { 
+                width: window.innerWidth, 
+                userAgent: navigator.userAgent,
+                isMobile 
+              });
+              
+              if (isMobile) {
+                console.log("Mobile device detected - will show unmute overlay after transition");
+                // Add a delay to show overlay after transition video fades
+                setTimeout(() => {
+                  console.log("Now showing unmute overlay");
+                  setShowUnmuteOverlay(true);
+                }, 600); // Show after transition video has faded
+              } else {
+                // For testing: show overlay on desktop too
+                console.log("Desktop mode - showing unmute overlay for testing");
+                setTimeout(() => {
+                  setShowUnmuteOverlay(true);
+                }, 600);
               }
             } else if (connectionPhase === 3) {
               // We're already in UN-MUTE phase
@@ -726,7 +751,7 @@ const MobileSidePanel = ({
           transitionVideo.style.width = "100%";
           transitionVideo.style.height = "100%";
           transitionVideo.style.objectFit = "cover";
-          transitionVideo.style.zIndex = "20"; // Above everything during transition
+          transitionVideo.style.zIndex = "9999"; // High z-index to cover SitePal loader
           transitionVideo.style.transition = "opacity 0.5s ease-out";
           transitionVideo.muted = true;
           
@@ -736,7 +761,7 @@ const MobileSidePanel = ({
           // Make sure the existing transition video is visible and playing
           transitionVideo.style.display = "block";
           transitionVideo.style.opacity = "1";
-          transitionVideo.style.zIndex = "20";
+          transitionVideo.style.zIndex = "9999"; // High z-index to cover SitePal loader
           transitionVideo.currentTime = 0;
         }
         
@@ -884,9 +909,71 @@ const MobileSidePanel = ({
     sitepalContainer.innerHTML = '<div id="vhss_aiPlayer"></div>';
     sitepalContainer.style.display = "block";
     
+    // Add CSS to hide SitePal loader
+    const style = document.createElement('style');
+    style.textContent = `
+      /* Hide SitePal loader */
+      #vhss_aiPlayer .vhss-loader,
+      #vhss_aiPlayer .loader,
+      #vhss_aiPlayer .loading,
+      #vhss_aiPlayer .vhss-loading,
+      #vhss_aiPlayer [class*="loader"],
+      #vhss_aiPlayer [class*="loading"] {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+      }
+      
+      /* Also hide any loading images or spinners */
+      #vhss_aiPlayer img[src*="loading"],
+      #vhss_aiPlayer img[src*="loader"],
+      #vhss_aiPlayer img[src*="spinner"] {
+        display: none !important;
+      }
+      
+      /* Keep transition video on top until SitePal loads */
+      video[data-transition] {
+        z-index: 9999 !important;
+      }
+      
+      /* Disable text input when unmute overlay is visible */
+      #sitepal-text-input:disabled,
+      #sitepal-text-input.overlay-visible {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+    `;
+    document.head.appendChild(style);
+    
     // Define handleSceneLoaded function to handle SitePal ready state
     const handleSceneLoaded = () => {
       console.log("✅ SitePal scene loaded callback triggered");
+      
+      // Disable speech recognition to prevent errors in text-only mode
+      if (window.ai_speechRecognition) {
+        try {
+          window.ai_speechRecognition = null;
+          console.log("🔇 Speech recognition disabled for text-only mode");
+        } catch (e) {
+          console.warn("Could not disable speech recognition:", e);
+        }
+      }
+      
+      // Also try to disable any other speech-related functions
+      if (window.ai_audioEnded) {
+        const originalAudioEnded = window.ai_audioEnded;
+        window.ai_audioEnded = function() {
+          console.log("🔇 Audio ended - speech recognition disabled");
+          // Call original function but catch any errors
+          try {
+            if (originalAudioEnded && typeof originalAudioEnded === 'function') {
+              originalAudioEnded.apply(this, arguments);
+            }
+          } catch (e) {
+            console.warn("Caught speech recognition error:", e);
+          }
+        };
+      }
       
       // Hide the transition video
       const deadAir = document.querySelector("video[data-transition]");
@@ -912,6 +999,28 @@ const MobileSidePanel = ({
       // Set SitePal state
       setSitepalSceneLoaded(true);
       
+      // Show unmute overlay on mobile devices
+      const isMobile = window.innerWidth <= 768 || /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      console.log("SitePal loaded - Device check:", { 
+        width: window.innerWidth, 
+        userAgent: navigator.userAgent,
+        isMobile 
+      });
+      
+      if (isMobile) {
+        console.log("Mobile device detected - showing unmute overlay from scene loaded callback");
+        setTimeout(() => {
+          console.log("Now showing unmute overlay");
+          setShowUnmuteOverlay(true);
+        }, 600); // Show after transition video has faded
+      } else {
+        // For testing: show overlay on desktop too
+        console.log("Desktop mode - showing unmute overlay for testing from scene loaded callback");
+        setTimeout(() => {
+          setShowUnmuteOverlay(true);
+        }, 600);
+      }
+      
       // Disable music when SitePal is active
       if (showMobileMusicPlayer) {
         console.log("🎵 Disabling music for SitePal session");
@@ -919,14 +1028,17 @@ const MobileSidePanel = ({
         setMusicPlayerVisible(false);
       }
       
-      // Use the exact greeting approach from working cyberpunk_mission_control_clean.html
-      if (!window.greetingPlayed) {
+      // Greeting is now triggered by unmute overlay click on mobile
+      // Only play automatically on desktop
+      const isMobileDevice = window.innerWidth <= 768 || /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      
+      if (!window.greetingPlayed && !isMobileDevice) {
         setTimeout(() => {
           try {
             if (window.sayText && typeof window.sayText === 'function') {
               // Use the exact same parameters as the working version
               window.sayText("Welcome to cyberpunk mission control. I am ready to assist you.", 9, 1, 7);
-              console.log("✅ SitePal greeting spoken with proper parameters");
+              console.log("✅ SitePal greeting spoken automatically (desktop only)");
               window.greetingPlayed = true;
             } else {
               console.log("⚠️ sayText not available for greeting");
@@ -935,6 +1047,8 @@ const MobileSidePanel = ({
             console.log("⚠️ Greeting failed:", e.message);
           }
         }, 1000);
+      } else if (isMobileDevice) {
+        console.log("📱 Mobile device - greeting will be triggered by unmute overlay");
       }
       
       // Update UI to TEXT CHAT state
@@ -2235,9 +2349,45 @@ const MobileSidePanel = ({
             "80%": { opacity: 1 },
             "90%": { opacity: 0.8 },
             "100%": { opacity: 0.9 }
+          },
+          "@keyframes pulse": {
+            "0%": { transform: "scale(1)", opacity: 0.8 },
+            "50%": { transform: "scale(1.1)", opacity: 1 },
+            "100%": { transform: "scale(1)", opacity: 0.8 }
+          },
+          "@keyframes fadeInOut": {
+            "0%": { opacity: 0.6 },
+            "50%": { opacity: 1 },
+            "100%": { opacity: 0.6 }
           }
         }}
       >
+        
+        {/* SPARKLES Button (Left Side) - Placeholder */}
+        <IconButton
+          aria-label="Sparkles"
+          icon={
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-sparkles-icon lucide-sparkles">
+              <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/>
+              <path d="M20 3v4"/>
+              <path d="M22 5h-4"/>
+              <path d="M4 17v2"/>
+              <path d="M5 18H3"/>
+            </svg>
+          }
+          color="#67e8f9"
+          bg="rgba(13, 25, 42, 0.95)"
+          borderRadius="full"
+          boxShadow="0 0 10px rgba(6, 182, 212, 0.3), inset 0 0 6px rgba(6, 182, 212, 0.2)"
+          border="1px solid #0e7490"
+          isDisabled={true}
+          opacity={0.6}
+          cursor="not-allowed"
+          _hover={{
+            // No hover effect since it's disabled
+          }}
+          size="lg"
+        />
         
         {/* ROCKET MODEL Button (Left-Mid Side) - Dual State Navigation/Launch */}
         <IconButton
@@ -2490,6 +2640,14 @@ const MobileSidePanel = ({
                 border="2px solid rgba(255,255,255,0.8)"
                 onClick={() => {
                   console.log('Left arrow clicked, paginationState:', paginationState);
+                  
+                  // Check if candle viewer is open and can handle navigation
+                  if (window.isCandleViewerOpen && window.candleViewerNavigate) {
+                    console.log('Candle viewer is open, navigating in viewer');
+                    window.candleViewerNavigate('prev');
+                    return;
+                  }
+                  
                   if (paginationState) {
                     const { currentPage, totalPages, setCurrentPage } = paginationState;
                     const newPage = (currentPage - 1 + totalPages) % totalPages;
@@ -2531,6 +2689,14 @@ const MobileSidePanel = ({
                 border="2px solid rgba(255,255,255,0.8)"
                 onClick={() => {
                   console.log('Right arrow clicked, paginationState:', paginationState);
+                  
+                  // Check if candle viewer is open and can handle navigation
+                  if (window.isCandleViewerOpen && window.candleViewerNavigate) {
+                    console.log('Candle viewer is open, navigating in viewer');
+                    window.candleViewerNavigate('next');
+                    return;
+                  }
+                  
                   if (paginationState) {
                     const { currentPage, totalPages, setCurrentPage } = paginationState;
                     const newPage = (currentPage + 1) % totalPages;
@@ -2779,6 +2945,76 @@ const MobileSidePanel = ({
                 >
                   {/* Video will be dynamically added here */}
                 </Box>
+                
+                {/* Touch to Unmute Overlay - Mobile Only */}
+                {console.log('Unmute overlay render check:', { showUnmuteOverlay, isVideoScreenOpen })}
+                {showUnmuteOverlay && (
+                  <Box
+                    position="absolute"
+                    top="0"
+                    left="0"
+                    width="100%"
+                    height="100%"
+                    bg="rgba(0, 0, 0, 0.8)"
+                    display="flex"
+                    flexDirection="column"
+                    alignItems="center"
+                    justifyContent="center"
+                    zIndex={10000}
+                    cursor="pointer"
+                    style={{ zIndex: 10000, pointerEvents: 'auto' }} // Ensure z-index is applied and blocking interactions
+                    onClick={() => {
+                      console.log("Unmute overlay clicked - triggering greeting");
+                      setShowUnmuteOverlay(false);
+                      
+                      // Trigger SitePal greeting with proper parameters
+                      if (!window.greetingPlayed) {
+                        try {
+                          if (window.sayText && typeof window.sayText === 'function') {
+                            // Use the exact same parameters as the working version
+                            window.sayText("Welcome to cyberpunk mission control. I am ready to assist you.", 9, 1, 7);
+                            console.log("✅ SitePal greeting spoken via unmute overlay");
+                            window.greetingPlayed = true;
+                          } else if (window.sayHi && typeof window.sayHi === 'function') {
+                            // Fallback to sayHi if sayText not available
+                            window.sayHi();
+                            console.log("✅ Greeting triggered via sayHi() fallback");
+                            window.greetingPlayed = true;
+                          } else {
+                            console.warn("⚠️ No greeting function available");
+                          }
+                        } catch (e) {
+                          console.warn("⚠️ Error triggering greeting:", e);
+                        }
+                      } else {
+                        console.log("ℹ️ Greeting already played");
+                      }
+                    }}
+                  >
+                    <Box
+                      bg="rgba(6, 182, 212, 0.2)"
+                      borderRadius="full"
+                      p={6}
+                      animation="pulse 2s infinite"
+                      border="2px solid rgba(6, 182, 212, 0.4)"
+                      mb={4}
+                    >
+                      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#67e8f9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M11 5L6 9H2v6h4l5 4V5z"/>
+                        <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                      </svg>
+                    </Box>
+                    <Text
+                      color="#67e8f9"
+                      fontSize="1.2rem"
+                      fontWeight="bold"
+                      textAlign="center"
+                      animation="fadeInOut 2s infinite"
+                    >
+                      Touch to Un-mute
+                    </Text>
+                  </Box>
+                )}
               </Box>
               
               {/* Video Controls */}
@@ -2959,6 +3195,8 @@ const MobileSidePanel = ({
                   type="text"
                   id="sitepal-text-input"
                   placeholder="Type your message and press Enter..."
+                  disabled={showUnmuteOverlay}
+                  className={showUnmuteOverlay ? 'overlay-visible' : ''}
                   style={{
                     width: "100%",
                     padding: "12px 50px 12px 16px",
@@ -2974,6 +3212,12 @@ const MobileSidePanel = ({
                   }}
                   onKeyPress={(e) => {
                     if (e.key === 'Enter') {
+                      // Prevent interaction if unmute overlay is visible
+                      if (showUnmuteOverlay) {
+                        console.log("⚠️ Ignoring input - unmute overlay is visible");
+                        return;
+                      }
+                      
                       const textInput = e.target;
                       const message = textInput.value.trim();
                       
@@ -3020,6 +3264,12 @@ const MobileSidePanel = ({
                     transform: "translateY(-50%) scale(1.1)"
                   }}
                   onClick={() => {
+                    // Prevent interaction if unmute overlay is visible
+                    if (showUnmuteOverlay) {
+                      console.log("⚠️ Ignoring click - unmute overlay is visible");
+                      return;
+                    }
+                    
                     const textInput = document.getElementById('sitepal-text-input');
                     const message = textInput.value.trim();
                     

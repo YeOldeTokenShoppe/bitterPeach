@@ -35,8 +35,8 @@ function FloatingCandleViewer({ isVisible, onClose, userData }) {
       {/* Canvas container */}
       <div
         style={{
-          width: "60vw",
-          height: "80vh",
+          width: window.innerWidth <= 768 ? "90vw" : "60vw",
+          height: window.innerWidth <= 768 ? "70vh" : "80vh",
           borderRadius: "10px",
           position: "relative",
         }}
@@ -54,56 +54,44 @@ function FloatingCandleViewer({ isVisible, onClose, userData }) {
           <SceneContent userData={userData} />
         </Canvas>
 
-        {/* Instructions overlay with close button */}
-        <div
+        {/* Minimalist close button */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onClose();
+          }}
           style={{
             position: "absolute",
-            bottom: "20px",
-            left: "50%",
-            transform: "translateX(-50%)",
-            background: "rgba(255, 255, 255, 0.2)",
-            padding: "10px 20px",
-            borderRadius: "20px",
-            fontSize: "14px",
-            pointerEvents: "auto",
-            zIndex: 12,
-            whiteSpace: "nowrap",
+            top: "15px",
+            right: "15px",
+            width: "40px",
+            height: "40px",
+            borderRadius: "50%",
+            background: "rgba(0, 0, 0, 0.6)",
+            border: "1px solid rgba(255, 255, 255, 0.2)",
+            color: "white",
+            fontSize: "20px",
+            fontWeight: "300",
+            cursor: "pointer",
             display: "flex",
             alignItems: "center",
-            gap: "15px",
+            justifyContent: "center",
+            transition: "all 0.2s ease",
+            zIndex: 12,
           }}
+          onMouseOver={(e) => {
+            e.currentTarget.style.background = "rgba(0, 0, 0, 0.8)";
+            e.currentTarget.style.transform = "scale(1.1)";
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.background = "rgba(0, 0, 0, 0.6)";
+            e.currentTarget.style.transform = "scale(1)";
+          }}
+          aria-label="Close viewer"
         >
-          <span>Use one finger to rotate • Two fingers to zoom</span>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onClose();
-            }}
-            style={{
-              background: "rgba(255, 255, 255, 0.7)",
-              border: "1px solid rgba(0, 0, 0, 0.3)",
-              borderRadius: "15px",
-              padding: "5px 12px",
-              cursor: "pointer",
-              fontSize: "14px",
-              fontWeight: "bold",
-              color: "#333",
-              transition: "all 0.2s ease",
-              userSelect: "none",
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.background = "rgba(255, 255, 255, 0.9)";
-              e.currentTarget.style.transform = "scale(1.05)";
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.background = "rgba(255, 255, 255, 0.7)";
-              e.currentTarget.style.transform = "scale(1)";
-            }}
-            aria-label="Close viewer"
-          >
-            Close Viewer
-          </button>
-        </div>
+          ✕
+        </button>
+
       </div>
     </div>
   );

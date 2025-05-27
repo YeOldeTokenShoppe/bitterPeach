@@ -110,10 +110,18 @@ const ThreeDVotiveStand = forwardRef(({
   toggleConstellationVisibility,
   handleIgnition,
   onPaginationChange,
+  onCandleViewerStateChange,
 }, ref) => {
   const [showFloatingViewer, setShowFloatingViewer] = useState(false);
   const [selectedCandleData, setSelectedCandleData] = useState(null);
+  const [viewerCandleIndex, setViewerCandleIndex] = useState(0);
+  const [allCandlesData, setAllCandlesData] = useState([]);
   const [showDebugOverlay, setShowDebugOverlay] = useState(false); // Debug overlay toggle
+  
+  // Debug log viewer state changes
+  useEffect(() => {
+    console.log('🎯 showFloatingViewer changed to:', showFloatingViewer);
+  }, [showFloatingViewer]);
   const [currentDpr, setCurrentDpr] = useState(1); // Start with lower DPI until we determine device/network
   const [networkType, setNetworkType] = useState("");
 
@@ -570,11 +578,153 @@ const ThreeDVotiveStand = forwardRef(({
     setHoldState(state);
   }, []);
 
+  // Store pagination control function from MobileCandleOrbital
+  const [paginationControl, setPaginationControl] = useState(null);
+
   const handleCandleClick = useCallback(candleData => {
     console.log("Candle clicked:", candleData);
+    
+    // For mobile view, we need to get all the candle data from MobileCandleOrbital
+    if (isMobileView) {
+      // Get the full sorted data including mock data (same logic as MobileCandleOrbital)
+      let allSortedData;
+      if (results && results.length > 0) {
+        const realData = [...results]
+          .sort((a, b) => (b.burnedAmount || 0) - (a.burnedAmount || 0));
+        
+        // Add mock data to match MobileCandleOrbital
+        const mockData = Array(20).fill(null).map((_, i) => ({
+          id: `mock-${i}`,
+          userName: `TestUser${i + 1}`,
+          username: `TestUser${i + 1}`,
+          burnedAmount: Math.floor(Math.random() * 100),
+          image: i % 2 === 0 ? '/vvv.jpg' : '/vsClown.jpg'
+        }));
+        
+        allSortedData = [...realData, ...mockData].slice(0, 80);
+      } else {
+        // Fallback mock data
+        allSortedData = Array(80).fill(null).map((_, i) => ({
+          id: `mock-${i}`,
+          userName: `Player${i + 1}`,
+          username: `Player${i + 1}`,
+          burnedAmount: Math.floor(Math.random() * 1000),
+          image: i % 2 === 0 ? '/vvv.jpg' : '/vsClown.jpg'
+        }));
+      }
+      
+      // Find the index based on the candle data
+      const clickedIndex = allSortedData.findIndex(item => 
+        (item.id === candleData.id) || 
+        (item.userName === candleData.userName && item.burnedAmount === candleData.burnedAmount)
+      );
+      
+      console.log("Found candle at index:", clickedIndex, "out of", allSortedData.length, "total candles");
+      
+      if (clickedIndex !== -1) {
+        setViewerCandleIndex(clickedIndex);
+        setAllCandlesData(allSortedData);
+        
+        // Sync the pagination to the correct page
+        if (paginationControl) {
+          const pageIndex = Math.floor(clickedIndex / 8);
+          paginationControl(pageIndex);
+        }
+      } else {
+        // Fallback - set index to 0 if not found
+        setViewerCandleIndex(0);
+        setAllCandlesData(allSortedData);
+      }
+    } else {
+      // Desktop view or single candle
+      setViewerCandleIndex(0);
+      setAllCandlesData([candleData]);
+    }
+    
     setSelectedCandleData(candleData);
     setShowFloatingViewer(true);
-  }, []);
+  }, [isMobileView, results, paginationControl]);
+
+  // Handle navigation in the candle viewer
+  const handleViewerNavigate = useCallback((direction) => {
+    if (!allCandlesData || allCandlesData.length === 0) return;
+    
+    let newIndex = viewerCandleIndex;
+    
+    if (direction === 'next' && viewerCandleIndex < allCandlesData.length - 1) {
+      newIndex = viewerCandleIndex + 1;
+    } else if (direction === 'prev' && viewerCandleIndex > 0) {
+      newIndex = viewerCandleIndex - 1;
+    }
+    
+    if (newIndex !== viewerCandleIndex) {
+      setViewerCandleIndex(newIndex);
+      setSelectedCandleData(allCandlesData[newIndex]);
+      
+      // If in mobile view, update the pagination to match the viewer
+      if (isMobileView && onPaginationChange) {
+        // Calculate which page this candle is on (8 candles per page)
+        const pageIndex = Math.floor(newIndex / 8);
+        onPaginationChange(pageIndex);
+      }
+    }
+  }, [viewerCandleIndex, allCandlesData, isMobileView, onPaginationChange]);
+  
+  // Intercept pagination changes and store the control
+  const handlePaginationChange = useCallback((paginationData) => {
+    if (paginationData && paginationData.setCurrentPage) {
+      setPaginationControl(() => paginationData.setCurrentPage);
+    }
+    
+    // If viewer is open, don't pass pagination changes to parent
+    if (showFloatingViewer) {
+      return;
+    }
+    
+    // Otherwise, pass through to parent
+    if (onPaginationChange) {
+      onPaginationChange(paginationData);
+    }
+  }, [onPaginationChange, showFloatingViewer]);
+  
+  // Override pagination when viewer is open
+  const handleViewerNavigateWithPagination = useCallback((direction) => {
+    if (!allCandlesData || allCandlesData.length === 0) return;
+    
+    let newIndex = viewerCandleIndex;
+    
+    if (direction === 'next' && viewerCandleIndex < allCandlesData.length - 1) {
+      newIndex = viewerCandleIndex + 1;
+    } else if (direction === 'prev' && viewerCandleIndex > 0) {
+      newIndex = viewerCandleIndex - 1;
+    }
+    
+    if (newIndex !== viewerCandleIndex) {
+      setViewerCandleIndex(newIndex);
+      setSelectedCandleData(allCandlesData[newIndex]);
+      
+      // Update the actual pagination to match
+      if (paginationControl && isMobileView) {
+        const pageIndex = Math.floor(newIndex / 8);
+        paginationControl(pageIndex);
+      }
+    }
+  }, [viewerCandleIndex, allCandlesData, isMobileView, paginationControl]);
+  
+  // Expose viewer navigation to parent if needed
+  useEffect(() => {
+    if (window) {
+      window.candleViewerNavigate = showFloatingViewer ? handleViewerNavigateWithPagination : null;
+      window.isCandleViewerOpen = showFloatingViewer;
+    }
+    
+    return () => {
+      if (window) {
+        delete window.candleViewerNavigate;
+        delete window.isCandleViewerOpen;
+      }
+    };
+  }, [showFloatingViewer, handleViewerNavigateWithPagination]);
 
   // Add a global method to manually test rocket launch from the console
   // useEffect(() => {
@@ -942,6 +1092,7 @@ const ThreeDVotiveStand = forwardRef(({
           is80sMode={is80sMode}
           showSpotify={showSpotify}
           monsterMode={monsterMode}
+          rocketModelVisible={rocketModelVisible}
           onHoldStateChange={handleHoldStateChange}
           onModelDataLoaded={({ scene, animations }) => { // Callback to get animations
             // modelRef.current is already being set by the <primitive> in Model.jsx
@@ -960,7 +1111,8 @@ const ThreeDVotiveStand = forwardRef(({
         candleData={results}
         onCandleClick={handleCandleClick}
         modelRef={modelRef}
-        onPaginationChange={onPaginationChange}
+        onPaginationChange={handlePaginationChange}
+        isViewerOpen={showFloatingViewer}
       />
     </Suspense>
   )}
@@ -1091,6 +1243,8 @@ const ThreeDVotiveStand = forwardRef(({
           onClose={() => {
             setShowFloatingViewer(false);
             setSelectedCandleData(null);
+            setViewerCandleIndex(0);
+            setAllCandlesData([]);
           }}
         />
       )}

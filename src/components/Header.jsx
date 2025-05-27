@@ -391,14 +391,24 @@ function Header() {
                   {/* </div> */}
                   {/* <div className="p-1"> */}
                   <Link
+                    href="/moon-scene"
+                    className="menu-item"
+                    onClick={() => setMenuOpen(false)}
+                    onMouseEnter={handleMouseEnter}
+                    onMouseLeave={handleMouseLeave}
+                    data-value="High Soci80"
+                  >
+                    High Soci80
+                  </Link>
+                  <Link
                     href="/communion"
                     className="menu-item"
                     onClick={() => setMenuOpen(false)}
                     onMouseEnter={handleMouseEnter}
                     onMouseLeave={handleMouseLeave}
-                    data-value="Notori80 Soci80"
+                    data-value="Gangster's Paradise"
                   >
-                    Notori80 Soci80
+                   Gangster&apos;s Paradise
                   </Link>
                   <Link
                     href="/fountain.html"
