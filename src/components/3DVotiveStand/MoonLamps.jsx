@@ -141,7 +141,7 @@ const MoonScene = forwardRef(
 
           // --- Apply different settings based on isMobile and rocketModelVisible ---
           if (isMobile) {
-            camera.fov = 50; // Smaller FOV for mobile
+            camera.fov = 60; // Smaller FOV for mobile
             if (rocketModelVisible) {
               camera.position.set(0, 0, 60); // Much further back position for mobile when rocket is visible
               console.log("Applying MOBILE camera settings with ROCKET:", {

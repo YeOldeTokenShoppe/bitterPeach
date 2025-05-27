@@ -538,14 +538,6 @@ export default function MobileCandleOrbital({ candleData = [], onCandleClick, mo
 
   return (
     <group ref={groupRef} position={[0, 0, 0]}>
-      {/* Debug indicator - red box when viewer is open */}
-      {isViewerOpen && (
-        <mesh position={[0, 5, 0]}>
-          <boxGeometry args={[2, 2, 2]} />
-          <meshBasicMaterial color="red" />
-        </mesh>
-      )}
-      
       {/* The candles */}
       {combinedData.map((item, index) => {
         const angle = (index / Math.min(combinedData.length, 8)) * Math.PI * 2;

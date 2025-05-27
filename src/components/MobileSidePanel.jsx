@@ -54,7 +54,6 @@ const MobileSidePanel = ({
   const [sitePalState, setSitePalState] = useState("loading");
   const [sitePalError, setSitePalError] = useState(null);
   const [eightiesMode, setEightiesMode] = useState(false);
-  const [rocketButtonMode, setRocketButtonMode] = useState('navigate'); // 'navigate' or 'launch'
   const [showMobileMusicPlayer, setShowMobileMusicPlayer] = useState(false);
   const [musicPlayerVisible, setMusicPlayerVisible] = useState(false);
   const [showMusicChoice, setShowMusicChoice] = useState(false);
@@ -129,23 +128,39 @@ const MobileSidePanel = ({
 
   // Function to toggle rocket model visibility - now uses the prop function
   const handleRocketModelToggle = () => {
-    // First ensure monster mode is enabled (required for rocket to appear)
-    if (!monsterMode) {
-      console.log("🚀 Enabling monster mode for rocket model (mobile)");
-      toggleMonsterMode();
-    }
-    
-    // Then toggle rocket model visibility
-    if (!rocketModelVisible) {
+    // If rocket is visible, hide it
+    if (rocketModelVisible) {
+      console.log("🚀 Hiding rocket model (mobile)");
+      toggleRocketModel();
+      
+      // Also disable monster mode to restore the HolographicStatue
+      if (monsterMode) {
+        console.log("🚀 Disabling monster mode to restore statue (mobile)");
+        toggleMonsterMode();
+      }
+      
+      // Send message to iframe
+      sendMessageToMissionControl({
+        type: "SET_ROCKET_MODEL_VISIBLE",
+        isVisible: false,
+      });
+    } else {
+      // First ensure monster mode is enabled (required for rocket to appear)
+      if (!monsterMode) {
+        console.log("🚀 Enabling monster mode for rocket model (mobile)");
+        toggleMonsterMode();
+      }
+      
+      // Then show rocket model
       console.log("🚀 Making rocket model visible (mobile)");
       toggleRocketModel();
+      
+      // Send message to iframe
+      sendMessageToMissionControl({
+        type: "SET_ROCKET_MODEL_VISIBLE",
+        isVisible: true,
+      });
     }
-
-    // Send message to iframe
-    sendMessageToMissionControl({
-      type: "SET_ROCKET_MODEL_VISIBLE",
-      isVisible: true, // Always set to true when ignition is triggered
-    });
   };
 
   // Function to log the state of video screen elements for debugging
@@ -2389,86 +2404,36 @@ const MobileSidePanel = ({
           size="lg"
         />
         
-        {/* ROCKET MODEL Button (Left-Mid Side) - Dual State Navigation/Launch */}
+        {/* ROCKET MODEL Button (Left-Mid Side) - Simple Toggle */}
         <IconButton
-          aria-label={rocketButtonMode === 'launch' ? "Launch Rocket" : "Show Rocket"}
+          aria-label={rocketModelVisible ? "Hide Rocket" : "Show Rocket"}
           icon={
-            rocketButtonMode === 'launch' ? (
-              // Moon and stars icon when in launch mode (destination reached)
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9"/>
-                <path d="M20 3v4"/>
-                <path d="M22 5h-4"/>
-              </svg>
-            ) : (
-              // Rocket icon when in navigate mode (show rocket)
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/>
-                <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/>
-                <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/>
-                <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/>
-              </svg>
-            )
+            // Always show rocket icon
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/>
+              <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/>
+              <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/>
+              <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/>
+            </svg>
           }
-          color={rocketButtonMode === 'launch' ? "#ff6b6b" : "#67e8f9"}
-          bg={rocketButtonMode === 'launch' ? "rgba(255, 107, 107, 0.15)" : "rgba(13, 25, 42, 0.95)"}
+          color={rocketModelVisible ? "#39ff14" : "#67e8f9"}
+          bg={rocketModelVisible ? "rgba(57, 255, 20, 0.15)" : "rgba(13, 25, 42, 0.95)"}
           borderRadius="full"
-          boxShadow={rocketButtonMode === 'launch' ? 
-            "0 0 15px rgba(255, 107, 107, 0.4), inset 0 0 8px rgba(255, 107, 107, 0.2)" :
+          boxShadow={rocketModelVisible ? 
+            "0 0 15px rgba(57, 255, 20, 0.4), inset 0 0 8px rgba(57, 255, 20, 0.2)" :
             "0 0 10px rgba(6, 182, 212, 0.3), inset 0 0 6px rgba(6, 182, 212, 0.2)"
           }
-          border={rocketButtonMode === 'launch' ? "1px solid #ff6b6b" : "1px solid #0e7490"}
+          border={rocketModelVisible ? "1px solid #39ff14" : "1px solid #0e7490"}
           onClick={() => {
-            if (rocketButtonMode === 'navigate') {
-              // Navigate state → Show rocket model and switch to launch mode
-              console.log("🚀 Mobile: Navigate mode - Showing rocket model (TOGGLE_ROCKET_MODEL)");
-              handleRocketModelToggle();
-              setRocketButtonMode('launch'); // Switch to launch mode
-              
-              // Send standard toggle message first
-              if (window.parent) {
-                window.parent.postMessage({
-                  type: 'TOGGLE_ROCKET_MODEL'
-                }, '*');
-              }
-              
-              // Send message to iframe if needed
-              if (missionControlIframeRef.current) {
-                missionControlIframeRef.current.contentWindow.postMessage({
-                  type: 'TOGGLE_ROCKET_MODEL'
-                }, '*');
-              }
-              
-            } else {
-              // Launch state → Execute launch sequence (same as cyberpunk mission control)
-              console.log("🚀 Mobile: Executing launch sequence");
-              
-              // Reset button to NAVIGATE state FIRST (like original)
-              setRocketButtonMode('navigate');
-              
-              // Send launch message to parent window (like desktop version)
-              if (window.parent) {
-                window.parent.postMessage({
-                  type: 'ROCKET_LAUNCH',
-                  timestamp: Date.now()
-                }, '*');
-              }
-              
-              // Also send to iframe for compatibility
-              if (missionControlIframeRef.current) {
-                missionControlIframeRef.current.contentWindow.postMessage({
-                  type: 'ROCKET_LAUNCH'
-                }, '*');
-              }
-              
-              console.log("🚀 Mobile: Button reset to navigate state, launch message sent");
-            }
+            // Simple toggle
+            console.log("🚀 Mobile: Toggling rocket visibility");
+            handleRocketModelToggle();
           }}
           _hover={{
-            bg: rocketButtonMode === 'launch' ? "rgba(255, 107, 107, 0.25)" : "rgba(19, 36, 63, 0.95)",
+            bg: rocketModelVisible ? "rgba(57, 255, 20, 0.25)" : "rgba(19, 36, 63, 0.95)",
             transform: "scale(1.08)",
-            boxShadow: rocketButtonMode === 'launch' ?
-              "0 0 20px rgba(255, 107, 107, 0.6)" :
+            boxShadow: rocketModelVisible ?
+              "0 0 20px rgba(57, 255, 20, 0.6)" :
               "0 0 15px rgba(6, 182, 212, 0.5)",
           }}
           size="lg"
@@ -2608,8 +2573,87 @@ const MobileSidePanel = ({
           </Text>
         </Button>
         
+        {/* Launch Confirmation (When rocket is visible) */}
+        {rocketModelVisible && (
+          <Box
+            position="absolute"
+            bottom="75px"
+            left="50%"
+            transform="translateX(-50%)"
+            display="flex"
+            flexDirection="row"
+            alignItems="center"
+            gap="8px"
+            zIndex="1001"
+            bg="rgba(0, 0, 0, 0.8)"
+            borderRadius="full"
+            px="20px"
+            py="10px"
+            border="2px solid #39ff14"
+            boxShadow="0 0 20px rgba(57, 255, 20, 0.3)"
+          >
+            <Text color="#39ff14" fontSize="14px" fontWeight="bold">
+              Launch?
+            </Text>
+            <Button
+              size="sm"
+              bg="rgba(57, 255, 20, 0.2)"
+              color="#39ff14"
+              border="1px solid #39ff14"
+              borderRadius="full"
+              _hover={{
+                bg: "rgba(57, 255, 20, 0.3)",
+                transform: "scale(1.05)"
+              }}
+              onClick={() => {
+                console.log("🚀 Mobile: Launch confirmed!");
+                
+                // Send launch message to parent window
+                if (window.parent) {
+                  window.parent.postMessage({
+                    type: 'ROCKET_LAUNCH',
+                    timestamp: Date.now()
+                  }, '*');
+                }
+                
+                // Also send to iframe for compatibility
+                if (missionControlIframeRef.current) {
+                  missionControlIframeRef.current.contentWindow.postMessage({
+                    type: 'ROCKET_LAUNCH'
+                  }, '*');
+                }
+                
+                // Call the ignition handler
+                if (handleIgnition) {
+                  handleIgnition();
+                }
+              }}
+            >
+              OK
+            </Button>
+            <Button
+              size="sm"
+              bg="rgba(255, 0, 0, 0.2)"
+              color="#ff6b6b"
+              border="1px solid #ff6b6b"
+              borderRadius="full"
+              _hover={{
+                bg: "rgba(255, 0, 0, 0.3)",
+                transform: "scale(1.05)"
+              }}
+              onClick={() => {
+                console.log("🚀 Mobile: Launch cancelled");
+                // Just hide the launch dialog by toggling the rocket back
+                handleRocketModelToggle();
+              }}
+            >
+              Cancel
+            </Button>
+          </Box>
+        )}
+        
         {/* Pagination Indicator with Arrows (Above Signal Button) */}
-        {paginationState && (
+        {paginationState && !rocketModelVisible && (
           <Box
             position="absolute"
             bottom="75px"
@@ -2665,12 +2709,12 @@ const MobileSidePanel = ({
                 p="12px"
               />
               
-              <Text
+              <Text className="thelma1"
                 fontSize="1.5rem"
-                color="#ffffff"
-                textShadow="0 0 10px rgba(139,125,216,0.8)"
-                fontFamily="roboto"
-                fontWeight="bold"
+                // color="#ffffff"
+                // textShadow="0 0 10px rgba(139,125,216,0.8)"
+                // fontFamily="roboto"
+                // fontWeight="bold"
               >
                 THE ILLUMIN80
               </Text>
