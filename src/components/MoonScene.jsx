@@ -62,10 +62,8 @@ function ReportReady({ onReady }) {
 function PointLightWithHelper({ position, color, intensity, distance, decay, showHelper = true }) {
   const lightRef = useRef();
   
-  // Only show helper if showHelper is true
-  if (showHelper) {
-    useHelper(lightRef, PointLightHelper, 0.3);
-  }
+  // Always call the hook, but conditionally pass the helper class
+  useHelper(lightRef, showHelper ? PointLightHelper : null, 0.3);
   
   return (
     <pointLight

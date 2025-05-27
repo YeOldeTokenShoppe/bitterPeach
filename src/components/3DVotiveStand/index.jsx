@@ -953,7 +953,8 @@ const ThreeDVotiveStand = forwardRef(({
 
         {/* Remove the conditional rendering - don't tie to is80sMode */}
         {/* Only render if explicitly enabled later */}
-        {isMobileView && isModelLoaded && (
+        {/* Hide candles when rocket is visible */}
+        {isMobileView && isModelLoaded && !rocketModelVisible && (
     <Suspense fallback={null}>
       <MobileCandleOrbital
         candleData={results}

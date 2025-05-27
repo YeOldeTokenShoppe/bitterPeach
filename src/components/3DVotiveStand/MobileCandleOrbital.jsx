@@ -494,7 +494,7 @@ export default function MobileCandleOrbital({ candleData = [], onCandleClick, mo
   }, [currentPage, totalPages, allSortedData.length, onPaginationChange, handleSetCurrentPage]);
 
   return (
-    <group ref={groupRef} position={[0, -1, 0]}>
+    <group ref={groupRef} position={[0, 0, 0]}>
       {/* The candles */}
       {combinedData.map((item, index) => {
         const angle = (index / Math.min(combinedData.length, 8)) * Math.PI * 2;
