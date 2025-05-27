@@ -15,7 +15,7 @@ import { ConvexGeometry } from 'three/examples/jsm/geometries/ConvexGeometry.js'
 import ScrollDetailViewer from './ScrollDetailViewer';
 
 const MoonScene = forwardRef(
-  ({ modelRef, modelAnimations, modelCenter, onControlsCreated, onSpawnReady, rocketModelVisible, onOpenScrollDetail, scrollMessage }, ref) => {
+  ({ modelRef, modelAnimations, modelCenter, onControlsCreated, onSpawnReady, rocketModelVisible, onOpenScrollDetail, scrollMessage, isMobileView }, ref) => {
     const { scene, camera, gl } = useThree();
     const controlsRef = useRef();
     const moonsRef = useRef([]);
@@ -1222,25 +1222,27 @@ const MoonScene = forwardRef(
             }
         }
 
-        // If scroll not clicked, proceed with double-click to shoot logic
-        const currentTime = performance.now();
-        const timeSinceLastClick = currentTime - lastClickTime.current;
+        // If scroll not clicked, proceed with double-click to shoot logic (skip on mobile)
+        if (!isMobileView) {
+          const currentTime = performance.now();
+          const timeSinceLastClick = currentTime - lastClickTime.current;
 
-        if (timeSinceLastClick <= doubleClickDelay) {
-          const direction = raycaster.ray.direction.clone().normalize();
-          shootProjectile(
-            camera.position.clone().add(direction.clone().multiplyScalar(2)),
-            direction
-          );
+          if (timeSinceLastClick <= doubleClickDelay) {
+            const direction = raycaster.ray.direction.clone().normalize();
+            shootProjectile(
+              camera.position.clone().add(direction.clone().multiplyScalar(2)),
+              direction
+            );
+          }
+          lastClickTime.current = currentTime;
         }
-        lastClickTime.current = currentTime;
       };
 
       window.addEventListener("pointerdown", handlePointerDown);
       return () => window.removeEventListener("pointerdown", handlePointerDown);
       // Dependencies: camera, doubleClickDelay, shootProjectile, and refs used for scroll clicking condition
-      // Also add onOpenScrollDetail to dependencies
-    }, [camera, doubleClickDelay, shootProjectile, alligatorScrollObjectRef, onOpenScrollDetail]); 
+      // Also add onOpenScrollDetail and isMobileView to dependencies
+    }, [camera, doubleClickDelay, shootProjectile, alligatorScrollObjectRef, onOpenScrollDetail, isMobileView]); 
 
     // Initialize scene and physics (but don't spawn moons yet)
     useEffect(() => {
@@ -1266,6 +1268,13 @@ const MoonScene = forwardRef(
     // Expose the spawn function via useImperativeHandle
     useImperativeHandle(ref, () => ({
       triggerInitialSpawn: () => {
+        if (isMobileView) {
+          console.log("MoonScene: Skipping moon spawning on mobile for performance");
+          if (onSpawnReady) {
+            onSpawnReady();
+          }
+          return;
+        }
         if (isPhysicsInitialized.current && ammoRef.current) {
           console.log("MoonScene: triggerInitialSpawn called, spawning moons...");
           for (let i = 0; i < 8; i++) {
@@ -1390,8 +1399,8 @@ const MoonScene = forwardRef(
         }
       });
 
-      // Collision detection for alligator and projectiles
-      if (currentPhysicsWorld.getDispatcher) {
+      // Collision detection for alligator and projectiles (skip on mobile)
+      if (!isMobileView && currentPhysicsWorld.getDispatcher) {
         const dispatcher = currentPhysicsWorld.getDispatcher();
         const numManifolds = dispatcher.getNumManifolds();
 

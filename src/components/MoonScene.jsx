@@ -13,16 +13,17 @@ import {
   useProgress,
   ContactShadows,
   Box,
-
+  useHelper
 } from '@react-three/drei';
 import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
 import * as THREE from 'three';
+import { PointLightHelper } from 'three';
 import AstronautCustomizerModal from './AstronautCustomizerModal';
-import AstronautDetailModal from './AstronautDetailModal';
 import Flag from './Flag';
 import ParticleBackground from './ParticleBackground';
 import SidePanel from './SidePanel';
 import MobileSidePanel from './MobileSidePanel';
+import CometSystem from './CometDemo';
 
 // Constants for collision detection
 const MOON_RADIUS = 2.5; // Matches the moon scale
@@ -55,6 +56,28 @@ function ReportReady({ onReady }) {
     }
   }, [onReady]);
   return null; // This component doesn't render anything visible
+}
+
+// Point light with helper component
+function PointLightWithHelper({ position, color, intensity, distance, decay, showHelper = true }) {
+  const lightRef = useRef();
+  
+  // Only show helper if showHelper is true
+  if (showHelper) {
+    useHelper(lightRef, PointLightHelper, 0.3);
+  }
+  
+  return (
+    <pointLight
+      ref={lightRef}
+      position={position}
+      color={color}
+      intensity={intensity}
+      distance={distance}
+      decay={decay}
+      castShadow={false}
+    />
+  );
 }
 
 // Moon model component
@@ -128,11 +151,13 @@ function Moon(props) {
     scene.traverse((child) => {
       if (child.isMesh && child.material) {
         child.material = child.material.clone(); // Clone to avoid affecting other instances
-        child.material.emissive = new THREE.Color(0xf7efef); // Subtle blue-white glow
+        child.material.emissive = new THREE.Color(0x00ffff); // Subtle blue-white glow
         child.material.emissiveIntensity = 0.02; // Moderate intensity
         child.material.depthTest = true;
         child.material.depthWrite = true;
         child.material.needsUpdate = true;
+        child.material.envMapIntensity = 0.3;
+        child.material.reflectivity = 0.3;
       }
     });
   }, [scene]);
@@ -217,12 +242,325 @@ function Moon(props) {
   );
 }
 
+// Info display component for focused astronauts
+function AstronautInfoDisplay({ userData, astronautIndex, parentObject }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  // Mock data - in real app this would come from userData
+  const expandedInfo = {
+    quote: userData.quote || "Exploring the cosmos, one line of code at a time! 🚀",
+    status: userData.status || "Building something amazing",
+    links: userData.links || [
+      { type: 'website', url: '#', icon: '🌐' },
+      { type: 'twitter', url: '#', icon: '🐦' },
+      { type: 'github', url: '#', icon: '⚡' }
+    ],
+    location: userData.location || "Earth Orbit"
+  };
+
+  return (
+    <Html
+      transform
+      sprite
+      scale={0.12} // Much smaller scale for close-up view
+      depthTest={true}
+      depthWrite={false}
+      geometry={<planeGeometry args={[.15, .15]} />}
+      distanceFactor={3} // Closer distance factor
+      position={[0.0, 0.15, -0.1]} // Positioned closer to astronaut
+      style={{
+        pointerEvents: 'auto',
+        userSelect: 'none',
+      }}
+      {...{ parent: parentObject }}
+    >
+      <div style={{
+        // Conditional styling - glass panel only when expanded
+        background: isExpanded 
+          ? 'linear-gradient(135deg, rgba(0,100,255,0.15) 0%, rgba(100,200,255,0.25) 50%, rgba(0,150,255,0.15) 100%)'
+          : 'transparent',
+        color: '#e8f4fd',
+        borderRadius: isExpanded ? '16px' : '0',
+        padding: isExpanded ? '20px' : '0',
+        width: isExpanded ? '280px' : 'auto',
+        height: isExpanded ? 'auto' : 'auto',
+        fontFamily: 'UnifrakturMaguntia',
+        fontSize: isExpanded ? '11px' : '16px',
+        textAlign: isExpanded ? 'left' : 'center',
+        textShadow: isExpanded ? '0 0 0.5em rgba(255,255,255,0.8), 0 0 1em rgba(0,200,255,0.6)' : 'none',
+        animation: 'none',
+        transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+        backdropFilter: isExpanded ? 'blur(20px) saturate(1.8)' : 'none',
+        border: isExpanded ? '1px solid rgba(200,240,255,0.3)' : 'none',
+        boxShadow: isExpanded 
+          ? '0 8px 32px rgba(0,100,255,0.4), inset 0 1px 0 rgba(255,255,255,0.2), 0 0 0 1px rgba(255,255,255,0.1)'
+          : 'none',
+        position: 'relative',
+        overflow: isExpanded ? 'hidden' : 'visible',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: isExpanded ? 'stretch' : 'center',
+        justifyContent: isExpanded ? 'flex-start' : 'center',
+        // Glass morphism effect only when expanded
+        WebkitBackdropFilter: isExpanded ? 'blur(20px) saturate(1.8)' : 'none',
+      }}>
+        <style>
+          {`
+            @keyframes pulse {
+              0% { text-shadow: 0 0 0.1em #fff, 0 0 0.2em #0ff, 0 0 0.3em #f0f; }
+              100% { text-shadow: 0 0 0.15em #fff, 0 0 0.25em #0ff, 0 0 0.4em #f0f; }
+            }
+            @keyframes starPulse {
+              0% { 
+                transform: scale(1);
+                text-shadow: 0 0 0.5em rgba(100,200,255,0.8), 0 0 1em rgba(0,200,255,0.6);
+              }
+              50% { 
+                transform: scale(1.1);
+                text-shadow: 0 0 1em rgba(150,220,255,1), 0 0 1.5em rgba(100,200,255,0.8);
+              }
+              100% { 
+                transform: scale(1);
+                text-shadow: 0 0 0.5em rgba(100,200,255,0.8), 0 0 1em rgba(0,200,255,0.6);
+              }
+            }
+          `}
+        </style>
+        
+        {/* Glass panel shimmer effect */}
+        {isExpanded && (
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: '-100%',
+            width: '100%',
+            height: '100%',
+            background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
+            animation: 'shimmer 3s infinite',
+            transform: 'skewX(-20deg)',
+          }} />
+        )}
+        
+        <style>
+          {`
+            @keyframes shimmer {
+              0% { left: -100%; }
+              100% { left: 100%; }
+            }
+          `}
+        </style>
+
+        {!isExpanded ? (
+          // Collapsed view - glowing username with asterisk info icon
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            gap: '6px',
+            background: 'rgba(255,0,0,0.0)', // Transparent background like original
+            border: 'none',
+            borderRadius: '0'
+          }}>
+            <span style={{
+              fontFamily: 'UnifrakturMaguntia',
+              fontSize: '1.5rem',
+              color: 'white',
+              textShadow: '0 0 0.1em #fff, 0 0 0.2em #0ff, 0 0 0.3em #f0f',
+              animation: 'pulse 1.5s infinite alternate'
+            }}>
+              {userData.username}
+            </span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsExpanded(true);
+              }}
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: '#e8f4fd',
+                fontSize: '18px', // Bigger star
+                transition: 'all 0.3s ease',
+                textShadow: '0 0 0.5em rgba(100,200,255,0.8), 0 0 1em rgba(0,200,255,0.6)',
+                padding: '0',
+                margin: '0',
+                lineHeight: '1',
+                animation: 'starPulse 2s infinite ease-in-out' // Add pulsing animation
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.transform = 'scale(1.3)';
+                e.target.style.textShadow = '0 0 1.5em rgba(150,220,255,1), 0 0 0.8em rgba(100,200,255,0.9)';
+                e.target.style.animation = 'none'; // Stop pulse on hover for cleaner effect
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.transform = 'scale(1)';
+                e.target.style.textShadow = '0 0 0.5em rgba(100,200,255,0.8), 0 0 1em rgba(0,200,255,0.6)';
+                e.target.style.animation = 'starPulse 2s infinite ease-in-out'; // Resume pulse
+              }}
+            >
+              ✦
+            </button>
+          </div>
+        ) : (
+          // Expanded view - futuristic glass panel profile
+          <div style={{ position: 'relative' }}>
+            {/* Close button */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsExpanded(false);
+              }}
+              style={{
+                position: 'absolute',
+                top: '-10px',
+                right: '-10px',
+                background: 'linear-gradient(135deg, rgba(255,100,100,0.8), rgba(200,50,50,0.9))',
+                border: '1px solid rgba(255,150,150,0.5)',
+                borderRadius: '50%',
+                width: '20px',
+                height: '20px',
+                color: '#fff',
+                cursor: 'pointer',
+                fontSize: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backdropFilter: 'blur(10px)',
+                boxShadow: '0 2px 8px rgba(255,0,0,0.4)',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.transform = 'scale(1.1)';
+                e.target.style.boxShadow = '0 4px 12px rgba(255,50,50,0.6)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.transform = 'scale(1)';
+                e.target.style.boxShadow = '0 2px 8px rgba(255,0,0,0.4)';
+              }}
+            >
+              ×
+            </button>
+
+            {/* Header with classical styling */}
+            <div style={{ 
+              textAlign: 'center', 
+              marginBottom: '16px',
+              borderBottom: '1px solid rgba(200,240,255,0.3)',
+              paddingBottom: '12px'
+            }}>
+              <div style={{ 
+                fontSize: '16px', 
+                fontWeight: 'bold',
+                color: '#ffffff',
+                textShadow: '0 0 1em rgba(100,200,255,0.8)',
+                marginBottom: '4px'
+              }}>
+                {userData.username}
+              </div>
+              <div style={{ 
+                fontSize: '9px', 
+                color: '#b8e0ff',
+                fontStyle: 'italic'
+              }}>
+                ✦ {expandedInfo.location} ✦
+              </div>
+            </div>
+
+            {/* Quote in classical scroll style */}
+            <div style={{ 
+              background: 'linear-gradient(135deg, rgba(255,255,255,0.08), rgba(100,200,255,0.12))', 
+              padding: '12px', 
+              borderRadius: '12px', 
+              marginBottom: '12px',
+              fontSize: '10px',
+              fontStyle: 'italic',
+              border: '1px solid rgba(200,240,255,0.2)',
+              position: 'relative',
+              textAlign: 'center'
+            }}>
+              <div style={{
+                position: 'absolute',
+                top: '-5px',
+                left: '8px',
+                fontSize: '16px',
+                color: 'rgba(100,200,255,0.6)'
+              }}>❝</div>
+              {expandedInfo.quote}
+              <div style={{
+                position: 'absolute',
+                bottom: '-5px',
+                right: '8px',
+                fontSize: '16px',
+                color: 'rgba(100,200,255,0.6)'
+              }}>❞</div>
+            </div>
+
+            {/* Status */}
+            <div style={{ 
+              marginBottom: '12px', 
+              fontSize: '10px',
+              textAlign: 'center',
+              color: '#c8e8ff'
+            }}>
+              <span style={{ color: 'rgba(100,255,150,0.9)' }}>◦ Status:</span> {expandedInfo.status}
+            </div>
+
+            {/* Links as classical medallions */}
+            <div style={{ 
+              display: 'flex', 
+              gap: '6px', 
+              justifyContent: 'center',
+              marginTop: '8px'
+            }}>
+              {expandedInfo.links.map((link, index) => (
+                <a
+                  key={index}
+                  href={link.url}
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(100,200,255,0.2), rgba(0,150,255,0.3))',
+                    border: '1px solid rgba(200,240,255,0.4)',
+                    borderRadius: '50%',
+                    width: '24px',
+                    height: '24px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#e8f4fd',
+                    textDecoration: 'none',
+                    fontSize: '10px',
+                    transition: 'all 0.3s ease',
+                    backdropFilter: 'blur(5px)',
+                    boxShadow: '0 2px 8px rgba(0,100,255,0.3)'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.background = 'linear-gradient(135deg, rgba(150,220,255,0.3), rgba(50,180,255,0.5))';
+                    e.target.style.transform = 'scale(1.1) rotate(5deg)';
+                    e.target.style.boxShadow = '0 4px 12px rgba(0,150,255,0.5)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.background = 'linear-gradient(135deg, rgba(100,200,255,0.2), rgba(0,150,255,0.3))';
+                    e.target.style.transform = 'scale(1) rotate(0deg)';
+                    e.target.style.boxShadow = '0 2px 8px rgba(0,100,255,0.3)';
+                  }}
+                >
+                  {link.icon}
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </Html>
+  );
+}
+
 // Floating astronaut component with user textures
 function Astronauts(props) {
-  const { userHelmetTextures, onAstronautClick, focusedAstronaut } = props;
+  const { userHelmetTextures, onAstronautClick, focusedAstronaut, debugMode = false } = props;
 
-  // Debug mode - set to true to see FaceTarget and axes
-  const DEBUG_MODE = false; // Temporarily enable debug mode
+  // Debug mode - controlled by prop
+  const DEBUG_MODE = debugMode;
   
   // Load both static and animated models
   const { scene: staticScene } = useGLTF('/Astronaut2.glb');
@@ -377,7 +715,8 @@ function Astronauts(props) {
       const currentTumbleZ = Math.cos(time * data.rotationSpeed.z + phaseZ) * zTumbleRange;
 
       if (isFocused) {
-        const focusedAnimatedModel = instance.getObjectByName(animatedScene.name) || (instance.children.length > 0 && instance.children[0].type === "Scene" ? instance.children[0] : null);
+        // For focused astronauts, find the shared animated scene in the group
+        const focusedAnimatedModel = instance.children.find(child => child === animatedScene);
 
         if (focusedAnimatedModel) {
             // Apply subtle bobbing to the local position of the animated model
@@ -387,14 +726,21 @@ function Astronauts(props) {
                 circleZOffset
             );
             
-            // Apply procedural tumbling directly to the animated model's local rotation
-            // This is in addition to its own GLB animation's rotation changes.
-            // We use initialRotation as a base offset for the procedural tumble.
-            focusedAnimatedModel.rotation.set(
-                data.initialRotation.x + currentTumbleX,
-                data.initialRotation.y + currentTumbleY_local, // Apply local Y tumble
-                data.initialRotation.z + currentTumbleZ
-            );
+            // For focused models, rotate to always face the camera instead of tumbling
+            // Get camera position from state
+            const cameraPosition = state.camera.position;
+            
+            // Use lookAt to make the model face the camera directly
+            // Since the model's face is in +X direction, we need to adjust the lookAt
+            focusedAnimatedModel.lookAt(cameraPosition);
+            
+            // The lookAt assumes the model faces +Z, but our model faces +X
+            // So we need to rotate it 90 degrees around Y to correct this
+            focusedAnimatedModel.rotateY(-Math.PI / 2);
+            
+            console.log("Model facing camera via lookAt + Y rotation correction");
+        } else {
+            console.log("No animated model found for focused astronaut", index);
         }
       } else {
         // For non-focused astronauts:
@@ -443,7 +789,7 @@ function Astronauts(props) {
     for (let i = 0; i < numInstances; i++) {
       const userData = userHelmetTextures[i];
       
-      // Clone the static scene for this astronaut
+      // Clone only the static scene for this astronaut
       const staticAstronautScene = staticScene.clone();
       
       // Find and apply textures to helmet objects in static scene
@@ -507,13 +853,13 @@ function Astronauts(props) {
       rotationMatrix.makeBasis(right, correctedUp, direction);
       const initialRotation = new THREE.Euler().setFromRotationMatrix(rotationMatrix);
 
+
       // Create a group for the astronaut
       const astronautGroup = new THREE.Group();
       astronautGroup.userData = { 
         astronautIndex: i, 
         userData: userData,
-        staticScene: staticAstronautScene,
-        animatedScene: animatedScene // Store reference to original animated scene
+        staticScene: staticAstronautScene
       };
       
       // Add the static astronaut model to the group initially
@@ -550,7 +896,7 @@ function Astronauts(props) {
     if (!instancesRef.current || !animatedHelmet) return;
 
     instancesRef.current.children.forEach((astronautGroup) => {
-      const { astronautIndex, staticScene, animatedScene, userData } = astronautGroup.userData;
+      const { astronautIndex, staticScene, userData } = astronautGroup.userData;
       const isFocused = focusedAstronaut && focusedAstronaut.index === astronautIndex;
 
       // Remove current scene
@@ -560,7 +906,7 @@ function Astronauts(props) {
 
       // Add appropriate scene
       if (isFocused) {
-        // Apply user texture to animated helmet
+        // Apply user texture to the shared animated helmet
         if (animatedHelmet.material) {
           animatedHelmet.material = animatedHelmet.material.clone();
           animatedHelmet.material.map = userData.texture;
@@ -578,9 +924,13 @@ function Astronauts(props) {
         if (mixerRef.current) {
           mixerRef.current.setTime(0);
         }
+        
+        console.log(`Switching astronaut ${astronautIndex} to ANIMATED model`);
       } else {
         // Use static scene for non-focused state
         astronautGroup.add(staticScene);
+        
+        console.log(`Switching astronaut ${astronautIndex} to STATIC model`);
       }
     });
   }, [focusedAstronaut, animatedHelmet]);
@@ -642,50 +992,43 @@ function Astronauts(props) {
 
   return (
     <group ref={instancesRef} onClick={handleClick} {...props}>
+      {/* Point lights for each astronaut */}
+      {initialInstanceData.map((data, i) => {
+        // Use the initial position data directly instead of trying to access group position
+        const lightPosition = [
+          data.initialPosition.x,
+          data.initialPosition.y + 1,
+          data.initialPosition.z
+        ];
+        
+        // Use a consistent white/blue-white color for all lights
+        // const lightColor = new THREE.Color(0xffffff); // Pure white light
+        const lightColor = new THREE.Color(0xe8f4fd); // Subtle blue-white
+        
+        console.log(`Debug sphere ${i} at position:`, lightPosition, `color:`, lightColor);
+        
+        return (
+          <PointLightWithHelper
+            key={`light-${i}`}
+            position={lightPosition}
+            color={lightColor}
+            intensity={focusedAstronaut && focusedAstronaut.index === i ? 4.0 : 1.5}
+            distance={3}
+            decay={2}
+            showHelper={DEBUG_MODE} // Show helpers only in debug mode
+          />
+        );
+      })}
+      
+      {/* Info displays for focused astronauts */}
       {initialInstanceData.map((data, i) => 
         focusedAstronaut && focusedAstronaut.index === i ? (
-          <Html
+          <AstronautInfoDisplay
             key={i}
-            transform
-            sprite
-            scale={0.3}
-            depthTest={true}
-            depthWrite={false}
-            geometry={<planeGeometry args={[.15, .15]} />}
-            distanceFactor={8}
-            position={[0.0, 0.2, -0.2]} // Position slightly above astronaut
-            style={{
-              pointerEvents: 'none',
-              userSelect: 'none',
-            }}
-            {...{ parent: instancesRef.current ? instancesRef.current.children[i] : null }}
-          >
-            <div style={{
-              background: 'rgba(255,0,0,0.0)',
-              color: 'white',
-              borderRadius: '5%',
-              marginTop: '2px',
-              paddingTop: '2px',
-              width: '120%',
-              height: '100%',
-              fontFamily: 'UnifrakturMaguntia',
-              fontSize: '14px',
-              display: 'block',
-              textAlign: 'center',
-              textShadow: '0 0 0.1em #fff, 0 0 0.2em #0ff, 0 0 0.3em #f0f',
-              animation: 'pulse 1.5s infinite alternate',
-            }}>
-              <style>
-                {`
-                  @keyframes pulse {
-                    0% { text-shadow: 0 0 0.1em #fff, 0 0 0.2em #0ff, 0 0 0.3em #f0f; }
-                    100% { text-shadow: 0 0 0.15em #fff, 0 0 0.25em #0ff, 0 0 0.4em #f0f; }
-                  }
-                `}
-              </style>
-              {data.userData.username}
-            </div>
-          </Html>
+            userData={data.userData}
+            astronautIndex={i}
+            parentObject={instancesRef.current ? instancesRef.current.children[i] : null}
+          />
         ) : null
       )}
     </group>
@@ -693,12 +1036,24 @@ function Astronauts(props) {
 }
 
 // Scene lighting and camera setup
-function SceneSetup() {
+function SceneSetup({ isMobileView }) {
   const { camera } = useThree();
   
   useEffect(() => {
-    camera.position.set(0, 0, 8);
-  }, [camera]);
+    // Set camera position based on screen size
+    if (isMobileView) {
+      // Position camera further back on mobile for better moon visibility
+      camera.position.set(0, 0, 15);
+      console.log("Mobile camera positioned at:", camera.position);
+    } else {
+      // Default desktop position
+      camera.position.set(0, 0, 8);
+      console.log("Desktop camera positioned at:", camera.position);
+    }
+    
+    // Update camera matrix after position change
+    camera.updateProjectionMatrix();
+  }, [camera, isMobileView]);
 
   return (
     <>
@@ -740,11 +1095,11 @@ function SceneSetup() {
 }
 
 // Simple orbit controls for rotating around the moon
-function SimpleOrbitCamera({ focusedTarget }) {
+function SimpleOrbitCamera({ focusedTarget, isMobileView }) {
   const { camera, gl } = useThree();
   const controlsRef = useRef();
   const followModeRef = useRef(false);
-  const neutralPositionRef = useRef(new THREE.Vector3(0, 0, 8));
+  const neutralPositionRef = useRef(new THREE.Vector3(0, 0, isMobileView ? 14 : 8));
   const neutralTargetRef = useRef(new THREE.Vector3(0, 0, 0));
   const animationFrameIdRef = useRef(null);
   const autoRotateRef = useRef(true);
@@ -765,15 +1120,20 @@ function SimpleOrbitCamera({ focusedTarget }) {
     if (controlsRef.current) {
       controlsRef.current.enablePan = true;
       controlsRef.current.minDistance = 0.3;
-      controlsRef.current.maxDistance = 15;
+      controlsRef.current.maxDistance = 18;
       controlsRef.current.enableDamping = true;
       controlsRef.current.dampingFactor = 0.1;
       controlsRef.current.autoRotate = true;
       controlsRef.current.autoRotateSpeed = 0.1;
-      neutralPositionRef.current.copy(camera.position);
+      
+      // Set neutral position based on mobile view
+      const neutralZ = isMobileView ? 14 : 8;
+      neutralPositionRef.current.set(0, 0, neutralZ);
       neutralTargetRef.current.copy(controlsRef.current.target);
+      
+      console.log("OrbitControls neutral position set to:", neutralPositionRef.current);
     }
-  }, [camera, gl]);
+  }, [camera, gl, isMobileView]);
 
   // Add useFrame to handle continuous rotation when not focused
   useFrame(() => {
@@ -818,69 +1178,36 @@ function SimpleOrbitCamera({ focusedTarget }) {
         const astronautInstance = targetObject;
         console.log(`Camera focusing on astronaut ${focusedTarget.index}`);
         
-        // Find the FaceTarget within the astronaut
-        let faceTarget = null;
-        astronautInstance.traverse((child) => {
-          if (child.name && child.name.toLowerCase().includes('facetarget') && 
-              !child.name.toLowerCase().includes('marker')) {
-            faceTarget = child;
-            console.log("Camera found FaceTarget:", child.name, "at local pos:", child.position);
-          }
-        });
-
-        if (faceTarget) {
-          astronautInstance.updateMatrixWorld(true);
-          faceTarget.updateMatrixWorld(true);
-          
-          const faceTargetWorldPos = new THREE.Vector3();
-          faceTarget.getWorldPosition(faceTargetWorldPos);
-          
-          const astronautWorldPos = new THREE.Vector3();
-          astronautInstance.getWorldPosition(astronautWorldPos);
-          
-          const astronautWorldQuaternion = new THREE.Quaternion();
-          astronautInstance.getWorldQuaternion(astronautWorldQuaternion);
-          
-          const astronautForward = new THREE.Vector3(1, 0, 0)
-            .applyQuaternion(astronautWorldQuaternion);
-          
-          const approachVector = new THREE.Vector3()
-            .subVectors(astronautWorldPos, camera.position)
-            .normalize();
-          
-          const dotProduct = astronautForward.dot(approachVector);
-          
-          let cameraDirection;
-          if (dotProduct > 0.01) {
-            cameraDirection = astronautForward.clone();
-          } else if (dotProduct < -0.01) {
-            cameraDirection = approachVector.clone().negate();
-          } else {
-            cameraDirection = astronautForward.clone();
-          }
-          
-          const cameraDistance = 0.8;
-          idealFinalCameraPos.copy(astronautWorldPos)
-            .add(cameraDirection.multiplyScalar(cameraDistance));
-          
-          lookAtTargetPos.copy(faceTargetWorldPos);
-        } else {
-          astronautInstance.getWorldPosition(lookAtTargetPos);
-          const moonCenter = new THREE.Vector3(0, 0, 0);
-          const directionFromMoon = new THREE.Vector3()
-            .subVectors(lookAtTargetPos, moonCenter)
-            .normalize();
-          
-          const cameraDistance = 1.5;
-          idealFinalCameraPos.copy(lookAtTargetPos)
-            .add(directionFromMoon.multiplyScalar(cameraDistance));
-        }
+        // Since the animated model will rotate to face the camera,
+        // we just need to position the camera at a good distance from the astronaut
+        astronautInstance.getWorldPosition(lookAtTargetPos);
+        
+        // Adjust the look-at point to be slightly higher (toward the head/face area)
+        lookAtTargetPos.y += 0.1; // Move target point up slightly for better framing
+        
+        // Position camera at a nice distance for a close-up view
+        const moonCenter = new THREE.Vector3(0, 0, 0);
+        const directionFromMoon = new THREE.Vector3()
+          .subVectors(lookAtTargetPos, moonCenter)
+          .normalize();
+        
+        const cameraDistance = 0.6; // Close enough for face view
+        idealFinalCameraPos.copy(lookAtTargetPos)
+          .add(directionFromMoon.multiplyScalar(cameraDistance));
+        
+        console.log("Camera positioning for auto-facing model at:", lookAtTargetPos);
       } else if (focusedTarget.type === 'rocket') {
         targetObject.getWorldPosition(lookAtTargetPos);
-        const rocketDist = 0.3;
+        
+        // Adjust the look-at point higher for better rocket view angle
+        lookAtTargetPos.y += 0.1; // Raise the target point to look higher on the rocket
+        
+        const rocketDist = 0.5;
         const viewDirection = new THREE.Vector3().subVectors(lookAtTargetPos, camera.position).normalize();
         if (viewDirection.lengthSq() === 0) viewDirection.set(0,0.3,1).normalize();
         idealFinalCameraPos.subVectors(lookAtTargetPos, viewDirection.multiplyScalar(rocketDist));
+        
+        console.log("Camera positioning for rocket at:", lookAtTargetPos);
       }
 
       const startPosition = camera.position.clone();
@@ -982,7 +1309,7 @@ function ModelInspector() {
 
 
 
-function SceneManager({ userHelmetTextures, focusedTarget, onAstronautClick, onSceneObjectClick, onReady, isConstellationsVisible, is80sMode }) {
+function SceneManager({ userHelmetTextures, focusedTarget, onAstronautClick, onSceneObjectClick, onReady, isConstellationsVisible, is80sMode, isMobileView, debugMode = false }) {
   const handleMoonOrRocketClick = (event) => {
     event.stopPropagation(); // Stop event from bubbling to canvas click handler
     let clickedObjectName = event.object.name;
@@ -1015,13 +1342,19 @@ function SceneManager({ userHelmetTextures, focusedTarget, onAstronautClick, onS
   
   return (
     <>
-      <SceneSetup />
+      <SceneSetup isMobileView={isMobileView} />
       <Moon position={[0, 0, 0]} scale={MOON_RADIUS} onMoonClick={handleMoonOrRocketClick} />
+      
+      
       <Astronauts 
         userHelmetTextures={userHelmetTextures} 
         onAstronautClick={onAstronautClick}
         focusedAstronaut={focusedTarget?.type === 'astronaut' ? focusedTarget : null}
+        debugMode={debugMode}
       />
+      
+      {/* Demo Comet System */}
+      {/* <CometSystem /> */}
       
       <EffectComposer>
         <Bloom 
@@ -1035,7 +1368,7 @@ function SceneManager({ userHelmetTextures, focusedTarget, onAstronautClick, onS
           darkness={0.8} 
         />
       </EffectComposer>
-      <SimpleOrbitCamera focusedTarget={focusedTarget} />
+      <SimpleOrbitCamera focusedTarget={focusedTarget} isMobileView={isMobileView} />
       <ReportReady onReady={onReady} /> {/* Call onReady when this part of the scene is ready */}
     </>
   );
@@ -1043,14 +1376,25 @@ function SceneManager({ userHelmetTextures, focusedTarget, onAstronautClick, onS
 
 export default function MoonSceneComponent({userHelmetTextures, currentUser, onSceneReady}) {
   const [focusedTarget, setFocusedTarget] = useState(null);
+  const focusedTargetRef = useRef(null); // Keep a ref to restore after context loss
+  
+  // Keep ref in sync with state
+  useEffect(() => {
+    focusedTargetRef.current = focusedTarget;
+  }, [focusedTarget]);
+  
+  // Debug: Track focusedTarget changes
+  useEffect(() => {
+    console.log("focusedTarget changed to:", focusedTarget?.type ? `${focusedTarget.type} ${focusedTarget.index}` : 'null');
+  }, [focusedTarget]);
   const [isCustomizerOpen, setIsCustomizerOpen] = useState(false);
-  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isMobileView, setIsMobileView] = useState(false);
   const [showSpotify, setShowSpotify] = useState(false);
   const [is80sMode, setIs80sMode] = useState(false);
   const [monsterMode, setMonsterMode] = useState(false);
   const [rocketModelVisible, setRocketModelVisible] = useState(false);
   const [isConstellationsVisible, setIsConstellationsVisible] = useState(false);
+  const [debugMode, setDebugMode] = useState(false); // Set to true to show light helpers
 
   // Add mobile view detection
   useEffect(() => {
@@ -1086,50 +1430,48 @@ export default function MoonSceneComponent({userHelmetTextures, currentUser, onS
   }, []);
 
   const handleAstronautClick = (index, astronautObject, userData) => {
-    if (index === null) { // Direct deselect signal (e.g. from modal close that should also deselect)
-
+    console.log("handleAstronautClick called with:", { index, focusedTarget: focusedTarget?.index });
+    
+    if (index === null) { // Direct deselect signal
+      console.log("Deselecting astronaut (index was null)");
       setFocusedTarget(null);
-      setIsDetailModalOpen(false);
       return;
     }
+    
     const newTarget = { type: 'astronaut', index, object3D: astronautObject, userData };
-    if (focusedTarget && focusedTarget.type === 'astronaut' && focusedTarget.index === index && isDetailModalOpen) {
-
+    
+    // Check if clicking the same astronaut that's already focused
+    if (focusedTarget && focusedTarget.type === 'astronaut' && focusedTarget.index === index) {
+      console.log("Clicking same focused astronaut - clearing focus");
       setFocusedTarget(null);
-      setIsDetailModalOpen(false);
       return;
     }
 
+    console.log("Setting new focused target:", index);
     setFocusedTarget(newTarget);
-    setIsDetailModalOpen(true);
   };
 
   const handleSceneObjectClick = (targetInfo) => {
     if (targetInfo === null) {
-
       setFocusedTarget(null);
-      setIsDetailModalOpen(false);
     } else if (targetInfo.type === 'rocket') {
       if (
         focusedTarget &&
         focusedTarget.type === 'rocket' &&
         focusedTarget.object3D === targetInfo.object3D
       ) {
-  
         setFocusedTarget(null);
       } else {
- 
         setFocusedTarget(targetInfo);
-        setIsDetailModalOpen(false);
       }
     }
   };
 
   const handleCanvasClick = (event) => {
+    // Only clear focus if clicking directly on the canvas
     if (event.target === event.currentTarget) {
-
+      console.log("Canvas clicked - clearing focus");
       setFocusedTarget(null);
-      setIsDetailModalOpen(false);
     }
   };
 
@@ -1170,7 +1512,41 @@ export default function MoonSceneComponent({userHelmetTextures, currentUser, onS
         {/* Canvas with 3D content */}
         <div style={{ position: 'relative', zIndex: 1, width: '100vw', height: '100vh' }}>
     
-      <Canvas shadows dpr={[1, 2]} camera={{ fov: 50, position: [0,0,8], near: 0.1, far: 1000 }}   onClick={handleCanvasClick}>
+      <Canvas 
+        shadows 
+        dpr={isMobileView ? [1, 1] : [1, 1.5]} // Further reduce pixel ratio to prevent context loss
+        camera={{ fov: 50, position: [0,0,8], near: 0.1, far: 1000 }}
+        onClick={handleCanvasClick}
+        gl={{ 
+          antialias: false, // Disable antialiasing to reduce GPU load
+          alpha: false,
+          powerPreference: "high-performance",
+          preserveDrawingBuffer: false,
+          failIfMajorPerformanceCaveat: false
+        }}
+        onCreated={({ gl }) => {
+          // Handle WebGL context loss/restoration
+          gl.domElement.addEventListener('webglcontextlost', (event) => {
+            console.warn("WebGL Context Lost - astronaut focus will be restored after context restoration");
+            event.preventDefault();
+          });
+          
+          gl.domElement.addEventListener('webglcontextrestored', () => {
+            console.log("WebGL Context Restored - attempting to restore focus state");
+            // Restore the focused state after a brief delay to let Three.js reinitialize
+            setTimeout(() => {
+              if (focusedTargetRef.current) {
+                console.log("Restoring focus to:", focusedTargetRef.current.type, focusedTargetRef.current.index);
+                // Force a re-render by temporarily clearing and restoring the focus
+                setFocusedTarget(null);
+                setTimeout(() => {
+                  setFocusedTarget(focusedTargetRef.current);
+                }, 100);
+              }
+            }, 500);
+          });
+        }}
+      >
         {/* <color attach="background" args={['#000010']} /> */}
         <fog attach="fog" args={['#000010', 10, 50]} />
            {/* <Stars radius={50} depth={50} count={5000} factor={4} saturation={0} fade speed={1} /> */}
@@ -1201,6 +1577,8 @@ export default function MoonSceneComponent({userHelmetTextures, currentUser, onS
             onReady={onSceneReady}
             isConstellationsVisible={isConstellationsVisible}
             is80sMode={is80sMode}
+            isMobileView={isMobileView}
+            debugMode={debugMode}
           />
         </Suspense>
       </Canvas>
@@ -1283,13 +1661,6 @@ export default function MoonSceneComponent({userHelmetTextures, currentUser, onS
         }}
         onSave={handleSaveCustomizations}
         defaultProfileImage={currentUser?.profileImage}
-      />
-      <AstronautDetailModal 
-        isOpen={isDetailModalOpen && focusedTarget?.type === 'astronaut'}
-        onClose={() => {
-          setIsDetailModalOpen(false);
-        }}
-        astronautData={focusedTarget?.type === 'astronaut' ? focusedTarget.userData : null} 
       />
     </div>
   );

@@ -10,6 +10,7 @@ import FlyInEffect from "./FlyInEffect";
 
 import Model from "./Model";
 import RocketModel from "./RocketModel";
+import MobileCandleOrbital from "./MobileCandleOrbital";
 
 
 // import { DEFAULT_CAMERA, getCameraSettings } from "./defaultCamera";
@@ -36,6 +37,7 @@ import ConstellationModel from "./ConstellationModel";
 import StarField from "./StarField";
 // import FlyInEffect from './FlyInEffect';
 import ScrollDetailViewer from "./ScrollDetailViewer";
+import MobileCandleMarquee from "./MobileCandleMarquee";
 
 const scene = new THREE.Scene();
 
@@ -90,6 +92,7 @@ const HoldIndicator = ({ showIndicator, progress }) => {
 
 // Create a wrapper component to access the RocketContext
 
+
 const ThreeDVotiveStand = forwardRef(({
   setIsLoading,
   isInMarkerView,
@@ -106,6 +109,7 @@ const ThreeDVotiveStand = forwardRef(({
   isConstellationsVisible,
   toggleConstellationVisibility,
   handleIgnition,
+  onPaginationChange,
 }, ref) => {
   const [showFloatingViewer, setShowFloatingViewer] = useState(false);
   const [selectedCandleData, setSelectedCandleData] = useState(null);
@@ -949,7 +953,16 @@ const ThreeDVotiveStand = forwardRef(({
 
         {/* Remove the conditional rendering - don't tie to is80sMode */}
         {/* Only render if explicitly enabled later */}
-
+        {isMobileView && isModelLoaded && (
+    <Suspense fallback={null}>
+      <MobileCandleOrbital
+        candleData={results}
+        onCandleClick={handleCandleClick}
+        modelRef={modelRef}
+        onPaginationChange={onPaginationChange}
+      />
+    </Suspense>
+  )}
         <Suspense fallback={null}>
           <MoonScene
             ref={moonSceneRef}
@@ -957,6 +970,7 @@ const ThreeDVotiveStand = forwardRef(({
             modelAnimations={mainGltfAnimations}
             onSpawnReady={onSpawnReady}
             rocketModelVisible={rocketModelVisible}
+            isMobileView={isMobileView}
             onControlsCreated={(controls) => {
               console.log('Controls created in MoonScene');
               controlsRef.current = controls;
@@ -1026,7 +1040,7 @@ const ThreeDVotiveStand = forwardRef(({
           )}
         </Suspense>
         <Suspense fallback={null}>
-          <TickerDisplay modelRef={modelRef} />
+          {!isMobileView && <TickerDisplay modelRef={modelRef} />}
         </Suspense>
         <Suspense fallback={null}>
           <PostProcessingEffects is80sMode={is80sMode} />

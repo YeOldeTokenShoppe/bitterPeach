@@ -645,6 +645,63 @@ function Model({
     });
   }, [gltf]);
 
+  // Mobile optimization - hide certain objects on small screens
+  useEffect(() => {
+    if (!gltf || !gltf.scene) return;
+
+    const handleResize = () => {
+      const isMobile = window.innerWidth < 768;
+      console.log("🔧 Mobile optimization:", isMobile ? "hiding objects" : "showing objects");
+      
+      gltf.scene.traverse(object => {
+        if (object.isMesh || object.isGroup) {
+          const name = object.name.toLowerCase();
+          const originalName = object.name;
+          
+          // Check for VCANDLE components (FLAME, glass, Label1, wax with numbers)
+          const isCandleComponent = 
+            originalName.startsWith('FLAME') ||
+            originalName.startsWith('glass') ||
+            originalName.startsWith('Label1') ||
+            originalName.startsWith('wax');
+          
+          // Check specifically for VCANDLE objects (numbered like VCANDLE001, VCANDLE002, etc.)
+          const isVCandle = originalName.startsWith('VCANDLE') || originalName.includes('VCANDLE') || isCandleComponent;
+          
+          // Check for floor objects - only hide the large outer floor, keep Floor2.002
+          const isFloor = originalName === 'Floor';
+          
+          // Hide pillars, alligator, ground objects, and vcandles on mobile
+          if (
+            name.includes('ionic') ||
+            name.includes('column') ||
+            name.includes('american') ||
+            name.includes('alligator') ||
+            name.includes('reptile') ||
+            name.includes('halotext') ||
+            name.includes('alligatorscroll') ||
+            isFloor ||
+            isVCandle ||
+            name.includes('pillar')
+          ) {
+            object.visible = !isMobile;
+            console.log(`🔧 ${isMobile ? 'Hiding' : 'Showing'} object: ${object.name} (isVCandle: ${isVCandle}, isCandleComponent: ${isCandleComponent}, isFloor: ${isFloor})`);
+          }
+        }
+      });
+    };
+
+    // Initial check
+    handleResize();
+
+    // Listen for window resize
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [gltf]);
+
   const loadUserCandles = useCallback(async () => {
     if (!instancedXCandleRef.current) {
       return;
@@ -860,16 +917,29 @@ function Model({
     gltf.scene.traverse(child => {
       // Log all mesh names for debugging
       if (child.isMesh) {
-        console.log('🔍 Found mesh:', child.name);
+        console.log('🔍 Found mesh:', child.name, 'visible:', child.visible);
+        // Special logging for floor-like objects
+        if (child.name.toLowerCase().includes('floor')) {
+          console.log('🏁 FLOOR-LIKE OBJECT FOUND:', child.name, 'exact match for Floor2.002?', child.name === 'Floor2.002');
+        }
       }
       
-      // Check for any mesh with "Floor" in its name (case insensitive)
-      if (child.isMesh && (child.name === "Floor" || child.name === "Floor2.002")) {
+      // Check for any mesh with "Floor" in its name - now also includes partial matches
+      if (child.isMesh && (child.name === "Floor" || child.name === "Floor2.002" || child.name.includes("Floor2"))) {
         floorFound = true;
-        console.log('✅ Found floor object for texture application:', child.name);
+        console.log('✅ Found floor object for texture application:', child.name, 'visible:', child.visible);
+        console.log('   Material info:', {
+          hasMaterial: !!child.material,
+          hasMap: !!(child.material && child.material.map),
+          materialType: child.material ? child.material.type : 'none',
+          isArray: Array.isArray(child.material)
+        });
+        
         // Store the original texture if we haven't already
-        if (!child.userData.originalTexture && child.material && child.material.map) {
-          child.userData.originalTexture = child.material.map;
+        if (!child.userData.originalTexture && child.material) {
+          if (child.material.map) {
+            child.userData.originalTexture = child.material.map;
+          }
           child.userData.originalMaterial = child.material.clone();
         }
 
@@ -1548,7 +1618,7 @@ function Model({
         }}
       />
       <primitive ref={candleModelRef} object={new THREE.Group()} />
-      <DarkClouds />
+      {window.innerWidth >= 768 && <DarkClouds />}
     </>
   );
 }

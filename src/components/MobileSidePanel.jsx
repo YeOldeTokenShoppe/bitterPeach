@@ -41,6 +41,7 @@ const MobileSidePanel = ({
   isConstellationsVisible,
   handleIgnition,
   onRequestZoomAndSwitch, // New prop
+  paginationState, // New prop for pagination
 }) => {
   const [isVideoScreenOpen, setIsVideoScreenOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -56,6 +57,8 @@ const MobileSidePanel = ({
   const [rocketButtonMode, setRocketButtonMode] = useState('navigate'); // 'navigate' or 'launch'
   const [showMobileMusicPlayer, setShowMobileMusicPlayer] = useState(false);
   const [musicPlayerVisible, setMusicPlayerVisible] = useState(false);
+  const [showMusicChoice, setShowMusicChoice] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [modeIndex, setModeIndex] = useState(0);
   const [recording, setRecording] = useState(false);
   const [processingVisible, setProcessingVisible] = useState(false);
@@ -65,6 +68,13 @@ const MobileSidePanel = ({
   const microphoneStreamRef = useRef(null);
   const messageQueueRef = useRef([]);
   const missionControlIframeRef = useRef(null);
+  const [musicPlayerControls, setMusicPlayerControls] = useState(null);
+  
+  // Callback to receive controls from MobileMusicPlayer
+  const handleMusicControlsReady = useCallback((controls) => {
+    console.log('MobileSidePanel: Received music player controls:', controls);
+    setMusicPlayerControls(controls);
+  }, []);
 
   const router = useRouter();
 
@@ -83,17 +93,26 @@ const MobileSidePanel = ({
   const closeSettings = () => setIsSettingsOpen(false);
 
   // Music player handlers
-  const handleMusicModeChange = (newMode) => {
-    if (newMode === '80s' && !is80sMode) {
+  const handleMusicModeChange = (enable80s) => {
+    console.log("🎵 Mode change requested:", enable80s, "current 80s mode:", is80sMode);
+    if (enable80s && !is80sMode) {
+      console.log("🎵 Enabling 80s mode");
       toggle80sMode();
-    } else if (newMode === 'space' && is80sMode) {
+    } else if (!enable80s && is80sMode) {
+      console.log("🎵 Disabling 80s mode");
       toggle80sMode();
     }
   };
 
   const handleMusicPlayerClose = () => {
+    // Stop the music if it's playing
+    if (musicPlayerControls && musicPlayerControls.pause) {
+      musicPlayerControls.pause();
+    }
+    
     setShowMobileMusicPlayer(false);
     setMusicPlayerVisible(false);
+    setShowMusicChoice(false);
   };
 
   // Auto-show music player when 80s mode is activated
@@ -893,28 +912,30 @@ const MobileSidePanel = ({
       // Set SitePal state
       setSitepalSceneLoaded(true);
       
-      // Speak a greeting first
-      setTimeout(() => {
-        // Try multiple SitePal speaking functions
-        if (window.sayText && typeof window.sayText === 'function') {
+      // Disable music when SitePal is active
+      if (showMobileMusicPlayer) {
+        console.log("🎵 Disabling music for SitePal session");
+        setShowMobileMusicPlayer(false);
+        setMusicPlayerVisible(false);
+      }
+      
+      // Use the exact greeting approach from working cyberpunk_mission_control_clean.html
+      if (!window.greetingPlayed) {
+        setTimeout(() => {
           try {
-            window.sayText("Welcome to the cyberpunk mission control. I'm ready to assist you through text communication.");
-            console.log("✅ SitePal greeting spoken via sayText");
+            if (window.sayText && typeof window.sayText === 'function') {
+              // Use the exact same parameters as the working version
+              window.sayText("Welcome to cyberpunk mission control. I am ready to assist you.", 9, 1, 7);
+              console.log("✅ SitePal greeting spoken with proper parameters");
+              window.greetingPlayed = true;
+            } else {
+              console.log("⚠️ sayText not available for greeting");
+            }
           } catch (e) {
-            console.warn("⚠️ Could not speak greeting via sayText:", e);
+            console.log("⚠️ Greeting failed:", e.message);
           }
-        } else if (window.vhss_sayText && typeof window.vhss_sayText === 'function') {
-          try {
-            window.vhss_sayText("Welcome to the cyberpunk mission control. I'm ready to assist you through text communication.");
-            console.log("✅ SitePal greeting spoken via vhss_sayText");
-          } catch (e) {
-            console.warn("⚠️ Could not speak greeting via vhss_sayText:", e);
-          }
-        } else {
-          console.warn("⚠️ No SitePal speaking function available for greeting");
-          console.log("Available window functions:", Object.keys(window).filter(key => key.includes('say') || key.includes('vhss')));
-        }
-      }, 2000); // Increased delay to ensure SitePal is fully loaded
+        }, 1000);
+      }
       
       // Update UI to TEXT CHAT state
       const signalButton = document.getElementById("signal-button");
@@ -1709,6 +1730,22 @@ const MobileSidePanel = ({
 
   // Modify openVideoScreenAndInitialize to properly handle the orientation video completion
   const openVideoScreenAndInitialize = () => {
+    console.log('Signal button clicked, musicPlayerControls:', musicPlayerControls);
+    
+    // Stop music if it's playing (to avoid interference with video audio)
+    if (musicPlayerControls && musicPlayerControls.pause) {
+      musicPlayerControls.pause();
+      console.log('🎵 Stopping music for video playback');
+    } else {
+      console.log('⚠️ Music player controls not available or pause method missing');
+    }
+    
+    // Also close the music player UI completely
+    if (showMobileMusicPlayer) {
+      handleMusicPlayerClose();
+      console.log('🎵 Closing music player UI');
+    }
+    
     // First open the video screen
     openVideoScreen();
     
@@ -1774,6 +1811,13 @@ const MobileSidePanel = ({
         
         // Add video to the feed
         videoFeed.appendChild(orientationVideo);
+        
+        // Disable music when orientation video starts
+        if (showMobileMusicPlayer) {
+          console.log("🎵 Disabling music for orientation video");
+          setShowMobileMusicPlayer(false);
+          setMusicPlayerVisible(false);
+        }
         
         // Play the video
         orientationVideo.play().catch(err => console.warn("Could not autoplay orientation video:", err));
@@ -1933,10 +1977,17 @@ const MobileSidePanel = ({
         // Handle text message to SitePal
         console.log('Received text message for SitePal:', event.data.message);
         
+        // Validate message before sending to SitePal
+        const messageText = event.data.message;
+        if (!messageText || typeof messageText !== 'string' || messageText.trim() === '') {
+          console.warn("⚠️ Invalid message text provided to SitePal");
+          return;
+        }
+        
         // Try to send directly to SitePal AI functions first
         if (window.vhss_ai_sayPreAI && typeof window.vhss_ai_sayPreAI === 'function') {
           try {
-            window.vhss_ai_sayPreAI(event.data.message);
+            window.vhss_ai_sayPreAI(messageText.trim());
             console.log("✅ Message forwarded to SitePal via vhss_ai_sayPreAI");
           } catch (e) {
             console.warn("⚠️ Error forwarding via vhss_ai_sayPreAI:", e);
@@ -1947,7 +1998,7 @@ const MobileSidePanel = ({
           if (iframe) {
             iframe.contentWindow.postMessage({
               type: 'SITEPAL_TEXT_MESSAGE',
-              message: event.data.message
+              message: messageText.trim()
             }, '*');
             console.log("📤 Message forwarded to iframe");
           } else {
@@ -1966,6 +2017,166 @@ const MobileSidePanel = ({
 
   return (
     <>
+      {/* Top Corner Buttons */}
+      {/* Music Player - Top Left (Minimal) */}
+      {!showMobileMusicPlayer ? (
+        // Music Icon Button
+        <IconButton
+          position="fixed"
+          top="20px"
+          left="20px"
+          zIndex="1100"
+          aria-label="Music Player"
+          icon={
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 18V5l12-2v13"/>
+              <circle cx="6" cy="18" r="3"/>
+              <circle cx="18" cy="16" r="3"/>
+            </svg>
+          }
+          color="white"
+          bg="transparent"
+          size="md"
+          onClick={() => {
+            setShowMusicChoice(false); // Don't show choice, just start playing
+            setShowMobileMusicPlayer(true);
+            setMusicPlayerVisible(true);
+          }}
+          _hover={{
+            bg: "rgba(255, 255, 255, 0.1)",
+          }}
+        />
+      ) : (
+        // Minimal Music Player
+        <Box
+          position="fixed"
+          top="20px"
+          left="20px"
+          zIndex="1100"
+          display="flex"
+          alignItems="center"
+          gap="8px"
+        >
+          {/* Spinning Album Art */}
+          <Box
+            width="40px"
+            height="40px"
+            borderRadius="50%"
+            backgroundImage="url('/virginRecords.jpg')"
+            backgroundSize="cover"
+            backgroundPosition="center"
+            transition="all 0.3s ease"
+            sx={{
+              animation: musicPlayerVisible && isPlaying ? "spin 3s linear infinite" : "none",
+              "@keyframes spin": {
+                "0%": { transform: "rotate(0deg)" },
+                "100%": { transform: "rotate(360deg)" }
+              }
+            }}
+          />
+          
+          {/* Skip Button */}
+          <IconButton
+            aria-label="Next Track"
+            icon={
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="5 4 15 12 5 20 5 4"/>
+                <line x1="19" y1="5" x2="19" y2="19"/>
+              </svg>
+            }
+            color="white"
+            bg="rgba(255, 255, 255, 0.1)"
+            size="sm"
+            minW="32px"
+            height="32px"
+            onClick={() => {
+              if (musicPlayerControls && musicPlayerControls.skipTrack) {
+                musicPlayerControls.skipTrack();
+              }
+            }}
+            _hover={{
+              bg: "rgba(255, 255, 255, 0.2)",
+            }}
+          />
+          
+          {/* Close Button */}
+          <IconButton
+            aria-label="Close Music Player"
+            icon={
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            }
+            color="white"
+            bg="rgba(255, 255, 255, 0.1)"
+            size="sm"
+            minW="28px"
+            height="28px"
+            onClick={() => {
+              setShowMobileMusicPlayer(false);
+              setMusicPlayerVisible(false);
+              handleMusicPlayerClose();
+            }}
+            _hover={{
+              bg: "rgba(255, 255, 255, 0.2)",
+            }}
+          />
+        </Box>
+      )}
+      
+      {/* 80s Mode Toggle - Top Right */}
+      <Box
+        position="fixed"
+        top="20px"
+        right="20px"
+        zIndex="1100"
+        display="flex"
+        alignItems="center"
+        gap="8px"
+      >
+        <Text
+          color="white"
+          fontSize="12px"
+          fontWeight="bold"
+          letterSpacing="0.5px"
+          textTransform="uppercase"
+          opacity={0.8}
+        >
+          80s Mode
+        </Text>
+        <Box
+          as="button"
+          position="relative"
+          width="44px"
+          height="24px"
+          borderRadius="12px"
+          bg={is80sMode ? "#d946ef" : "rgba(255, 255, 255, 0.2)"}
+          border={is80sMode ? "1px solid #d946ef" : "1px solid rgba(255, 255, 255, 0.3)"}
+          cursor="pointer"
+          transition="all 0.3s ease"
+          onClick={() => {
+            console.log('80s mode toggle clicked, current state:', is80sMode);
+            toggle80sMode();
+          }}
+          _hover={{
+            bg: is80sMode ? "#e879f9" : "rgba(255, 255, 255, 0.3)",
+          }}
+        >
+          <Box
+            position="absolute"
+            top="2px"
+            left={is80sMode ? "22px" : "2px"}
+            width="18px"
+            height="18px"
+            borderRadius="50%"
+            bg="white"
+            transition="all 0.3s ease"
+            boxShadow={is80sMode ? "0 0 8px rgba(217, 70, 239, 0.6)" : "0 2px 4px rgba(0,0,0,0.2)"}
+          />
+        </Box>
+      </Box>
+      
       {/* Bottom Navigation Bar */}
       <Box
         position="fixed"
@@ -2027,56 +2238,6 @@ const MobileSidePanel = ({
           }
         }}
       >
-        {/* MUSIC Button (Left Side) - Virgin Records or Music Player */}
-        {!musicPlayerVisible ? (
-          <IconButton
-            aria-label="Virgin Records Music"
-            icon={
-              <img 
-                src="/virginRecords.jpg" 
-                alt="Virgin Records" 
-                style={{ 
-                  width: '100%', 
-                  height: '100%', 
-                  borderRadius: '50%',
-                  objectFit: 'cover'
-                }} 
-              />
-            }
-            color="#67e8f9"
-            bg="rgba(13, 25, 42, 0.95)"
-            borderRadius="full"
-            boxShadow="0 0 10px rgba(6, 182, 212, 0.3), inset 0 0 6px rgba(6, 182, 212, 0.2)"
-            border="1px solid #0e7490"
-            onClick={() => {
-              if (!showMobileMusicPlayer) {
-                setShowMobileMusicPlayer(true);
-                setMusicPlayerVisible(true);
-              }
-            }}
-            _hover={{
-              bg: "rgba(19, 36, 63, 0.95)",
-              transform: "scale(1.08)",
-              boxShadow: "0 0 15px rgba(6, 182, 212, 0.5)",
-            }}
-            size="lg"
-          />
-        ) : (
-          // Music Player in place of button when visible
-          <Box
-            position="relative"
-            width="48px"
-            height="48px"
-          >
-            <MobileMusicPlayer
-              isVisible={showMobileMusicPlayer}
-              onClose={handleMusicPlayerClose}
-              autoPlay={true}
-              is80sMode={is80sMode}
-              onModeChange={handleMusicModeChange}
-            />
-          </Box>
-        )}
         
         {/* ROCKET MODEL Button (Left-Mid Side) - Dual State Navigation/Launch */}
         <IconButton
@@ -2297,18 +2458,133 @@ const MobileSidePanel = ({
           </Text>
         </Button>
         
-        {/* CANDLE Button (Right-Mid Side) - Inactive */}
+        {/* Pagination Indicator with Arrows (Above Signal Button) */}
+        {paginationState && (
+          <Box
+            position="absolute"
+            bottom="75px"
+            left="50%"
+            transform="translateX(-50%)"
+            display="flex"
+            flexDirection="column"
+            alignItems="center"
+            gap="4px"
+            zIndex="1001"
+          >
+            <Box
+              display="flex"
+              alignItems="center"
+              gap="12px"
+            >
+              {/* Left Arrow */}
+              <IconButton
+                aria-label="Previous Page"
+                icon={
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M15 18l-6-6 6-6"/>
+                  </svg>
+                }
+                color="#ffffff"
+                bg="transparent"
+                borderRadius="full"
+                border="2px solid rgba(255,255,255,0.8)"
+                onClick={() => {
+                  console.log('Left arrow clicked, paginationState:', paginationState);
+                  if (paginationState) {
+                    const { currentPage, totalPages, setCurrentPage } = paginationState;
+                    const newPage = (currentPage - 1 + totalPages) % totalPages;
+                    setCurrentPage(newPage);
+                  }
+                }}
+                _hover={{
+                  bg: "rgba(255,255,255,0.1)",
+                  borderColor: "#ffffff",
+                  transform: "scale(1.1)",
+                }}
+                size="lg"
+                minW="48px"
+                h="48px"
+                p="12px"
+              />
+              
+              <Text
+                fontSize="1.5rem"
+                color="#ffffff"
+                textShadow="0 0 10px rgba(139,125,216,0.8)"
+                fontFamily="roboto"
+                fontWeight="bold"
+              >
+                THE ILLUMIN80
+              </Text>
+              
+              {/* Right Arrow */}
+              <IconButton
+                aria-label="Next Page"
+                icon={
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9 18l6-6-6-6"/>
+                  </svg>
+                }
+                color="#ffffff"
+                bg="transparent"
+                borderRadius="full"
+                border="2px solid rgba(255,255,255,0.8)"
+                onClick={() => {
+                  console.log('Right arrow clicked, paginationState:', paginationState);
+                  if (paginationState) {
+                    const { currentPage, totalPages, setCurrentPage } = paginationState;
+                    const newPage = (currentPage + 1) % totalPages;
+                    console.log('Calculating new page:', currentPage, '+1 %', totalPages, '=', newPage);
+                    setCurrentPage(newPage);
+                  }
+                }}
+                _hover={{
+                  bg: "rgba(255,255,255,0.1)",
+                  borderColor: "#ffffff",
+                  transform: "scale(1.1)",
+                }}
+                size="lg"
+                minW="48px"
+                h="48px"
+                p="12px"
+              />
+            </Box>
+            
+            <Box display="flex" gap="4px" alignItems="center">
+              {paginationState.totalPages <= 10 ? (
+                Array.from({ length: paginationState.totalPages }).map((_, i) => (
+                  <Box
+                    key={i}
+                    width={i === paginationState.currentPage ? "16px" : "6px"}
+                    height="6px"
+                    borderRadius={i === paginationState.currentPage ? "3px" : "50%"}
+                    bg={i === paginationState.currentPage ? "#ffffff" : "rgba(255,255,255,0.6)"}
+                    transition="all 0.3s ease"
+                  />
+                ))
+              ) : (
+                <Text fontSize="1rem" color="#ffffff" opacity="0.8">
+                  {paginationState.currentPage + 1} / {paginationState.totalPages}
+                </Text>
+              )}
+            </Box>
+            
+            <Text
+              fontSize="1rem"
+              color="#ffffff"
+              opacity="0.8"
+            >
+              {paginationState.visibleRange.start}-{paginationState.visibleRange.end} of {paginationState.total}
+            </Text>
+          </Box>
+        )}
+        
+        {/* FLAME Button (Right-Mid Side) - Inactive */}
         <IconButton
-          aria-label="Candle (Inactive)"
+          aria-label="Flame (Inactive)"
           icon={
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9 5v4"/>
-              <rect width="4" height="6" x="7" y="9" rx="1"/>
-              <path d="M9 15v2"/>
-              <path d="M17 3v2"/>
-              <rect width="4" height="8" x="15" y="5" rx="1"/>
-              <path d="M17 13v3"/>
-              <path d="M3 3v16a2 2 0 0 0 2 2h16"/>
+              <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>
             </svg>
           }
           color="#64748b"
@@ -2329,7 +2605,7 @@ const MobileSidePanel = ({
           size="lg"
         />
         
-        {/* EXIT Button (Right Side) - Link to Home */}
+        {/* EXIT Button (Right Side) */}
         <IconButton
           aria-label="Exit to Home"
           icon={
@@ -2352,6 +2628,7 @@ const MobileSidePanel = ({
           }}
           size="lg"
         />
+        
       </Box>
 
       {/* Ensure no backdrop is visible when video screen is closed */}
@@ -3034,6 +3311,30 @@ const MobileSidePanel = ({
           box-shadow: 0 0 8px rgba(6, 182, 212, 0.6) !important;
         }
       `}</style>
+
+      {/* Music Player - Always rendered but hidden for ref access */}
+      <Box
+        position="fixed"
+        bottom="10px"
+        left="20px"
+        zIndex="1500"
+        display={showMobileMusicPlayer ? "block" : "none"}
+      >
+        <MobileMusicPlayer
+          isVisible={showMobileMusicPlayer}
+          onClose={handleMusicPlayerClose}
+          autoPlay={!showMusicChoice}
+          is80sMode={is80sMode}
+          onModeChange={(newMode) => {
+            handleMusicModeChange(newMode);
+            setShowMusicChoice(false);
+          }}
+          showInitialChoice={showMusicChoice}
+          onPlayingStateChange={setIsPlaying}
+          hideUI={true}
+          onControlsReady={handleMusicControlsReady}
+        />
+      </Box>
     </>
   );
 };

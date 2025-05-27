@@ -3,7 +3,9 @@ import { Box, Text } from "@chakra-ui/react";
 import { storage } from "../utilities/firebaseClient";
 import { ref as storageRefUtil, getDownloadURL } from "firebase/storage";
 
-const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = false, onModeChange }) => {
+const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = false, onModeChange, showInitialChoice = false, onPlayingStateChange, hideUI = false, onControlsReady }) => {
+  console.log('MobileMusicPlayer: Component mounting/updating', { isVisible, hideUI });
+  
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
   const [trackUrl, setTrackUrl] = useState("");
@@ -12,6 +14,13 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
   const [showModeChoice, setShowModeChoice] = useState(false);
   const [longPressTimer, setLongPressTimer] = useState(null);
   const audioRef = useRef(null);
+
+  // Show initial choice popup if requested
+  useEffect(() => {
+    if (showInitialChoice && isVisible) {
+      setShowModeChoice(true);
+    }
+  }, [showInitialChoice, isVisible]);
 
   // Track lists
   const non80sTrackNames = [
@@ -75,6 +84,7 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
         if (audioRef.current) {
           audioRef.current.play().then(() => {
             setIsPlaying(true);
+            if (onPlayingStateChange) onPlayingStateChange(true);
             console.log("🎵 Mobile: Auto-playing track");
           }).catch(e => {
             console.log("🔇 Mobile: Auto-play blocked by browser");
@@ -83,28 +93,6 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
       }, 100);
     }
   }, [trackUrl, autoPlay, isVisible]);
-
-  // Handle track end
-  const handleTrackEnd = () => {
-    const nextIndex = (currentTrackIndex + 1) % trackNames.length;
-    loadTrack(nextIndex);
-  };
-
-  // Toggle play/pause
-  const togglePlayPause = () => {
-    if (!audioRef.current) return;
-
-    if (isPlaying) {
-      audioRef.current.pause();
-      setIsPlaying(false);
-    } else {
-      audioRef.current.play().then(() => {
-        setIsPlaying(true);
-      }).catch(e => {
-        console.log("🔇 Mobile: Play blocked by browser");
-      });
-    }
-  };
 
   // Skip to next track
   const skipNext = () => {
@@ -128,6 +116,30 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
     console.log(`🎵 Mobile: Skipping to previous track ${prevIndex}: ${trackNames[prevIndex]} (from ${currentTrackIndex})`);
     setIsPlaying(false); // Stop current track
     loadTrack(prevIndex);
+  };
+
+  // Handle track end
+  const handleTrackEnd = () => {
+    const nextIndex = (currentTrackIndex + 1) % trackNames.length;
+    loadTrack(nextIndex);
+  };
+
+  // Toggle play/pause
+  const togglePlayPause = () => {
+    if (!audioRef.current) return;
+
+    if (isPlaying) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+      if (onPlayingStateChange) onPlayingStateChange(false);
+    } else {
+      audioRef.current.play().then(() => {
+        setIsPlaying(true);
+        if (onPlayingStateChange) onPlayingStateChange(true);
+      }).catch(e => {
+        console.log("🔇 Mobile: Play blocked by browser");
+      });
+    }
   };
 
   // Long press handlers for genre switching
@@ -164,13 +176,61 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
       }
     }
   };
+  
+  // Add a dedicated pause method
+  const pause = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+      if (onPlayingStateChange) onPlayingStateChange(false);
+      console.log('🎵 Mobile: Music paused (forced)');
+    } else {
+      console.log('⚠️ Mobile: No audio ref available to pause');
+    }
+  };
 
+  // Pass control methods to parent via callback - only on mount
+  useEffect(() => {
+    if (onControlsReady) {
+      console.log('MobileMusicPlayer: Passing controls to parent');
+      onControlsReady({
+        togglePlayPause,
+        skipTrack: skipNext,
+        pause,
+        isPlaying: () => isPlaying // Make this a function to get current state
+      });
+    }
+  }, [onControlsReady]); // Only depend on onControlsReady
+
+  // Even if not visible, we need to render the audio element for the ref methods to work
   if (!isVisible) {
-    console.log("🎵 Mobile music player: not visible, showSpotify =", isVisible);
-    return null;
+    console.log("🎵 Mobile music player: not visible, rendering hidden audio only");
+    return trackUrl ? (
+      <audio
+        ref={audioRef}
+        src={trackUrl}
+        onEnded={handleTrackEnd}
+        preload="metadata"
+        style={{ display: 'none' }}
+      />
+    ) : <div style={{ display: 'none' }} />;
   }
 
   console.log("🎵 Mobile music player: rendering with isVisible =", isVisible, "is80sMode =", is80sMode);
+
+  // If hideUI is true, only render the audio element
+  if (hideUI) {
+    return trackUrl ? (
+      <audio
+        ref={audioRef}
+        src={trackUrl}
+        onEnded={handleTrackEnd}
+        onLoadedData={() => setIsLoaded(true)}
+        preload="metadata"
+        style={{ display: 'none' }}
+      />
+    ) : null;
+  }
 
   return (
     <Box

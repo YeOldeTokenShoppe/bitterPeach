@@ -6,9 +6,9 @@ import Loader from "../components/Loader";
 import { X } from "lucide-react";
 
 // Dynamically import music players (keep for potential 80s mode use)
-const MusicPlayer3 = dynamic(() => import("../components/MusicPlayer3"), {
-  ssr: false,
-});
+// const MusicPlayer3 = dynamic(() => import("../components/MusicPlayer3"), {
+//   ssr: false,
+// });
 
 // const NavBarDynamic = dynamic(() => import("../components/NavBar.client"), {
 //   ssr: false,

@@ -132,6 +132,8 @@ function BurnGallery({
   const [clerkUserData, setClerkUserData] = useState(null);
   const [rocketModelVisible, setRocketModelVisible] = useState(false);
   const [isConstellationsVisible, setIsConstellationsVisible] = useState(false);
+  const [paginationState, setPaginationState] = useState(null);
+  const votiveStandRef = useRef(null);
 
   const toggleConstellationVisibility = useCallback(() => {
     setIsConstellationsVisible((prev) => {
@@ -363,6 +365,7 @@ function BurnGallery({
           <GridItem colSpan={1} height="100%" overflow="hidden">
             {currentView === "main" ? (
               <MemoizedThreeDVotiveStand
+                ref={votiveStandRef}
                 setIsLoading={setIsModelLoaded}
                 isInMarkerView={isInMarkerView}
                 isMobileView={isMobileView}
@@ -378,6 +381,7 @@ function BurnGallery({
                 rocketModelVisible={rocketModelVisible}
                 isConstellationsVisible={isConstellationsVisible}
                 toggleConstellationVisibility={toggleConstellationVisibility}
+                onPaginationChange={setPaginationState}
               />
             ) : null}
           </GridItem>
@@ -398,6 +402,7 @@ function BurnGallery({
               toggleRocketModel={toggleRocketModel}
               toggleConstellationVisibility={toggleConstellationVisibility}
               isConstellationsVisible={isConstellationsVisible}
+              paginationState={paginationState}
             />
           ) : (
             <SidePanel
