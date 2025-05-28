@@ -120,6 +120,7 @@ const MobileSidePanel = ({
     if (is80sMode) {
       setShowMobileMusicPlayer(true);
       setMusicPlayerVisible(true);
+      setShowSpotify(false); // Ensure MusicPlayer2 is off
     } else {
       setShowMobileMusicPlayer(false);
       setMusicPlayerVisible(false);
@@ -1725,7 +1726,8 @@ const MobileSidePanel = ({
 
   // Render the music player even when panel is closed if showSpotify is true
   const renderMusicPlayer = () => {
-    if (!showSpotify) return null;
+    // Don't render MusicPlayer2 if MobileMusicPlayer is active
+    if (!showSpotify || showMobileMusicPlayer) return null;
     
     return (
       <Box
@@ -2147,13 +2149,13 @@ const MobileSidePanel = ({
   return (
     <>
       {/* Top Corner Buttons */}
-      {/* Music Player - Top Left (Minimal) */}
+      {/* Music Player - Top Right Above 80s Mode Toggle */}
       {!showMobileMusicPlayer ? (
         // Music Icon Button
         <IconButton
           position="fixed"
           top="20px"
-          left="20px"
+          right="20px"
           zIndex="1100"
           aria-label="Music Player"
           icon={
@@ -2180,7 +2182,7 @@ const MobileSidePanel = ({
         <Box
           position="fixed"
           top="20px"
-          left="20px"
+          right="20px"
           zIndex="1100"
           display="flex"
           alignItems="center"
@@ -2254,10 +2256,10 @@ const MobileSidePanel = ({
         </Box>
       )}
       
-      {/* 80s Mode Toggle - Top Right */}
+      {/* 80s Mode Toggle - Top Right Below Music Icon */}
       <Box
         position="fixed"
-        top="20px"
+        top="70px"
         right="20px"
         zIndex="1100"
         display="flex"
@@ -2314,13 +2316,19 @@ const MobileSidePanel = ({
         width="100%"
         height="70px"
         paddingBottom="env(safe-area-inset-bottom, 10px)"
-        background="linear-gradient(180deg, rgba(13, 25, 42, 0.95) 0%, rgba(3, 10, 25, 0.98) 100%)"
+        background={is80sMode ? 
+          "linear-gradient(180deg, rgba(139, 0, 139, 0.95) 0%, rgba(75, 0, 130, 0.98) 100%)" :
+          "linear-gradient(180deg, rgba(13, 25, 42, 0.95) 0%, rgba(3, 10, 25, 0.98) 100%)"
+        }
         backdropFilter="none"
         display="flex"
         justifyContent="space-around"
         alignItems="center"
-        borderTop="2px solid #0e7490"
-        boxShadow="0 -5px 15px rgba(6, 182, 212, 0.2)"
+        borderTop={is80sMode ? "2px solid #ff00ff" : "2px solid #0e7490"}
+        boxShadow={is80sMode ? 
+          "0 -5px 15px rgba(255, 0, 255, 0.3), 0 -10px 30px rgba(0, 255, 255, 0.2)" :
+          "0 -5px 15px rgba(6, 182, 212, 0.2)"
+        }
         zIndex="1000"
         _after={{
           content: '""',
@@ -2329,8 +2337,10 @@ const MobileSidePanel = ({
           left: 0,
           right: 0,
           bottom: 0,
-          background: "#0f172a", // Solid background as fallback
-          opacity: 0.85,
+          background: is80sMode ? 
+            "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255, 0, 255, 0.1) 2px, rgba(255, 0, 255, 0.1) 4px)" :
+            "#0f172a",
+          opacity: is80sMode ? 0.3 : 0.85,
           zIndex: -1
         }}
         sx={{
@@ -2390,11 +2400,14 @@ const MobileSidePanel = ({
               <path d="M5 18H3"/>
             </svg>
           }
-          color="#67e8f9"
-          bg="rgba(13, 25, 42, 0.95)"
+          color={is80sMode ? "#ff00ff" : "#67e8f9"}
+          bg={is80sMode ? "rgba(139, 0, 139, 0.3)" : "rgba(13, 25, 42, 0.95)"}
           borderRadius="full"
-          boxShadow="0 0 10px rgba(6, 182, 212, 0.3), inset 0 0 6px rgba(6, 182, 212, 0.2)"
-          border="1px solid #0e7490"
+          boxShadow={is80sMode ? 
+            "0 0 10px rgba(255, 0, 255, 0.4), inset 0 0 6px rgba(0, 255, 255, 0.2)" :
+            "0 0 10px rgba(6, 182, 212, 0.3), inset 0 0 6px rgba(6, 182, 212, 0.2)"
+          }
+          border={is80sMode ? "1px solid #ff00ff" : "1px solid #0e7490"}
           isDisabled={true}
           opacity={0.6}
           cursor="not-allowed"
@@ -2416,25 +2429,36 @@ const MobileSidePanel = ({
               <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/>
             </svg>
           }
-          color={rocketModelVisible ? "#39ff14" : "#67e8f9"}
-          bg={rocketModelVisible ? "rgba(57, 255, 20, 0.15)" : "rgba(13, 25, 42, 0.95)"}
+          color={rocketModelVisible ? "#39ff14" : (is80sMode ? "#00ffff" : "#67e8f9")}
+          bg={rocketModelVisible ? 
+            (is80sMode ? "rgba(57, 255, 20, 0.25)" : "rgba(57, 255, 20, 0.15)") : 
+            (is80sMode ? "rgba(0, 255, 255, 0.2)" : "rgba(13, 25, 42, 0.95)")
+          }
           borderRadius="full"
           boxShadow={rocketModelVisible ? 
-            "0 0 15px rgba(57, 255, 20, 0.4), inset 0 0 8px rgba(57, 255, 20, 0.2)" :
-            "0 0 10px rgba(6, 182, 212, 0.3), inset 0 0 6px rgba(6, 182, 212, 0.2)"
+            (is80sMode ? 
+              "0 0 20px rgba(57, 255, 20, 0.6), 0 0 30px rgba(255, 0, 255, 0.3)" :
+              "0 0 15px rgba(57, 255, 20, 0.4), inset 0 0 8px rgba(57, 255, 20, 0.2)"
+            ) :
+            (is80sMode ? 
+              "0 0 15px rgba(0, 255, 255, 0.5), inset 0 0 8px rgba(255, 0, 255, 0.2)" :
+              "0 0 10px rgba(6, 182, 212, 0.3), inset 0 0 6px rgba(6, 182, 212, 0.2)"
+            )
           }
-          border={rocketModelVisible ? "1px solid #39ff14" : "1px solid #0e7490"}
+          border={rocketModelVisible ? "#39ff14" : (is80sMode ? "1px solid #00ffff" : "1px solid #0e7490")}
           onClick={() => {
             // Simple toggle
             console.log("🚀 Mobile: Toggling rocket visibility");
             handleRocketModelToggle();
           }}
           _hover={{
-            bg: rocketModelVisible ? "rgba(57, 255, 20, 0.25)" : "rgba(19, 36, 63, 0.95)",
+            bg: rocketModelVisible ? 
+              (is80sMode ? "rgba(57, 255, 20, 0.35)" : "rgba(57, 255, 20, 0.25)") :
+              (is80sMode ? "rgba(0, 255, 255, 0.3)" : "rgba(19, 36, 63, 0.95)"),
             transform: "scale(1.08)",
             boxShadow: rocketModelVisible ?
-              "0 0 20px rgba(57, 255, 20, 0.6)" :
-              "0 0 15px rgba(6, 182, 212, 0.5)",
+              (is80sMode ? "0 0 25px rgba(57, 255, 20, 0.8)" : "0 0 20px rgba(57, 255, 20, 0.6)") :
+              (is80sMode ? "0 0 20px rgba(0, 255, 255, 0.7)" : "0 0 15px rgba(6, 182, 212, 0.5)"),
           }}
           size="lg"
         />
@@ -2445,17 +2469,27 @@ const MobileSidePanel = ({
           height="60px"
           width="60px"
           marginBottom="20px"
-          background="linear-gradient(135deg, rgba(13, 25, 42, 0.95), rgba(3, 10, 25, 0.95))"
-          color="#67e8f9"
+          background={is80sMode ? 
+            "linear-gradient(135deg, rgba(255, 0, 255, 0.3), rgba(0, 255, 255, 0.3))" :
+            "linear-gradient(135deg, rgba(13, 25, 42, 0.95), rgba(3, 10, 25, 0.95))"
+          }
+          color={is80sMode ? "#ff00ff" : "#67e8f9"}
           border="2px solid"
-          borderColor="#0e7490"
-          boxShadow="0 0 15px rgba(6, 182, 212, 0.4), inset 0 0 8px rgba(6, 182, 212, 0.2)"
+          borderColor={is80sMode ? "#ff00ff" : "#0e7490"}
+          boxShadow={is80sMode ?
+            "0 0 20px rgba(255, 0, 255, 0.5), inset 0 0 10px rgba(0, 255, 255, 0.3), 0 0 40px rgba(255, 0, 255, 0.3)" :
+            "0 0 15px rgba(6, 182, 212, 0.4), inset 0 0 8px rgba(6, 182, 212, 0.2)"
+          }
           onClick={openVideoScreenAndInitialize}
           _hover={{
-            background: "linear-gradient(135deg, rgba(19, 36, 63, 0.95), rgba(7, 20, 42, 0.95))",
-            borderColor: "#22d3ee",
+            background: is80sMode ?
+              "linear-gradient(135deg, rgba(255, 0, 255, 0.4), rgba(0, 255, 255, 0.4))" :
+              "linear-gradient(135deg, rgba(19, 36, 63, 0.95), rgba(7, 20, 42, 0.95))",
+            borderColor: is80sMode ? "#00ffff" : "#22d3ee",
             transform: "scale(1.08)",
-            boxShadow: "0 0 20px rgba(6, 182, 212, 0.6), 0 0 40px rgba(6, 182, 212, 0.2)",
+            boxShadow: is80sMode ?
+              "0 0 30px rgba(255, 0, 255, 0.7), 0 0 50px rgba(0, 255, 255, 0.4)" :
+              "0 0 20px rgba(6, 182, 212, 0.6), 0 0 40px rgba(6, 182, 212, 0.2)",
           }}
           _before={{
             content: '""',
@@ -2465,12 +2499,13 @@ const MobileSidePanel = ({
             right: "-3px",
             bottom: "-3px",
             borderRadius: "full",
-            background:
+            background: is80sMode ?
+              "conic-gradient(from 0deg, #ff00ff, #00ffff, #ff00ff, #00ffff, #ff00ff)" :
               "conic-gradient(from 215deg, #22d3ee, #06b6d4, #0891b2, #0e7490, #155e75, #0e7490, #0891b2, #06b6d4, #22d3ee)",
-            opacity: "0.4",
+            opacity: is80sMode ? "0.6" : "0.4",
             filter: "blur(4px)",
             zIndex: "-1",
-            animation: "rotateConic 8s linear infinite",
+            animation: is80sMode ? "rotateConic 4s linear infinite" : "rotateConic 8s linear infinite",
           }}
           _after={{
             content: '""',
@@ -2502,10 +2537,19 @@ const MobileSidePanel = ({
           <Text
             fontSize="28px"
             fontWeight="bold"
-            textShadow="0 0 5px #06b6d4, 0 0 15px rgba(6, 182, 212, 0.4)"
+            textShadow={is80sMode ? 
+              "0 0 10px #ff00ff, 0 0 20px rgba(255, 0, 255, 0.6)" :
+              "0 0 5px #06b6d4, 0 0 15px rgba(6, 182, 212, 0.4)"
+            }
             transform="rotate(0deg)"
-            animation="infinityRotate 8s cubic-bezier(0.5, 0.1, 0.5, 1) infinite"
-            filter="drop-shadow(0 0 6px rgba(6, 182, 212, 0.6))"
+            animation={is80sMode ? 
+              "infinityRotate 5s cubic-bezier(0.5, 0.1, 0.5, 1) infinite" :
+              "infinityRotate 8s cubic-bezier(0.5, 0.1, 0.5, 1) infinite"
+            }
+            filter={is80sMode ?
+              "drop-shadow(0 0 10px rgba(255, 0, 255, 0.8))" :
+              "drop-shadow(0 0 6px rgba(6, 182, 212, 0.6))"
+            }
             _before={{
               content: '"∞"',
               position: "absolute",
@@ -2518,7 +2562,7 @@ const MobileSidePanel = ({
               justifyContent: "center",
               opacity: "0.6",
               filter: "blur(2px)",
-              animation: "glowPulse 4s infinite",
+              animation: is80sMode ? "glowPulse80s 3s infinite" : "glowPulse 4s infinite",
             }}
             sx={{
               "@keyframes infinityRotate": {
@@ -2555,6 +2599,33 @@ const MobileSidePanel = ({
                 },
                 "100%": {
                   textShadow: "0 0 5px #06b6d4, 0 0 15px rgba(6, 182, 212, 0.4)",
+                  opacity: "0.4",
+                  transform: "scale(0.9)",
+                },
+              },
+              "@keyframes glowPulse80s": {
+                "0%": {
+                  textShadow: "0 0 10px #ff00ff, 0 0 20px rgba(255, 0, 255, 0.6)",
+                  opacity: "0.4",
+                  transform: "scale(0.9)",
+                },
+                "25%": {
+                  textShadow: "0 0 10px #00ffff, 0 0 20px rgba(0, 255, 255, 0.6)",
+                  opacity: "0.7",
+                  transform: "scale(1.1)",
+                },
+                "50%": {
+                  textShadow: "0 0 10px #ff00ff, 0 0 20px rgba(255, 0, 255, 0.6)",
+                  opacity: "0.4",
+                  transform: "scale(0.9)",
+                },
+                "75%": {
+                  textShadow: "0 0 10px #00ffff, 0 0 20px rgba(0, 255, 255, 0.6)",
+                  opacity: "0.7",
+                  transform: "scale(1.1)",
+                },
+                "100%": {
+                  textShadow: "0 0 10px #ff00ff, 0 0 20px rgba(255, 0, 255, 0.6)",
                   opacity: "0.4",
                   transform: "scale(0.9)",
                 },
@@ -2656,7 +2727,7 @@ const MobileSidePanel = ({
         {paginationState && !rocketModelVisible && (
           <Box
             position="absolute"
-            bottom="75px"
+            bottom="100px"
             left="50%"
             transform="translateX(-50%)"
             display="flex"
@@ -2709,12 +2780,63 @@ const MobileSidePanel = ({
                 p="12px"
               />
               
-              <Text className="thelma1"
-                fontSize="1.5rem"
-                // color="#ffffff"
-                // textShadow="0 0 10px rgba(139,125,216,0.8)"
-                // fontFamily="roboto"
-                // fontWeight="bold"
+              <Text 
+                className={!is80sMode ? "thelma1" : ""}
+                fontSize="2rem"
+                // Override styles in 80s mode for chrome/neon effect
+                sx={is80sMode ? {
+                  fontWeight: "900",
+                  lineHeight: "0.8",
+                  transform: "rotate(-8deg) skew(-15deg)",
+                  background: "linear-gradient(45deg, #ff00ff, #00ffff, #ff00ff)",
+                  backgroundClip: "text",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  position: "relative",
+         
+                  filter: `
+                    drop-shadow(0 0 8px rgba(255, 255, 255, 0.9))
+                    drop-shadow(0 0 16px rgba(255, 255, 255, 0.7))
+                    drop-shadow(0 0 24px rgba(255, 255, 255, 0.5))
+                    drop-shadow(0 0 40px rgba(0, 255, 255, 0.6))
+                    drop-shadow(0 0 60px rgba(255, 0, 255, 0.5))
+                  `,
+                  animation: "neonPulse 2s ease-in-out infinite alternate",
+                  // Add TWO pseudo-elements - one for white outline, one for colorful text
+                  _after: {
+                    content: "'THE ILLUMIN80'",
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    height: "100%",
+                    zIndex: -1,
+                    color: "transparent",
+                    WebkitTextStroke: "2px white",
+                    filter: "blur(3px)",
+                    opacity: 0.7,
+                  },
+                  "@keyframes neonPulse": {
+                    "0%": {
+                      filter: `
+                        drop-shadow(0 0 8px rgba(255, 255, 255, 0.9))
+                        drop-shadow(0 0 16px rgba(255, 255, 255, 0.7))
+                        drop-shadow(0 0 24px rgba(255, 255, 255, 0.5))
+                        drop-shadow(0 0 40px rgba(0, 255, 255, 0.6))
+                        drop-shadow(0 0 60px rgba(255, 0, 255, 0.5))
+                      `,
+                    },
+                    "100%": {
+                      filter: `
+                        drop-shadow(0 0 12px rgba(255, 255, 255, 1))
+                        drop-shadow(0 0 20px rgba(255, 255, 255, 0.8))
+                        drop-shadow(0 0 32px rgba(255, 255, 255, 0.6))
+                        drop-shadow(0 0 50px rgba(0, 255, 255, 0.8))
+                        drop-shadow(0 0 70px rgba(255, 0, 255, 0.6))
+                      `,
+                    }
+                  }
+                } : {}}
               >
                 THE ILLUMIN80
               </Text>
@@ -2797,11 +2919,14 @@ const MobileSidePanel = ({
               <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>
             </svg>
           }
-          color="#64748b"
-          bg="rgba(13, 25, 42, 0.5)"
+          color={is80sMode ? "#ff66ff" : "#64748b"}
+          bg={is80sMode ? "rgba(139, 0, 139, 0.2)" : "rgba(13, 25, 42, 0.5)"}
           borderRadius="full"
-          boxShadow="0 0 5px rgba(100, 116, 139, 0.2), inset 0 0 3px rgba(100, 116, 139, 0.1)"
-          border="1px solid #475569"
+          boxShadow={is80sMode ?
+            "0 0 5px rgba(255, 102, 255, 0.3), inset 0 0 3px rgba(255, 0, 255, 0.2)" :
+            "0 0 5px rgba(100, 116, 139, 0.2), inset 0 0 3px rgba(100, 116, 139, 0.1)"
+          }
+          border={is80sMode ? "1px solid #ff66ff" : "1px solid #475569"}
           isDisabled={true}
           cursor="not-allowed"
           opacity={0.6}
@@ -2809,8 +2934,8 @@ const MobileSidePanel = ({
           _disabled={{
             opacity: 0.6,
             cursor: "not-allowed",
-            bg: "rgba(13, 25, 42, 0.5)",
-            color: "#64748b"
+            bg: is80sMode ? "rgba(139, 0, 139, 0.2)" : "rgba(13, 25, 42, 0.5)",
+            color: is80sMode ? "#ff66ff" : "#64748b"
           }}
           size="lg"
         />
@@ -2825,16 +2950,21 @@ const MobileSidePanel = ({
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
             </svg>
           }
-          color="#67e8f9"
-          bg="rgba(13, 25, 42, 0.95)"
+          color={is80sMode ? "#ff00ff" : "#67e8f9"}
+          bg={is80sMode ? "rgba(255, 0, 255, 0.2)" : "rgba(13, 25, 42, 0.95)"}
           borderRadius="full"
-          boxShadow="0 0 10px rgba(6, 182, 212, 0.3), inset 0 0 6px rgba(6, 182, 212, 0.2)"
-          border="1px solid #0e7490"
+          boxShadow={is80sMode ?
+            "0 0 10px rgba(255, 0, 255, 0.4), inset 0 0 6px rgba(0, 255, 255, 0.2)" :
+            "0 0 10px rgba(6, 182, 212, 0.3), inset 0 0 6px rgba(6, 182, 212, 0.2)"
+          }
+          border={is80sMode ? "1px solid #ff00ff" : "1px solid #0e7490"}
           onClick={() => router.push("/home")}
           _hover={{
-            bg: "rgba(19, 36, 63, 0.95)",
+            bg: is80sMode ? "rgba(255, 0, 255, 0.3)" : "rgba(19, 36, 63, 0.95)",
             transform: "scale(1.08)",
-            boxShadow: "0 0 15px rgba(6, 182, 212, 0.5)",
+            boxShadow: is80sMode ?
+              "0 0 15px rgba(255, 0, 255, 0.6), 0 0 25px rgba(0, 255, 255, 0.3)" :
+              "0 0 15px rgba(6, 182, 212, 0.5)",
           }}
           size="lg"
         />
@@ -3603,6 +3733,25 @@ const MobileSidePanel = ({
         #transcript-toggle-btn.active {
           background-color: #0e7490 !important;
           box-shadow: 0 0 8px rgba(6, 182, 212, 0.6) !important;
+        }
+        
+        /* 80s mode animations */
+        @keyframes neonPulse {
+          0% {
+            filter: drop-shadow(0 0 20px rgba(255, 0, 255, 0.8)) drop-shadow(0 0 40px rgba(0, 255, 255, 0.6));
+          }
+          100% {
+            filter: drop-shadow(0 0 30px rgba(255, 0, 255, 1)) drop-shadow(0 0 60px rgba(0, 255, 255, 0.8));
+          }
+        }
+        
+        @keyframes chromeShine {
+          0% {
+            background-position: -200% center;
+          }
+          100% {
+            background-position: 200% center;
+          }
         }
       `}</style>
 

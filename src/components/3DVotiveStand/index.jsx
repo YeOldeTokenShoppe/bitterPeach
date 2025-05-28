@@ -7,6 +7,7 @@ import { Perf } from "r3f-perf";
 import { useFirestoreResults } from "../../utilities/useFirestoreResults";
 import * as THREE from "three";
 import FlyInEffect from "./FlyInEffect";
+import { CinematicTransition, TransitionOverlay } from "./CinematicTransition";
 
 import Model from "./Model";
 import RocketModel from "./RocketModel";
@@ -118,10 +119,14 @@ const ThreeDVotiveStand = forwardRef(({
   const [allCandlesData, setAllCandlesData] = useState([]);
   const [showDebugOverlay, setShowDebugOverlay] = useState(false); // Debug overlay toggle
   
-  // Debug log viewer state changes
+  // Debug log viewer state changes and notify parent
   useEffect(() => {
     console.log('🎯 showFloatingViewer changed to:', showFloatingViewer);
-  }, [showFloatingViewer]);
+    // Notify parent component of viewer state change
+    if (onCandleViewerStateChange) {
+      onCandleViewerStateChange(showFloatingViewer);
+    }
+  }, [showFloatingViewer, onCandleViewerStateChange]);
   const [currentDpr, setCurrentDpr] = useState(1); // Start with lower DPI until we determine device/network
   const [networkType, setNetworkType] = useState("");
 
@@ -130,6 +135,14 @@ const ThreeDVotiveStand = forwardRef(({
     showIndicator: false,
     progress: 0,
   });
+  
+  // Function to close the floating viewer
+  const closeFloatingViewer = useCallback(() => {
+    setShowFloatingViewer(false);
+    setSelectedCandleData(null);
+    setViewerCandleIndex(0);
+    setAllCandlesData([]);
+  }, []);
 
   // Add ref for MoonScene
   const moonSceneRef = useRef();
@@ -744,6 +757,8 @@ const ThreeDVotiveStand = forwardRef(({
   // }, []);
 
   const [showFlyIn, setShowFlyIn] = useState(false);
+  const [showTransition, setShowTransition] = useState(false);
+  const [transitionCallback, setTransitionCallback] = useState(null);
 
   const handleLocalIgnition = () => {
     console.log('Ignition button clicked, triggering fly-in effect');
@@ -755,6 +770,21 @@ const ThreeDVotiveStand = forwardRef(({
     }, 6000);
   };
 
+  // Handle transition start from RocketModel
+  const handleTransitionStart = useCallback((onComplete) => {
+    console.log('Starting cinematic transition...');
+    setShowTransition(true);
+    setTransitionCallback(() => onComplete);
+  }, []);
+
+  // Handle transition completion
+  const handleTransitionComplete = useCallback(() => {
+    console.log('Cinematic transition complete, executing callback...');
+    if (transitionCallback) {
+      transitionCallback();
+    }
+  }, [transitionCallback]);
+
   // Initialize ref to null. It will be populated by onCreated or a camera component's ref prop.
   const sceneCameraRef = useRef(null); 
 
@@ -764,6 +794,7 @@ const ThreeDVotiveStand = forwardRef(({
   }, [sceneCameraRef.current]);
 
   useImperativeHandle(ref, () => ({
+    closeFloatingViewer: closeFloatingViewer,
     startIntroCameraAnimation: (onZoomCompleteCallback) => {
       console.log("ThreeDVotiveStand: startIntroCameraAnimation called.");
 
@@ -1094,6 +1125,7 @@ const ThreeDVotiveStand = forwardRef(({
           monsterMode={monsterMode}
           rocketModelVisible={rocketModelVisible}
           onHoldStateChange={handleHoldStateChange}
+          isMobileView={isMobileView}
           onModelDataLoaded={({ scene, animations }) => { // Callback to get animations
             // modelRef.current is already being set by the <primitive> in Model.jsx
             // using the ref prop. We just need the animations here.
@@ -1167,7 +1199,7 @@ const ThreeDVotiveStand = forwardRef(({
               onLoad={handleHolographicStatueLoad} // Use the memoized callback
             />
           ) : (
-            rocketModelVisible && <RocketModel is80sMode={is80sMode} userData={userData} />
+            rocketModelVisible && <RocketModel is80sMode={is80sMode} userData={userData} onTransitionStart={handleTransitionStart} />
           )}
         </Suspense> */}
         <Suspense fallback={null}>
@@ -1189,7 +1221,7 @@ const ThreeDVotiveStand = forwardRef(({
               onLoad={handleHolographicStatueLoad} // Use the memoized callback
             />
           ) : (
-            rocketModelVisible && <RocketModel is80sMode={is80sMode} userData={userData} />
+            rocketModelVisible && <RocketModel is80sMode={is80sMode} userData={userData} onTransitionStart={handleTransitionStart} />
           )}
         </Suspense>
         <Suspense fallback={null}>
@@ -1214,6 +1246,13 @@ const ThreeDVotiveStand = forwardRef(({
         </Suspense>
 
         {showFlyIn && <FlyInEffect cameraRef={cameraRef} controlsRef={controlsRef} />}
+        
+        {/* Cinematic transition effect */}
+        <CinematicTransition 
+          active={showTransition} 
+          onComplete={handleTransitionComplete}
+          type="warp"
+        />
       </Canvas>
 
       {/* ScrollDetailViewer is rendered here, as a sibling to the main Canvas */}
@@ -1240,14 +1279,12 @@ const ThreeDVotiveStand = forwardRef(({
           key={`candle-viewer-${selectedCandleData.candleId}-${selectedCandleData.candleTimestamp}`}
           isVisible={showFloatingViewer}
           userData={selectedCandleData}
-          onClose={() => {
-            setShowFloatingViewer(false);
-            setSelectedCandleData(null);
-            setViewerCandleIndex(0);
-            setAllCandlesData([]);
-          }}
+          onClose={closeFloatingViewer}
         />
       )}
+      
+      {/* HTML transition overlay */}
+      <TransitionOverlay active={showTransition} />
     </div>
   );
 });

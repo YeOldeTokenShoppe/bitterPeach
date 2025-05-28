@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ethereal Mission Control</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Inter:wght@300;400;500&family=Press+Start+2P&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles/cyberpunk-mission-control-ethereal.css" />
+    
+    <!-- SitePal AI Form Styling -->
+    <style>
+      /* Ethereal SitePal styling */
+      #vhss-aiplayer-aiform input[name="textToSay"],
+      #vhss-aiplayer-aiform input.vhss-ai-text,
+      #vhss-aiplayer-aiform input[type="text"] {
+        background: rgba(10, 10, 15, 0.8) !important;
+        border: 1px solid rgba(255, 215, 0, 0.2) !important;
+        border-radius: 8px !important;
+        color: #f5f5f5 !important;
+        font-family: 'Inter', sans-serif !important;
+        font-size: 14px !important;
+        font-weight: 300 !important;
+        padding: 12px 16px !important;
+        width: calc(100% - 60px) !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+        outline: none !important;
+        transition: all 0.3s ease !important;
+      }
+      
+      #vhss-aiplayer-aiform input[name="textToSay"]:focus {
+        border-color: #7c4dff !important;
+        box-shadow: 0 0 20px rgba(124, 77, 255, 0.3) !important;
+      }
+      
+      #vhss-aiplayer-aiform .ai-txt-send-button {
+        filter: brightness(1.2) !important;
+        cursor: pointer !important;
+        transition: all 0.3s ease !important;
+        opacity: 0.7 !important;
+      }
+      
+      #vhss-aiplayer-aiform .ai-txt-send-button:hover {
+        filter: brightness(1.5) drop-shadow(0 0 8px #ffd700) !important;
+        transform: scale(1.1) !important;
+        opacity: 1 !important;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Ethereal Particle Field -->
+    <div class="particle-field"></div>
+    
+    <!-- Subtle Scan Lines -->
+    <div class="scan-lines" id="scan-lines"></div>
+
+    <!-- Alien Rune Overlay -->
+    <div class="rune-overlay" id="rune-overlay">
+      <span class="rune" style="top: 10%; left: 5%;">⟠</span>
+      <span class="rune" style="top: 20%; right: 10%;">⟡</span>
+      <span class="rune" style="bottom: 15%; left: 15%;">⟢</span>
+      <span class="rune" style="bottom: 25%; right: 5%;">⟣</span>
+    </div>
+
+    <!-- Main Mission Control Interface -->
+    <div class="mission-control" id="mission-control">
+      
+      <!-- Minimalist Header -->
+      <div class="panel-header">
+        <h1 class="panel-title">INFIN8O·LVNAR</h1>
+        <div class="panel-subtitle">Digital Sanctum II.LXXX</div>
+      </div>
+
+      <!-- Video Communication Portal -->
+      <div class="video-call">
+        <div class="video-header">
+          <span id="station-display" class="station-name">
+            <span class="rune-icon">⟡</span> Lunar Nexus Alpha
+          </span>
+          <div id="call-status" class="connection-status">
+            <span class="status-dot"></span>
+          </div>
+        </div>
+
+        <div class="video-display">
+          <div id="video-feed" class="video-feed">
+            <!-- Background Video -->
+            <video
+              id="deadAir"
+              loop
+              muted
+              playsinline
+              webkit-playsinline
+              style="width: 100%; height: 100%; object-fit: cover"
+            >
+              <source src="/1.mp4" type="video/mp4" />
+            </video>
+            
+            <!-- Ethereal Offline Display -->
+            <div id="offline-display">
+              <div class="offline-icon">🌌</div>
+              <span class="offline-text">AWAITING SIGNAL</span>
+              <div class="rune-sequence">⟡ ⟢ ⟣ ⟠</div>
+            </div>
+
+            <!-- SitePal Container -->
+            <div id="sitepal-container" class="sitepal-container">
+              <div id="vhss_aiPlayer"></div>
+              <div id="vhss-aiplayer-aiformlogs"></div>
+              <div id="vhss-aiplayer-aiformtranscript"></div>
+              <div id="vhss-aiplayer-aiformstatus"></div>
+            </div>
+
+            <!-- Video Overlay Effect -->
+            <div class="video-overlay"></div>
+            
+            <!-- Self View -->
+            <div id="self-view" class="self-view" style="display: none">
+              <div class="avatar-frame">
+                <div class="emoji-placeholder">👤</div>
+              </div>
+            </div>
+            
+            <!-- Live Indicator -->
+            <div class="live-indicator" style="display: none">
+              <span class="pulse-dot">●</span>
+              <span class="live-text">LIVE</span>
+            </div>
+            
+            <!-- Loading State -->
+            <div class="video-loading-indicator" style="display: none">
+              <div class="loading-spinner"></div>
+              <div class="loading-text">Establishing Link...</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Station Selector -->
+        <div class="video-controls">
+          <select class="station-select">
+            <option value="lunar_base_alpha">⟡ Lunar Nexus Alpha</option>
+            <option value="orbital_station_beta">⟢ Orbital Station Beta</option>
+            <option value="mars_outpost_gamma">⟣ Mars Outpost Gamma</option>
+            <option value="deep_space_relay">⟠ Deep Space Relay</option>
+          </select>
+        </div>
+
+        <!-- Text Communication -->
+        <div class="text-comm-container" id="text-comm-container" style="display: none;">
+          <div class="ai-input-wrapper">
+            <input 
+              type="text" 
+              id="custom-ai-input"
+              placeholder="Enter message..."
+              class="custom-ai-input"
+            />
+            <img 
+              class="ai-send-button"
+              id="custom-ai-send"
+              src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTIgMjFMMjMgMTJMMiAzVjEwTDE3IDEyTDIgMTRWMjFaIiBmaWxsPSIjZmZkNzAwIiBzdHJva2U9IiNmZmQ3MDAiIHN0cm9rZS13aWR0aD0iMSIvPgo8L3N2Zz4="
+              style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; cursor: pointer; opacity: 0.7; transition: all 0.3s ease;"
+            />
+          </div>
+          
+          <!-- Hidden SitePal form -->
+          <div id="vhss-aiplayer-aiform" style="display: none !important;"></div>
+        </div>
+      </div>
+
+      <!-- Icon-Based Control Grid -->
+      <div class="button-grid">
+        <button class="control-button" data-action="signal" title="Signal">
+          <span class="button-icon"></span>
+          <span class="button-label">Signal</span>
+          <span class="rune-marker">⟠</span>
+        </button>
+        
+        <button class="control-button" id="navigate-button" data-action="navigation" title="Navigate">
+          <span class="button-icon"></span>
+          <span class="button-label">Navigate</span>
+          <span class="rune-marker">⟡</span>
+        </button>
+        
+        <button class="control-button" data-action="systems" title="Systems">
+          <span class="button-icon"></span>
+          <span class="button-label">Systems</span>
+          <span class="rune-marker">⟢</span>
+        </button>
+        
+        <button class="control-button" data-action="communications" title="Return">
+          <span class="button-icon"></span>
+          <span class="button-label">Earth</span>
+          <span class="rune-marker">⟣</span>
+        </button>
+      </div>
+
+      <!-- Minimalist Toggle Controls -->
+      <div class="toggle-section">
+        <div class="toggle-row">
+          <div class="toggle-group" id="eighties-group">
+            <span class="toggle-icon">🌊</span>
+            <div id="eighties-toggle" class="toggle-switch eighties">
+              <div class="toggle-handle"></div>
+            </div>
+          </div>
+          
+          <div class="toggle-group" id="music-group">
+            <span class="toggle-icon">🎵</span>
+            <div id="music-toggle" class="toggle-switch music">
+              <div class="toggle-handle"></div>
+            </div>
+          </div>
+          
+          <div class="toggle-group" id="constellation-group">
+            <span class="toggle-icon">✨</span>
+            <div id="constellation-toggle" class="toggle-switch">
+              <div class="toggle-handle"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Elegant Leaderboard -->
+      <div class="leaderboard-container">
+        <div class="leaderboard-header">
+          <div class="leaderboard-title">
+            <span class="icon">🏆</span>
+            <span>Rankings</span>
+          </div>
+          <span id="leaderboard-arrow" class="expand-arrow">◦</span>
+        </div>
+        
+        <div id="leaderboard-content" class="leaderboard-content" style="display: none">
+          <div class="leaderboard-entry">
+            <span class="player-rank">1</span>
+            <span class="player-name">Commander Star</span>
+            <span class="player-score">42,257</span>
+          </div>
+          
+          <div class="leaderboard-entry">
+            <span class="player-rank">2</span>
+            <span class="player-name">Pilot Nova</span>
+            <span class="player-score">38,891</span>
+          </div>
+          
+          <div class="leaderboard-entry">
+            <span class="player-rank">3</span>
+            <span class="player-name">Engineer Cosmos</span>
+            <span class="player-score">34,456</span>
+          </div>
+          
+          <div class="leaderboard-entry">
+            <span class="player-rank">4</span>
+            <span class="player-name">Navigator Void</span>
+            <span class="player-score">28,823</span>
+          </div>
+          
+          <div class="leaderboard-entry">
+            <span class="player-rank">5</span>
+            <span class="player-name">Specialist Orbit</span>
+            <span class="player-score">23,734</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Minimal Status Bar -->
+      <div class="status-bar">
+        <div class="status-indicator">
+          <div class="status-light"></div>
+          <span>Online</span>
+        </div>
+        <span class="rune-sequence">⟡⟢⟣⟠</span>
+        <div class="version-info">v2.80</div>
+      </div>
+
+      <!-- Mobile Tap Area -->
+      <div class="tap-to-start">Tap to Initialize</div>
+    </div>
+
+    <!-- Alien Rune Styles -->
+    <style>
+      .rune-overlay {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 1;
+      }
+      
+      .rune {
+        position: absolute;
+        font-size: 2rem;
+        color: rgba(255, 215, 0, 0.1);
+        animation: runeFloat 20s ease-in-out infinite;
+      }
+      
+      .rune:nth-child(2) { animation-delay: 5s; }
+      .rune:nth-child(3) { animation-delay: 10s; }
+      .rune:nth-child(4) { animation-delay: 15s; }
+      
+      @keyframes runeFloat {
+        0%, 100% { 
+          transform: translate(0, 0) rotate(0deg);
+          opacity: 0.1;
+        }
+        25% { 
+          transform: translate(20px, -30px) rotate(90deg);
+          opacity: 0.3;
+        }
+        50% { 
+          transform: translate(-20px, -60px) rotate(180deg);
+          opacity: 0.2;
+        }
+        75% { 
+          transform: translate(10px, -30px) rotate(270deg);
+          opacity: 0.3;
+        }
+      }
+      
+      .rune-icon {
+        color: var(--primary-gold);
+        opacity: 0.6;
+        margin-right: 4px;
+      }
+      
+      .rune-sequence {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        letter-spacing: 0.5em;
+        opacity: 0.4;
+        margin-top: 8px;
+      }
+      
+      .rune-marker {
+        position: absolute;
+        top: 4px;
+        right: 4px;
+        font-size: 0.8rem;
+        color: var(--primary-gold);
+        opacity: 0.3;
+        transition: all 0.3s ease;
+      }
+      
+      .control-button:hover .rune-marker {
+        opacity: 0.8;
+        transform: rotate(180deg);
+      }
+      
+      /* Connection status styling */
+      .connection-status {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      
+      .status-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--accent-teal);
+        box-shadow: 0 0 10px currentColor;
+        animation: statusPulse 2s ease-in-out infinite;
+      }
+      
+      @keyframes statusPulse {
+        0%, 100% { opacity: 0.4; transform: scale(1); }
+        50% { opacity: 1; transform: scale(1.2); }
+      }
+      
+      /* Station select styling */
+      .station-select {
+        width: 100%;
+        padding: 8px 12px;
+        background: rgba(26, 24, 36, 0.6);
+        border: 1px solid rgba(255, 215, 0, 0.1);
+        border-radius: 8px;
+        color: var(--text-secondary);
+        font-family: var(--font-primary);
+        font-size: 0.85rem;
+        outline: none;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+      
+      .station-select:hover,
+      .station-select:focus {
+        border-color: rgba(255, 215, 0, 0.3);
+        background: rgba(26, 24, 36, 0.8);
+      }
+      
+      /* Enhanced 80s mode */
+      .eighties-mode .rune {
+        color: rgba(255, 64, 129, 0.3);
+        text-shadow: 0 0 20px currentColor;
+      }
+      
+      .eighties-mode .rune-marker {
+        animation: neonBlink 1s ease-in-out infinite;
+      }
+      
+      @keyframes neonBlink {
+        0%, 100% { opacity: 0.3; }
+        50% { opacity: 1; text-shadow: 0 0 10px currentColor; }
+      }
+    </style>
+
+    <!-- SitePal SDK -->
+    <script
+      type="text/javascript"
+      src="//vhss-d.oddcast.com/ai_embed_functions_v1.php" 
+    ></script>
+    
+    <script type="text/javascript">
+      window.addEventListener('DOMContentLoaded', function() {
+        console.log("✨ Ethereal Mission Control Initialized");
+      });
+    </script>
+
+    <!-- External JavaScript -->
+    <script src="/scripts/sitepal-integration.js"></script>
+    <script src="/scripts/custom-ai-interface.js"></script>
+    <script src="/scripts/cyberpunk-mission-control.js"></script>
+  </body>
+</html>

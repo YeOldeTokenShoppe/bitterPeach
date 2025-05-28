@@ -1,0 +1,599 @@
+/* LUXE MECHANICAL CYBERPUNK MISSION CONTROL */
+/* Industrial meets Luxury - Gold Trim & 3D Effects */
+
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Share+Tech+Mono&family=Cinzel:wght@400;600&display=swap');
+
+/* CSS Custom Properties */
+:root {
+  /* Metallic Palette */
+  --gold-metallic: #ffd700;
+  --gold-light: #ffed4e;
+  --gold-dark: #b8860b;
+  --gold-shadow: #705a00;
+  --bronze: #cd7f32;
+  --copper: #b87333;
+  --silver: #c0c0c0;
+  
+  /* Industrial Base */
+  --metal-dark: #0a0a0f;
+  --metal-medium: #1a1a1f;
+  --metal-light: #2d2d35;
+  --steel-blue: #4a5568;
+  
+  /* Accent Colors */
+  --deep-purple: #4a148c;
+  --accent-purple: #7c3aed;
+  --accent-pink: #ec4899;
+  --accent-teal: #14b8a6;
+  
+  /* Display Colors */
+  --display-amber: #ffb000;
+  --display-green: #00ff41;
+  --neon-red: #ff073a;
+  --neon-blue: #00d4ff;
+  
+  /* Typography */
+  --font-tech: 'Orbitron', monospace;
+  --font-mono: 'Share Tech Mono', monospace;
+  --font-elegant: 'Cinzel', serif;
+}
+
+/* Base Styles */
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+  background: var(--metal-dark);
+  color: #fff;
+  font-family: var(--font-tech);
+  overflow: hidden;
+  perspective: 1000px;
+}
+
+/* Luxe Background Pattern */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: 
+    radial-gradient(ellipse at top, rgba(74, 20, 140, 0.2) 0%, transparent 50%),
+    radial-gradient(ellipse at bottom, rgba(255, 215, 0, 0.1) 0%, transparent 50%),
+    repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 100px,
+      rgba(255, 215, 0, 0.02) 100px,
+      rgba(255, 215, 0, 0.02) 200px
+    );
+  z-index: 0;
+}
+
+/* Main Control Panel with 3D Effect */
+.mission-control {
+  position: relative;
+  width: 100%;
+  max-width: 450px;
+  height: 100vh;
+  margin: 0 auto;
+  background: linear-gradient(180deg, var(--metal-medium) 0%, var(--metal-dark) 100%);
+  transform-style: preserve-3d;
+  transform: rotateY(0deg);
+  transition: transform 0.6s ease;
+  overflow: hidden;
+  z-index: 1;
+}
+
+/* Gold Metallic Frame */
+.mission-control::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  background: linear-gradient(
+    135deg,
+    var(--gold-light) 0%,
+    var(--gold-metallic) 25%,
+    var(--gold-dark) 50%,
+    var(--gold-metallic) 75%,
+    var(--gold-light) 100%
+  );
+  z-index: -1;
+  border-radius: 0;
+}
+
+/* Inner Shadow Frame */
+.mission-control::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 3px solid transparent;
+  border-image: linear-gradient(
+    135deg,
+    rgba(255, 215, 0, 0.8) 0%,
+    rgba(255, 237, 78, 0.6) 25%,
+    rgba(184, 134, 11, 0.8) 50%,
+    rgba(255, 237, 78, 0.6) 75%,
+    rgba(255, 215, 0, 0.8) 100%
+  ) 1;
+  box-shadow: 
+    inset 0 0 30px rgba(0, 0, 0, 0.8),
+    inset 0 0 10px rgba(255, 215, 0, 0.3);
+  pointer-events: none;
+}
+
+/* Ornate Corner Decorations */
+.corner-decoration {
+  position: absolute;
+  width: 60px;
+  height: 60px;
+  background: radial-gradient(circle, var(--gold-metallic) 0%, transparent 70%);
+  opacity: 0.6;
+}
+
+.corner-decoration::before,
+.corner-decoration::after {
+  content: '';
+  position: absolute;
+  background: var(--gold-dark);
+}
+
+.corner-decoration::before {
+  width: 100%;
+  height: 3px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.corner-decoration::after {
+  width: 3px;
+  height: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.corner-top-left {
+  top: 0;
+  left: 0;
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+}
+
+.corner-top-right {
+  top: 0;
+  right: 0;
+  clip-path: polygon(0 0, 100% 0, 100% 100%);
+}
+
+.corner-bottom-left {
+  bottom: 0;
+  left: 0;
+  clip-path: polygon(0 0, 0 100%, 100% 100%);
+}
+
+.corner-bottom-right {
+  bottom: 0;
+  right: 0;
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+}
+
+/* Luxe Header Panel */
+.panel-header {
+  position: relative;
+  padding: 24px;
+  background: linear-gradient(135deg, var(--metal-light) 0%, var(--metal-medium) 100%);
+  border-bottom: 4px solid transparent;
+  border-image: linear-gradient(90deg, var(--gold-dark), var(--gold-light), var(--gold-dark)) 1;
+  box-shadow: 
+    0 4px 20px rgba(0, 0, 0, 0.5),
+    inset 0 -2px 10px rgba(255, 215, 0, 0.2);
+  overflow: hidden;
+}
+
+/* Embossed Title Effect */
+.panel-title {
+  font-family: var(--font-elegant);
+  font-size: 1.6rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  color: transparent;
+  background: linear-gradient(
+    135deg,
+    var(--gold-light) 0%,
+    var(--gold-metallic) 40%,
+    var(--gold-dark) 60%,
+    var(--gold-light) 100%
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  text-transform: uppercase;
+  margin: 0;
+  text-shadow: 
+    0 2px 4px rgba(0, 0, 0, 0.8),
+    0 -1px 0 rgba(255, 237, 78, 0.5);
+  position: relative;
+  z-index: 1;
+}
+
+/* 3D Embossed Effect for Title */
+.panel-title::before {
+  content: attr(data-text);
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  z-index: -1;
+  color: rgba(0, 0, 0, 0.4);
+  filter: blur(1px);
+}
+
+.panel-subtitle {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--display-amber);
+  margin-top: 6px;
+  letter-spacing: 0.15em;
+  opacity: 0.8;
+}
+
+/* Luxe Video Display */
+.video-call {
+  margin: 20px;
+  background: var(--metal-dark);
+  border: 3px solid transparent;
+  border-image: linear-gradient(
+    135deg,
+    var(--gold-dark) 0%,
+    var(--bronze) 50%,
+    var(--gold-dark) 100%
+  ) 1;
+  border-radius: 0;
+  padding: 3px;
+  position: relative;
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.6),
+    inset 0 0 20px rgba(0, 0, 0, 0.8),
+    0 0 40px rgba(255, 215, 0, 0.1);
+  transform: translateZ(20px);
+}
+
+/* Video Display Inner Frame */
+.video-display {
+  position: relative;
+  aspect-ratio: 16/9;
+  background: #000;
+  overflow: hidden;
+  box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.9);
+}
+
+/* Premium Control Buttons */
+.button-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  padding: 20px;
+  transform: translateZ(10px);
+}
+
+.control-button {
+  position: relative;
+  aspect-ratio: 1;
+  background: linear-gradient(
+    135deg,
+    var(--metal-light) 0%,
+    var(--metal-medium) 50%,
+    var(--steel-blue) 100%
+  );
+  border: 2px solid transparent;
+  border-image: linear-gradient(
+    135deg,
+    var(--gold-dark) 0%,
+    var(--gold-metallic) 50%,
+    var(--gold-dark) 100%
+  ) 1;
+  cursor: pointer;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 
+    0 4px 15px rgba(0, 0, 0, 0.4),
+    inset 0 -3px 8px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 237, 78, 0.3);
+  transform-style: preserve-3d;
+  transform: translateZ(0);
+}
+
+/* Button 3D Hover Effect */
+.control-button:hover {
+  transform: translateZ(10px) rotateX(-5deg);
+  box-shadow: 
+    0 8px 25px rgba(0, 0, 0, 0.5),
+    inset 0 -3px 8px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 237, 78, 0.5),
+    0 0 30px rgba(255, 215, 0, 0.2);
+}
+
+.control-button:active {
+  transform: translateZ(-5px);
+  box-shadow: 
+    0 2px 8px rgba(0, 0, 0, 0.4),
+    inset 0 3px 8px rgba(0, 0, 0, 0.7),
+    inset 0 -1px 0 rgba(255, 237, 78, 0.2);
+}
+
+/* Gold LED Indicator */
+.control-button::before {
+  content: '';
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 10px;
+  height: 10px;
+  background: radial-gradient(circle, var(--gold-light) 0%, var(--gold-dark) 100%);
+  border-radius: 50%;
+  box-shadow: 
+    0 0 10px rgba(255, 215, 0, 0.8),
+    inset -1px -1px 2px rgba(0, 0, 0, 0.3);
+  animation: gold-pulse 2s ease-in-out infinite;
+}
+
+@keyframes gold-pulse {
+  0%, 100% { 
+    opacity: 0.6;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
+  }
+  50% { 
+    opacity: 1;
+    box-shadow: 0 0 20px rgba(255, 215, 0, 1);
+  }
+}
+
+/* Luxe Toggle Switches */
+.toggle-section {
+  padding: 0 20px 20px;
+}
+
+.toggle-row {
+  display: flex;
+  justify-content: space-around;
+  gap: 20px;
+  background: linear-gradient(135deg, var(--metal-light) 0%, var(--metal-medium) 100%);
+  padding: 24px;
+  border: 2px solid transparent;
+  border-image: linear-gradient(90deg, var(--gold-dark), var(--bronze), var(--gold-dark)) 1;
+  box-shadow: 
+    inset 0 2px 10px rgba(0, 0, 0, 0.5),
+    0 4px 20px rgba(0, 0, 0, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Toggle Background Pattern */
+.toggle-row::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 20px,
+    rgba(255, 215, 0, 0.03) 20px,
+    rgba(255, 215, 0, 0.03) 21px
+  );
+  pointer-events: none;
+}
+
+.toggle-switch {
+  position: relative;
+  width: 60px;
+  height: 120px;
+  background: linear-gradient(180deg, #0a0a0a 0%, #1a1a1a 100%);
+  border: 2px solid var(--gold-dark);
+  border-radius: 30px;
+  cursor: pointer;
+  overflow: hidden;
+  box-shadow: 
+    inset 0 0 20px rgba(0, 0, 0, 0.9),
+    0 4px 15px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(255, 237, 78, 0.2);
+  transition: all 0.3s ease;
+}
+
+.toggle-handle {
+  position: absolute;
+  left: 50%;
+  top: 10px;
+  transform: translateX(-50%);
+  width: 44px;
+  height: 44px;
+  background: radial-gradient(
+    circle at 30% 30%,
+    var(--gold-light) 0%,
+    var(--gold-metallic) 50%,
+    var(--gold-dark) 100%
+  );
+  border-radius: 50%;
+  transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  box-shadow: 
+    0 4px 10px rgba(0, 0, 0, 0.6),
+    inset -3px -3px 6px rgba(0, 0, 0, 0.4),
+    inset 3px 3px 6px rgba(255, 237, 78, 0.4),
+    0 0 20px rgba(255, 215, 0, 0.3);
+}
+
+.toggle-switch.active .toggle-handle {
+  top: 66px;
+  background: radial-gradient(
+    circle at 30% 30%,
+    var(--display-green) 0%,
+    var(--neon-blue) 100%
+  );
+  box-shadow: 
+    0 0 30px rgba(0, 212, 255, 0.8),
+    0 4px 10px rgba(0, 0, 0, 0.6),
+    inset -3px -3px 6px rgba(0, 0, 0, 0.4);
+}
+
+/* Ornate Status Bar */
+.status-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 16px 24px;
+  background: linear-gradient(90deg, var(--metal-medium) 0%, var(--metal-light) 50%, var(--metal-medium) 100%);
+  border-top: 3px solid transparent;
+  border-image: linear-gradient(90deg, var(--gold-dark), var(--gold-light), var(--gold-dark)) 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  box-shadow: 
+    0 -4px 20px rgba(0, 0, 0, 0.5),
+    inset 0 2px 10px rgba(255, 215, 0, 0.1);
+}
+
+/* 80s Mode Enhancements */
+.eighties-mode .mission-control {
+  animation: perspective-shift 10s ease-in-out infinite;
+}
+
+@keyframes perspective-shift {
+  0%, 100% { transform: rotateY(0deg); }
+  50% { transform: rotateY(2deg); }
+}
+
+.eighties-mode .panel-title {
+  background: linear-gradient(
+    135deg,
+    var(--accent-pink) 0%,
+    var(--accent-teal) 33%,
+    var(--accent-purple) 66%,
+    var(--accent-pink) 100%
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  animation: gradient-shift 3s ease-in-out infinite;
+}
+
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+/* Custom Scrollbar - Luxury Style */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--metal-dark);
+  border: 1px solid var(--gold-dark);
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--gold-dark) 0%, var(--gold-metallic) 50%, var(--gold-dark) 100%);
+  border-radius: 0;
+  box-shadow: inset 0 0 3px rgba(0, 0, 0, 0.5);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, var(--gold-metallic) 0%, var(--gold-light) 50%, var(--gold-metallic) 100%);
+}
+
+/* Video Control Buttons - Premium Style */
+.video-control-btn {
+  width: 44px;
+  height: 44px;
+  background: radial-gradient(circle, var(--metal-light) 0%, var(--metal-medium) 100%);
+  border: 2px solid var(--gold-dark);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--gold-metallic);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  box-shadow: 
+    0 4px 10px rgba(0, 0, 0, 0.4),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.5),
+    inset 0 2px 4px rgba(255, 237, 78, 0.3);
+  transform: translateZ(0);
+}
+
+.video-control-btn:hover {
+  transform: translateZ(5px) scale(1.05);
+  border-color: var(--gold-metallic);
+  box-shadow: 
+    0 6px 20px rgba(0, 0, 0, 0.5),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.5),
+    inset 0 2px 4px rgba(255, 237, 78, 0.5),
+    0 0 20px rgba(255, 215, 0, 0.3);
+}
+
+.video-control-btn:active {
+  transform: translateZ(-2px) scale(0.98);
+}
+
+/* Leaderboard - Ornate Display */
+.leaderboard-container {
+  margin: 0 20px 20px;
+  background: linear-gradient(135deg, var(--metal-medium) 0%, var(--metal-light) 100%);
+  border: 2px solid transparent;
+  border-image: linear-gradient(
+    to bottom,
+    var(--gold-dark) 0%,
+    var(--bronze) 50%,
+    var(--gold-dark) 100%
+  ) 1;
+  overflow: hidden;
+  box-shadow: 
+    inset 0 2px 10px rgba(0, 0, 0, 0.4),
+    0 4px 20px rgba(0, 0, 0, 0.3);
+  position: relative;
+}
+
+/* Decorative Pattern Overlay */
+.leaderboard-container::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-conic-gradient(
+    from 0deg at 50% 50%,
+    transparent 0deg,
+    transparent 40deg,
+    rgba(255, 215, 0, 0.03) 40deg,
+    rgba(255, 215, 0, 0.03) 45deg
+  );
+  pointer-events: none;
+}
+
+/* Mobile Optimizations */
+@media (max-width: 768px) {
+  .mission-control {
+    max-width: 100%;
+  }
+  
+  .button-grid {
+    gap: 12px;
+    padding: 16px;
+  }
+  
+  .toggle-switch {
+    width: 50px;
+    height: 100px;
+  }
+  
+  .toggle-handle {
+    width: 36px;
+    height: 36px;
+  }
+}

@@ -91,6 +91,12 @@ function BurnGallery({
   setIsModalOpen,
   is80sMode,
   toggle80sMode,
+  synthwaveMode,
+  setSynthwaveMode,
+  handleIgnition,
+  handleReturnFromSynthwave,
+  isMobileView: propIsMobileView,
+  isDefinitelyPhone,
 }) {
   useEffect(() => {
     setComponentLoaded(true);
@@ -134,6 +140,7 @@ function BurnGallery({
   const [isConstellationsVisible, setIsConstellationsVisible] = useState(false);
   const [paginationState, setPaginationState] = useState(null);
   const votiveStandRef = useRef(null);
+  const [isCandleViewerVisible, setIsCandleViewerVisible] = useState(false);
 
   const toggleConstellationVisibility = useCallback(() => {
     setIsConstellationsVisible((prev) => {
@@ -173,6 +180,13 @@ function BurnGallery({
   };
 
   useEffect(() => {
+    // If mobile view is explicitly set via props, use that
+    if (propIsMobileView !== undefined) {
+      setIsMobileView(propIsMobileView);
+      return; // Don't add resize listener if we have explicit mobile state
+    }
+    
+    // Otherwise fall back to local detection
     const checkMobile = () => {
       const mobile = typeof window !== "undefined" && window.innerWidth <= 576;
       setIsMobileView(mobile);
@@ -186,7 +200,7 @@ function BurnGallery({
         // Also clean up any firebase listeners, timers, or other resources
       };
     }
-  }, []);
+  }, [propIsMobileView]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -278,6 +292,13 @@ function BurnGallery({
   // Add toggleRocketModel function
   const toggleRocketModel = () => {
     console.log("BurnGallery: Toggling rocket model visibility");
+    
+    // Close the floating candle viewer if it's open
+    if (isCandleViewerVisible && votiveStandRef.current && votiveStandRef.current.closeFloatingViewer) {
+      console.log("BurnGallery: Closing floating candle viewer before showing rocket");
+      votiveStandRef.current.closeFloatingViewer();
+    }
+    
     setRocketModelVisible((prev) => {
       const newValue = !prev;
       console.log(
@@ -382,6 +403,7 @@ function BurnGallery({
                 isConstellationsVisible={isConstellationsVisible}
                 toggleConstellationVisibility={toggleConstellationVisibility}
                 onPaginationChange={setPaginationState}
+                onCandleViewerStateChange={setIsCandleViewerVisible}
               />
             ) : null}
           </GridItem>

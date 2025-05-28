@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Moon Scene Video Test</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .video-list {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .video-list h3 {
+            margin: 0 0 10px 0;
+        }
+        .video-list ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <h2>Moon Scene Video Texture Test</h2>
+        <p>The moon scene will load and apply video texture to any screen/display objects.</p>
+        <p>Check the browser console for debug messages about which objects are found.</p>
+    </div>
+    
+    <div class="video-list">
+        <h3>Available Videos in /public/:</h3>
+        <ul>
+            <li>/vaporwave-sunset.mp4</li>
+            <li>/angel.mp4</li>
+            <li>/deadAir.mp4</li>
+            <li>/dos.mp4</li>
+            <li>/evil.mp4</li>
+            <li>/greetings.mp4</li>
+            <li>/headroom.mp4</li>
+            <li>/hot.mp4</li>
+            <li>/madonna.mp4</li>
+            <li>/mario.mp4</li>
+            <li>/nos2.mp4</li>
+            <li>/nosEnters.mp4</li>
+            <li>/orientation.mp4</li>
+            <li>/ufo.mp4</li>
+            <li>/wildRide.mp4</li>
+            <li>/1.mp4</li>
+            <li>/2.mp4</li>
+            <li>/3.mp4</li>
+            <li>/4.mp4</li>
+            <li>/5.mp4</li>
+        </ul>
+    </div>
+    
+    <script>
+        // Log to confirm the test page loaded
+        console.log('Moon Video Test Page Loaded');
+        console.log('To test: Navigate to /moon-scene and check console for screen object detection');
+        console.log('The video texture will be applied to any object with "screen" or "display" in the name');
+    </script>
+</body>
+</html>

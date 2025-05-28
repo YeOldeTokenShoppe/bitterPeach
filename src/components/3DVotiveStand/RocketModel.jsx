@@ -3,7 +3,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader";
 import * as THREE from "three";
 import { useFrame, useThree, extend } from "@react-three/fiber";
-import { Effects, useAspect } from "@react-three/drei";
+import { Effects, useAspect, CameraShake } from "@react-three/drei";
 import { UnrealBloomPass, FilmPass, ShaderPass } from "three-stdlib";
 import LaunchSkyEffect from "./LaunchSkyEffect";
 
@@ -13,7 +13,7 @@ extend({ UnrealBloomPass, FilmPass, ShaderPass });
 // Create a completely new sky effect component with more safeguards
 
 // Main RocketModel component - much simpler without context
-function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch }) {
+function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch, onTransitionStart }) {
   console.log(`RocketModel: Initializing with is80sMode=${is80sMode}`);
 
   const rocketRef = useRef();
@@ -141,6 +141,9 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch 
     fadeProgress: 1.0,  // Fully faded out (completely invisible)
     initialized: false  // Track if we've properly initialized
   });
+
+  // Camera shake state for launch sequence
+  const [cameraShakeIntensity, setCameraShakeIntensity] = useState(0);
 
   // Update ambient light when the component mounts
   useEffect(() => {
@@ -686,6 +689,9 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch 
         initialized: true   // Ensure it's marked as initialized
       });
       
+      // Reset camera shake
+      setCameraShakeIntensity(0);
+      
       // Clean up any smoke particles from previous launch
       cleanupAllSmokeParticles(scene);
 
@@ -1162,12 +1168,31 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch 
         // Update post-processing effects during launch
         updatePostProcessingEffects(progress);
         
+        // Update camera shake intensity based on launch progress (0-1 range)
+        if (progress < 0.1) {
+          // Build up shake during ignition
+          setCameraShakeIntensity(progress * 10); // 0 to 1 over first 10%
+        } else if (progress < 0.5) {
+          // Intense shake during initial launch
+          const shakePhase = (progress - 0.1) / 0.4;
+          setCameraShakeIntensity(0.8 + Math.sin(shakePhase * Math.PI * 4) * 0.2); // Oscillate between 0.6-1.0
+        } else if (progress < 0.8) {
+          // Reduce shake as rocket gains altitude
+          setCameraShakeIntensity(Math.max(0, (0.8 - progress) / 0.3 * 0.6));
+        } else {
+          // Minimal shake in final phase
+          setCameraShakeIntensity(0);
+        }
+        
         // End the animation when complete
         if (progress >= 1) {
           console.log("🚀 Rocket launch complete! Removing rocket from scene...");
           
           // Set isLaunching to false to indicate the animation is complete
           setIsLaunching(false);
+          
+          // Reset camera shake
+          setCameraShakeIntensity(0);
           
           // Set fade start time for gradual post-processing effect fadeout
           setPostProcessingEffects(prev => ({
@@ -1216,20 +1241,41 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch 
           
           console.log("🚀 Rocket successfully removed from scene!");
           
-          // Add a short delay before navigating to the next page
-          setTimeout(() => {
-            console.log("🚀 Navigating to rocket.js page...");
-            // Use the appropriate navigation method based on the app's routing setup
-            if (window.location) {
-              // Calculate the correct URL based on the current path
-              const currentPath = window.location.pathname;
-              const basePath = currentPath.substring(0, currentPath.lastIndexOf('/') + 1);
-              const newPath = `${basePath}moon-scene`;
-              
-              // Navigate to the new page
-              window.location.href = newPath;
-            }
-          }, 1000); // Add a 1.5 second delay for a smooth transition
+          // Trigger cinematic transition before navigation
+          console.log("🚀 Starting cinematic transition...");
+          if (typeof onTransitionStart === 'function') {
+            onTransitionStart(() => {
+              // This callback will be called when transition reaches its peak
+              console.log("🚀 Transition peak reached, navigating to moon-scene...");
+              if (window.location) {
+                // Store transition state in sessionStorage for moon scene
+                sessionStorage.setItem('rocketLaunchTransition', JSON.stringify({
+                  timestamp: Date.now(),
+                  userData: userData,
+                  is80sMode: is80sMode
+                }));
+                
+                // Calculate the correct URL based on the current path
+                const currentPath = window.location.pathname;
+                const basePath = currentPath.substring(0, currentPath.lastIndexOf('/') + 1);
+                const newPath = `${basePath}moon-scene`;
+                
+                // Navigate to the new page
+                window.location.href = newPath;
+              }
+            });
+          } else {
+            // Fallback to original navigation if no transition handler
+            setTimeout(() => {
+              console.log("🚀 No transition handler, using fallback navigation...");
+              if (window.location) {
+                const currentPath = window.location.pathname;
+                const basePath = currentPath.substring(0, currentPath.lastIndexOf('/') + 1);
+                const newPath = `${basePath}moon-scene`;
+                window.location.href = newPath;
+              }
+            }, 1000);
+          }
         }
       } 
       // Apply thruster effect to the rocket if enabled and not launching
@@ -2061,6 +2107,21 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch 
   // Return component with post-processing effects
   return (
     <>
+      {/* Camera shake for launch sequence */}
+      {/* {cameraShakeIntensity > 0 && (
+        <CameraShake
+          maxYaw={0.01}   // Very minimal yaw to prevent any drift
+          maxPitch={0.3}  // Much stronger vertical shake
+          maxRoll={0.005} // Almost no roll
+          yawFrequency={15}    // High frequency vibration
+          pitchFrequency={20}  // High frequency vibration
+          rollFrequency={10}   // Medium frequency
+          intensity={cameraShakeIntensity}
+          decay={false}
+          decayRate={0.95} // Prevent accumulation
+        />
+      )} */}
+      
       {/* Sky Effect - only render when thrusters are ignited AND sky effect is active */}
       {postProcessingEffects.thrustersIgnited && skyEffect.active && (
         <LaunchSkyEffect active={skyEffect.active} fadeProgress={skyEffect.fadeProgress} />

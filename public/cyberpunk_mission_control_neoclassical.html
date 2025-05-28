@@ -1,0 +1,532 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Neoclassical Cyberpunk Mission Control</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Orbitron:wght@400;700;900&family=Press+Start+2P&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles/cyberpunk-mission-control-neoclassical.css" />
+    
+    <!-- SitePal AI Form Styling -->
+    <style>
+      /* Enhanced SitePal styling for Neoclassical theme */
+      #vhss-aiplayer-aiform input[name="textToSay"],
+      #vhss-aiplayer-aiform input.vhss-ai-text,
+      #vhss-aiplayer-aiform input[type="text"] {
+        background: linear-gradient(135deg, rgba(10, 10, 15, 0.95) 0%, rgba(18, 18, 26, 0.95) 100%) !important;
+        border: 2px solid transparent !important;
+        border-image: linear-gradient(90deg, #ffd700, #00ffff, #ffd700) 1 !important;
+        border-radius: 8px !important;
+        color: #ffd700 !important;
+        font-family: 'Orbitron', monospace !important;
+        font-size: 14px !important;
+        font-weight: 500 !important;
+        padding: 16px !important;
+        width: calc(100% - 70px) !important;
+        min-width: 200px !important;
+        min-height: 35px !important;
+        height: auto !important;
+        max-height: none !important;
+        line-height: normal !important;
+        box-shadow: 
+          inset 0 0 20px rgba(255, 215, 0, 0.2),
+          0 0 30px rgba(0, 255, 255, 0.4),
+          0 4px 15px rgba(0, 0, 0, 0.5) !important;
+        outline: none !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+        display: block !important;
+        position: relative !important;
+        z-index: 1000 !important;
+        text-shadow: 0 0 5px currentColor !important;
+        transition: all 0.3s ease !important;
+      }
+      
+      #vhss-aiplayer-aiform input[name="textToSay"]:focus {
+        border-image: linear-gradient(90deg, #00ffff, #ff00ff, #00ffff) 1 !important;
+        box-shadow: 
+          inset 0 0 30px rgba(0, 255, 255, 0.3),
+          0 0 50px rgba(255, 0, 255, 0.5),
+          0 4px 20px rgba(0, 0, 0, 0.6) !important;
+        color: #00ffff !important;
+      }
+      
+      /* Placeholder styling */
+      #vhss-aiplayer-aiform input::placeholder {
+        color: rgba(255, 215, 0, 0.5) !important;
+        font-style: italic !important;
+      }
+      
+      /* Send button with classical touch */
+      #vhss-aiplayer-aiform .ai-txt-send-button {
+        filter: hue-rotate(45deg) brightness(1.5) contrast(1.2) !important;
+        cursor: pointer !important;
+        transition: all 0.3s ease !important;
+        transform: scale(1.2) !important;
+      }
+      
+      #vhss-aiplayer-aiform .ai-txt-send-button:hover {
+        filter: hue-rotate(45deg) brightness(2) contrast(1.5) drop-shadow(0 0 15px #ffd700) !important;
+        transform: scale(1.4) rotate(15deg) !important;
+      }
+      
+      /* Form container with marble texture */
+      #vhss-aiplayer-aiform {
+        font-family: 'Orbitron', monospace !important;
+        color: #fff !important;
+        padding: 12px !important;
+        position: relative !important;
+      }
+      
+      #vhss-aiplayer-aiform .vhss-aiplayer-aiform-inner {
+        background: 
+          radial-gradient(ellipse at top left, rgba(255, 215, 0, 0.1) 0%, transparent 50%),
+          radial-gradient(ellipse at bottom right, rgba(0, 255, 255, 0.1) 0%, transparent 50%),
+          linear-gradient(135deg, rgba(18, 18, 26, 0.9) 0%, rgba(10, 10, 15, 0.9) 100%) !important;
+        border: 2px solid transparent !important;
+        border-image: linear-gradient(135deg, #ffd700 0%, #00ffff 50%, #ffd700 100%) 1 !important;
+        border-radius: 12px !important;
+        padding: 20px !important;
+        box-shadow: 
+          0 0 40px rgba(255, 215, 0, 0.3),
+          inset 0 0 20px rgba(0, 255, 255, 0.1) !important;
+        position: relative !important;
+        overflow: hidden !important;
+      }
+      
+      /* Decorative corner accents */
+      #vhss-aiplayer-aiform .vhss-aiplayer-aiform-inner::before,
+      #vhss-aiplayer-aiform .vhss-aiplayer-aiform-inner::after {
+        content: '◆' !important;
+        position: absolute !important;
+        font-size: 20px !important;
+        color: #ffd700 !important;
+        opacity: 0.5 !important;
+      }
+      
+      #vhss-aiplayer-aiform .vhss-aiplayer-aiform-inner::before {
+        top: 10px !important;
+        left: 10px !important;
+      }
+      
+      #vhss-aiplayer-aiform .vhss-aiplayer-aiform-inner::after {
+        bottom: 10px !important;
+        right: 10px !important;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Particle Field Background -->
+    <div class="particle-field"></div>
+    
+    <!-- Background Effects -->
+    <div class="scan-lines" id="scan-lines"></div>
+    
+    <!-- Holographic Overlay Effects -->
+    <div class="holographic-overlay" id="holographic-overlay"></div>
+
+    <!-- Main Mission Control Interface -->
+    <div class="mission-control" id="mission-control">
+      <!-- Digital Columns -->
+      <div class="column-left"></div>
+      <div class="column-right"></div>
+      
+      <!-- Header with Enhanced Classical Elements -->
+      <div class="panel-header">
+        <div class="laurel-left"></div>
+        <div class="header-content">
+          <h1 class="panel-title">INFIN8O·LVNAR</h1>
+          <div class="panel-subtitle">MISSIO·IMPERIUM·DIGITALIS·II·LXXX</div>
+        </div>
+        <div class="laurel-right"></div>
+      </div>
+
+      <!-- Video Call Section - Enhanced Oracle Chamber -->
+      <div class="video-call">
+        <div class="video-header">
+          <span id="station-display" class="station-display">
+            <span class="latin-prefix">COMMVNICATIO:</span>
+            <span class="station-name">/lunar_base_alpha</span>
+          </span>
+          <div id="call-status" class="video-status">
+            <span class="status-icon">⚡</span>
+            <span class="status-text">NEXVS·STABILIS</span>
+          </div>
+        </div>
+
+        <div class="video-display">
+          <div id="video-feed" class="video-feed">
+            <!-- Decorative Frame Elements -->
+            <div class="frame-corner top-left">╔</div>
+            <div class="frame-corner top-right">╗</div>
+            <div class="frame-corner bottom-left">╚</div>
+            <div class="frame-corner bottom-right">╝</div>
+            
+            <video
+              id="deadAir"
+              loop
+              muted
+              playsinline
+              webkit-playsinline
+              style="width: 100%; height: 100%; object-fit: cover"
+            >
+              <source src="/1.mp4" type="video/mp4" />
+            </video>
+            
+            <!-- Enhanced Offline Display -->
+            <div id="offline-display">
+              <div class="offline-statue"></div>
+              <span class="offline-text">SYSTEMA//DORMIENS</span>
+              <div class="offline-subtitle">AWAITING·DIVINE·SIGNAL</div>
+              <div class="crosshair-h"></div>
+              <div class="crosshair-v"></div>
+              <div class="scanlines-overlay"></div>
+              <div class="digital-laurel"></div>
+            </div>
+
+            <!-- SitePal Container with Classical Frame -->
+            <div id="sitepal-container" class="sitepal-container">
+              <div class="sitepal-frame">
+                <div id="vhss_aiPlayer"></div>
+                <div id="vhss-aiplayer-aiformlogs"></div>
+                <div id="vhss-aiplayer-aiformtranscript"></div>
+                <div id="vhss-aiplayer-aiformstatus"></div>
+              </div>
+            </div>
+
+            <!-- Enhanced Video Overlay -->
+            <div class="video-overlay">
+              <div class="overlay-pattern"></div>
+            </div>
+            
+            <!-- Avatar Frame -->
+            <div id="self-view" class="self-view" style="display: none">
+              <div class="avatar-frame">
+                <div class="avatar-laurel">🏛️</div>
+                <div class="emoji-placeholder">👨‍🚀</div>
+              </div>
+            </div>
+            
+            <!-- Live Indicator with Classical Style -->
+            <div class="live-indicator" style="display: none">
+              <span class="live-dot">●</span>
+              <span class="live-text">TRANSMISSIO·VIVVS</span>
+            </div>
+            
+            <!-- Enhanced Loading Indicator -->
+            <div class="video-loading-indicator" style="display: none">
+              <div class="loading-statue">🗿</div>
+              <div class="loading-spinner"></div>
+              <div class="loading-text">ESTABLISHING·AETHERIC·LINK</div>
+              <div class="loading-subtext">INVOKING·DIGITAL·SPIRITS</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="video-controls">
+          <select class="station-select">
+            <option value="lunar_base_alpha">STATIO·LUNARIS·ALPHA</option>
+            <option value="orbital_station_beta">STATIO·ORBITALIS·BETA</option>
+            <option value="mars_outpost_gamma">CASTELLVM·MARTIS·GAMMA</option>
+            <option value="jupiter_temple_delta">TEMPLVM·IOVIS·DELTA</option>
+            <option value="saturn_oracle_epsilon">ORACVLVM·SATURNI·EPSILON</option>
+          </select>
+        </div>
+
+        <!-- Enhanced Text Communication with Classical Elements -->
+        <div class="text-comm-container" id="text-comm-container" style="display: none;">
+          <div class="text-comm-header">
+            <span class="text-comm-title">
+              <span class="icon">📜</span>
+              SCRIBERE·DIGITALIS
+            </span>
+            <span class="text-comm-status" id="text-comm-status">
+              PARATVM·AD·ORACVLVM
+            </span>
+          </div>
+          
+          <!-- Custom AI Input with Enhanced Styling -->
+          <div class="ai-input-wrapper">
+            <div class="input-decoration left">≪</div>
+            <input 
+              type="text" 
+              id="custom-ai-input"
+              placeholder="Inscribe thy digital missive..."
+              class="custom-ai-input"
+            />
+            <div class="input-decoration right">≫</div>
+            <img 
+              class="ai-text-send-button"
+              id="custom-ai-send"
+              src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTIgMjFMMjMgMTJMMiAzVjEwTDE3IDEyTDIgMTRWMjFaIiBmaWxsPSIjZmZkNzAwIiBzdHJva2U9IiNmZmQ3MDAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+Cjwvc3ZnPg=="
+              title="MITTERE"
+            />
+          </div>
+          <div class="input-instruction">
+            Press ENTER or click the golden arrow to commune with the Oracle
+          </div>
+          
+          <!-- Hidden SitePal form -->
+          <div id="vhss-aiplayer-aiform" style="display: none !important;"></div>
+        </div>
+      </div>
+
+      <!-- Transcript Section with Scroll Design -->
+      <div class="transcript-container" style="display: none;">
+        <div class="transcript-header">
+          <h3 class="transcript-title">
+            <span class="scroll-icon">📜</span>
+            ANNALES·TRANSMISSIONIS
+          </h3>
+          <div class="language-selector">
+            <select id="language-select" class="language-select">
+              <option value="en">ANGLICVS</option>
+              <option value="es">HISPANICVS</option>
+              <option value="fr">GALLICVS</option>
+              <option value="de">GERMANICVS</option>
+              <option value="ja">IAPONICVS</option>
+              <option value="zh">SINICVS</option>
+              <option value="ko">COREANVS</option>
+              <option value="pt">LVSITANVS</option>
+              <option value="ru">RVTHENICVS</option>
+              <option value="hi">INDICVS</option>
+              <option value="ar">ARABICVS</option>
+              <option value="vi">VIETNAMICVS</option>
+            </select>
+            <span class="transcript-expand-icon" id="transcript-expand-icon">▼</span>
+          </div>
+        </div>
+        <div class="transcript-content" id="transcript-content">
+          <div class="transcript-segment">
+            <span class="timestamp">[HORA·XXIII·LIX]</span>
+            Expecting divine transmission...
+          </div>
+        </div>
+      </div>
+
+      <!-- Enhanced Control Buttons - Digital Medallions -->
+      <div class="button-grid">
+        <button class="control-button" data-action="signal">
+          <div class="button-decoration top">⬡</div>
+          <div class="button-prefix">SIG// 👽</div>
+          <div class="button-label">SIGNVM</div>
+          <div class="button-sublabel">INVOKE·SIGNAL</div>
+          <div class="button-indicator"></div>
+          <div class="button-decoration bottom">⬢</div>
+        </button>
+        
+        <button class="control-button" id="navigate-button" data-action="navigation" data-state="navigate">
+          <div class="button-decoration top">⬡</div>
+          <div class="button-prefix">NAV// 🧭</div>
+          <div class="button-label">NAVIGARE</div>
+          <div class="button-sublabel">CHART·COURSE</div>
+          <div class="button-indicator"></div>
+          <div class="button-decoration bottom">⬢</div>
+        </button>
+        
+        <button class="control-button" data-action="systems">
+          <div class="button-decoration top">⬡</div>
+          <div class="button-prefix">SYS// ⚙️</div>
+          <div class="button-label">SYSTEMA</div>
+          <div class="button-sublabel">MACHINA·STATUS</div>
+          <div class="button-indicator"></div>
+          <div class="button-decoration bottom">⬢</div>
+        </button>
+        
+        <button class="control-button" data-action="communications">
+          <div class="button-decoration top">⬡</div>
+          <div class="button-prefix">COM// 🌍</div>
+          <div class="button-label">TERRAM</div>
+          <div class="button-sublabel">RETURN·HOME</div>
+          <div class="button-indicator"></div>
+          <div class="button-decoration bottom">⬢</div>
+        </button>
+      </div>
+
+      <!-- Enhanced Toggle Switches - Sacred Mechanisms -->
+      <div class="toggle-section">
+        <div class="section-header">
+          <span class="section-icon">⚡</span>
+          <span class="section-title">MECHANISMVS·SACER</span>
+          <span class="section-icon">⚡</span>
+        </div>
+        
+        <div class="toggle-row mobile-inline">
+          <div class="toggle-group">
+            <span class="toggle-label">
+              <span class="label-icon">🌊</span>
+              MODVS·LXXX
+            </span>
+            <div id="eighties-toggle" class="toggle-switch eighties">
+              <div class="toggle-track"></div>
+              <div class="toggle-handle">
+                <span class="handle-symbol">∞</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="toggle-group music-group">
+            <span class="toggle-label">
+              <span class="label-icon">🎵</span>
+              MVSICA·DIVINA
+            </span>
+            <div id="music-toggle" class="toggle-switch music">
+              <div class="toggle-track"></div>
+              <div class="toggle-handle">
+                <span class="handle-symbol">♫</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="toggle-group">
+            <span class="toggle-label">
+              <span class="label-icon">✨</span>
+              STELLAE·SACRAE
+            </span>
+            <div id="constellation-toggle" class="toggle-switch">
+              <div class="toggle-track"></div>
+              <div class="toggle-handle">
+                <span class="handle-symbol">★</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Enhanced Leaderboard - Pantheon of Digital Heroes -->
+      <div class="leaderboard-container">
+        <div class="leaderboard-header">
+          <span class="header-left">
+            <span class="trophy-icon">🏆</span>
+            PANTHEON·LVNARIS
+          </span>
+          <span id="leaderboard-arrow" class="expand-arrow">▼</span>
+        </div>
+        
+        <div id="leaderboard-content" class="leaderboard-content" style="display: none">
+          <div class="leaderboard-decoration">
+            <div class="decoration-line"></div>
+            <span class="decoration-text">HEROES·OF·THE·DIGITAL·REALM</span>
+            <div class="decoration-line"></div>
+          </div>
+          
+          <div class="leaderboard-header-row">
+            <span>NOMEN·DIGITALIS</span>
+            <span>GLORIA·NVMERICVS</span>
+          </div>
+          
+          <div class="leaderboard-scrollable">
+            <div class="leaderboard-entry top">
+              <span class="rank-medal">I</span>
+              <span class="player-name">IMPERATOR·STELLARVM</span>
+              <span class="player-score">XLII,CCLVII</span>
+              <span class="crown-icon">👑</span>
+            </div>
+            
+            <div class="leaderboard-entry">
+              <span class="rank-medal">II</span>
+              <span class="player-name">CONSVL·NOVA</span>
+              <span class="player-score">XXXVIII,DCCCXCI</span>
+            </div>
+            
+            <div class="leaderboard-entry">
+              <span class="rank-medal">III</span>
+              <span class="player-name">PRAEFECTVS·COSMOS</span>
+              <span class="player-score">XXXIV,CDLVI</span>
+            </div>
+            
+            <div class="leaderboard-entry">
+              <span class="rank-medal">IV</span>
+              <span class="player-name">TRIBVNVS·VOID</span>
+              <span class="player-score">XXVIII,DCCCXXIII</span>
+            </div>
+            
+            <div class="leaderboard-entry">
+              <span class="rank-medal">V</span>
+              <span class="player-name">CENTVRIO·ORBIT</span>
+              <span class="player-score">XXIII,DCCXXXIV</span>
+            </div>
+            
+            <div class="leaderboard-entry">
+              <span class="rank-medal">VI</span>
+              <span class="player-name">LEGIONARIS·STELLAR</span>
+              <span class="player-score">XIX,CCXLV</span>
+            </div>
+            
+            <div class="leaderboard-entry">
+              <span class="rank-medal">VII</span>
+              <span class="player-name">MILES·GALAXY</span>
+              <span class="player-score">XVI,CXXVII</span>
+            </div>
+            
+            <div class="leaderboard-entry">
+              <span class="rank-medal">VIII</span>
+              <span class="player-name">TIRO·LVNARIS</span>
+              <span class="player-score">XII,DCCCXCII</span>
+            </div>
+          </div>
+          
+          <div class="leaderboard-footer">
+            <div class="pulse-dot"></div>
+            <span>TABVLA·VIVENS·GLORIAE</span>
+            <div class="pulse-dot"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Enhanced Status Bar - Digital Inscription -->
+      <div class="status-bar">
+        <div class="status-indicator">
+          <div class="status-light active"></div>
+          <span class="status-label">OPERATIONALIS</span>
+        </div>
+        
+        <div class="status-center">
+          <span class="status-date">ANNO·DOMINI·MMXXV</span>
+        </div>
+        
+        <div class="version-info">
+          <span class="version-prefix">VERSIŌ</span>
+          <span class="version-number">II·LXXX</span>
+        </div>
+      </div>
+
+      <!-- Mobile Tap to Start with Classical Touch -->
+      <div class="tap-to-start">
+        <div class="tap-decoration">⟨ ⟩</div>
+        <span class="tap-text">TANGERE·AD·INITIVM·MISSIONIS</span>
+        <div class="tap-decoration">⟨ ⟩</div>
+      </div>
+    </div>
+
+    <!-- Decorative Background Elements -->
+    <div class="background-decoration">
+      <div class="column-decoration left"></div>
+      <div class="column-decoration right"></div>
+    </div>
+
+    <!-- SitePal SDK -->
+    <script
+      type="text/javascript"
+      src="//vhss-d.oddcast.com/ai_embed_functions_v1.php" 
+    ></script>
+    
+    <!-- Immediate SitePal Setup -->
+    <script type="text/javascript">
+      window.addEventListener('DOMContentLoaded', function() {
+        console.log("🏛️ NEOCLASSICAL CYBERPUNK INITIALIZED");
+        console.log("⚡ AI_vhost_embed available:", typeof AI_vhost_embed);
+      });
+    </script>
+
+    <!-- External JavaScript -->
+    <script src="/scripts/sitepal-integration.js"></script>
+    <script src="/scripts/custom-ai-interface.js"></script>
+    <script src="/scripts/cyberpunk-mission-control.js"></script>
+  </body>
+</html>

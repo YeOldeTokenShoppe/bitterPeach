@@ -80,15 +80,18 @@ function PointLightWithHelper({ position, color, intensity, distance, decay, sho
 
 // Moon model component
 function Moon(props) {
-  const { onMoonClick } = props;
+  const { onMoonClick, isMobileView, highlightedRocket, focusedTarget } = props;
   const moonRef = useRef();
   const flagRef = useRef();
+  const videoRef = useRef();
   const { scene } = useGLTF('/Ochi_moon01.glb');
+  const [rocketObjects, setRocketObjects] = useState([]);
 
-  // Add debug logging for moon model structure
+  // Add debug logging for moon model structure and store rocket objects
   useEffect(() => {
     if (!scene) return;
     
+    const rockets = [];
     console.log("Inspecting moon model structure:");
     scene.traverse((child) => {
       if (child.name && child.name.toLowerCase().includes('mary')) {
@@ -99,19 +102,45 @@ function Moon(props) {
           parent: child.parent?.name
         });
       }
+      // Look for rocket objects - exact name match for 'Rocket'
+      if (child.name === 'Rocket' || (child.name && child.name.toLowerCase().includes('rocket'))) {
+        console.log("Found Rocket object:", {
+          name: child.name,
+          type: child.type,
+          position: child.position,
+          scale: child.scale,
+          parent: child.parent?.name
+        });
+        rockets.push(child);
+      }
+      // Look for screen object
+      if (child.name && (child.name.toLowerCase().includes('screen') || child.name.toLowerCase().includes('display'))) {
+        console.log("Found potential screen object:", {
+          name: child.name,
+          type: child.type,
+          isMesh: child.isMesh,
+          material: child.material?.name,
+          parent: child.parent?.name
+        });
+      }
     });
+    setRocketObjects(rockets);
   }, [scene]);
 
   const [flagAnchor, setFlagAnchor] = useState(null);
   const [lightAnchor, setLightAnchor] = useState(null);
   const [lightAnchor2, setLightAnchor2] = useState(null);
   const [maryPosition, setMaryPosition] = useState(null);
+  const [screenObject, setScreenObject] = useState(null);
+
+  const videoTextureRef = useRef(null);
 
   useEffect(() => {
     if (!scene) return;
     let fAnchor = null;
     let lAnchor = null;
     let lAnchor2 = null;
+    let screen = null;
     scene.traverse((child) => {
       if (child.name === "FlagAnchor") {
         fAnchor = child;
@@ -131,10 +160,22 @@ function Moon(props) {
         });
         setMaryPosition(worldPos);
       }
+      // Look for screen object
+      if (child.name === 'screen' || child.name === 'Screen') {
+        console.log("Found screen object:", {
+          name: child.name,
+          type: child.type,
+          position: child.position,
+          scale: child.scale,
+          isMesh: child.isMesh
+        });
+        screen = child;
+      }
     });
     setFlagAnchor(fAnchor);
     setLightAnchor(lAnchor);
     setLightAnchor2(lAnchor2);
+    setScreenObject(screen);
   }, [scene]);
 
   // Parent flag mesh to anchor
@@ -143,11 +184,156 @@ function Moon(props) {
       flagAnchor.add(flagRef.current);
     }
   }, [flagAnchor, flagRef]);
-  
+
+  // Set up video texture for screen
   useEffect(() => {
-    // Add emissive properties to the moon materials
+    if (!screenObject || !screenObject.isMesh) return;
+
+    // Create video element
+    const video = document.createElement('video');
+    video.src = '/3.mp4';
+    video.crossOrigin = 'anonymous';
+    video.loop = true;
+    video.muted = true; // Required for autoplay
+    video.playsInline = true;
+    video.setAttribute('playsinline', '');
+    video.flipY = true;
+
+    videoRef.current = video;
+
+    // Create video texture
+    const videoTexture = new THREE.VideoTexture(video);
+    videoTexture.minFilter = THREE.LinearFilter;
+    videoTexture.magFilter = THREE.LinearFilter;
+    videoTexture.format = THREE.RGBFormat;
+    videoTexture.encoding = THREE.sRGBEncoding;
+    
+    // Set texture transformation center
+    videoTexture.center.set(0.5, 0.5); // Set rotation center to middle of texture
+    
+    // === TEXTURE ROTATION OPTIONS ===
+    
+    // Option 1: Simple Z-axis rotation (in radians)
+    // videoTexture.rotation = -Math.PI / 2; // 90 degrees clockwise
+    videoTexture.rotation = Math.PI + Math.PI / 2; // 225 degrees (180 + 45 degrees clockwise)
+    // videoTexture.rotation = -Math.PI / 2; // 90 degrees counter-clockwise
+    
+    // Option 2: Flip the texture (simulates 180° Y-axis rotation)
+    videoTexture.flipY = true; // Flip vertically
+    
+    // Option 3: Use repeat and offset for mirroring effect
+    videoTexture.repeat.set(-1, 1); // Mirror horizontally (like Y-axis 180° rotation)
+    // videoTexture.offset.set(1, 0); // Adjust offset when mirroring
+    
+    // Option 4: Combined transformations
+    // videoTexture.rotation = -Math.PI; // Rotate 180 degrees
+
+    
+    videoTextureRef.current = videoTexture;
+
+    // Create material with video texture
+    const videoMaterial = new THREE.MeshBasicMaterial({
+      map: videoTexture,
+      side: THREE.DoubleSide,
+      toneMapped: false
+    });
+
+    // Store original material
+    const originalMaterial = screenObject.material;
+
+    // Apply video material
+    screenObject.material = videoMaterial;
+    screenObject.material.needsUpdate = true;
+
+    // Try to play video
+    const playVideo = async () => {
+      try {
+        await video.play();
+        console.log("Video playing on screen");
+      } catch (err) {
+        console.log("Video autoplay failed, will play on user interaction:", err);
+        // Add click handler to start video on first interaction
+        const handleFirstInteraction = async () => {
+          try {
+            await video.play();
+            console.log("Video started after user interaction");
+            document.removeEventListener('click', handleFirstInteraction);
+            document.removeEventListener('touchstart', handleFirstInteraction);
+          } catch (e) {
+            console.error("Failed to play video:", e);
+          }
+        };
+        document.addEventListener('click', handleFirstInteraction);
+        document.addEventListener('touchstart', handleFirstInteraction);
+      }
+    };
+
+    playVideo();
+
+    // Cleanup
+    return () => {
+      video.pause();
+      video.src = '';
+      videoTexture.dispose();
+      screenObject.material = originalMaterial;
+    };
+  }, [screenObject]);
+  
+  // Apply video texture to screen and emissive properties to moon materials
+  useEffect(() => {
+    if (!scene) return;
+
+    // Create video element
+    const video = document.createElement('video');
+    video.src = '/3.mp4'; // Or any video in your public folder
+    video.crossOrigin = 'Anonymous';
+    video.loop = true;
+    video.muted = true;
+    video.playsInline = true;
+    video.autoplay = true;
+    videoRef.current = video;
+    
+    // Create video texture
+    const videoTexture = new THREE.VideoTexture(video);
+    videoTexture.minFilter = THREE.LinearFilter;
+    videoTexture.magFilter = THREE.LinearFilter;
+    videoTexture.format = THREE.RGBAFormat;
+    videoTexture.colorSpace = THREE.SRGBColorSpace;
+    
     scene.traverse((child) => {
-      if (child.isMesh && child.material) {
+      // Apply video texture to screen object
+      if (child.isMesh && child.name && 
+          (child.name.toLowerCase().includes('screen') || 
+           child.name.toLowerCase().includes('display') ||
+           child.name === 'Object_3' || // Based on your GLB structure
+           child.name === 'Plane')) { // Common name for screens
+        
+        console.log('Applying video texture to screen:', child.name);
+        
+        // Create video material
+        const videoMaterial = new THREE.MeshStandardMaterial({
+          map: videoTexture,
+          emissive: new THREE.Color(0.2, 0.2, 0.2),
+          emissiveMap: videoTexture,
+          emissiveIntensity: 0.5,
+          metalness: 0,
+          roughness: 0.5,
+          side: THREE.DoubleSide
+        });
+        
+        child.material = videoMaterial;
+        
+        // Start playing the video
+        video.play().catch(err => {
+          console.error('Error playing video:', err);
+          // Try playing on user interaction
+          document.addEventListener('click', () => {
+            video.play().catch(e => console.error('Failed to play on click:', e));
+          }, { once: true });
+        });
+      }
+      // Apply emissive properties to other moon materials
+      else if (child.isMesh && child.material) {
         child.material = child.material.clone(); // Clone to avoid affecting other instances
         child.material.emissive = new THREE.Color(0x00ffff); // Subtle blue-white glow
         child.material.emissiveIntensity = 0.02; // Moderate intensity
@@ -158,13 +344,110 @@ function Moon(props) {
         child.material.reflectivity = 0.3;
       }
     });
+    
+    // Clean up video on unmount
+    return () => {
+      if (videoRef.current) {
+        videoRef.current.pause();
+        videoRef.current.src = '';
+        videoRef.current = null;
+      }
+    };
   }, [scene]);
   
-  // Add gentle rotation to the moon
+  // Add mobile touch helpers and selection rings for rockets
+  useEffect(() => {
+    if (!isMobileView || rocketObjects.length === 0) return;
+
+    rocketObjects.forEach((rocket) => {
+      // Check if helpers already exist
+      const existingHelper = rocket.getObjectByName('rocketTouchHelper');
+      const existingRing = rocket.getObjectByName('rocketSelectionRing');
+      
+      if (!existingHelper) {
+        // Add invisible touch helper sphere for easier selection
+        const touchHelperGeometry = new THREE.SphereGeometry(0.6, 8, 8); // Larger for rocket
+        const touchHelperMaterial = new THREE.MeshBasicMaterial({ 
+          visible: false 
+        });
+        const touchHelper = new THREE.Mesh(touchHelperGeometry, touchHelperMaterial);
+        touchHelper.name = 'rocketTouchHelper';
+        touchHelper.userData.isRocket = true;
+        touchHelper.userData.rocketObject = rocket;
+        rocket.add(touchHelper);
+      }
+      
+      if (!existingRing) {
+        // Create selection ring sprite
+        const canvas = document.createElement('canvas');
+        canvas.width = 128;
+        canvas.height = 128;
+        const ctx = canvas.getContext('2d');
+        
+        // Draw a green ring
+        ctx.strokeStyle = '#00ff00';
+        ctx.lineWidth = 8;
+        ctx.beginPath();
+        ctx.arc(64, 64, 56, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        const texture = new THREE.CanvasTexture(canvas);
+        const spriteMaterial = new THREE.SpriteMaterial({ 
+          map: texture,
+          transparent: true,
+          opacity: 0.7
+        });
+        const selectionRing = new THREE.Sprite(spriteMaterial);
+        selectionRing.name = 'rocketSelectionRing';
+        selectionRing.visible = false;
+        selectionRing.scale.set(1.5, 1.5, 1); // Larger ring for rocket
+        selectionRing.userData.nonInteractive = true;
+        rocket.add(selectionRing);
+      }
+    });
+  }, [isMobileView, rocketObjects]);
+
+  // Update selection ring visibility and animation
+  useEffect(() => {
+    if (!isMobileView) return;
+    
+    rocketObjects.forEach((rocket) => {
+      const selectionRing = rocket.getObjectByName('rocketSelectionRing');
+      if (selectionRing) {
+        const isHighlighted = highlightedRocket && highlightedRocket.object3D === rocket;
+        const anyObjectFocused = focusedTarget !== null;
+        
+        // Show ring only when highlighted and nothing is focused
+        selectionRing.visible = isHighlighted && !anyObjectFocused;
+      }
+    });
+  }, [isMobileView, rocketObjects, highlightedRocket, focusedTarget]);
+
+  // Add gentle rotation to the moon and update rocket selection rings
   useFrame((state, delta) => {
     if (moonRef.current) {
       // Very slow rotation on Y axis (0.03 radians per second)
       moonRef.current.rotation.y += delta * 0.03;
+    }
+    
+    // Update video texture if needed
+    if (videoTextureRef.current && videoRef.current && !videoRef.current.paused) {
+      videoTextureRef.current.needsUpdate = true;
+    }
+    
+    // Animate rocket selection rings
+    if (isMobileView && highlightedRocket && !focusedTarget) {
+      const time = state.clock.getElapsedTime();
+      rocketObjects.forEach((rocket) => {
+        const selectionRing = rocket.getObjectByName('rocketSelectionRing');
+        if (selectionRing && selectionRing.visible) {
+          // Pulse animation
+          const pulse = Math.sin(time * 3) * 0.3 + 0.7;
+          selectionRing.material.opacity = pulse;
+          const scale = 1.5 + Math.sin(time * 2) * 0.15;
+          selectionRing.scale.set(scale, scale, 1);
+        }
+      });
     }
   });
   
@@ -555,7 +838,7 @@ function AstronautInfoDisplay({ userData, astronautIndex, parentObject }) {
 
 // Floating astronaut component with user textures
 function Astronauts(props) {
-  const { userHelmetTextures, onAstronautClick, focusedAstronaut, debugMode = false } = props;
+  const { userHelmetTextures, onAstronautClick, focusedAstronaut, highlightedAstronaut, debugMode = false, isMobileView = false } = props;
 
   // Debug mode - controlled by prop
   const DEBUG_MODE = debugMode;
@@ -687,6 +970,27 @@ function Astronauts(props) {
       }
 
       const isFocused = focusedAstronaut && focusedAstronaut.index === index;
+      const isHighlighted = highlightedAstronaut && highlightedAstronaut.index === index;
+      
+      // Update selection ring animation on mobile
+      // Hide ALL rings when ANY astronaut is focused
+      const anyAstronautFocused = focusedAstronaut !== null;
+      if (isMobileView && isHighlighted && !anyAstronautFocused) {
+        const selectionRing = instance.getObjectByName('selectionRing');
+        if (selectionRing && selectionRing.material) {
+          // Pulse animation for sprite
+          const pulse = Math.sin(time * 3) * 0.3 + 0.7;
+          selectionRing.material.opacity = pulse;
+          const scale = 1 + Math.sin(time * 2) * 0.1;
+          selectionRing.scale.set(scale, scale, 1);
+        }
+      } else if (isMobileView && anyAstronautFocused) {
+        // Explicitly hide ring when any astronaut is focused
+        const selectionRing = instance.getObjectByName('selectionRing');
+        if (selectionRing) {
+          selectionRing.visible = false;
+        }
+      }
 
       // Common bobbing calculations - Amplitude significantly reduced
       const bobAmplitude = 0.03; // Reduced for less bobbing
@@ -860,8 +1164,48 @@ function Astronauts(props) {
         staticScene: staticAstronautScene
       };
       
+      // Add selection ring for mobile (invisible by default)
+      if (isMobileView) {
+        // Create a sprite that always faces the camera
+        const canvas = document.createElement('canvas');
+        canvas.width = 128;
+        canvas.height = 128;
+        const ctx = canvas.getContext('2d');
+        
+        // Draw a green ring
+        ctx.strokeStyle = '#00ff00';
+        ctx.lineWidth = 8;
+        ctx.beginPath();
+        ctx.arc(64, 64, 56, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        const texture = new THREE.CanvasTexture(canvas);
+        const spriteMaterial = new THREE.SpriteMaterial({ 
+          map: texture,
+          transparent: true,
+          opacity: 0.7
+        });
+        const selectionRing = new THREE.Sprite(spriteMaterial);
+        selectionRing.name = 'selectionRing';
+        selectionRing.visible = false;
+        selectionRing.scale.set(1, 1, 1);
+        selectionRing.userData.nonInteractive = true;
+        astronautGroup.add(selectionRing);
+        
+        // Add invisible touch helper sphere for easier selection
+        const touchHelperGeometry = new THREE.SphereGeometry(0.4, 8, 8);
+        const touchHelperMaterial = new THREE.MeshBasicMaterial({ 
+          visible: false 
+        });
+        const touchHelper = new THREE.Mesh(touchHelperGeometry, touchHelperMaterial);
+        touchHelper.name = 'touchHelper';
+        astronautGroup.add(touchHelper);
+      }
+      
       // Add the static astronaut model to the group initially
-      staticAstronautScene.scale.set(0.15, 0.15, 0.15);
+      // Scale astronauts larger on mobile for easier selection
+      const astronautScale = isMobileView ? 0.25 : 0.15; // 66% larger on mobile
+      staticAstronautScene.scale.set(astronautScale, astronautScale, astronautScale);
       astronautGroup.add(staticAstronautScene);
       
       // Set the group position and rotation
@@ -889,18 +1233,86 @@ function Astronauts(props) {
     setInitialInstanceData(newInstanceData);
   }, [staticScene, animatedScene, userHelmetTextures, onAstronautClick]);
 
-  // Effect to handle model switching when focused
+  // Effect to handle model switching when focused and selection ring visibility
   useEffect(() => {
     if (!instancesRef.current || !animatedHelmet) return;
 
     instancesRef.current.children.forEach((astronautGroup) => {
       const { astronautIndex, staticScene, userData } = astronautGroup.userData;
       const isFocused = focusedAstronaut && focusedAstronaut.index === astronautIndex;
-
-      // Remove current scene
-      while (astronautGroup.children.length > 0) {
-        astronautGroup.remove(astronautGroup.children[0]);
+      const isHighlighted = highlightedAstronaut && highlightedAstronaut.index === astronautIndex;
+      
+      // Always hide ring when ANY astronaut is focused (for cleaner zoom view)
+      const shouldShowRing = isHighlighted && !focusedAstronaut;
+      
+      // Update selection ring visibility on mobile
+      let selectionRing = null;
+      let touchHelper = null;
+      
+      if (isMobileView) {
+        selectionRing = astronautGroup.getObjectByName('selectionRing');
+        touchHelper = astronautGroup.getObjectByName('touchHelper');
+        
+        // Re-create selection ring if it was accidentally removed
+        if (!selectionRing) {
+          const canvas = document.createElement('canvas');
+          canvas.width = 128;
+          canvas.height = 128;
+          const ctx = canvas.getContext('2d');
+          
+          ctx.strokeStyle = '#00ff00';
+          ctx.lineWidth = 8;
+          ctx.beginPath();
+          ctx.arc(64, 64, 56, 0, Math.PI * 2);
+          ctx.stroke();
+          
+          const texture = new THREE.CanvasTexture(canvas);
+          const spriteMaterial = new THREE.SpriteMaterial({ 
+            map: texture,
+            transparent: true,
+            opacity: 0.7
+          });
+          selectionRing = new THREE.Sprite(spriteMaterial);
+          selectionRing.name = 'selectionRing';
+          selectionRing.visible = false;
+          selectionRing.scale.set(1, 1, 1);
+          selectionRing.userData.nonInteractive = true;
+          astronautGroup.add(selectionRing);
+        }
+        
+        // Re-create touch helper if it was accidentally removed
+        if (!touchHelper) {
+          const touchHelperGeometry = new THREE.SphereGeometry(0.4, 8, 8);
+          const touchHelperMaterial = new THREE.MeshBasicMaterial({ 
+            visible: false 
+          });
+          touchHelper = new THREE.Mesh(touchHelperGeometry, touchHelperMaterial);
+          touchHelper.name = 'touchHelper';
+          astronautGroup.add(touchHelper);
+        }
+        
+        if (selectionRing) {
+          // Use shouldShowRing which hides ALL rings when ANY astronaut is focused
+          selectionRing.visible = shouldShowRing;
+          // Animate the ring
+          if (shouldShowRing) {
+            selectionRing.material.opacity = 0.7 + Math.sin(Date.now() * 0.003) * 0.3;
+            console.log(`Selection ring for astronaut ${astronautIndex} set to visible:`, selectionRing.visible);
+          }
+        }
       }
+
+      // Remove current scene (but preserve selection ring and touch helper)
+      const childrenToRemove = [];
+      astronautGroup.children.forEach(child => {
+        if (child.name !== 'selectionRing' && child.name !== 'touchHelper') {
+          childrenToRemove.push(child);
+        }
+      });
+      
+      childrenToRemove.forEach(child => {
+        astronautGroup.remove(child);
+      });
 
       // Add appropriate scene
       if (isFocused) {
@@ -915,7 +1327,8 @@ function Astronauts(props) {
         }
         
         // Scale the animated scene when adding it
-        animatedScene.scale.set(0.15, 0.15, 0.15);
+        const astronautScale = isMobileView ? 0.25 : 0.15; // Match mobile scaling
+        animatedScene.scale.set(astronautScale, astronautScale, astronautScale);
         astronautGroup.add(animatedScene);
 
         // Reset animation mixer time when switching to animated model
@@ -931,7 +1344,7 @@ function Astronauts(props) {
         console.log(`Switching astronaut ${astronautIndex} to STATIC model`);
       }
     });
-  }, [focusedAstronaut, animatedHelmet]);
+  }, [focusedAstronaut, highlightedAstronaut, animatedHelmet, isMobileView]);
   
   // Handle clicks on astronauts using R3F's event system on the group
   const handleClick = (event) => {
@@ -1133,9 +1546,24 @@ function SimpleOrbitCamera({ focusedTarget, isMobileView }) {
     }
   }, [camera, gl, isMobileView]);
 
-  // Add useFrame to handle continuous rotation when not focused
+  // Add useFrame to handle continuous rotation when not focused and track rocket
   useFrame(() => {
     if (controlsRef.current && !focusedTarget && autoRotateRef.current) {
+      controlsRef.current.update();
+    }
+    
+    // Track rocket position when focused
+    if (focusedTarget && focusedTarget.type === 'rocket' && focusedTarget.object3D && controlsRef.current) {
+      // Get rocket's current world position
+      const rocketWorldPos = new THREE.Vector3();
+      focusedTarget.object3D.getWorldPosition(rocketWorldPos);
+      
+      // Update camera target to follow the rocket
+      controlsRef.current.target.copy(rocketWorldPos);
+      controlsRef.current.target.y += 0.1; // Slight offset to look higher on the rocket
+      
+      // Don't update camera position here - let OrbitControls handle it
+      // This prevents the camera from being forced to look down
       controlsRef.current.update();
     }
   });
@@ -1181,7 +1609,7 @@ function SimpleOrbitCamera({ focusedTarget, isMobileView }) {
         astronautInstance.getWorldPosition(lookAtTargetPos);
         
         // Adjust the look-at point to be slightly higher (toward the head/face area)
-        lookAtTargetPos.y += 0.1; // Move target point up slightly for better framing
+        lookAtTargetPos.y += 0.3; // Move target point up slightly for better framing
         
         // Position camera at a nice distance for a close-up view
         const moonCenter = new THREE.Vector3(0, 0, 0);
@@ -1189,7 +1617,7 @@ function SimpleOrbitCamera({ focusedTarget, isMobileView }) {
           .subVectors(lookAtTargetPos, moonCenter)
           .normalize();
         
-        const cameraDistance = 0.6; // Close enough for face view
+        const cameraDistance = 0.85; // Close enough for face view
         idealFinalCameraPos.copy(lookAtTargetPos)
           .add(directionFromMoon.multiplyScalar(cameraDistance));
         
@@ -1198,14 +1626,28 @@ function SimpleOrbitCamera({ focusedTarget, isMobileView }) {
         targetObject.getWorldPosition(lookAtTargetPos);
         
         // Adjust the look-at point higher for better rocket view angle
-        lookAtTargetPos.y += 0.1; // Raise the target point to look higher on the rocket
+        lookAtTargetPos.y += 0.25; // Slight offset to look at rocket center
         
-        const rocketDist = 0.5;
-        const viewDirection = new THREE.Vector3().subVectors(lookAtTargetPos, camera.position).normalize();
-        if (viewDirection.lengthSq() === 0) viewDirection.set(0,0.3,1).normalize();
-        idealFinalCameraPos.subVectors(lookAtTargetPos, viewDirection.multiplyScalar(rocketDist));
+        // Calculate direction from moon center to rocket (outward direction)
+        const moonCenter = new THREE.Vector3(0, 0, 0);
+        const directionFromMoon = new THREE.Vector3()
+          .subVectors(lookAtTargetPos, moonCenter)
+          .normalize();
         
-        console.log("Camera positioning for rocket at:", lookAtTargetPos);
+        // Position camera along the outward direction from the rocket
+        const rocketDist = 0.7; // Distance from rocket
+        idealFinalCameraPos.copy(lookAtTargetPos)
+          .add(directionFromMoon.multiplyScalar(rocketDist));
+        
+        // Adjust camera height to be more level with the rocket (not looking down)
+        // This creates a more horizontal viewing angle
+        idealFinalCameraPos.y = lookAtTargetPos.y - 0.05; // Camera slightly above rocket height
+        
+        // Optional: Add some horizontal offset for a 3/4 view
+        idealFinalCameraPos.x -= 0.01; // Shift camera to the side
+        idealFinalCameraPos.z -= 0.75; // Shift camera to the side
+        
+        console.log("Camera positioning for rocket at:", lookAtTargetPos, "camera at:", idealFinalCameraPos);
       }
 
       const startPosition = camera.position.clone();
@@ -1307,26 +1749,32 @@ function ModelInspector() {
 
 
 
-function SceneManager({ userHelmetTextures, focusedTarget, onAstronautClick, onSceneObjectClick, onReady, isConstellationsVisible, is80sMode, isMobileView, debugMode = false }) {
+function SceneManager({ userHelmetTextures, focusedTarget, highlightedAstronaut, highlightedRocket, onAstronautClick, onSceneObjectClick, onReady, isConstellationsVisible, is80sMode, isMobileView, debugMode = false }) {
   const handleMoonOrRocketClick = (event) => {
     event.stopPropagation(); // Stop event from bubbling to canvas click handler
     let clickedObjectName = event.object.name;
     let targetObject = event.object;
 
-    // Traverse up to find a named parent if the directly clicked mesh is unnamed or part of a larger assembly
-    let tempObj = event.object;
-    while (tempObj.parent && !tempObj.name && tempObj.parent.isObject3D) {
-        if (tempObj.parent.name) { // Prefer named parent
-            clickedObjectName = tempObj.parent.name;
-            targetObject = tempObj.parent;
-            break;
-        }
-        tempObj = tempObj.parent;
+    // Check if it's a rocket touch helper
+    if (event.object.userData?.isRocket) {
+      targetObject = event.object.userData.rocketObject;
+      clickedObjectName = targetObject.name;
+    } else {
+      // Traverse up to find a named parent if the directly clicked mesh is unnamed or part of a larger assembly
+      let tempObj = event.object;
+      while (tempObj.parent && !tempObj.name && tempObj.parent.isObject3D) {
+          if (tempObj.parent.name) { // Prefer named parent
+              clickedObjectName = tempObj.parent.name;
+              targetObject = tempObj.parent;
+              break;
+          }
+          tempObj = tempObj.parent;
+      }
     }
     
 
 
-    if (clickedObjectName && clickedObjectName.toLowerCase().includes('rocket')) {
+    if (clickedObjectName && (clickedObjectName === 'Rocket' || clickedObjectName.toLowerCase().includes('rocket'))) {
 
       onSceneObjectClick({ type: 'rocket', object3D: targetObject });
     } else {
@@ -1341,14 +1789,23 @@ function SceneManager({ userHelmetTextures, focusedTarget, onAstronautClick, onS
   return (
     <>
       <SceneSetup isMobileView={isMobileView} />
-      <Moon position={[0, 0, 0]} scale={MOON_RADIUS} onMoonClick={handleMoonOrRocketClick} />
+      <Moon 
+        position={[0, 0, 0]} 
+        scale={MOON_RADIUS} 
+        onMoonClick={handleMoonOrRocketClick} 
+        isMobileView={isMobileView}
+        highlightedRocket={highlightedRocket}
+        focusedTarget={focusedTarget}
+      />
       
       
       <Astronauts 
         userHelmetTextures={userHelmetTextures} 
         onAstronautClick={onAstronautClick}
         focusedAstronaut={focusedTarget?.type === 'astronaut' ? focusedTarget : null}
+        highlightedAstronaut={highlightedAstronaut}
         debugMode={debugMode}
+        isMobileView={isMobileView}
       />
       
       {/* Demo Comet System */}
@@ -1374,6 +1831,9 @@ function SceneManager({ userHelmetTextures, focusedTarget, onAstronautClick, onS
 
 export default function MoonSceneComponent({userHelmetTextures, currentUser, onSceneReady}) {
   const [focusedTarget, setFocusedTarget] = useState(null);
+  const [highlightedAstronaut, setHighlightedAstronaut] = useState(null); // For mobile two-stage selection
+  const [highlightedRocket, setHighlightedRocket] = useState(null); // For mobile two-stage rocket selection
+  const [showMobileHint, setShowMobileHint] = useState(true); // Show hint on first load
   const focusedTargetRef = useRef(null); // Keep a ref to restore after context loss
   
   // Keep ref in sync with state
@@ -1428,16 +1888,38 @@ export default function MoonSceneComponent({userHelmetTextures, currentUser, onS
   }, []);
 
   const handleAstronautClick = (index, astronautObject, userData) => {
-    console.log("handleAstronautClick called with:", { index, focusedTarget: focusedTarget?.index });
+    console.log("handleAstronautClick called with:", { index, focusedTarget: focusedTarget?.index, isMobileView });
     
     if (index === null) { // Direct deselect signal
       console.log("Deselecting astronaut (index was null)");
       setFocusedTarget(null);
+      setHighlightedAstronaut(null);
       return;
     }
     
     const newTarget = { type: 'astronaut', index, object3D: astronautObject, userData };
     
+    // Mobile two-stage selection
+    if (isMobileView) {
+      // If this astronaut is already highlighted, zoom in (second tap)
+      if (highlightedAstronaut && highlightedAstronaut.index === index) {
+        console.log("Second tap on highlighted astronaut - zooming in");
+        setFocusedTarget(newTarget);
+        setHighlightedAstronaut(null); // Clear highlight when zooming
+        return;
+      }
+      
+      // First tap - just highlight
+      console.log("First tap - highlighting astronaut", index, "newTarget:", newTarget);
+      setHighlightedAstronaut(newTarget);
+      // Clear any existing focus
+      if (focusedTarget) {
+        setFocusedTarget(null);
+      }
+      return;
+    }
+    
+    // Desktop behavior - immediate zoom
     // Check if clicking the same astronaut that's already focused
     if (focusedTarget && focusedTarget.type === 'astronaut' && focusedTarget.index === index) {
       console.log("Clicking same focused astronaut - clearing focus");
@@ -1452,7 +1934,29 @@ export default function MoonSceneComponent({userHelmetTextures, currentUser, onS
   const handleSceneObjectClick = (targetInfo) => {
     if (targetInfo === null) {
       setFocusedTarget(null);
+      setHighlightedRocket(null);
     } else if (targetInfo.type === 'rocket') {
+      // Mobile two-stage selection for rocket
+      if (isMobileView) {
+        // If this rocket is already highlighted, zoom in (second tap)
+        if (highlightedRocket && highlightedRocket.object3D === targetInfo.object3D) {
+          console.log("Second tap on highlighted rocket - zooming in");
+          setFocusedTarget(targetInfo);
+          setHighlightedRocket(null); // Clear highlight when zooming
+          return;
+        }
+        
+        // First tap - just highlight
+        console.log("First tap - highlighting rocket");
+        setHighlightedRocket(targetInfo);
+        // Clear any existing focus
+        if (focusedTarget) {
+          setFocusedTarget(null);
+        }
+        return;
+      }
+      
+      // Desktop behavior - immediate zoom
       if (
         focusedTarget &&
         focusedTarget.type === 'rocket' &&
@@ -1468,8 +1972,10 @@ export default function MoonSceneComponent({userHelmetTextures, currentUser, onS
   const handleCanvasClick = (event) => {
     // Only clear focus if clicking directly on the canvas
     if (event.target === event.currentTarget) {
-      console.log("Canvas clicked - clearing focus");
+      console.log("Canvas clicked - clearing focus and highlight");
       setFocusedTarget(null);
+      setHighlightedAstronaut(null);
+      setHighlightedRocket(null);
     }
   };
 
@@ -1570,6 +2076,8 @@ export default function MoonSceneComponent({userHelmetTextures, currentUser, onS
           <SceneManager
             userHelmetTextures={userHelmetTextures}
             focusedTarget={focusedTarget}
+            highlightedAstronaut={highlightedAstronaut}
+            highlightedRocket={highlightedRocket}
             onAstronautClick={handleAstronautClick}
             onSceneObjectClick={handleSceneObjectClick}
             onReady={onSceneReady}
@@ -1660,6 +2168,74 @@ export default function MoonSceneComponent({userHelmetTextures, currentUser, onS
         onSave={handleSaveCustomizations}
         defaultProfileImage={currentUser?.profileImage}
       />
+      
+      {/* Mobile hint overlay */}
+      {isMobileView && showMobileHint && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '120px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'rgba(0, 0, 0, 0.8)',
+            color: 'white',
+            padding: '12px 24px',
+            borderRadius: '20px',
+            fontSize: '14px',
+            fontFamily: 'Arial, sans-serif',
+            textAlign: 'center',
+            zIndex: 1000,
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
+            animation: 'fadeInUp 0.5s ease-out',
+            cursor: 'pointer',
+          }}
+          onClick={() => setShowMobileHint(false)}
+        >
+          <button
+            style={{
+              position: 'absolute',
+              top: '-8px',
+              right: '-8px',
+              background: 'rgba(255, 255, 255, 0.2)',
+              border: '1px solid rgba(255, 255, 255, 0.3)',
+              borderRadius: '50%',
+              width: '24px',
+              height: '24px',
+              color: 'white',
+              fontSize: '16px',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 0,
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowMobileHint(false);
+            }}
+          >
+            ×
+          </button>
+          <div style={{ marginBottom: '4px' }}>👆 Tap astronaut or rocket to select</div>
+          <div>👆👆 Tap again to zoom</div>
+        </div>
+      )}
+      
+      <style jsx>{`
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translate(-50%, 20px);
+          }
+          to {
+            opacity: 1;
+            transform: translate(-50%, 0);
+          }
+        }
+      `}</style>
     </div>
   );
 }

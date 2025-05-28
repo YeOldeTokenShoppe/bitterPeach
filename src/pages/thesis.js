@@ -3,7 +3,8 @@ import React, { useState, useEffect, useMemo } from "react";
 import Thesis from "../components/Thesis";
 import NavBar from "../components/NavBar.client";
 import Footer from "../components/Footer";
-import Loader from "../components/Loader";
+// import Loader from "../components/Loader";
+import Magic8BallLoader from "../components/Magic8BallLoader";
 
 export default function ThesisPage() {
   const [isLoading, setIsLoading] = useState(true);
@@ -118,7 +119,7 @@ export default function ThesisPage() {
             zIndex: 50,
           }}
         >
-          <Loader />
+          <Magic8BallLoader isLoading={isLoading} />
         </div>
       )}
     </div>

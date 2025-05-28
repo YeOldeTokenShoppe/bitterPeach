@@ -4,6 +4,7 @@ import * as THREE from 'three'; // Corrected import alias
 import { doc, getDocs, collection, query } from 'firebase/firestore'; // Removed limit
 import { db } from '../utilities/firebaseClient'; // Your Firebase init
 import Loader from '../components/Loader'; // Import Loader component
+import { TransitionIn } from '../components/TransitionIn'; // Import transition component
 
 // Helper to load texture (can be moved to a utils file later)
 const loadImageAsTexture = (url) => {
@@ -42,6 +43,124 @@ export default function MoonScenePage() {
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [isDataFetched, setIsDataFetched] = useState(false);
   const [isSceneReady, setIsSceneReady] = useState(false);
+  const [isMobileView, setIsMobileView] = useState(false);
+  const [isDefinitelyPhone, setIsDefinitelyPhone] = useState(false);
+  const [mobile, setMobile] = useState(false);
+
+
+  const detectMobileDevice = () => {
+    // Get all the info for debugging
+    const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+    const lowerUA = userAgent.toLowerCase();
+    
+    // More comprehensive mobile detection
+    const isIPhone = /iphone/i.test(lowerUA);
+    const isIPad = /ipad/i.test(lowerUA);
+    const isAndroid = /android/i.test(lowerUA);
+    const hasMobileKeyword = /mobile/i.test(lowerUA);
+    
+    // Check screen properties
+    const screenWidth = window.screen.width;
+    const screenHeight = window.screen.height;
+    const innerWidth = window.innerWidth;
+    const innerHeight = window.innerHeight;
+    const pixelRatio = window.devicePixelRatio || 1;
+    
+    // Physical screen size (accounting for pixel ratio)
+    const physicalWidth = screenWidth / pixelRatio;
+    const physicalHeight = screenHeight / pixelRatio;
+    
+    // Touch capability
+    const hasTouch = 'ontouchstart' in window || 
+                    navigator.maxTouchPoints > 0 || 
+                    navigator.msMaxTouchPoints > 0;
+    
+    // Simple phone detection: iPhone or (Android + Mobile keyword)
+    const isPhoneUA = isIPhone || (isAndroid && hasMobileKeyword);
+    
+    // Size check: viewport OR physical size small enough
+    const hasPhoneSize = Math.min(innerWidth, innerHeight) < 600 || 
+                        Math.min(physicalWidth, physicalHeight) < 400;
+    
+    // Final decision
+    const isMobile = isPhoneUA && hasTouch && hasPhoneSize;
+    
+    // Enhanced logging
+    console.log('📱 Enhanced Mobile Detection:', {
+      userAgent: userAgent,
+      isIPhone,
+      isIPad,
+      isAndroid,
+      hasMobileKeyword,
+      hasTouch,
+      screen: { width: screenWidth, height: screenHeight },
+      viewport: { width: innerWidth, height: innerHeight },
+      physical: { width: physicalWidth, height: physicalHeight },
+      pixelRatio,
+      hasPhoneSize,
+      isPhoneUA,
+      RESULT: isMobile
+    });
+    
+    // Debug panel removed - mobile detection working properly
+    
+    return isMobile;
+  };
+  useEffect(() => {
+    // Check for force mobile parameter (for testing)
+    const urlParams = new URLSearchParams(window.location.search);
+    const forceMobile = urlParams.get('mobile') === 'true';
+    
+    if (forceMobile) {
+      console.log('🔧 Force mobile mode via URL parameter');
+      setIsDefinitelyPhone(true);
+      setMobile(true);
+      setIsMobileView(true);
+      return;
+    }
+    
+    // Use the same strict detection on initial load
+    const isMobile = detectMobileDevice();
+    
+    if (isMobile) {
+      console.log('📱 Definitely a phone - locking mobile view');
+      setIsDefinitelyPhone(true);
+      setMobile(true);
+      setIsMobileView(true);
+    } else {
+      console.log('💻 Not a phone - using desktop view');
+      setIsDefinitelyPhone(false);
+      setMobile(false);
+      setIsMobileView(false);
+    }
+  }, []);
+
+  // Handle window resize
+  useEffect(() => {
+    const handleResize = () => {
+      // If we've already determined it's a phone, keep mobile view
+      if (isDefinitelyPhone) {
+        setMobile(true);
+        setIsMobileView(true);
+        return;
+      }
+      
+      // Otherwise, do normal detection
+      const isMobile = detectMobileDevice();
+      setMobile(isMobile);
+      setIsMobileView(isMobile);
+      // Remove automatic showSpotify setting
+    };
+
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    window.addEventListener("orientationchange", handleResize); // Also listen for orientation changes
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("orientationchange", handleResize);
+    };
+  }, [isDefinitelyPhone]);
+
 
   useEffect(() => {
     const fetchUserHelmetImages = async () => {
@@ -147,14 +266,15 @@ export default function MoonScenePage() {
   //   userHelmetTextures.map(item => item.userId));
 
   return (
-    <div style={{ width: '100vw', height: '100vh', position: 'fixed', left:0, top:0, right:0, bottom:0, overflow: 'hidden', background: '#000010' /* Dark bg for page */ }}>
-      {isLoading && <Loader progress={loadingProgress} />}
+    <TransitionIn>
+      <div style={{ width: '100vw', height: '100vh', position: 'fixed', left:0, top:0, right:0, bottom:0, overflow: 'hidden', background: '#000010' /* Dark bg for page */ }}>
+        {isLoading && <Loader progress={loadingProgress} />}
 
-      <div style={{ 
-        opacity: isLoading ? 0 : 1, 
-        transition: 'opacity 0.5s ease-in-out',
-        width: '100%', height: '100%', position: 'relative' 
-      }}>
+        <div style={{ 
+          opacity: isLoading ? 0 : 1, 
+          transition: 'opacity 0.5s ease-in-out',
+          width: '100%', height: '100%', position: 'relative' 
+        }}>
         {/* UI for errors (can be kept or integrated differently) */}
         {pageError && 
           <div style={{position: 'absolute', top: '50px', left: '10px', color: 'red', background: 'white', padding: '10px', borderRadius: '5px', zIndex:1000}}>
@@ -163,7 +283,7 @@ export default function MoonScenePage() {
         }
         
         {/* Show user count when loading complete - only if not loading and no error */}
-        {!isLoading && !pageError && userHelmetTextures.length > 0 && 
+        {/* {!isLoading && !pageError && userHelmetTextures.length > 0 && 
           <div style={{position: 'absolute', top: '10px', right: '10px', color: 'white', background: 'rgba(0,0,0,0.7)', padding: '10px', borderRadius: '5px', zIndex:1000}}>
             {userHelmetTextures.length} Astronauts
           </div>
@@ -176,7 +296,7 @@ export default function MoonScenePage() {
             left: 0;
             filter: blur(0.1rem);
           }
-        `}</style>
+        `}</style> */}
         
         {/* Decorative text - keep outside opacity controlled div if it should be visible during loading, or move inside */}
         <div className="textLight" id="textLight" style={{
@@ -193,7 +313,7 @@ export default function MoonScenePage() {
             style={{
               position: "relative",
               fontFamily: "'UnifrakturMaguntia', cursive",
-              fontSize: "4rem",
+              fontSize: isMobileView ? "3rem" : "4rem",
               color: "#ffffff",
             }}
           >
@@ -234,7 +354,8 @@ export default function MoonScenePage() {
           userHelmetTextures={userHelmetTextures} 
           onSceneReady={() => setIsSceneReady(true)} // Pass the callback
         />
+        </div>
       </div>
-    </div>
+    </TransitionIn>
   );
 } 

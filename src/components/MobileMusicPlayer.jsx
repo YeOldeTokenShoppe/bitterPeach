@@ -54,9 +54,28 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
 
   const trackNames = is80sMode ? eightyTrackNames : non80sTrackNames;
   const firebasePaths = is80sMode ? eightyFirebasePaths : non80sFirebasePaths;
+  
+  // Debug logging
+  console.log('🎵 MobileMusicPlayer mode:', { 
+    is80sMode, 
+    trackNamesLength: trackNames.length, 
+    firebasePathsLength: firebasePaths.length,
+    firstTrack: trackNames[0],
+    secondTrack: trackNames[1] 
+  });
+
+  // Track failed tracks to avoid infinite loops
+  const failedTracksRef = useRef(new Set());
 
   // Load track from Firebase
-  const loadTrack = async (index) => {
+  const loadTrack = async (index, attemptCount = 0) => {
+    console.log(`🎵 Mobile: Attempting to load track ${index}:`, {
+      trackName: trackNames[index],
+      firebasePath: firebasePaths[index],
+      is80sMode,
+      totalTracks: trackNames.length
+    });
+    
     try {
       const audioRef = storageRefUtil(storage, firebasePaths[index]);
       const url = await getDownloadURL(audioRef);
@@ -64,14 +83,32 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
       setCurrentTrackIndex(index);
       setIsLoaded(true);
       console.log(`✅ Mobile: Loaded track ${index}: ${trackNames[index]}`);
+      // Clear failed tracks on successful load
+      failedTracksRef.current.clear();
     } catch (error) {
-      console.error("❌ Mobile: Error loading track:", error);
+      console.error(`❌ Mobile: Error loading track ${index} (${trackNames[index]}):`, error);
+      failedTracksRef.current.add(index);
+      
+      // If all tracks have failed, stop trying
+      if (failedTracksRef.current.size >= trackNames.length) {
+        console.error("❌ Mobile: All tracks failed to load");
+        return;
+      }
+      
+      // Try next track if this one fails
+      if (attemptCount < trackNames.length) {
+        const nextIndex = (index + 1) % trackNames.length;
+        console.log(`🔄 Mobile: Trying next track ${nextIndex} after failure`);
+        loadTrack(nextIndex, attemptCount + 1);
+      }
     }
   };
 
   // Initialize with first track
   useEffect(() => {
     if (isVisible && trackNames.length > 0) {
+      // Clear failed tracks when switching modes
+      failedTracksRef.current.clear();
       loadTrack(0);
     }
   }, [isVisible, is80sMode]);
@@ -94,13 +131,41 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
     }
   }, [trackUrl, autoPlay, isVisible]);
 
+  // Find next available track index
+  const findNextAvailableTrack = (startIndex, direction = 1) => {
+    let attempts = 0;
+    let index = startIndex;
+    
+    while (attempts < trackNames.length) {
+      index = direction > 0 
+        ? (index + 1) % trackNames.length 
+        : index === 0 ? trackNames.length - 1 : index - 1;
+        
+      if (!failedTracksRef.current.has(index)) {
+        return index;
+      }
+      attempts++;
+    }
+    
+    // If all tracks failed, return the original next index
+    return direction > 0 
+      ? (startIndex + 1) % trackNames.length 
+      : startIndex === 0 ? trackNames.length - 1 : startIndex - 1;
+  };
+
   // Skip to next track
   const skipNext = () => {
     if (trackNames.length <= 1) {
       console.log("🎵 Mobile: Only one track available, cannot skip");
       return;
     }
-    const nextIndex = (currentTrackIndex + 1) % trackNames.length;
+    console.log(`🎵 Mobile: Skip next from index ${currentTrackIndex}`, {
+      currentTrack: trackNames[currentTrackIndex],
+      is80sMode,
+      allTracks: trackNames,
+      failedTracks: Array.from(failedTracksRef.current)
+    });
+    const nextIndex = findNextAvailableTrack(currentTrackIndex, 1);
     console.log(`🎵 Mobile: Skipping to next track ${nextIndex}: ${trackNames[nextIndex]} (from ${currentTrackIndex})`);
     setIsPlaying(false); // Stop current track
     loadTrack(nextIndex);
@@ -112,7 +177,7 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
       console.log("🎵 Mobile: Only one track available, cannot skip");
       return;
     }
-    const prevIndex = currentTrackIndex === 0 ? trackNames.length - 1 : currentTrackIndex - 1;
+    const prevIndex = findNextAvailableTrack(currentTrackIndex, -1);
     console.log(`🎵 Mobile: Skipping to previous track ${prevIndex}: ${trackNames[prevIndex]} (from ${currentTrackIndex})`);
     setIsPlaying(false); // Stop current track
     loadTrack(prevIndex);
@@ -120,7 +185,7 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
 
   // Handle track end
   const handleTrackEnd = () => {
-    const nextIndex = (currentTrackIndex + 1) % trackNames.length;
+    const nextIndex = findNextAvailableTrack(currentTrackIndex, 1);
     loadTrack(nextIndex);
   };
 
@@ -189,10 +254,10 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
     }
   };
 
-  // Pass control methods to parent via callback - only on mount
+  // Pass control methods to parent via callback
   useEffect(() => {
     if (onControlsReady) {
-      console.log('MobileMusicPlayer: Passing controls to parent');
+      console.log('MobileMusicPlayer: Passing controls to parent', { is80sMode, trackCount: trackNames.length });
       onControlsReady({
         togglePlayPause,
         skipTrack: skipNext,
@@ -200,7 +265,7 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
         isPlaying: () => isPlaying // Make this a function to get current state
       });
     }
-  }, [onControlsReady]); // Only depend on onControlsReady
+  }, [onControlsReady, skipNext, togglePlayPause, pause, is80sMode]); // Update when key functions or mode changes
 
   // Even if not visible, we need to render the audio element for the ref methods to work
   if (!isVisible) {

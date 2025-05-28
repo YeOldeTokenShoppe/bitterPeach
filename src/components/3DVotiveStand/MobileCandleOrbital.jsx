@@ -404,13 +404,9 @@ export default function MobileCandleOrbital({ candleData = [], onCandleClick, mo
     });
   }, [currentPageData, vcandleObjects, currentPage]);
   
-  // Auto-rotate through pages (now optional - disabled when user manually navigates)
-  const [autoRotate, setAutoRotate] = useState(true);
-  
   // Create a stable setCurrentPage function (moved here to avoid circular dependency)
   const handleSetCurrentPage = useCallback((page) => {
     console.log('MobileCandleOrbital: setCurrentPage called with page:', page, 'isViewerOpen:', isViewerOpen);
-    setAutoRotate(false);
     
     // If viewer is open, just change page without transition animation
     if (isViewerOpen) {
@@ -452,25 +448,52 @@ export default function MobileCandleOrbital({ candleData = [], onCandleClick, mo
     }, TRANSITION_DURATION / 2); // Change page halfway through transition
   }, [TRANSITION_DURATION, isViewerOpen]);
   
-  useEffect(() => {
-    if (totalPages <= 1 || !autoRotate) return; // No need to rotate if only one page or manual mode
-    
-    const interval = setInterval(() => {
-      // Check if candle viewer is open
-      if (isViewerOpen) {
-        return; // Skip rotation if viewer is open
-      }
-      
-      // Use the same transition logic as manual navigation
-      const nextPageValue = (currentPage + 1) % totalPages;
-      handleSetCurrentPage(nextPageValue);
-    }, ROTATION_INTERVAL);
-    
-    return () => clearInterval(interval);
-  }, [totalPages, autoRotate, currentPage, handleSetCurrentPage]);
-
   // Create transition state to pass to children
   const [transitionState, setTransitionState] = useState(null);
+  
+  // Track if we've done the initial spin effect
+  const [hasInitialSpinCompleted, setHasInitialSpinCompleted] = useState(false);
+  
+  // Auto spin effect after initial load (without pagination)
+  useEffect(() => {
+    if (!hasInitialSpinCompleted && vcandleObjects.length > 0) {
+      // Wait for the initial load time before doing the spin effect
+      const timer = setTimeout(() => {
+        console.log('🌀 Starting automatic spin effect (no pagination)');
+        
+        // Start the transition animation
+        setIsTransitioning(true);
+        const startTime = Date.now();
+        setTransitionStartTime(startTime);
+        
+        // Set initial transition state for spin effect
+        setTransitionState({
+          isTransitioning: true,
+          progress: 0,
+          isFadingOut: true // Start with fade-out for the spin
+        });
+        
+        // After half duration, switch to fade-in (but don't change page)
+        setTimeout(() => {
+          setTransitionState({
+            isTransitioning: true,
+            progress: 0,
+            isFadingOut: false
+          });
+        }, TRANSITION_DURATION / 2);
+        
+        // End the transition after full duration
+        setTimeout(() => {
+          setIsTransitioning(false);
+          setTransitionStartTime(0);
+          setHasInitialSpinCompleted(true);
+          console.log('🌀 Automatic spin effect completed');
+        }, TRANSITION_DURATION);
+      }, ROTATION_INTERVAL); // Use same delay as before
+      
+      return () => clearTimeout(timer);
+    }
+  }, [hasInitialSpinCompleted, vcandleObjects.length, ROTATION_INTERVAL, TRANSITION_DURATION]);
   
   
   // Add a slow overall rotation to the entire group
@@ -537,7 +560,7 @@ export default function MobileCandleOrbital({ candleData = [], onCandleClick, mo
   }, [currentPage, totalPages, allSortedData.length, onPaginationChange, handleSetCurrentPage]);
 
   return (
-    <group ref={groupRef} position={[0, 0, 0]}>
+    <group ref={groupRef} position={[0, 2, 0]}>
       {/* The candles */}
       {combinedData.map((item, index) => {
         const angle = (index / Math.min(combinedData.length, 8)) * Math.PI * 2;

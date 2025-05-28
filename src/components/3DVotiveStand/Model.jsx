@@ -4,6 +4,7 @@ import { useGLTF, useProgress, Text, Environment, useTexture, Plane, useAnimatio
 import * as THREE from "three";
 import { useFirestoreResults } from "../../utilities/useFirestoreResults";
 import DarkClouds from "./Clouds";
+import ParticleTrail from "./ParticleTrail";
 
 import { ref, getDownloadURL } from "firebase/storage";
 import { storage } from "../../utilities/firebaseClient"; // Import storage directly
@@ -53,6 +54,7 @@ function Model({
   onCandleClick,
   onHoldStateChange,
   onModelDataLoaded,
+  isMobileView,
 }) {
   // STATE VARIABLES - consolidated in one place
   const [modelUrl, setModelUrl] = useState("/alligatorStroll1.glb");
@@ -124,6 +126,10 @@ function Model({
 
   // Add a ref to hold the candle placement function to avoid circular references
   const placeCandleFunc = useRef(null);
+  
+  // Add state for particle effects
+  const [activeParticles, setActiveParticles] = useState([]);
+  const particleIdCounter = useRef(0);
 
   // Add these refs at the top of the component (with other refs)
   const holdTimeoutRef = useRef(null);
@@ -483,6 +489,19 @@ function Model({
 
       // Add the candle to the scene
       scene.add(newCandle);
+      
+      // Add particle effect at candle placement location
+      const particleId = particleIdCounter.current++;
+      setActiveParticles(prev => [...prev, {
+        id: particleId,
+        position: [newCandle.position.x, newCandle.position.y + 0.5, newCandle.position.z],
+        startTime: Date.now()
+      }]);
+      
+      // Remove particle after 3 seconds
+      setTimeout(() => {
+        setActiveParticles(prev => prev.filter(p => p.id !== particleId));
+      }, 3000);
 
       // Increment the candle counter
       setCandleCount(prev => prev + 1);
@@ -563,6 +582,22 @@ function Model({
         }
 
         if (candleParent && candleParent.userData.hasUser) {
+          // Add particle effect at candle position
+          const worldPos = new THREE.Vector3();
+          candleParent.getWorldPosition(worldPos);
+          
+          const particleId = particleIdCounter.current++;
+          setActiveParticles(prev => [...prev, {
+            id: particleId,
+            position: [worldPos.x, worldPos.y + 0.5, worldPos.z], // Slightly above candle
+            startTime: Date.now()
+          }]);
+          
+          // Remove particle after 3 seconds
+          setTimeout(() => {
+            setActiveParticles(prev => prev.filter(p => p.id !== particleId));
+          }, 3000);
+          
           // Call the onCandleClick prop with the candle data
           onCandleClick({
             ...candleParent.userData,
@@ -650,9 +685,18 @@ function Model({
   useEffect(() => {
     if (!gltf || !gltf.scene) return;
 
+    // Store original visibility states on first run
+    const storeOriginalVisibility = () => {
+      gltf.scene.traverse(object => {
+        if ((object.isMesh || object.isGroup) && object.userData.originalVisibility === undefined) {
+          object.userData.originalVisibility = object.visible;
+        }
+      });
+    };
+
     const handleResize = () => {
-      const isMobile = window.innerWidth < 768;
-      console.log("🔧 Mobile optimization:", isMobile ? "hiding objects" : "showing objects");
+      // Use the prop if provided, otherwise fall back to window width check
+      const isMobile = isMobileView !== undefined ? isMobileView : window.innerWidth < 768;
       
       gltf.scene.traverse(object => {
         if (object.isMesh || object.isGroup) {
@@ -672,6 +716,13 @@ function Model({
           // Check for floor objects - only hide the large outer floor, keep Floor2.002
           const isFloor = originalName === 'Floor';
           
+          // Special handling for AlligatorScroll.002 - it should remain in its original state
+          if (originalName === 'AlligatorScroll.002') {
+            // Don't change visibility - let event handlers control it
+            console.log(`🔧 Skipping AlligatorScroll.002 - maintaining event-controlled visibility`);
+            return;
+          }
+          
           // Hide pillars, alligator, ground objects, and vcandles on mobile
           if (
             name.includes('ionic') ||
@@ -685,13 +736,22 @@ function Model({
             isVCandle ||
             name.includes('pillar')
           ) {
-            object.visible = !isMobile;
-            console.log(`🔧 ${isMobile ? 'Hiding' : 'Showing'} object: ${object.name} (isVCandle: ${isVCandle}, isCandleComponent: ${isCandleComponent}, isFloor: ${isFloor})`);
+            if (isMobile) {
+              object.visible = false;
+            } else {
+              // Restore original visibility for desktop
+              object.visible = object.userData.originalVisibility !== undefined ? 
+                object.userData.originalVisibility : true;
+            }
+            console.log(`🔧 ${isMobile ? 'Hiding' : 'Restoring'} object: ${object.name} (visible: ${object.visible})`);
           }
         }
       });
     };
 
+    // Store original visibility states before any modifications
+    storeOriginalVisibility();
+    
     // Initial check
     handleResize();
 
@@ -701,7 +761,7 @@ function Model({
     return () => {
       window.removeEventListener('resize', handleResize);
     };
-  }, [gltf]);
+  }, [gltf, isMobileView]);
 
   // Hide Object_3 when rocket is visible
   useEffect(() => {
@@ -1274,8 +1334,19 @@ function Model({
           const flameMaterial = object.material.clone();
 
           // Make sure the material has emission for glow effect
-          flameMaterial.emissive = new THREE.Color(0xffaa44); // Warm flame color
-          flameMaterial.emissiveIntensity = 1.0;
+          // In 80s mode, use neon pink/cyan colors for the flames
+          if (is80sMode) {
+            // Create a neon color that shifts between pink and cyan
+            const neonColor = Math.random() > 0.5 ? 0xff00ff : 0x00ffff; // Pink or Cyan
+            flameMaterial.emissive = new THREE.Color(neonColor);
+            flameMaterial.emissiveIntensity = 2.0; // Brighter for neon effect
+            
+            // Add bloom-friendly properties
+            flameMaterial.toneMapped = false; // Allows colors to exceed white for bloom
+          } else {
+            flameMaterial.emissive = new THREE.Color(0xffaa44); // Warm flame color
+            flameMaterial.emissiveIntensity = 1.0;
+          }
 
           // Store base values for animation
           const baseData = {
@@ -1284,7 +1355,7 @@ function Model({
             // Random offset so flames don't all flicker in sync
             randomOffset: Math.random() * 1000,
             // Generate random values for each flame
-            flickerRange: 0.3 + Math.random() * 0.4, // How much it flickers (30-70%)
+            flickerRange: is80sMode ? 0.5 + Math.random() * 0.5 : 0.3 + Math.random() * 0.4, // More dramatic flicker in 80s mode
           };
 
           // Apply the material to the object
@@ -1316,16 +1387,23 @@ function Model({
               // Clone the material
               const flameMaterial = child.material.clone();
 
-              // Enhance emission
-              flameMaterial.emissive = new THREE.Color(0xffaa44);
-              flameMaterial.emissiveIntensity = 1.0;
+              // Enhance emission - use neon colors in 80s mode
+              if (is80sMode) {
+                const neonColor = Math.random() > 0.5 ? 0xff00ff : 0x00ffff; // Pink or Cyan
+                flameMaterial.emissive = new THREE.Color(neonColor);
+                flameMaterial.emissiveIntensity = 2.0;
+                flameMaterial.toneMapped = false; // For bloom effect
+              } else {
+                flameMaterial.emissive = new THREE.Color(0xffaa44);
+                flameMaterial.emissiveIntensity = 1.0;
+              }
 
               // Store base values
               const baseData = {
                 originalEmissiveIntensity: flameMaterial.emissiveIntensity,
                 originalScale: child.scale.clone(),
                 randomOffset: Math.random() * 1000,
-                flickerRange: 0.3 + Math.random() * 0.4,
+                flickerRange: is80sMode ? 0.5 + Math.random() * 0.5 : 0.3 + Math.random() * 0.4,
               };
 
               // Apply material
@@ -1345,7 +1423,7 @@ function Model({
 
     // Update state with all the materials we've set up for flickering
     setFlickeringMaterials(newFlickeringMaterials);
-  }, [gltf, scene, flickeringMaterials]);
+  }, [gltf, scene, flickeringMaterials, is80sMode]);
 
   // Call the setup function when the model is loaded
   useEffect(() => {
@@ -1353,6 +1431,13 @@ function Model({
       setupFlameFlickering();
     }
   }, [gltf, progress, setupFlameFlickering]);
+
+  // Re-setup flame flickering when 80s mode changes
+  useEffect(() => {
+    if (gltf && gltf.scene && progress === 100) {
+      setupFlameFlickering();
+    }
+  }, [is80sMode]);
 
   // Add flame flickering animation using useFrame
   useFrame((_, delta) => {
@@ -1517,7 +1602,7 @@ function Model({
           object.renderOrder = -1; // Changed to negative to ensure it's always first
           if (object.material) {
             const applyFixes = material => {
-              material.depthWrite = false; // Disable depth writing
+              material.depthWrite = true; // Disable depth writing
               material.depthTest = true; // Keep depth testing
               material.transparent = true;
               material.opacity = 0.9; // More transparent
@@ -1632,6 +1717,16 @@ function Model({
       />
       <primitive ref={candleModelRef} object={new THREE.Group()} />
       {window.innerWidth >= 768 && <DarkClouds />}
+      
+      {/* Render particle effects */}
+      {activeParticles.map(particle => (
+        <ParticleTrail
+          key={particle.id}
+          position={particle.position}
+          isActive={true}
+          is80sMode={is80sMode}
+        />
+      ))}
     </>
   );
 }

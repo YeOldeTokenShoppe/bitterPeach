@@ -206,7 +206,7 @@ function HolographicStatue({
             });
           } else if (child.name.startsWith('Heart2') || child.name.toLowerCase().startsWith('heart')) {
             // Keep original material for Heart objects
-            console.log('Preserved original material for Heart object:', child.name);
+ 
           } else {
             child.material = holographicMaterial;
           }

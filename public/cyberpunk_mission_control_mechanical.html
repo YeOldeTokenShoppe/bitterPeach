@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mechanical Mission Control</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Share+Tech+Mono&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles/cyberpunk-mission-control-mechanical.css" />
+    
+    <!-- SitePal AI Form Styling -->
+    <style>
+      /* Mechanical theme for SitePal */
+      #vhss-aiplayer-aiform input[name="textToSay"],
+      #vhss-aiplayer-aiform input.vhss-ai-text,
+      #vhss-aiplayer-aiform input[type="text"] {
+        background: #1a1a1f !important;
+        border: 2px solid #4a5568 !important;
+        border-radius: 4px !important;
+        color: #00ff41 !important;
+        font-family: 'Share Tech Mono', monospace !important;
+        font-size: 14px !important;
+        font-weight: 400 !important;
+        padding: 12px !important;
+        width: calc(100% - 60px) !important;
+        box-shadow: 
+          inset 0 2px 8px rgba(0, 0, 0, 0.4),
+          0 2px 4px rgba(0, 0, 0, 0.3) !important;
+        outline: none !important;
+        transition: all 0.3s ease !important;
+      }
+      
+      #vhss-aiplayer-aiform input[name="textToSay"]:focus {
+        border-color: #00d4ff !important;
+        box-shadow: 
+          0 0 20px rgba(0, 212, 255, 0.3),
+          inset 0 2px 8px rgba(0, 0, 0, 0.4) !important;
+        background: rgba(0, 0, 0, 0.8) !important;
+      }
+      
+      #vhss-aiplayer-aiform .ai-txt-send-button {
+        filter: brightness(1.5) sepia(1) hue-rotate(40deg) !important;
+        cursor: pointer !important;
+        transition: all 0.2s ease !important;
+      }
+      
+      #vhss-aiplayer-aiform .ai-txt-send-button:hover {
+        filter: brightness(2) sepia(1) hue-rotate(40deg) drop-shadow(0 0 8px #ffd700) !important;
+        transform: scale(1.1) !important;
+      }
+      
+      #vhss-aiplayer-aiform .ai-txt-send-button:active {
+        transform: scale(0.95) !important;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Scan Lines Overlay -->
+    <div class="scan-lines" id="scan-lines"></div>
+    
+    <!-- Animated Mechanical Gears -->
+    <svg class="mechanical-gear gear-1" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <path d="M50 10 L55 20 L65 15 L70 25 L80 20 L80 30 L90 35 L85 45 L90 50 L85 55 L90 65 L80 70 L80 80 L70 75 L65 85 L55 80 L50 90 L45 80 L35 85 L30 75 L20 80 L20 70 L10 65 L15 55 L10 50 L15 45 L10 35 L20 30 L20 20 L30 25 L35 15 L45 20 Z" 
+            fill="rgba(74, 85, 104, 0.1)" 
+            stroke="rgba(74, 85, 104, 0.3)" 
+            stroke-width="2"/>
+    </svg>
+    
+    <svg class="mechanical-gear gear-2" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <path d="M50 10 L55 20 L65 15 L70 25 L80 20 L80 30 L90 35 L85 45 L90 50 L85 55 L90 65 L80 70 L80 80 L70 75 L65 85 L55 80 L50 90 L45 80 L35 85 L30 75 L20 80 L20 70 L10 65 L15 55 L10 50 L15 45 L10 35 L20 30 L20 20 L30 25 L35 15 L45 20 Z" 
+            fill="rgba(74, 85, 104, 0.1)" 
+            stroke="rgba(74, 85, 104, 0.3)" 
+            stroke-width="2"/>
+    </svg>
+
+    <!-- Main Mission Control Interface -->
+    <div class="mission-control" id="mission-control">
+      
+      <!-- Industrial Header Panel -->
+      <div class="panel-header">
+        <div>
+          <h1 class="panel-title">INFIN80·LUNAR</h1>
+          <div class="panel-subtitle">MECHANICAL CONTROL SYSTEM v2.80</div>
+        </div>
+      </div>
+
+      <!-- Video Display with CRT Effect -->
+      <div class="video-call">
+        <div class="video-display">
+          <div id="video-feed" class="video-feed">
+            <!-- Background Video -->
+            <video
+              id="deadAir"
+              loop
+              muted
+              playsinline
+              webkit-playsinline
+              style="width: 100%; height: 100%; object-fit: cover"
+            >
+              <source src="/1.mp4" type="video/mp4" />
+            </video>
+            
+            <!-- Offline Display -->
+            <div id="offline-display" style="display: none;">
+              <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.8);">
+                <div style="text-align: center;">
+                  <div style="font-size: 3rem; color: #ffb000; margin-bottom: 16px; text-shadow: 0 0 20px currentColor;">⚙️</div>
+                  <div style="font-family: 'Share Tech Mono', monospace; color: #00ff41; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 0.2em;">System Offline</div>
+                  <div style="font-family: 'Share Tech Mono', monospace; color: #4a5568; font-size: 0.8rem; margin-top: 8px;">Awaiting Connection...</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- SitePal Container -->
+            <div id="sitepal-container" style="position: relative; width: 100%; height: 100%;">
+              <div id="vhss_aiPlayer"></div>
+              <div id="vhss-aiplayer-aiformlogs"></div>
+              <div id="vhss-aiplayer-aiformtranscript"></div>
+              <div id="vhss-aiplayer-aiformstatus"></div>
+            </div>
+
+            <!-- Video Overlay -->
+            <div class="video-overlay" style="position: absolute; inset: 0; pointer-events: none;"></div>
+            
+            <!-- Self View -->
+            <div id="self-view" class="self-view" style="display: none; position: absolute; bottom: 10px; left: 10px; width: 80px; height: 60px; background: #000; border: 2px solid #4a5568; border-radius: 4px;">
+              <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">👤</div>
+            </div>
+            
+            <!-- Live Indicator -->
+            <div class="live-indicator" style="display: none; position: absolute; top: 10px; right: 10px; display: flex; align-items: center; gap: 8px; padding: 4px 12px; background: rgba(255, 7, 58, 0.9); border-radius: 4px; font-family: 'Share Tech Mono', monospace; font-size: 0.8rem; text-transform: uppercase;">
+              <span style="font-size: 0.6rem;">●</span>
+              <span>LIVE</span>
+            </div>
+            
+            <!-- Video Control Buttons -->
+            <div class="video-controls">
+              <button class="video-control-btn" id="cc-button" title="Closed Captions">
+                CC
+              </button>
+              <button class="video-control-btn" id="connect-button" title="Connect">
+                <span style="font-size: 1.2rem;">📡</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Text Communication (Hidden by default) -->
+      <div class="text-comm-container" id="text-comm-container" style="display: none;">
+        <div style="position: relative;">
+          <input 
+            type="text" 
+            id="custom-ai-input"
+            placeholder="ENTER COMMAND..."
+            class="custom-ai-input"
+          />
+          <img 
+            class="ai-send-button"
+            id="custom-ai-send"
+            src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTIgMjFMMjMgMTJMMiAzVjEwTDE3IDEyTDIgMTRWMjFaIiBmaWxsPSIjZmZkNzAwIiBzdHJva2U9IiNmZmQ3MDAiIHN0cm9rZS13aWR0aD0iMiIvPgo8L3N2Zz4="
+            style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); width: 20px; height: 20px; cursor: pointer;"
+          />
+        </div>
+        <!-- Hidden SitePal form -->
+        <div id="vhss-aiplayer-aiform" style="display: none !important;"></div>
+      </div>
+
+      <!-- Industrial Control Buttons -->
+      <div class="button-grid">
+        <button class="control-button" data-action="signal">
+          <span class="button-icon">📡</span>
+          <span class="button-label">SIGNAL</span>
+        </button>
+        
+        <button class="control-button" id="navigate-button" data-action="navigation">
+          <span class="button-icon">🧭</span>
+          <span class="button-label">NAVIGATE</span>
+        </button>
+        
+        <button class="control-button" data-action="systems">
+          <span class="button-icon">⚙️</span>
+          <span class="button-label">SYSTEMS</span>
+        </button>
+        
+        <button class="control-button" data-action="communications">
+          <span class="button-icon">🌍</span>
+          <span class="button-label">EARTH</span>
+        </button>
+      </div>
+
+      <!-- Mechanical Toggle Switches -->
+      <div class="toggle-section">
+        <div class="toggle-row">
+          <div class="toggle-group">
+            <div class="toggle-label">80S<br>MODE</div>
+            <div id="eighties-toggle" class="toggle-switch eighties">
+              <div class="toggle-handle"></div>
+            </div>
+          </div>
+          
+          <div class="toggle-group">
+            <div class="toggle-label">MUSIC<br>SYSTEM</div>
+            <div id="music-toggle" class="toggle-switch music">
+              <div class="toggle-handle"></div>
+            </div>
+          </div>
+          
+          <div class="toggle-group">
+            <div class="toggle-label">STAR<br>FIELD</div>
+            <div id="constellation-toggle" class="toggle-switch">
+              <div class="toggle-handle"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Industrial Leaderboard Display -->
+      <div class="leaderboard-container">
+        <div class="leaderboard-header">
+          <span>⟦ PILOT RANKINGS ⟧</span>
+          <span id="leaderboard-arrow" style="transition: transform 0.3s ease;">▼</span>
+        </div>
+        
+        <div id="leaderboard-content" class="leaderboard-content" style="display: none;">
+          <div class="leaderboard-entry">
+            <span style="color: #ffd700;">01</span>
+            <span style="flex: 1; margin: 0 12px;">CMDR_STELLAR</span>
+            <span style="color: #39ff14;">42,257</span>
+          </div>
+          
+          <div class="leaderboard-entry">
+            <span style="color: #b87333;">02</span>
+            <span style="flex: 1; margin: 0 12px;">PLT_NOVA</span>
+            <span style="color: #39ff14;">38,891</span>
+          </div>
+          
+          <div class="leaderboard-entry">
+            <span style="color: #cd853f;">03</span>
+            <span style="flex: 1; margin: 0 12px;">ENG_COSMOS</span>
+            <span style="color: #39ff14;">34,456</span>
+          </div>
+          
+          <div class="leaderboard-entry">
+            <span>04</span>
+            <span style="flex: 1; margin: 0 12px;">NAV_VOID</span>
+            <span style="color: #39ff14;">28,823</span>
+          </div>
+          
+          <div class="leaderboard-entry">
+            <span>05</span>
+            <span style="flex: 1; margin: 0 12px;">SPC_ORBIT</span>
+            <span style="color: #39ff14;">23,734</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Status Bar -->
+      <div class="status-bar">
+        <div class="status-indicator">
+          <div class="status-light"></div>
+          <span style="color: #39ff14; text-transform: uppercase;">System Active</span>
+        </div>
+        <div style="color: #ffb000;">
+          <span id="system-time">--:--:--</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Additional inline styles for animations -->
+    <style>
+      /* CC Button states */
+      #cc-button.active {
+        background: var(--display-amber) !important;
+        color: var(--metal-dark) !important;
+        border-color: var(--display-amber) !important;
+      }
+      
+      /* Connect button animation when active */
+      #connect-button.active {
+        animation: connect-pulse 1s ease-in-out infinite;
+      }
+      
+      @keyframes connect-pulse {
+        0%, 100% { 
+          transform: scale(1);
+          box-shadow: 0 0 10px rgba(0, 212, 255, 0.8);
+        }
+        50% { 
+          transform: scale(1.05);
+          box-shadow: 0 0 20px rgba(0, 212, 255, 1);
+        }
+      }
+      
+      /* System time update */
+      #system-time {
+        font-family: 'Share Tech Mono', monospace;
+        letter-spacing: 0.1em;
+      }
+      
+      /* Leaderboard arrow rotation */
+      .leaderboard-header.expanded #leaderboard-arrow {
+        transform: rotate(180deg);
+      }
+      
+      /* Loading animation */
+      .loading-indicator {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.9);
+        z-index: 100;
+      }
+      
+      .loading-spinner {
+        width: 60px;
+        height: 60px;
+        border: 4px solid var(--steel-blue);
+        border-top-color: var(--display-amber);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+      
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+      
+      .loading-text {
+        margin-top: 16px;
+        font-family: 'Share Tech Mono', monospace;
+        color: var(--display-green);
+        text-transform: uppercase;
+        letter-spacing: 0.2em;
+        font-size: 0.9rem;
+      }
+    </style>
+
+    <!-- System Time Script -->
+    <script>
+      // Update system time
+      function updateSystemTime() {
+        const now = new Date();
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const seconds = String(now.getSeconds()).padStart(2, '0');
+        const timeString = `${hours}:${minutes}:${seconds}`;
+        const timeElement = document.getElementById('system-time');
+        if (timeElement) {
+          timeElement.textContent = timeString;
+        }
+      }
+      
+      // Update time every second
+      setInterval(updateSystemTime, 1000);
+      updateSystemTime(); // Initial call
+    </script>
+
+    <!-- SitePal SDK -->
+    <script
+      type="text/javascript"
+      src="//vhss-d.oddcast.com/ai_embed_functions_v1.php" 
+    ></script>
+    
+    <script type="text/javascript">
+      window.addEventListener('DOMContentLoaded', function() {
+        console.log("⚙️ Mechanical Mission Control Initialized");
+        console.log("🔧 System Status: OPERATIONAL");
+      });
+    </script>
+
+    <!-- External JavaScript -->
+    <script src="/scripts/sitepal-integration.js"></script>
+    <script src="/scripts/custom-ai-interface.js"></script>
+    <script src="/scripts/cyberpunk-mission-control.js"></script>
+  </body>
+</html>

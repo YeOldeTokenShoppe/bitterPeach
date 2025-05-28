@@ -2,7 +2,8 @@ import React, { useState, useEffect, Suspense } from "react";
 import dynamic from "next/dynamic";
 import NavBar from "../components/NavBar.client";
 import Communion3 from "../components/Communion3";
-import Loader from "../components/Loader";
+// import Loader from "../components/Loader";
+import Magic8BallLoader from "../components/Magic8BallLoader";
 import { X } from "lucide-react";
 
 // Dynamically import music players (keep for potential 80s mode use)
@@ -16,7 +17,7 @@ import { X } from "lucide-react";
 
 const BurnGalleryClient = dynamic(() => import("../components/BurnGallery"), {
   ssr: false,
-  loading: () => <Loader />,
+  loading: () => <Magic8BallLoader />,
 });
 
 export default function GalleryPage() {
@@ -32,13 +33,112 @@ export default function GalleryPage() {
   const [mobile, setMobile] = useState(false);
   const [shouldRenderGallery, setShouldRenderGallery] = useState(false);
   const [isMobileView, setIsMobileView] = useState(false);
+  const [isDefinitelyPhone, setIsDefinitelyPhone] = useState(false); // Lock mobile view for phones
   const [componentLoaded, setComponentLoaded] = useState(false);
   const [threeDSceneLoaded, setThreeDSceneLoaded] = useState(false);
+
+  // Detect if device is actually a phone (not tablet or desktop)
+  const detectMobileDevice = () => {
+    // Get all the info for debugging
+    const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+    const lowerUA = userAgent.toLowerCase();
+    
+    // More comprehensive mobile detection
+    const isIPhone = /iphone/i.test(lowerUA);
+    const isIPad = /ipad/i.test(lowerUA);
+    const isAndroid = /android/i.test(lowerUA);
+    const hasMobileKeyword = /mobile/i.test(lowerUA);
+    
+    // Check screen properties
+    const screenWidth = window.screen.width;
+    const screenHeight = window.screen.height;
+    const innerWidth = window.innerWidth;
+    const innerHeight = window.innerHeight;
+    const pixelRatio = window.devicePixelRatio || 1;
+    
+    // Physical screen size (accounting for pixel ratio)
+    const physicalWidth = screenWidth / pixelRatio;
+    const physicalHeight = screenHeight / pixelRatio;
+    
+    // Touch capability
+    const hasTouch = 'ontouchstart' in window || 
+                    navigator.maxTouchPoints > 0 || 
+                    navigator.msMaxTouchPoints > 0;
+    
+    // Simple phone detection: iPhone or (Android + Mobile keyword)
+    const isPhoneUA = isIPhone || (isAndroid && hasMobileKeyword);
+    
+    // Size check: viewport OR physical size small enough
+    const hasPhoneSize = Math.min(innerWidth, innerHeight) < 600 || 
+                        Math.min(physicalWidth, physicalHeight) < 400;
+    
+    // Final decision
+    const isMobile = isPhoneUA && hasTouch && hasPhoneSize;
+    
+    // Enhanced logging
+    console.log('📱 Enhanced Mobile Detection:', {
+      userAgent: userAgent,
+      isIPhone,
+      isIPad,
+      isAndroid,
+      hasMobileKeyword,
+      hasTouch,
+      screen: { width: screenWidth, height: screenHeight },
+      viewport: { width: innerWidth, height: innerHeight },
+      physical: { width: physicalWidth, height: physicalHeight },
+      pixelRatio,
+      hasPhoneSize,
+      isPhoneUA,
+      RESULT: isMobile
+    });
+    
+    // Debug panel removed - mobile detection working properly
+    
+    return isMobile;
+  };
+
+  // Initial detection - run once on mount
+  useEffect(() => {
+    // Check for force mobile parameter (for testing)
+    const urlParams = new URLSearchParams(window.location.search);
+    const forceMobile = urlParams.get('mobile') === 'true';
+    
+    if (forceMobile) {
+      console.log('🔧 Force mobile mode via URL parameter');
+      setIsDefinitelyPhone(true);
+      setMobile(true);
+      setIsMobileView(true);
+      return;
+    }
+    
+    // Use the same strict detection on initial load
+    const isMobile = detectMobileDevice();
+    
+    if (isMobile) {
+      console.log('📱 Definitely a phone - locking mobile view');
+      setIsDefinitelyPhone(true);
+      setMobile(true);
+      setIsMobileView(true);
+    } else {
+      console.log('💻 Not a phone - using desktop view');
+      setIsDefinitelyPhone(false);
+      setMobile(false);
+      setIsMobileView(false);
+    }
+  }, []);
 
   // Handle window resize
   useEffect(() => {
     const handleResize = () => {
-      const isMobile = window.innerWidth <= 768;
+      // If we've already determined it's a phone, keep mobile view
+      if (isDefinitelyPhone) {
+        setMobile(true);
+        setIsMobileView(true);
+        return;
+      }
+      
+      // Otherwise, do normal detection
+      const isMobile = detectMobileDevice();
       setMobile(isMobile);
       setIsMobileView(isMobile);
       // Remove automatic showSpotify setting
@@ -46,8 +146,12 @@ export default function GalleryPage() {
 
     handleResize();
     window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
+    window.addEventListener("orientationchange", handleResize); // Also listen for orientation changes
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("orientationchange", handleResize);
+    };
+  }, [isDefinitelyPhone]);
 
   // Add helper function to get the mission control iframe
   const getMissionControlIframe = () => {
@@ -308,9 +412,55 @@ export default function GalleryPage() {
       }}
     >
       {/* Loader with progress */}
-      {isLoading && <Loader progress={loadingProgress} />}
+      {isLoading && <Magic8BallLoader isLoading={isLoading} />}
 
       {/* Main content */}
+      <div className="textLight" id="textLight" style={{
+          position: "absolute",
+          top: "20px", 
+          left: "20px",
+          zIndex: 100, // Ensure it's above the scene if opaque
+          borderRadius: "8px",
+          padding: "10px",
+          pointerEvents: "none"
+        }}>
+          <div 
+            id="text"
+            style={{
+              position: "relative",
+              fontFamily: "'UnifrakturMaguntia', cursive",
+              fontSize: isMobileView ? "3rem" : "4rem",
+              color: "#ffffff",
+            }}
+          >
+            RL80
+            {Array.from({length: 100}).map((_, i) => {
+              const index = i + 1;
+              return (
+                <div
+                  key={index}
+                  className="text__copy"
+                  style={{
+                    position: "absolute",
+                    pointerEvents: "none",
+                    zIndex: -1,
+                    top: 0,
+                    left: 0,
+                    color: `rgba(${255 - index * 2}, ${255 - index * 3}, ${255 - index * 2})`,
+                    filter: "blur(0.1rem)",
+                    transform: `translate(
+                      ${index * 0.1}rem, 
+                      ${index * 0.1}rem
+                    ) scale(${1 + index * 0.01})`,
+                    opacity: (1 / index) * 1.5,
+                  }}
+                >
+                  RL80
+                </div>
+              );
+            })}
+          </div>
+        </div>
       <div
         style={{
           opacity: isLoading ? 0 : 1,
@@ -333,6 +483,8 @@ export default function GalleryPage() {
             setSynthwaveMode={setSynthwaveMode}
             handleIgnition={handleIgnition}
             handleReturnFromSynthwave={handleReturnFromSynthwave}
+            isMobileView={isMobileView}
+            isDefinitelyPhone={isDefinitelyPhone}
           />
         )}
       </div>
