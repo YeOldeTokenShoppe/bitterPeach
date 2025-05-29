@@ -163,7 +163,7 @@
 
             // Create texture from canvas
             const texture = new THREE.CanvasTexture(canvas);
-            texture.encoding = THREE.sRGBEncoding;
+            texture.colorSpace = THREE.SRGBColorSpace;
             texture.flipY = false;
 
             // For the detail view, we DO want mipmaps for smooth viewing at different distances

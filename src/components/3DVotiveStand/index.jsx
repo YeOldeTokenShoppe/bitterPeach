@@ -13,6 +13,15 @@ import Model from "./Model";
 import RocketModel from "./RocketModel";
 import MobileCandleOrbital from "./MobileCandleOrbital";
 
+// Lazy load MoonScene for better performance
+const MoonSceneComponent = React.lazy(() => import('../MoonScene'));
+
+// Import Firebase functions
+import { getDocs, collection, query } from 'firebase/firestore';
+import { db } from '../../utilities/firebaseClient';
+
+// Countdown timer is now integrated into RocketModel
+
 
 // import { DEFAULT_CAMERA, getCameraSettings } from "./defaultCamera";
 // In your Canvas component
@@ -121,7 +130,7 @@ const ThreeDVotiveStand = forwardRef(({
   
   // Debug log viewer state changes and notify parent
   useEffect(() => {
-    console.log('🎯 showFloatingViewer changed to:', showFloatingViewer);
+
     // Notify parent component of viewer state change
     if (onCandleViewerStateChange) {
       onCandleViewerStateChange(showFloatingViewer);
@@ -244,7 +253,7 @@ const ThreeDVotiveStand = forwardRef(({
 
   // Callback for HolographicStatue onLoad - Now defined AFTER setIsChildStatueLoaded is declared
   const handleHolographicStatueLoad = useCallback(() => {
-    console.log("HolographicStatue has loaded and notified ThreeDVotiveStand (via useCallback).");
+  
     setIsChildStatueLoaded(true);
   }, [setIsChildStatueLoaded]); // setIsChildStatueLoaded is stable
 
@@ -394,17 +403,17 @@ const ThreeDVotiveStand = forwardRef(({
   // Update the parent component when model is loaded (only once)
   useEffect(() => {
     if (isModelLoaded && isChildStatueLoaded && !hasNotifiedParentRef.current) { // Ensure statue is also loaded
-      console.log("ThreeDVotiveStand: Model AND Statue loaded. Delaying parent notification...");
+    
       // Wait slightly longer than the MoonScene spawn delay before notifying the parent
       const notificationTimer = setTimeout(() => {
-        console.log("ThreeDVotiveStand: Notifying parent to hide preloader.");
+      
         setIsLoading(true); // Notify parent (e.g., BurnGallery)
 
         // --- UPDATED: Delay triggering moon spawn ---
         // Add a short delay after hiding the preloader before spawning moons
         const spawnDelayTimer = setTimeout(() => {
           if (moonSceneRef.current) {
-            console.log("ThreeDVotiveStand: Triggering initial moon spawn after delay.");
+           
             moonSceneRef.current.triggerInitialSpawn();
           }
         }, 3000); // 2-second delay AFTER preloader is hidden
@@ -426,7 +435,7 @@ const ThreeDVotiveStand = forwardRef(({
   useEffect(() => {
     const fallbackTimer = setTimeout(() => {
       if (!hasNotifiedParentRef.current) {
-        console.log("ThreeDVotiveStand: Fallback timer triggered, forcing load complete");
+       
         setIsLoading(true);
         hasNotifiedParentRef.current = true;
       }
@@ -587,7 +596,7 @@ const ThreeDVotiveStand = forwardRef(({
 
   // Handle hold state changes from Model component
   const handleHoldStateChange = useCallback(state => {
-    console.log("Hold state changed:", state);
+  
     setHoldState(state);
   }, []);
 
@@ -595,7 +604,7 @@ const ThreeDVotiveStand = forwardRef(({
   const [paginationControl, setPaginationControl] = useState(null);
 
   const handleCandleClick = useCallback(candleData => {
-    console.log("Candle clicked:", candleData);
+
     
     // For mobile view, we need to get all the candle data from MobileCandleOrbital
     if (isMobileView) {
@@ -632,7 +641,7 @@ const ThreeDVotiveStand = forwardRef(({
         (item.userName === candleData.userName && item.burnedAmount === candleData.burnedAmount)
       );
       
-      console.log("Found candle at index:", clickedIndex, "out of", allSortedData.length, "total candles");
+     
       
       if (clickedIndex !== -1) {
         setViewerCandleIndex(clickedIndex);
@@ -759,49 +768,285 @@ const ThreeDVotiveStand = forwardRef(({
   const [showFlyIn, setShowFlyIn] = useState(false);
   const [showTransition, setShowTransition] = useState(false);
   const [transitionCallback, setTransitionCallback] = useState(null);
+  
+  // State to control which scene is active
+  const [activeScene, setActiveScene] = useState('gallery'); // 'gallery' or 'moon'
+  const [showMoonScene, setShowMoonScene] = useState(false);
+  
+  // State for moon scene astronaut data
+  const [userHelmetTextures, setUserHelmetTextures] = useState([]);
+  const [moonSceneDataLoaded, setMoonSceneDataLoaded] = useState(false);
+  
+  // State for preloading
+  const [preloadProgress, setPreloadProgress] = useState(0);
+  const [galleryDisposed, setGalleryDisposed] = useState(false);
+  
+  // Helper to load texture from URL with quality options
+  const loadImageAsTexture = useCallback((url, options = {}) => {
+    return new Promise((resolve, reject) => {
+      if (!url) {
+        console.warn("loadImageAsTexture: URL is null or undefined.");
+        resolve(null);
+        return;
+      }
+      
+      const { lowRes = false, maxSize = 1024 } = options;
+      
+      if (lowRes) {
+        // Create low-res version using canvas
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const targetSize = 128; // Low-res size
+          const scale = Math.min(targetSize / img.width, targetSize / img.height);
+          canvas.width = img.width * scale;
+          canvas.height = img.height * scale;
+          
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          
+          const texture = new THREE.CanvasTexture(canvas);
+          texture.colorSpace = THREE.SRGBColorSpace;
+          texture.flipY = false;
+          console.log("Low-res texture created from:", url);
+          resolve(texture);
+        };
+        img.onerror = () => {
+          console.error(`Error loading image from ${url}`);
+          resolve(null);
+        };
+        img.src = url;
+      } else {
+        // Load full resolution
+        const loader = new THREE.TextureLoader();
+        loader.setCrossOrigin('anonymous');
+        loader.load(
+          url,
+          (texture) => {
+            texture.colorSpace = THREE.SRGBColorSpace;
+            texture.flipY = false;
+            console.log("Texture loaded successfully from:", url);
+            resolve(texture);
+          },
+          undefined,
+          (err) => {
+            console.error(`Error loading texture from ${url}:`, err);
+            resolve(null);
+          }
+        );
+      }
+    });
+  }, []);
+  
+  // Function to fetch user data for astronauts with progressive loading
+  const fetchUserDataForMoonScene = useCallback(async (progressive = true) => {
+    if (moonSceneDataLoaded) return; // Already loaded
+    
+    console.log("🌙 Fetching user data for moon scene astronauts...");
+    try {
+      const usersRef = collection(db, "users");
+      const q = query(usersRef);
+      const querySnapshot = await getDocs(q);
+
+      if (querySnapshot.empty) {
+        console.warn("No users found in Firestore");
+        setUserHelmetTextures([]);
+        setMoonSceneDataLoaded(true);
+        return;
+      }
+
+      console.log(`🌙 Found ${querySnapshot.docs.length} users, loading images...`);
+      
+      if (progressive) {
+        // First pass: Load low-res textures quickly
+        const lowResPromises = querySnapshot.docs.map(async (doc) => {
+          const userData = doc.data();
+          const imageUrl = userData.imageUrl || userData.profileImageUrl;
+          
+          if (!imageUrl) {
+            console.warn(`User ${doc.id} has no imageUrl`);
+            return { userId: doc.id, texture: null, userData, lowRes: true };
+          }
+          
+          const texture = await loadImageAsTexture(imageUrl, { lowRes: true });
+          return { userId: doc.id, texture, userData, lowRes: true, imageUrl };
+        });
+
+        const lowResResults = await Promise.all(lowResPromises);
+        const validLowRes = lowResResults.filter(result => result !== null);
+        
+        console.log(`🌙 Loaded ${validLowRes.length} low-res textures`);
+        setUserHelmetTextures(validLowRes);
+        
+        // Second pass: Progressively upgrade to high-res
+        validLowRes.forEach(async (item, index) => {
+          if (item.imageUrl) {
+            // Add delay to stagger loading
+            setTimeout(async () => {
+              const highResTexture = await loadImageAsTexture(item.imageUrl, { lowRes: false });
+              if (highResTexture) {
+                setUserHelmetTextures(prev => 
+                  prev.map(t => 
+                    t.userId === item.userId 
+                      ? { ...t, texture: highResTexture, lowRes: false }
+                      : t
+                  )
+                );
+                console.log(`🌙 Upgraded texture for user ${item.userId} to high-res`);
+              }
+            }, index * 200); // Stagger by 200ms
+          }
+        });
+      } else {
+        // Load all high-res at once (original behavior)
+        const texturePromises = querySnapshot.docs.map(async (doc) => {
+          const userData = doc.data();
+          const imageUrl = userData.imageUrl || userData.profileImageUrl;
+          
+          if (!imageUrl) {
+            console.warn(`User ${doc.id} has no imageUrl`);
+            return { userId: doc.id, texture: null, userData };
+          }
+          
+          const texture = await loadImageAsTexture(imageUrl);
+          return { userId: doc.id, texture, userData };
+        });
+
+        const textureResults = await Promise.all(texturePromises);
+        const validTextures = textureResults.filter(result => result !== null);
+        
+        console.log(`🌙 Successfully loaded ${validTextures.length} helmet textures`);
+        setUserHelmetTextures(validTextures);
+      }
+      
+      setMoonSceneDataLoaded(true);
+    } catch (error) {
+      console.error("Error fetching user data for moon scene:", error);
+      setUserHelmetTextures([]);
+      setMoonSceneDataLoaded(true);
+    }
+  }, [moonSceneDataLoaded, loadImageAsTexture]);
+
+  // Function to dispose gallery resources
+  const disposeGalleryResources = useCallback(() => {
+    console.log('🗑️ Disposing gallery resources...');
+    
+    if (galleryDisposed) return;
+    
+    // Dispose of candle models and textures
+    if (modelRef.current) {
+      modelRef.current.traverse((child) => {
+        if (child.isMesh) {
+          if (child.geometry) child.geometry.dispose();
+          if (child.material) {
+            if (Array.isArray(child.material)) {
+              child.material.forEach(m => {
+                if (m.map) m.map.dispose();
+                m.dispose();
+              });
+            } else {
+              if (child.material.map) child.material.map.dispose();
+              child.material.dispose();
+            }
+          }
+        }
+      });
+    }
+    
+    setGalleryDisposed(true);
+    console.log('✅ Gallery resources disposed');
+  }, [galleryDisposed]);
 
   const handleLocalIgnition = () => {
-    console.log('Ignition button clicked, triggering fly-in effect');
+  
     setShowFlyIn(true);
     // Reset after animation completes
     setTimeout(() => {
-      console.log('Fly-in effect completed, resetting state');
+
       setShowFlyIn(false);
     }, 6000);
   };
 
   // Handle transition start from RocketModel
   const handleTransitionStart = useCallback((onComplete) => {
-    console.log('Starting cinematic transition...');
+    console.log('🚀 Transition started - RocketModel has already handled countdown');
+    
+    // Start the transition immediately since countdown is done in RocketModel
     setShowTransition(true);
-    setTransitionCallback(() => onComplete);
-  }, []);
+    
+    // Store the callback for transition completion
+    setTransitionCallback(() => () => {
+      console.log('🎭 Executing stored transition callback');
+      if (typeof onComplete === 'function') {
+        console.log('🎭 Calling original onComplete from RocketModel...');
+        onComplete();
+      } else {
+        console.error('🎭 ERROR: onComplete is not a function!', onComplete);
+      }
+    });
+    
+    // Dispose gallery resources during launch
+    setTimeout(() => {
+      disposeGalleryResources();
+    }, 1000);
+    
+    // Start fetching user data
+    fetchUserDataForMoonScene(true);
+  }, [disposeGalleryResources, fetchUserDataForMoonScene]);
 
   // Handle transition completion
   const handleTransitionComplete = useCallback(() => {
-    console.log('Cinematic transition complete, executing callback...');
+
     if (transitionCallback) {
+
       transitionCallback();
+
+    } else {
+      console.error('🎬 ERROR: No transition callback stored!');
     }
   }, [transitionCallback]);
+  
+  // Handle scene switching
+  const handleSceneSwitch = useCallback((sceneName) => {
+    console.log('🎬 Switching to scene:', sceneName);
+    if (sceneName === 'moon') {
+      setActiveScene('moon');
+      setShowMoonScene(true);
+      
+      // Start fetching user data for astronauts
+      fetchUserDataForMoonScene(true); // Use progressive loading
+      
+      // Hide the transition after scene switch
+      setTimeout(() => {
+        setShowTransition(false);
+        console.log('🎬 Transition hidden after scene switch');
+      }, 500); // Small delay to ensure smooth transition
+    } else if (sceneName === 'gallery') {
+      setActiveScene('gallery');
+      setShowMoonScene(false);
+    }
+  }, [fetchUserDataForMoonScene]);
+  
+  
 
   // Initialize ref to null. It will be populated by onCreated or a camera component's ref prop.
   const sceneCameraRef = useRef(null); 
 
   // Effect to log camera changes (for debugging)
   useEffect(() => {
-    console.log("ThreeDVotiveStand: sceneCameraRef.current is now:", sceneCameraRef.current);
+  
   }, [sceneCameraRef.current]);
 
   useImperativeHandle(ref, () => ({
     closeFloatingViewer: closeFloatingViewer,
     startIntroCameraAnimation: (onZoomCompleteCallback) => {
-      console.log("ThreeDVotiveStand: startIntroCameraAnimation called.");
+
 
       const cameraToAnimate = sceneCameraRef.current;
 
       if (!cameraToAnimate) {
-        console.error("ThreeDVotiveStand: Camera to animate is not available! Check sceneCameraRef assignment (onCreated or camera ref prop).");
+       
         if (typeof onZoomCompleteCallback === 'function') {
           onZoomCompleteCallback(); // Proceed without zoom
         }
@@ -814,12 +1059,12 @@ const ThreeDVotiveStand = forwardRef(({
       
       // Temporarily disable external controls if they exist
       if (externalControls) {
-        console.log("ThreeDVotiveStand: Temporarily disabling external controls");
+     
         originalTarget = externalControls.target.clone();
         externalControls.enabled = false;
       }
 
-      console.log("ThreeDVotiveStand: Animating camera:", cameraToAnimate.name || "(camera ref)");
+      
       
       // Store initial values
       const initialPosition = cameraToAnimate.position.clone();
@@ -836,7 +1081,7 @@ const ThreeDVotiveStand = forwardRef(({
       
       // Calculate a position much closer to the statue but not too close
       const distanceToStatue = initialPosition.distanceTo(statueModelCenter);
-      console.log("Initial distance to statue:", distanceToStatue);
+
       
       // Get direction vector from camera to statue
       const directionToStatue = new THREE.Vector3()
@@ -954,7 +1199,7 @@ const ThreeDVotiveStand = forwardRef(({
           animationFrameId = requestAnimationFrame(animate);
           window.currentCameraAnimationId = animationFrameId;
         } else {
-          console.log("ThreeDVotiveStand: Camera animation complete. Final FOV:", cameraToAnimate.fov);
+         
           window.currentCameraAnimationId = null;
           
           // Ensure scanlines are reset
@@ -962,7 +1207,7 @@ const ThreeDVotiveStand = forwardRef(({
           
           // Re-enable external controls
           if (externalControls) {
-            console.log("ThreeDVotiveStand: Re-enabling external controls");
+
             externalControls.enabled = true;
             externalControls.target.copy(lookAtTarget);
           }
@@ -1010,18 +1255,18 @@ const ThreeDVotiveStand = forwardRef(({
     },
     zoomInForTransition: () => {
       return new Promise((resolve) => {
-        console.log("ThreeDVotiveStand: zoomInForTransition called.");
+
         const cameraToAnimate = sceneCameraRef.current;
 
         if (!cameraToAnimate) {
-          console.error("ThreeDVotiveStand: Camera not found for zoomInForTransition.");
+       
           resolve(); // Resolve immediately if no camera
           return;
         }
 
         const externalControls = controlsRef.current;
         if (externalControls) {
-          console.log("ThreeDVotiveStand: Disabling OrbitControls for zoomInForTransition.");
+         
           externalControls.enabled = false; // Disable orbit controls during animation
         }
 
@@ -1074,7 +1319,7 @@ const ThreeDVotiveStand = forwardRef(({
           if (progress < 1) {
             requestAnimationFrame(animateZoom);
           } else {
-            console.log("ThreeDVotiveStand: zoomInForTransition animation complete.");
+          
             // OrbitControls remain disabled, as the next scene will take over.
             resolve();
           }
@@ -1088,14 +1333,19 @@ const ThreeDVotiveStand = forwardRef(({
   const MemoizedHolographicStatue = React.memo(HolographicStatue);
 
   return (
-    <div style={{ width: "100%", height: "100vh", }}>
+    <div style={{ width: "100%", height: "100vh", position: "relative" }}>
       <Canvas
+        style={{
+          display: activeScene === 'gallery' ? 'block' : 'none',
+          width: '100%',
+          height: '100%'
+        }}
         dpr={currentDpr}
         performance={{ min: 0.5 }}
         onCreated={({ gl, camera: createdCamera }) => {
           sceneCameraRef.current = createdCamera;
           // rendererRef.current = gl; // Assuming rendererRef is defined elsewhere
-          console.log("ThreeDVotiveStand: Canvas created, sceneCameraRef.current set via onCreated to:", sceneCameraRef.current?.name || "(default camera)");
+        
           // ... other onCreated logic like gl.setClearColor etc. ...
         }}
       >
@@ -1129,7 +1379,7 @@ const ThreeDVotiveStand = forwardRef(({
           onModelDataLoaded={({ scene, animations }) => { // Callback to get animations
             // modelRef.current is already being set by the <primitive> in Model.jsx
             // using the ref prop. We just need the animations here.
-            console.log("ThreeDVotiveStand: Received model data. Animations length:", animations?.length);
+         
             setMainGltfAnimations(animations || []);
           }}
         />
@@ -1157,13 +1407,12 @@ const ThreeDVotiveStand = forwardRef(({
             rocketModelVisible={rocketModelVisible}
             isMobileView={isMobileView}
             onControlsCreated={(controls) => {
-              console.log('Controls created in MoonScene');
+       
               controlsRef.current = controls;
             }}
             scrollMessage={scrollMessages[currentScrollMessageIndex]}
             onOpenScrollDetail={(data) => {
-              console.log("ThreeDVotiveStand: onOpenScrollDetail called with (base data from MoonScene):", data);
-              
+            
               // Select a random message from the scrollMessages array
               const randomIndex = Math.floor(Math.random() * scrollMessages.length);
               const randomMessage = scrollMessages[randomIndex];
@@ -1199,14 +1448,11 @@ const ThreeDVotiveStand = forwardRef(({
               onLoad={handleHolographicStatueLoad} // Use the memoized callback
             />
           ) : (
-            rocketModelVisible && <RocketModel is80sMode={is80sMode} userData={userData} onTransitionStart={handleTransitionStart} />
+            rocketModelVisible && <RocketModel is80sMode={is80sMode} userData={userData} onTransitionStart={handleTransitionStart} onSceneSwitch={handleSceneSwitch} />
           )}
         </Suspense> */}
         <Suspense fallback={null}>
-          {console.log("ThreeDVotiveStand render:", {
-            monsterMode,
-            rocketModelVisible,
-          })}
+
           {!monsterMode ? (
             <HolographicStatue
               isInMarkerView={isInMarkerView}
@@ -1221,7 +1467,7 @@ const ThreeDVotiveStand = forwardRef(({
               onLoad={handleHolographicStatueLoad} // Use the memoized callback
             />
           ) : (
-            rocketModelVisible && <RocketModel is80sMode={is80sMode} userData={userData} onTransitionStart={handleTransitionStart} />
+            rocketModelVisible && <RocketModel is80sMode={is80sMode} userData={userData} onTransitionStart={handleTransitionStart} onSceneSwitch={handleSceneSwitch} />
           )}
         </Suspense>
         <Suspense fallback={null}>
@@ -1254,6 +1500,52 @@ const ThreeDVotiveStand = forwardRef(({
           type="warp"
         />
       </Canvas>
+
+      {/* Moon Scene - rendered when rocket launch completes */}
+      {showMoonScene && (
+        <Suspense fallback={<div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', color: 'white', zIndex: 11 }}>Loading Moon Scene...</div>}>
+          <div style={{ 
+            position: 'absolute', 
+            top: 0, 
+            left: 0, 
+            width: '100%', 
+            height: '100%',
+            zIndex: activeScene === 'moon' ? 10 : -1,
+            opacity: activeScene === 'moon' ? 1 : 0,
+            transition: 'opacity 1s ease-in-out',
+            backgroundColor: 'black' // Add black background to ensure visibility
+          }}>
+            {console.log('🌙 Rendering MoonSceneComponent wrapper div')}
+            {console.log('🌙 Passing userHelmetTextures:', userHelmetTextures.length)}
+            
+            {/* Show loading indicator for astronaut data */}
+            {!moonSceneDataLoaded && (
+              <div style={{
+                position: 'absolute',
+                top: '20px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                color: 'white',
+                background: 'rgba(0,0,0,0.7)',
+                padding: '10px 20px',
+                borderRadius: '5px',
+                zIndex: 100
+              }}>
+                Loading astronaut data...
+              </div>
+            )}
+            
+            <MoonSceneComponent 
+              userHelmetTextures={userHelmetTextures} 
+              currentUser={userData}
+              onSceneReady={() => {
+                console.log('🌙 Moon scene ready');
+              }}
+            />
+          </div>
+        </Suspense>
+      )}
+
 
       {/* ScrollDetailViewer is rendered here, as a sibling to the main Canvas */}
       {isScrollDetailVisible && detailViewScrollData && (

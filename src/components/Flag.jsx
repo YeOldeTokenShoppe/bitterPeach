@@ -68,12 +68,18 @@ export default function Flag({
   
 flagRef
 }) {
+  // Load texture with useLoader
   const texture = useLoader(THREE.TextureLoader, textureURL);
   
+  // Configure texture immediately in the main thread
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.flipY = false;
+  texture.wrapS = THREE.ClampToEdgeWrapping;
+  texture.wrapT = THREE.ClampToEdgeWrapping;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.generateMipmaps = true;
   
-
   // Particles
   const particles = useMemo(() => {
     const p = [];
@@ -181,15 +187,25 @@ flagRef
   }, [flagRef]);
 
   return (
-<group ref={meshRef} position={[0, 0, 0]} scale={[2, 2, 2]}>
+<group ref={meshRef} position={position} scale={[0.5, 0.5, 0.5]}>
   {/* Flag Cloth */}
   <mesh
     geometry={clothGeom}
     scale={scale}
     castShadow
     receiveShadow
+    visible={true}
+    renderOrder={1}
+    frustumCulled={false}
   >
-    <meshLambertMaterial map={texture} side={THREE.DoubleSide} />
+    <meshLambertMaterial 
+      map={texture} 
+      side={THREE.DoubleSide}
+      transparent={false}
+      opacity={1}
+      depthWrite={true}
+      depthTest={true}
+    />
   </mesh>
 
   {/* Flagpole */}
@@ -207,5 +223,3 @@ flagRef
     
   );
 }
-
-

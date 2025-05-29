@@ -34,6 +34,8 @@ const loadImageAsTexture = (url) => {
 };
 
 export default function MoonScenePage() {
+  console.log("🌙 MoonScenePage: Component rendering");
+  
   const [userHelmetTextures, setUserHelmetTextures] = useState([]);
   const [pageError, setPageError] = useState(null);
   // const [loadingMessage, setLoadingMessage] = useState("Initializing..."); // Replaced by progress loader
@@ -46,6 +48,15 @@ export default function MoonScenePage() {
   const [isMobileView, setIsMobileView] = useState(false);
   const [isDefinitelyPhone, setIsDefinitelyPhone] = useState(false);
   const [mobile, setMobile] = useState(false);
+  
+  // Log any navigation data
+  useEffect(() => {
+    console.log("🌙 MoonScenePage: Checking navigation data");
+    const launchData = sessionStorage.getItem('rocketLaunchTransition');
+    if (launchData) {
+      console.log("🌙 MoonScenePage: Found launch data:", JSON.parse(launchData));
+    }
+  }, []);
 
 
   const detectMobileDevice = () => {
@@ -264,6 +275,11 @@ export default function MoonScenePage() {
   // Log for prop passing verification
   // console.log("moon-scene.js: Rendering MoonSceneComponent with userHelmetTextures:", 
   //   userHelmetTextures.map(item => item.userId));
+
+  // Add error boundary
+  if (pageError) {
+    console.error("🌙 MoonScenePage: Page error:", pageError);
+  }
 
   return (
     <TransitionIn>

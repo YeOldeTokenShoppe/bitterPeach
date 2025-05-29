@@ -4,7 +4,7 @@ import { storage } from "../utilities/firebaseClient";
 import { ref as storageRefUtil, getDownloadURL } from "firebase/storage";
 
 const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = false, onModeChange, showInitialChoice = false, onPlayingStateChange, hideUI = false, onControlsReady }) => {
-  console.log('MobileMusicPlayer: Component mounting/updating', { isVisible, hideUI });
+
   
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
@@ -55,26 +55,14 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
   const trackNames = is80sMode ? eightyTrackNames : non80sTrackNames;
   const firebasePaths = is80sMode ? eightyFirebasePaths : non80sFirebasePaths;
   
-  // Debug logging
-  console.log('🎵 MobileMusicPlayer mode:', { 
-    is80sMode, 
-    trackNamesLength: trackNames.length, 
-    firebasePathsLength: firebasePaths.length,
-    firstTrack: trackNames[0],
-    secondTrack: trackNames[1] 
-  });
+
 
   // Track failed tracks to avoid infinite loops
   const failedTracksRef = useRef(new Set());
 
   // Load track from Firebase
   const loadTrack = async (index, attemptCount = 0) => {
-    console.log(`🎵 Mobile: Attempting to load track ${index}:`, {
-      trackName: trackNames[index],
-      firebasePath: firebasePaths[index],
-      is80sMode,
-      totalTracks: trackNames.length
-    });
+
     
     try {
       const audioRef = storageRefUtil(storage, firebasePaths[index]);
@@ -82,7 +70,7 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
       setTrackUrl(url);
       setCurrentTrackIndex(index);
       setIsLoaded(true);
-      console.log(`✅ Mobile: Loaded track ${index}: ${trackNames[index]}`);
+
       // Clear failed tracks on successful load
       failedTracksRef.current.clear();
     } catch (error) {
@@ -98,7 +86,6 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
       // Try next track if this one fails
       if (attemptCount < trackNames.length) {
         const nextIndex = (index + 1) % trackNames.length;
-        console.log(`🔄 Mobile: Trying next track ${nextIndex} after failure`);
         loadTrack(nextIndex, attemptCount + 1);
       }
     }
@@ -122,7 +109,7 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
           audioRef.current.play().then(() => {
             setIsPlaying(true);
             if (onPlayingStateChange) onPlayingStateChange(true);
-            console.log("🎵 Mobile: Auto-playing track");
+   
           }).catch(e => {
             console.log("🔇 Mobile: Auto-play blocked by browser");
           });
@@ -156,17 +143,12 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
   // Skip to next track
   const skipNext = () => {
     if (trackNames.length <= 1) {
-      console.log("🎵 Mobile: Only one track available, cannot skip");
+
       return;
     }
-    console.log(`🎵 Mobile: Skip next from index ${currentTrackIndex}`, {
-      currentTrack: trackNames[currentTrackIndex],
-      is80sMode,
-      allTracks: trackNames,
-      failedTracks: Array.from(failedTracksRef.current)
-    });
+
     const nextIndex = findNextAvailableTrack(currentTrackIndex, 1);
-    console.log(`🎵 Mobile: Skipping to next track ${nextIndex}: ${trackNames[nextIndex]} (from ${currentTrackIndex})`);
+  
     setIsPlaying(false); // Stop current track
     loadTrack(nextIndex);
   };
@@ -174,12 +156,11 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
   // Skip to previous track
   const skipPrevious = () => {
     if (trackNames.length <= 1) {
-      console.log("🎵 Mobile: Only one track available, cannot skip");
+  
       return;
     }
     const prevIndex = findNextAvailableTrack(currentTrackIndex, -1);
-    console.log(`🎵 Mobile: Skipping to previous track ${prevIndex}: ${trackNames[prevIndex]} (from ${currentTrackIndex})`);
-    setIsPlaying(false); // Stop current track
+   
     loadTrack(prevIndex);
   };
 
@@ -210,7 +191,7 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
   // Long press handlers for genre switching
   const handleLongPressStart = () => {
     const timer = setTimeout(() => {
-      console.log("🎵 Mobile: Long press detected - showing mode choice");
+   
       setShowModeChoice(true);
     }, 800); // 800ms long press
     setLongPressTimer(timer);
@@ -248,7 +229,7 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
       audioRef.current.pause();
       setIsPlaying(false);
       if (onPlayingStateChange) onPlayingStateChange(false);
-      console.log('🎵 Mobile: Music paused (forced)');
+
     } else {
       console.log('⚠️ Mobile: No audio ref available to pause');
     }
@@ -257,7 +238,7 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
   // Pass control methods to parent via callback
   useEffect(() => {
     if (onControlsReady) {
-      console.log('MobileMusicPlayer: Passing controls to parent', { is80sMode, trackCount: trackNames.length });
+    
       onControlsReady({
         togglePlayPause,
         skipTrack: skipNext,
@@ -269,7 +250,7 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
 
   // Even if not visible, we need to render the audio element for the ref methods to work
   if (!isVisible) {
-    console.log("🎵 Mobile music player: not visible, rendering hidden audio only");
+
     return trackUrl ? (
       <audio
         ref={audioRef}
@@ -281,7 +262,7 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
     ) : <div style={{ display: 'none' }} />;
   }
 
-  console.log("🎵 Mobile music player: rendering with isVisible =", isVisible, "is80sMode =", is80sMode);
+ 
 
   // If hideUI is true, only render the audio element
   if (hideUI) {

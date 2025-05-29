@@ -36,32 +36,33 @@ const WarpShader = {
       vec2 center = vec2(0.5);
       vec2 toCenter = center - uv;
       float dist = length(toCenter);
-      float warpAmount = sin(dist * 10.0 - time * warpSpeed) * amt * 0.3; // Reduced warp effect
-      return uv + normalize(toCenter) * warpAmount * dist;
+      // Reduced frequency from 5.0 to 2.0 for smoother, less blocky distortion
+      float warpAmount = sin(dist * 2.0 - time * warpSpeed) * amt * 0.1;
+      return uv + normalize(toCenter) * warpAmount * dist * 0.3;
     }
     
     void main() {
-      // Apply warp distortion
-      vec2 warpedUv = warp(vUv, intensity * 0.1);
+      // Apply warp distortion - reduced even further
+      vec2 warpedUv = warp(vUv, intensity * 0.05);
       
       // Chromatic aberration for extra sci-fi effect
       vec3 color;
       if (chromaticAberration > 0.0) {
         float aberration = chromaticAberration * intensity;
-        color.r = texture2D(tDiffuse, warp(vUv, intensity * 0.1 + aberration * 0.01)).r;
+        color.r = texture2D(tDiffuse, warp(vUv, intensity * 0.05 + aberration * 0.005)).r;
         color.g = texture2D(tDiffuse, warpedUv).g;
-        color.b = texture2D(tDiffuse, warp(vUv, intensity * 0.1 - aberration * 0.01)).b;
+        color.b = texture2D(tDiffuse, warp(vUv, intensity * 0.05 - aberration * 0.005)).b;
       } else {
         color = texture2D(tDiffuse, warpedUv).rgb;
       }
       
-      // Add subtle glow at peak intensity (reduced from 2.0 to 0.5)
-      float flash = smoothstep(0.8, 1.0, intensity) * 0.2;
+      // Add subtle glow at peak intensity (further reduced)
+      float flash = smoothstep(0.8, 1.0, intensity) * 0.05;
       color += vec3(flash);
       
-      // Fade to white at the end (reduced opacity)
-      float fadeToWhite = smoothstep(0.9, 1.0, intensity) * 0.3;
-      color = mix(color, vec3(1.0), fadeToWhite);
+      // Fade to black instead of white for less jarring transition
+      float fadeToBlack = smoothstep(0.95, 1.0, intensity) * 0.8;
+      color = mix(color, vec3(0.0), fadeToBlack);
       
       gl_FragColor = vec4(color, 1.0);
     }
@@ -193,7 +194,7 @@ export const CinematicTransition = ({ active, onComplete, type = 'warp' }) => {
       }
       
       shaderRef.current.uniforms.intensity.value = intensity;
-      shaderRef.current.uniforms.chromaticAberration.value = intensity * 0.2; // Reduced chromatic aberration
+      shaderRef.current.uniforms.chromaticAberration.value = intensity * 0.05; // Much less chromatic aberration
     }
     
     // Update bloom intensity (reduced from 3 to 1.2 for subtler effect)
@@ -219,9 +220,16 @@ export const CinematicTransition = ({ active, onComplete, type = 'warp' }) => {
     
     // Trigger navigation after peak effect
     if (elapsed > 2.5 && phase === 'starting') {
+      console.log('🎬 CinematicTransition: Peak reached, triggering onComplete');
+      console.log('🎬 onComplete function:', onComplete);
+      console.log('🎬 typeof onComplete:', typeof onComplete);
       setPhase('completing');
       if (onComplete) {
+        console.log('🎬 Calling onComplete callback...');
         onComplete();
+        console.log('🎬 onComplete callback called successfully');
+      } else {
+        console.error('🎬 ERROR: onComplete callback is not defined!');
       }
     }
   });
@@ -231,7 +239,7 @@ export const CinematicTransition = ({ active, onComplete, type = 'warp' }) => {
   return (
     <>
       {/* Camera shake effect - significantly increased values */}
-      <CameraShake
+      {/* <CameraShake
         maxYaw={0.01} // Increased 3x (was 0.05)
         maxPitch={0.15 * shakeIntensity} // Increased 3x (was 0.05)
         maxRoll={0.08 * shakeIntensity} // Increased 4x (was 0.02)
@@ -240,7 +248,7 @@ export const CinematicTransition = ({ active, onComplete, type = 'warp' }) => {
         rollFrequency={2 + shakeIntensity * 3}
         intensity={.1}
         decay={false} // We're controlling intensity manually
-      />
+      /> */}
       
       {/* Wormhole visual effect */}
       {type === 'wormhole' && (
@@ -258,17 +266,17 @@ export const CinematicTransition = ({ active, onComplete, type = 'warp' }) => {
         <shaderPass
           ref={shaderRef}
           args={[WarpShader]}
-          uniforms-warpSpeed-value={3.0}
+          uniforms-warpSpeed-value={1.5}
         />
       </Effects>
       
-      {/* Full screen fade overlay - reduced opacity */}
+      {/* Full screen fade overlay - changed to black */}
       <mesh position={[0, 0, 100]} renderOrder={9999}>
         <planeGeometry args={[1000, 1000]} />
         <meshBasicMaterial
           transparent
-          opacity={phase === 'completing' ? 0.7 : 0} // Reduced from 1 to 0.7
-          color="white"
+          opacity={phase === 'completing' ? 0.9 : 0} // Black fade
+          color="black"
           depthTest={false}
         />
       </mesh>
@@ -299,8 +307,8 @@ export const TransitionOverlay = ({ active }) => {
         left: 0,
         width: '100%',
         height: '100%',
-        backgroundColor: 'white',
-        opacity,
+        backgroundColor: 'black',
+        opacity: opacity * 0.9, // Cap at 90% opacity
         transition: 'opacity 0.5s ease-in-out',
         pointerEvents: 'none',
         zIndex: 9999

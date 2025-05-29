@@ -3,9 +3,10 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader";
 import * as THREE from "three";
 import { useFrame, useThree, extend } from "@react-three/fiber";
-import { Effects, useAspect, CameraShake } from "@react-three/drei";
+import { Effects, useAspect, Html } from "@react-three/drei";
 import { UnrealBloomPass, FilmPass, ShaderPass } from "three-stdlib";
 import LaunchSkyEffect from "./LaunchSkyEffect";
+
 
 // Extend Three.js components for JSX usage
 extend({ UnrealBloomPass, FilmPass, ShaderPass });
@@ -13,9 +14,24 @@ extend({ UnrealBloomPass, FilmPass, ShaderPass });
 // Create a completely new sky effect component with more safeguards
 
 // Main RocketModel component - much simpler without context
-function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch, onTransitionStart }) {
+function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch, onTransitionStart, onSceneSwitch }) {
   console.log(`RocketModel: Initializing with is80sMode=${is80sMode}`);
 
+  // Add a global test function to manually test scene switching
+  useEffect(() => {
+    window.testMoonSceneSwitch = () => {
+      console.log("🧪 Testing manual scene switch to moon");
+      if (typeof onSceneSwitch === 'function') {
+        onSceneSwitch('moon');
+      } else {
+        console.error("🧪 onSceneSwitch not available");
+      }
+    };
+    
+    return () => {
+      delete window.testMoonSceneSwitch;
+    };
+  }, [onSceneSwitch]);
   const rocketRef = useRef();
   const groupRef = useRef();
   const mixerRef = useRef(null);
@@ -27,6 +43,11 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch,
   const [isLaunching, setIsLaunching] = useState(false);
   const launchStartTime = useRef(null);
   const initialPosition = useRef(null);
+  
+  // Add countdown state
+  const [isCountingDown, setIsCountingDown] = useState(false);
+  const [countdownValue, setCountdownValue] = useState(5); // Start at 5 seconds
+  const countdownIntervalRef = useRef(null);
 
   // Refs for the spotlights and targets
   const redLightRef = useRef();
@@ -142,8 +163,6 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch,
     initialized: false  // Track if we've properly initialized
   });
 
-  // Camera shake state for launch sequence
-  const [cameraShakeIntensity, setCameraShakeIntensity] = useState(0);
 
   // Update ambient light when the component mounts
   useEffect(() => {
@@ -441,7 +460,7 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch,
 
       // Make sure texture settings are correct
       texture.flipY = false; // Prevent texture from being flipped
-      texture.encoding = THREE.sRGBEncoding; // Use sRGB encoding for proper colors
+      texture.colorSpace = THREE.SRGBColorSpace; // Use sRGB encoding for proper colors
       texture.needsUpdate = true; // Ensure texture is updated
 
       // Update material settings
@@ -658,6 +677,83 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch,
     console.log("Avatar planes cleaned up");
   };
 
+  // Function to start the actual launch (moved from triggerLaunch)
+  const startActualLaunch = useCallback(() => {
+    console.log("🚀 Rocket launch initiated!");
+    
+    // Store initial position before launch
+    if (groupRef.current) {
+      initialPosition.current = { 
+        x: groupRef.current.anchor.position.x,
+        y: groupRef.current.anchor.position.y,
+        z: groupRef.current.anchor.position.z
+      };
+    }
+    
+    // Set launch start time
+    launchStartTime.current = performance.now() / 1000;
+    
+    // Set launching state
+    setIsLaunching(true);
+    
+    // Enable post-processing effects for launch BUT keep sky colors disabled initially
+    // Sky colors will be enabled when thrusters ignite (in updateThrusterEffects)
+    setPostProcessingEffects({
+      bloomEnabled: true,
+      bloomStrength: 0.15,    // Reduced from 0.3
+      bloomRadius: 0.15,      // Reduced from 0.2
+      bloomThreshold: 0.95,   // Increased threshold for less bloom
+      filmEnabled: true,
+      filmNoisiness: 0.10,    // Reduced from 0.20
+      filmScanlines: 0,
+      filmGrainSize: 1,       // Reduced from 2
+      fadeDuration: 6,
+      fadeStartTime: null,
+      thrustersIgnited: false
+    });
+    
+    // Initialize sky effect as inactive until thrusters ignite - ENSURE IT STARTS OFF
+    setSkyEffect({
+      active: false,
+      fadeProgress: 0,  // Fully faded out
+      initialized: true   // Ensure it's marked as initialized
+    });
+    
+    console.log("🚀 Initial launch setup complete - sky effect disabled until thrusters ignite");
+    
+    // Notify parent component if callback provided
+    if (typeof onLaunch === 'function') {
+      onLaunch();
+    }
+  }, [onLaunch]);
+
+  // Function to start the countdown
+  const startCountdown = useCallback(() => {
+    console.log("🚀 Starting countdown sequence...");
+    setIsCountingDown(true);
+    setCountdownValue(5);
+    
+    // Clear any existing interval
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+    }
+    
+    // Start the countdown interval
+    countdownIntervalRef.current = setInterval(() => {
+      setCountdownValue(prev => {
+        if (prev <= 1) {
+          // Countdown complete, start actual launch
+          clearInterval(countdownIntervalRef.current);
+          countdownIntervalRef.current = null;
+          setIsCountingDown(false);
+          startActualLaunch();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }, [startActualLaunch]);
+
   // Function to trigger launch - can be called from a parent component
   const triggerLaunch = useCallback((forceReset = false) => {
     console.log("triggerLaunch called, groupRef:", groupRef.current, "isLaunching:", isLaunching, "forceReset:", forceReset);
@@ -689,9 +785,6 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch,
         initialized: true   // Ensure it's marked as initialized
       });
       
-      // Reset camera shake
-      setCameraShakeIntensity(0);
-      
       // Clean up any smoke particles from previous launch
       cleanupAllSmokeParticles(scene);
 
@@ -702,58 +795,19 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch,
       return true;
     }
     
-    if (groupRef.current && !isLaunching) {
-      console.log("🚀 Rocket launch initiated!");
+    if (groupRef.current && !isLaunching && !isCountingDown) {
+      console.log("🚀 Starting countdown sequence!");
       
-      // Store initial position before launch
-      initialPosition.current = { 
-        x: groupRef.current.anchor.position.x,
-        y: groupRef.current.anchor.position.y,
-        z: groupRef.current.anchor.position.z
-      };
+      // Start the countdown instead of immediate launch
+      startCountdown();
       
-      // Set launch start time
-      launchStartTime.current = performance.now() / 1000;
-      
-      // Set launching state
-      setIsLaunching(true);
-      
-      // Enable post-processing effects for launch BUT keep sky colors disabled initially
-      // Sky colors will be enabled when thrusters ignite (in updateThrusterEffects)
-      setPostProcessingEffects({
-        bloomEnabled: true,
-        bloomStrength: 0.3,     // Match PostProcessingEffects intensity
-        bloomRadius: 0.2,       // More moderate radius
-        bloomThreshold: 0.9,    // Match PostProcessingEffects threshold
-        filmEnabled: true,
-        filmNoisiness: 0.20,
-        filmScanlines: 0,
-        filmGrainSize: 2,
-        fadeDuration: 6, // Changed from 6 to 2
-        fadeStartTime: null,
-        thrustersIgnited: false
-      });
-      
-      // Initialize sky effect as inactive until thrusters ignite - ENSURE IT STARTS OFF
-      setSkyEffect({
-        active: false,
-        fadeProgress: 0,  // Fully faded out
-        initialized: true   // Ensure it's marked as initialized
-      });
-      
-      console.log("🚀 Initial launch setup complete - sky effect disabled until thrusters ignite");
-      
-      // Notify parent component if callback provided
-      if (typeof onLaunch === 'function') {
-        onLaunch();
-      }
       return true;
     } else {
-      console.warn("Cannot launch: groupRef not available or already launching", 
-        { groupRef: groupRef.current, isLaunching });
+      console.warn("Cannot launch: groupRef not available, already launching, or counting down", 
+        { groupRef: groupRef.current, isLaunching, isCountingDown });
       return false;
     }
-  }, [isLaunching, onLaunch, scene]);
+  }, [isLaunching, isCountingDown, onLaunch, scene, startCountdown]);
 
   // Expose the triggerLaunch function globally so it can be called from anywhere
   useEffect(() => {
@@ -950,49 +1004,49 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch,
         cleanupDuplicateRiders(model);
 
         // Set up animation
-        if (gltf.animations && gltf.animations.length > 0) {
-          // Create a mixer for the rocket
-          mixerRef.current = new THREE.AnimationMixer(model);
+        // if (gltf.animations && gltf.animations.length > 0) {
+        //   // Create a mixer for the rocket
+        //   mixerRef.current = new THREE.AnimationMixer(model);
 
-          // Find the animation named "Animation"
-          const animation = gltf.animations.find(
-            anim => anim.name === "Animation" || anim.name.includes("Animation")
-          );
+        //   // Find the animation named "Animation"
+        //   const animation = gltf.animations.find(
+        //     anim => anim.name === "Animation" || anim.name.includes("Animation")
+        //   );
 
-          if (animation) {
-            // Create an action for the animation and play it
-            const action = mixerRef.current.clipAction(animation);
+        //   if (animation) {
+        //     // Create an action for the animation and play it
+        //     const action = mixerRef.current.clipAction(animation);
 
-            // Increase animation speed by setting timeScale (2.0 = twice as fast)
-            action.timeScale = 2.5;
+        //     // Increase animation speed by setting timeScale (2.0 = twice as fast)
+        //     action.timeScale = 2.5;
 
-            // Make the animation loop
-            action.loop = THREE.LoopRepeat;
+        //     // Make the animation loop
+        //     action.loop = THREE.LoopRepeat;
 
-            // Start the animation
-            action.play();
+        //     // Start the animation
+        //     action.play();
 
-            console.log("Playing rocket animation at increased speed:", animation.name);
-          } else {
-            // If "Animation" is not found, log available animations
-            console.log(
-              "Available animations:",
-              gltf.animations.map(a => a.name)
-            );
+        //     console.log("Playing rocket animation at increased speed:", animation.name);
+        //   } else {
+        //     // If "Animation" is not found, log available animations
+        //     console.log(
+        //       "Available animations:",
+        //       gltf.animations.map(a => a.name)
+        //     );
 
-            // Play the first animation if "Animation" is not found
-            if (gltf.animations.length > 0) {
-              const action = mixerRef.current.clipAction(gltf.animations[0]);
-              action.timeScale = 2.5; // Increase speed
-              action.loop = THREE.LoopRepeat;
-              action.play();
-              console.log(
-                "Playing first available animation at increased speed:",
-                gltf.animations[0].name
-              );
-            }
-          }
-        }
+        //     // Play the first animation if "Animation" is not found
+        //     if (gltf.animations.length > 0) {
+        //       const action = mixerRef.current.clipAction(gltf.animations[0]);
+        //       action.timeScale = 2.5; // Increase speed
+        //       action.loop = THREE.LoopRepeat;
+        //       action.play();
+        //       console.log(
+        //         "Playing first available animation at increased speed:",
+        //         gltf.animations[0].name
+        //       );
+        //     }
+        //   }
+        // }
 
         // Add the anchor group to the scene
         scene.add(anchorGroup);
@@ -1008,6 +1062,12 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch,
 
     return () => {
       console.log("Cleaning up rocket model and resources");
+      
+      // Clean up countdown interval if running
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+        countdownIntervalRef.current = null;
+      }
 
       // Clean up textured meshes
       cleanupTexturedMeshes();
@@ -1168,21 +1228,6 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch,
         // Update post-processing effects during launch
         updatePostProcessingEffects(progress);
         
-        // Update camera shake intensity based on launch progress (0-1 range)
-        if (progress < 0.1) {
-          // Build up shake during ignition
-          setCameraShakeIntensity(progress * 10); // 0 to 1 over first 10%
-        } else if (progress < 0.5) {
-          // Intense shake during initial launch
-          const shakePhase = (progress - 0.1) / 0.4;
-          setCameraShakeIntensity(0.8 + Math.sin(shakePhase * Math.PI * 4) * 0.2); // Oscillate between 0.6-1.0
-        } else if (progress < 0.8) {
-          // Reduce shake as rocket gains altitude
-          setCameraShakeIntensity(Math.max(0, (0.8 - progress) / 0.3 * 0.6));
-        } else {
-          // Minimal shake in final phase
-          setCameraShakeIntensity(0);
-        }
         
         // End the animation when complete
         if (progress >= 1) {
@@ -1190,9 +1235,6 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch,
           
           // Set isLaunching to false to indicate the animation is complete
           setIsLaunching(false);
-          
-          // Reset camera shake
-          setCameraShakeIntensity(0);
           
           // Set fade start time for gradual post-processing effect fadeout
           setPostProcessingEffects(prev => ({
@@ -1243,37 +1285,77 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch,
           
           // Trigger cinematic transition before navigation
           console.log("🚀 Starting cinematic transition...");
+          console.log("🚀 onTransitionStart type:", typeof onTransitionStart);
+          console.log("🚀 onSceneSwitch type:", typeof onSceneSwitch);
+          
           if (typeof onTransitionStart === 'function') {
+            console.log("🚀 Calling onTransitionStart function...");
             onTransitionStart(() => {
               // This callback will be called when transition reaches its peak
-              console.log("🚀 Transition peak reached, navigating to moon-scene...");
-              if (window.location) {
-                // Store transition state in sessionStorage for moon scene
-                sessionStorage.setItem('rocketLaunchTransition', JSON.stringify({
-                  timestamp: Date.now(),
-                  userData: userData,
-                  is80sMode: is80sMode
+              console.log("🚀 Transition peak reached, switching to moon scene...");
+              
+              // Store transition state in sessionStorage for moon scene
+              sessionStorage.setItem('rocketLaunchTransition', JSON.stringify({
+                timestamp: Date.now(),
+                userData: userData,
+                is80sMode: is80sMode
+              }));
+              
+              // Switch to moon scene
+              console.log("🚀 Preparing to switch to moon scene...");
+              
+              // Add a small delay to ensure React Three Fiber cleanup
+              setTimeout(() => {
+                // Try to force exit from Canvas context first
+                console.log("🚀 Attempting to exit Canvas context before navigation...");
+                
+                // Dispatch a custom event to notify parent components
+                window.dispatchEvent(new CustomEvent('rocket-navigation-start', { 
+                  detail: { destination: '/moon-scene' } 
                 }));
-                
-                // Calculate the correct URL based on the current path
-                const currentPath = window.location.pathname;
-                const basePath = currentPath.substring(0, currentPath.lastIndexOf('/') + 1);
-                const newPath = `${basePath}moon-scene`;
-                
-                // Navigate to the new page
-                window.location.href = newPath;
-              }
+                try {
+                  console.log("🚀 Attempting scene switch after delay...");
+                  
+                  // Call the scene switch function if provided
+                  if (typeof onSceneSwitch === 'function') {
+                    console.log("🚀 Calling onSceneSwitch to switch to moon scene");
+                    onSceneSwitch('moon');
+                  } else {
+                    console.error("🚀 onSceneSwitch function not provided!");
+                    // Fallback to window.location if no scene switch function
+                    console.log("🚀 Falling back to window.location navigation");
+                    window.location.href = '/moon-scene';
+                  }
+                } catch (syncError) {
+                  console.error("🚀 Synchronous error during scene switch:", syncError);
+                  console.error("🚀 Sync error name:", syncError?.name);
+                  console.error("🚀 Sync error message:", syncError?.message);
+                  console.log("🚀 Using window.location as ultimate fallback...");
+                  window.location.href = '/moon-scene';
+                }
+              }, 100); // 100ms delay
             });
           } else {
             // Fallback to original navigation if no transition handler
+            console.log("🚀 onTransitionStart not a function, using fallback navigation in 1 second...");
             setTimeout(() => {
-              console.log("🚀 No transition handler, using fallback navigation...");
-              if (window.location) {
-                const currentPath = window.location.pathname;
-                const basePath = currentPath.substring(0, currentPath.lastIndexOf('/') + 1);
-                const newPath = `${basePath}moon-scene`;
-                window.location.href = newPath;
-              }
+              console.log("🚀 Fallback timer fired, navigating...");
+              // Add another small delay for fallback path
+              setTimeout(() => {
+                try {
+                  console.log("🚀 Attempting fallback scene switch after delay...");
+                  if (typeof onSceneSwitch === 'function') {
+                    console.log("🚀 Using onSceneSwitch for fallback");
+                    onSceneSwitch('moon');
+                  } else {
+                    console.log("🚀 Using direct window.location for fallback");
+                    window.location.href = '/moon-scene';
+                  }
+                } catch (syncError) {
+                  console.error("🚀 Fallback sync error:", syncError);
+                  window.location.href = '/moon-scene';
+                }
+              }, 100);
             }, 1000);
           }
         }
@@ -1756,7 +1838,7 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch,
       
       // Create a sequence of steps to fade in the scanlines effect
       const totalSteps = 10;  // Number of fade-in steps
-      const finalValue = 512;  // Final scanlines value
+      const finalValue = 128;  // Reduced from 512 - much more subtle scanlines
       const fadeInDuration = 1000;  // Total fade-in duration in ms
       const stepDelay = fadeInDuration / totalSteps;  // Delay between steps
 
@@ -1923,16 +2005,25 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch,
   // Function to update post-processing effects based on launch progress
   const updatePostProcessingEffects = (progress) => {
     if (bloomRef.current) {
-      // Increase bloom intensity as launch progresses
-      bloomRef.current.strength = postProcessingEffects.bloomStrength * (.1 + progress);
-      bloomRef.current.radius = postProcessingEffects.bloomRadius * (0.1 + progress * 0.01);
-      bloomRef.current.threshold = 0.9;
+      // Increase bloom intensity as launch progresses - but cap it before the end
+      // Use a curve that peaks at 80% progress then reduces
+      let bloomMultiplier;
+      if (progress < 0.8) {
+        bloomMultiplier = 0.5 + (progress / 0.8) * 0.3; // Ramp up to 80%
+      } else {
+        // Fade down bloom in the last 20% to prevent white-out
+        bloomMultiplier = 0.8 - ((progress - 0.8) / 0.2) * 0.6; // Fade from 80% to 20%
+      }
+      
+      bloomRef.current.strength = postProcessingEffects.bloomStrength * bloomMultiplier;
+      bloomRef.current.radius = postProcessingEffects.bloomRadius * (0.8 + bloomMultiplier * 0.2);
+      bloomRef.current.threshold = 0.95; // Keep high threshold
     }
     
     if (filmRef.current) {
       // Increase film grain effect as launch progresses
-      filmRef.current.nIntensity = postProcessingEffects.filmNoisiness * Math.min(1, progress * 0.2);
-      filmRef.current.sIntensity = postProcessingEffects.filmScanlines > 0 ? 0.1 : 0;
+      filmRef.current.nIntensity = postProcessingEffects.filmNoisiness * Math.min(1, progress * 0.1); // Very subtle noise
+      filmRef.current.sIntensity = postProcessingEffects.filmScanlines > 0 ? 0.05 : 0; // Reduced from 0.1
     }
   };
 
@@ -2107,25 +2198,56 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch,
   // Return component with post-processing effects
   return (
     <>
-      {/* Camera shake for launch sequence */}
-      {/* {cameraShakeIntensity > 0 && (
-        <CameraShake
-          maxYaw={0.01}   // Very minimal yaw to prevent any drift
-          maxPitch={0.3}  // Much stronger vertical shake
-          maxRoll={0.005} // Almost no roll
-          yawFrequency={15}    // High frequency vibration
-          pitchFrequency={20}  // High frequency vibration
-          rollFrequency={10}   // Medium frequency
-          intensity={cameraShakeIntensity}
-          decay={false}
-          decayRate={0.95} // Prevent accumulation
-        />
-      )} */}
+      {/* Countdown Display */}
+      {isCountingDown && groupRef.current && (
+        <group position={[0, 10, 0]}>
+          <Html
+            center
+            style={{
+              width: '200px',
+              height: '200px',
+              pointerEvents: 'none',
+              userSelect: 'none',
+            }}
+          >
+            <div
+              style={{
+                fontSize: '120px',
+                fontWeight: 'bold',
+                color: '#00ff00',
+                textAlign: 'center',
+                textShadow: '0 0 20px #00ff00, 0 0 40px #00ff00',
+                fontFamily: 'monospace',
+                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                borderRadius: '20px',
+                padding: '20px',
+                border: '2px solid #00ff00',
+                boxShadow: '0 0 30px rgba(0, 255, 0, 0.5)',
+              }}
+            >
+              {countdownValue}
+            </div>
+            <div
+              style={{
+                fontSize: '24px',
+                color: '#00ff00',
+                textAlign: 'center',
+                marginTop: '10px',
+                textShadow: '0 0 10px #00ff00',
+                fontFamily: 'monospace',
+              }}
+            >
+              LAUNCH IN
+            </div>
+          </Html>
+        </group>
+      )}
+      
       
       {/* Sky Effect - only render when thrusters are ignited AND sky effect is active */}
-      {postProcessingEffects.thrustersIgnited && skyEffect.active && (
+      {/* {postProcessingEffects.thrustersIgnited && skyEffect.active && (
         <LaunchSkyEffect active={skyEffect.active} fadeProgress={skyEffect.fadeProgress} />
-      )}
+      )} */}
       
       {/* Allow Effects to remain in the scene during fadeout */}
       {postProcessingEffects.bloomEnabled && postProcessingEffects.thrustersIgnited && (

@@ -250,7 +250,7 @@ const MoonScene = forwardRef(
             "/lunar_color.jpg",
             texture => {
               texture.anisotropy = 16;
-              texture.encoding = THREE.sRGBEncoding;
+              texture.colorSpace = THREE.SRGBColorSpace;
               texture.needsUpdate = true;
               resolve(texture);
             },

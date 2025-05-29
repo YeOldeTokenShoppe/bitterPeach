@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Navigation</title>
+</head>
+<body>
+    <h1>Navigation Test</h1>
+    <button onclick="testNavigation()">Test Navigation to Moon Scene</button>
+    
+    <script>
+        function testNavigation() {
+            console.log('Current location:', window.location.pathname);
+            console.log('Navigating to /moon-scene...');
+            window.location.href = '/moon-scene';
+        }
+    </script>
+</body>
+</html>

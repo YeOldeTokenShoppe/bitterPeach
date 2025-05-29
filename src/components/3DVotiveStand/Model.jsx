@@ -973,7 +973,7 @@ function Model({
 
     // Function to apply texture with settings
     const applyTextureWithSettings = (texture, config) => {
-      texture.encoding = THREE.sRGBEncoding;
+      texture.colorSpace = THREE.SRGBColorSpace;
       texture.wrapS = THREE.RepeatWrapping;
       texture.wrapT = THREE.RepeatWrapping;
       texture.repeat.set(config.repeat.x, config.repeat.y);

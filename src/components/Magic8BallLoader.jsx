@@ -211,8 +211,8 @@ const Magic8BallLoader = ({ isLoading = true, onComplete, loadingProgress = 0 })
             </div>
           </div>
         </div>
-        <div className="thelma" style={{position: 'relative', top: '1.5rem', fontFamily: 'UnifrakturMaguntia', fontSize: '2.5rem', fontWeight: 'bold', textShadow: '0 0 10px rgba(138, 43, 226, 0.8), 0 0 20px rgba(138, 43, 226, 0.4)'}}>
-          Loading...{displayProgress}%
+        <div className="thelma" style={{position: 'relative', top: '1.5rem', fontSize: '2.5rem', fontWeight: 'bold', textShadow: '0 0 10px rgba(138, 43, 226, 0.8), 0 0 20px rgba(138, 43, 226, 0.4)'}}>
+          LOADING...{displayProgress}%
         </div>
         {/* <div className={styles.loadingText}>
           <div className={styles.magicalDots} translate="no">

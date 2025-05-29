@@ -4,6 +4,8 @@ import HolographicStatueMoon from './3DVotiveStand/HolographicStatueMoon';
 import ConstellationModel from "./3DVotiveStand/ConstellationModel";
 import StarField from "./3DVotiveStand/StarField";
 
+
+
 import { 
   OrbitControls, 
   useGLTF, 
@@ -13,7 +15,8 @@ import {
   useProgress,
   ContactShadows,
   Box,
-  useHelper
+  useHelper,
+
 } from '@react-three/drei';
 import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
 import * as THREE from 'three';
@@ -84,7 +87,7 @@ function Moon(props) {
   const moonRef = useRef();
   const flagRef = useRef();
   const videoRef = useRef();
-  const { scene } = useGLTF('/Ochi_moon01.glb');
+  const { scene, materials } = useGLTF('/Ochi_moon01.glb');
   const [rocketObjects, setRocketObjects] = useState([]);
 
   // Add debug logging for moon model structure and store rocket objects
@@ -92,36 +95,19 @@ function Moon(props) {
     if (!scene) return;
     
     const rockets = [];
-    console.log("Inspecting moon model structure:");
+
     scene.traverse((child) => {
       if (child.name && child.name.toLowerCase().includes('mary')) {
-        console.log("Found Mary object:", {
-          name: child.name,
-          position: child.position,
-          worldPosition: child.getWorldPosition(new THREE.Vector3()),
-          parent: child.parent?.name
-        });
+       
       }
       // Look for rocket objects - exact name match for 'Rocket'
       if (child.name === 'Rocket' || (child.name && child.name.toLowerCase().includes('rocket'))) {
-        console.log("Found Rocket object:", {
-          name: child.name,
-          type: child.type,
-          position: child.position,
-          scale: child.scale,
-          parent: child.parent?.name
-        });
+        
         rockets.push(child);
       }
       // Look for screen object
       if (child.name && (child.name.toLowerCase().includes('screen') || child.name.toLowerCase().includes('display'))) {
-        console.log("Found potential screen object:", {
-          name: child.name,
-          type: child.type,
-          isMesh: child.isMesh,
-          material: child.material?.name,
-          parent: child.parent?.name
-        });
+       
       }
     });
     setRocketObjects(rockets);
@@ -132,6 +118,7 @@ function Moon(props) {
   const [lightAnchor2, setLightAnchor2] = useState(null);
   const [maryPosition, setMaryPosition] = useState(null);
   const [screenObject, setScreenObject] = useState(null);
+  const tvLightRef = useRef(null);
 
   const videoTextureRef = useRef(null);
 
@@ -153,22 +140,14 @@ function Moon(props) {
       }
       if (child.name && child.name.toLowerCase().includes('mary')) {
         const worldPos = child.getWorldPosition(new THREE.Vector3());
-        console.log("Found Mary object:", {
-          name: child.name,
-          localPosition: child.position,
-          worldPosition: worldPos
-        });
+        
         setMaryPosition(worldPos);
       }
       // Look for screen object
-      if (child.name === 'screen' || child.name === 'Screen') {
-        console.log("Found screen object:", {
-          name: child.name,
-          type: child.type,
-          position: child.position,
-          scale: child.scale,
-          isMesh: child.isMesh
-        });
+      if (child.name === 'screen' || child.name === 'Screen' || 
+          child.name.toLowerCase().includes('screen') || 
+          child.name.toLowerCase().includes('display')) {
+        console.log('Found screen object:', child.name);
         screen = child;
       }
     });
@@ -176,6 +155,17 @@ function Moon(props) {
     setLightAnchor(lAnchor);
     setLightAnchor2(lAnchor2);
     setScreenObject(screen);
+    
+    if (!screen) {
+      console.log('Warning: No screen object found in the scene');
+      // Log all object names to help debug
+      console.log('All object names in scene:');
+      scene.traverse((child) => {
+        if (child.name) {
+          console.log('- ', child.name);
+        }
+      });
+    }
   }, [scene]);
 
   // Parent flag mesh to anchor
@@ -206,7 +196,7 @@ function Moon(props) {
     videoTexture.minFilter = THREE.LinearFilter;
     videoTexture.magFilter = THREE.LinearFilter;
     videoTexture.format = THREE.RGBFormat;
-    videoTexture.encoding = THREE.sRGBEncoding;
+    videoTexture.colorSpace = THREE.SRGBColorSpace;
     
     // Set texture transformation center
     videoTexture.center.set(0.5, 0.5); // Set rotation center to middle of texture
@@ -249,14 +239,13 @@ function Moon(props) {
     const playVideo = async () => {
       try {
         await video.play();
-        console.log("Video playing on screen");
+      
       } catch (err) {
-        console.log("Video autoplay failed, will play on user interaction:", err);
-        // Add click handler to start video on first interaction
+       
         const handleFirstInteraction = async () => {
           try {
             await video.play();
-            console.log("Video started after user interaction");
+      
             document.removeEventListener('click', handleFirstInteraction);
             document.removeEventListener('touchstart', handleFirstInteraction);
           } catch (e) {
@@ -308,7 +297,7 @@ function Moon(props) {
            child.name === 'Object_3' || // Based on your GLB structure
            child.name === 'Plane')) { // Common name for screens
         
-        console.log('Applying video texture to screen:', child.name);
+
         
         // Create video material
         const videoMaterial = new THREE.MeshStandardMaterial({
@@ -332,16 +321,53 @@ function Moon(props) {
           }, { once: true });
         });
       }
-      // Apply emissive properties to other moon materials
+      // Apply realistic moon material properties
       else if (child.isMesh && child.material) {
-        child.material = child.material.clone(); // Clone to avoid affecting other instances
-        child.material.emissive = new THREE.Color(0x00ffff); // Subtle blue-white glow
-        child.material.emissiveIntensity = 0.02; // Moderate intensity
-        child.material.depthTest = true;
-        child.material.depthWrite = true;
+        // Skip video screen materials
+        if (child.name && (child.name.toLowerCase().includes('screen') || 
+            child.name.toLowerCase().includes('display'))) {
+          return;
+        }
+        
+        // Debug: Log material info
+        console.log(`Mesh: ${child.name}`, {
+          hasMap: !!child.material.map,
+          materialType: child.material.type,
+          color: child.material.color?.getHexString(),
+          emissive: child.material.emissive?.getHexString()
+        });
+        
+        // Don't clone material - modify in place to preserve texture references
+        // child.material = child.material.clone(); 
+        
+        // Only adjust material properties, don't override textures or colors
+        if (child.material.map) {
+          // If there's a texture, ensure it's set up correctly
+          child.material.map.colorSpace = THREE.SRGBColorSpace;
+          child.material.map.needsUpdate = true;
+        }
+        
+        // Very subtle emissive for moon-like glow
+        if (!child.material.emissiveMap) {
+          child.material.emissive = new THREE.Color(0x4a4a48);
+          child.material.emissiveIntensity = 0.02;
+        }
+        
+        // Adjust material properties for moon-like appearance
+        if (child.material.metalness !== undefined) {
+          child.material.metalness = 0.0; // Moon is not metallic
+        }
+        if (child.material.roughness !== undefined) {
+          child.material.roughness = 0.9; // Rough but not too rough
+        }
+        
+        // Ensure proper rendering
         child.material.needsUpdate = true;
-        child.material.envMapIntensity = 0.3;
-        child.material.reflectivity = 0.3;
+        
+        // Lower environment effects to preserve texture appearance
+        if (child.material.envMapIntensity !== undefined) {
+          child.material.envMapIntensity = 0.1;
+        }
       }
     });
     
@@ -435,6 +461,48 @@ function Moon(props) {
       videoTextureRef.current.needsUpdate = true;
     }
     
+    // Update TV light position
+    if (tvLightRef.current && screenObject) {
+      const worldPos = new THREE.Vector3();
+      screenObject.getWorldPosition(worldPos);
+      
+      // Get the screen's bounding box to position light properly
+      const box = new THREE.Box3().setFromObject(screenObject);
+      const size = box.getSize(new THREE.Vector3());
+      
+      // Position light in front of screen center
+      tvLightRef.current.position.copy(worldPos);
+      
+      // Get screen's world matrix to determine its orientation
+      const worldMatrix = screenObject.matrixWorld;
+      // Use negative Z since the screen faces the opposite direction
+      const forward = new THREE.Vector3(0, 0, -1);
+      forward.transformDirection(worldMatrix);
+      
+      // Position light in front of the screen (where viewer would be)
+      // The moon radius is 2.5, so we want the light to be outside the moon surface
+      const lightDistance = 3.0; // Position light outside the moon
+      tvLightRef.current.position.copy(worldPos);
+      tvLightRef.current.position.add(forward.multiplyScalar(lightDistance));
+      
+      // Update spotlight target to point back at the screen
+      if (tvLightRef.current.target) {
+        tvLightRef.current.target.position.copy(worldPos);
+        tvLightRef.current.target.updateMatrixWorld();
+      }
+      
+      // Log once per second to avoid spam
+      if (Math.floor(state.clock.elapsedTime) % 2 === 0 && 
+          Math.floor(state.clock.elapsedTime * 10) % 10 === 0) {
+        console.log('TV Light:', {
+          position: tvLightRef.current.position,
+          screenPos: worldPos,
+          screenSize: size,
+          forward: forward
+        });
+      }
+    }
+    
     // Animate rocket selection rings
     if (isMobileView && highlightedRocket && !focusedTarget) {
       const time = state.clock.getElapsedTime();
@@ -455,7 +523,9 @@ function Moon(props) {
     
     <group ref={moonRef} {...props} onClick={onMoonClick} dispose={null}>
       <primitive object={scene} />
-      <Flag flagRef={flagRef} />
+      <Suspense fallback={null}>
+        <Flag flagRef={flagRef} position={[1, 2, -1]} scale={[0.002, 0.002, 0.002]} />
+      </Suspense>
       
       {/* HolographicStatue parented to moon */}
       {/* <HolographicStatueMoon
@@ -519,6 +589,40 @@ function Moon(props) {
           onUpdate={(self) => lightAnchor2.add(self)}
         />
       )}
+      {/* TV screen light */}
+      {screenObject && (
+        <>
+          {/* Main TV spot light */}
+          <spotLight
+            ref={tvLightRef}
+            position={[0, 0.35, 0.1]}
+            color={new THREE.Color(0x6495ed)} // Cornflower blue TV glow
+            intensity={20.0}
+            distance={20.0}
+            angle={Math.PI / 3} // 60 degree cone
+            penumbra={0.5} // Soft edges
+            decay={1.0}
+            castShadow={false}
+            target-position={[0, 0, 0]} // Will be updated in useFrame
+          />
+          {/* Ambient point light for general glow */}
+          <pointLight
+            position={[0, 0.35, 0.1]}
+            color={new THREE.Color(0x87ceeb)} // Lighter blue
+            intensity={10.0}
+            distance={15.0}
+            decay={1.5}
+            castShadow={false}
+            onUpdate={(self) => {
+              if (tvLightRef.current) {
+                // Position this light at the same spot as TV light
+                self.position.copy(tvLightRef.current.position);
+              }
+            }}
+          />
+        </>
+      )}
+         <Environment preset="night" />
     </group>
   );
 }
@@ -836,9 +940,29 @@ function AstronautInfoDisplay({ userData, astronautIndex, parentObject }) {
   );
 }
 
+// Component to wrap astronaut with Float
+// function FloatingAstronautWrapper({ children, enabled = true, isFocused = false }) {
+//   // Only apply Float to non-focused astronauts when enabled
+//   if (enabled && !isFocused) {
+//     return (
+//       <Float
+//         speed={1.5} // Animation speed, adjust to taste
+//         rotationIntensity={0.5} // XYZ rotation intensity, adjust to taste  
+//         floatIntensity={0.3} // Up/down float intensity, adjust to taste
+//         floatingRange={[-0.1, 0.1]} // Range of y-axis values the object will float within
+//       >
+//         {children}
+//       </Float>
+//     );
+//   }
+  
+//   // For focused astronauts or when Float is disabled, render children directly
+//   return <>{children}</>;
+// }
+
 // Floating astronaut component with user textures
 function Astronauts(props) {
-  const { userHelmetTextures, onAstronautClick, focusedAstronaut, highlightedAstronaut, debugMode = false, isMobileView = false } = props;
+  const { userHelmetTextures, onAstronautClick, focusedAstronaut, highlightedAstronaut, debugMode = false, isMobileView = false, useFloatEffect = false } = props;
 
   // Debug mode - controlled by prop
   const DEBUG_MODE = debugMode;
@@ -848,6 +972,7 @@ function Astronauts(props) {
   const { scene: animatedScene, animations } = useGLTF('/Astronaut02.glb');
   const instancesRef = useRef();
   const [initialInstanceData, setInitialInstanceData] = useState([]);
+  const [astronautComponents, setAstronautComponents] = useState([]); // For declarative rendering with Float
   const mixerRef = useRef(null);
 
   // Find and store the helmet object from the animated scene
@@ -950,7 +1075,7 @@ function Astronauts(props) {
       };
     } else if (DEBUG_MODE) {
       console.warn("Could not find required animations");
-      console.log("Available animations:", animations.map(a => a.name));
+
     }
   }, [animations, animatedScene]);
 
@@ -1040,28 +1165,31 @@ function Astronauts(props) {
             // So we need to rotate it 90 degrees around Y to correct this
             focusedAnimatedModel.rotateY(-Math.PI / 2);
             
-            console.log("Model facing camera via lookAt + Y rotation correction");
-        } else {
-            console.log("No animated model found for focused astronaut", index);
+
+        // } else {
+        //     console.log("No animated model found for focused astronaut", index);
         }
       } else {
         // For non-focused astronauts:
-        // Apply bobbing to the main instance position
-        const basePosition = data.initialPosition.clone();
-        instance.position.copy(basePosition);
-        instance.position.y += bobHeightOffset;
-        instance.position.x += bobSideOffset + circleXOffset;
-        instance.position.z += circleZOffset;
-        
-        // Apply tumbling rotation to the main instance, keeping it facing outward
-        const directionFromMoonAfterBob = instance.position.clone().normalize();
-        let currentRotationY_facingOut = Math.atan2(directionFromMoonAfterBob.z, directionFromMoonAfterBob.x);
-        
-        instance.rotation.set(
-          data.initialRotation.x + currentTumbleX, // Use pre-calculated tumble
-          currentRotationY_facingOut + currentTumbleY_local, // Combine outward facing with local Y tumble
-          data.initialRotation.z + currentTumbleZ  // Use pre-calculated tumble
-        );
+        // Skip manual bobbing if Float component is being used
+        if (!instance.userData.useFloat) {
+          // Apply bobbing to the main instance position
+          const basePosition = data.initialPosition.clone();
+          instance.position.copy(basePosition);
+          instance.position.y += bobHeightOffset;
+          instance.position.x += bobSideOffset + circleXOffset;
+          instance.position.z += circleZOffset;
+          
+          // Apply tumbling rotation to the main instance, keeping it facing outward
+          const directionFromMoonAfterBob = instance.position.clone().normalize();
+          let currentRotationY_facingOut = Math.atan2(directionFromMoonAfterBob.z, directionFromMoonAfterBob.x);
+          
+          instance.rotation.set(
+            data.initialRotation.x + currentTumbleX, // Use pre-calculated tumble
+            currentRotationY_facingOut + currentTumbleY_local, // Combine outward facing with local Y tumble
+            data.initialRotation.z + currentTumbleZ  // Use pre-calculated tumble
+          );
+        }
       }
       
       // Universal minimum distance check for the astronaut's group position
@@ -1161,7 +1289,8 @@ function Astronauts(props) {
       astronautGroup.userData = { 
         astronautIndex: i, 
         userData: userData,
-        staticScene: staticAstronautScene
+        staticScene: staticAstronautScene,
+        useFloat: useFloatEffect // Use the prop to determine if Float should be used
       };
       
       // Add selection ring for mobile (invisible by default)
@@ -1209,10 +1338,23 @@ function Astronauts(props) {
       astronautGroup.add(staticAstronautScene);
       
       // Set the group position and rotation
-      astronautGroup.position.copy(initialPosition);
-      astronautGroup.rotation.copy(initialRotation);
+      // When using Float effect, position will be handled by wrapper but keep rotation
+      if (!useFloatEffect) {
+        astronautGroup.position.copy(initialPosition);
+        astronautGroup.rotation.copy(initialRotation);
+      } else {
+        // Reset position when using Float since we apply it to the wrapper
+        astronautGroup.position.set(0, 0, 0);
+        // Keep the rotation so astronauts face outward from the moon
+        astronautGroup.rotation.copy(initialRotation);
+      }
       
-      // Add the group to the scene
+      // Add the group to the instancesRef
+      // When useFloatEffect is false, it will be added directly to the group
+      // When useFloatEffect is true, we'll still need the reference for declarative rendering
+      if (!instancesRef.current) {
+        instancesRef.current = new THREE.Group();
+      }
       instancesRef.current.add(astronautGroup);
 
       newInstanceData.push({
@@ -1297,7 +1439,6 @@ function Astronauts(props) {
           // Animate the ring
           if (shouldShowRing) {
             selectionRing.material.opacity = 0.7 + Math.sin(Date.now() * 0.003) * 0.3;
-            console.log(`Selection ring for astronaut ${astronautIndex} set to visible:`, selectionRing.visible);
           }
         }
       }
@@ -1336,12 +1477,12 @@ function Astronauts(props) {
           mixerRef.current.setTime(0);
         }
         
-        console.log(`Switching astronaut ${astronautIndex} to ANIMATED model`);
+ 
       } else {
         // Use static scene for non-focused state
         astronautGroup.add(staticScene);
         
-        console.log(`Switching astronaut ${astronautIndex} to STATIC model`);
+
       }
     });
   }, [focusedAstronaut, highlightedAstronaut, animatedHelmet, isMobileView]);
@@ -1402,30 +1543,67 @@ function Astronauts(props) {
   };
 
   return (
-    <group ref={instancesRef} onClick={handleClick} {...props}>
+    <group onClick={handleClick} {...props}>
+      {/* Render astronauts with Float effect */}
+      {useFloatEffect ? (
+        // When Float is enabled, render astronauts declaratively
+        <>
+          {initialInstanceData.map((data, i) => {
+            const isFocused = focusedAstronaut && focusedAstronaut.index === i;
+            const astronautGroup = instancesRef.current?.children[i];
+            
+            if (!astronautGroup) return null;
+            
+            // Apply only the position to the wrapper group
+            // Rotation is kept on the astronaut group itself
+            return (
+              <group 
+                key={`astronaut-position-${i}`}
+                position={[data.initialPosition.x, data.initialPosition.y, data.initialPosition.z]}
+              >
+                <FloatingAstronautWrapper 
+                  enabled={useFloatEffect} 
+                  isFocused={isFocused}
+                >
+                  <primitive object={astronautGroup} />
+                </FloatingAstronautWrapper>
+              </group>
+            );
+          })}
+        </>
+      ) : (
+        // When Float is disabled, use the original approach
+        <group ref={instancesRef} />
+      )}
+      
       {/* Point lights for each astronaut */}
       {initialInstanceData.map((data, i) => {
         // Use the initial position data directly instead of trying to access group position
         const lightPosition = [
           data.initialPosition.x,
-          data.initialPosition.y + 1,
+          data.initialPosition.y + 0.3,
           data.initialPosition.z
         ];
         
-        // Use a consistent white/blue-white color for all lights
-        // const lightColor = new THREE.Color(0xffffff); // Pure white light
-        const lightColor = new THREE.Color(0xe8f4fd); // Subtle blue-white
+        // Ethereal color options for astronaut lights
+        // const lightColor = new THREE.Color(0xb19cd9); // Soft lavender purple
+        // const lightColor = new THREE.Color(0x87ceeb); // Sky blue
+        // const lightColor = new THREE.Color(0xdda0dd); // Plum
+        // const lightColor = new THREE.Color(0xe0b0ff); // Mauve/pale violet
+        // const lightColor = new THREE.Color(0xffc0cb); // Soft pink
+        // const lightColor = new THREE.Color(0x9370db); // Medium purple
+        const lightColor = new THREE.Color(0xc8b2db); // Soft periwinkle - blend of lavender and blue
         
-        console.log(`Debug sphere ${i} at position:`, lightPosition, `color:`, lightColor);
+    
         
         return (
           <PointLightWithHelper
             key={`light-${i}`}
             position={lightPosition}
             color={lightColor}
-            intensity={focusedAstronaut && focusedAstronaut.index === i ? 4.0 : 1.5}
-            distance={3}
-            decay={2}
+            intensity={focusedAstronaut && focusedAstronaut.index === i ? 0.1 : 0.2}
+            distance={1.5}
+            decay={3}
             showHelper={DEBUG_MODE} // Show helpers only in debug mode
           />
         );
@@ -1455,11 +1633,11 @@ function SceneSetup({ isMobileView }) {
     if (isMobileView) {
       // Position camera further back on mobile for better moon visibility
       camera.position.set(0, 0, 15);
-      console.log("Mobile camera positioned at:", camera.position);
+    
     } else {
       // Default desktop position
       camera.position.set(0, 0, 8);
-      console.log("Desktop camera positioned at:", camera.position);
+    
     }
     
     // Update camera matrix after position change
@@ -1468,13 +1646,13 @@ function SceneSetup({ isMobileView }) {
 
   return (
     <>
-      {/* Reduced ambient light for more dramatic shadows */}
-      <ambientLight intensity={0.15} />
+      {/* Increased ambient light for better moon visibility */}
+      <ambientLight intensity={0.3} />
       
-      {/* Main directional light from the left side of screen - simulates sun */}
+      {/* Main directional light from the right side - simulates sun */}
       <directionalLight 
         position={[-10, 2, 5]} 
-        intensity={2.0} 
+        intensity={1.5} 
         castShadow 
         shadow-mapSize-width={2048} 
         shadow-mapSize-height={2048}
@@ -1487,20 +1665,20 @@ function SceneSetup({ isMobileView }) {
       />
       
       {/* Subtle rim light from the opposite side for depth */}
-      <directionalLight 
-        position={[8, -2, -3]} 
+      {/* <directionalLight 
+        position={[-8, -2, -3]} 
         intensity={0.3} 
         color="#4a90e2" 
-      />
+      /> */}
       
       {/* Very subtle fill light from below to prevent pure black shadows */}
-      <pointLight 
+      {/* <pointLight 
         position={[0, -8, 0]} 
         intensity={0.1} 
         color="#6b7280" 
         distance={20}
         decay={2}
-      />
+      /> */}
     </>
   );
 }
@@ -1542,7 +1720,7 @@ function SimpleOrbitCamera({ focusedTarget, isMobileView }) {
       neutralPositionRef.current.set(0, 0, neutralZ);
       neutralTargetRef.current.copy(controlsRef.current.target);
       
-      console.log("OrbitControls neutral position set to:", neutralPositionRef.current);
+    
     }
   }, [camera, gl, isMobileView]);
 
@@ -1602,7 +1780,7 @@ function SimpleOrbitCamera({ focusedTarget, isMobileView }) {
 
       if (focusedTarget.type === 'astronaut') {
         const astronautInstance = targetObject;
-        console.log(`Camera focusing on astronaut ${focusedTarget.index}`);
+   
         
         // Since the animated model will rotate to face the camera,
         // we just need to position the camera at a good distance from the astronaut
@@ -1621,7 +1799,7 @@ function SimpleOrbitCamera({ focusedTarget, isMobileView }) {
         idealFinalCameraPos.copy(lookAtTargetPos)
           .add(directionFromMoon.multiplyScalar(cameraDistance));
         
-        console.log("Camera positioning for auto-facing model at:", lookAtTargetPos);
+ 
       } else if (focusedTarget.type === 'rocket') {
         targetObject.getWorldPosition(lookAtTargetPos);
         
@@ -1647,7 +1825,7 @@ function SimpleOrbitCamera({ focusedTarget, isMobileView }) {
         idealFinalCameraPos.x -= 0.01; // Shift camera to the side
         idealFinalCameraPos.z -= 0.75; // Shift camera to the side
         
-        console.log("Camera positioning for rocket at:", lookAtTargetPos, "camera at:", idealFinalCameraPos);
+      
       }
 
       const startPosition = camera.position.clone();
@@ -1726,23 +1904,20 @@ function ModelInspector() {
   const { scene } = useGLTF('/Astronaut2.glb');
   
   useEffect(() => {
-    // console.log("Model Inspector: Examining astronaut1.glb structure"); // Keep this if desired
+   
     const inspectNode = (node, depth = 0) => {
       const indent = ' '.repeat(depth * 2);
       const type = node.type || (node.isMesh ? 'Mesh' : (node.isGroup ? 'Group' : 'Object3D'));
 
       
       if (node.isMesh) {
-        // console.log(`${indent}  Material: ${node.material ? node.material.name || 'unnamed' : 'none'}`);
-        // console.log(`${indent}  Geometry: ${node.geometry ? 'present' : 'none'} (vertices: ${node.geometry?.attributes?.position?.count || 'unknown'})`);
+        
       }
       if (node.children && node.children.length > 0) {
         node.children.forEach(child => inspectNode(child, depth + 1));
       }
     };
-    // console.log("Model hierarchy:");
-    // inspectNode(scene);
-    // ... rest of ModelInspector ...
+
   }, [scene]);
   return null; 
 }
@@ -1806,6 +1981,7 @@ function SceneManager({ userHelmetTextures, focusedTarget, highlightedAstronaut,
         highlightedAstronaut={highlightedAstronaut}
         debugMode={debugMode}
         isMobileView={isMobileView}
+        useFloatEffect={false} // Disable Float effect - use manual animation
       />
       
       {/* Demo Comet System */}
@@ -1813,10 +1989,10 @@ function SceneManager({ userHelmetTextures, focusedTarget, highlightedAstronaut,
       
       <EffectComposer>
         <Bloom 
-          intensity={0.5} 
-          luminanceThreshold={0.1} 
+          intensity={0.3} 
+          luminanceThreshold={0.9} 
           luminanceSmoothing={0.9} 
-          kernelSize={3}
+          kernelSize={2}
         />
         <Vignette 
           opacity={0.3} 
@@ -1843,7 +2019,7 @@ export default function MoonSceneComponent({userHelmetTextures, currentUser, onS
   
   // Debug: Track focusedTarget changes
   useEffect(() => {
-    console.log("focusedTarget changed to:", focusedTarget?.type ? `${focusedTarget.type} ${focusedTarget.index}` : 'null');
+    
   }, [focusedTarget]);
   const [isCustomizerOpen, setIsCustomizerOpen] = useState(false);
   const [isMobileView, setIsMobileView] = useState(false);
@@ -1888,10 +2064,10 @@ export default function MoonSceneComponent({userHelmetTextures, currentUser, onS
   }, []);
 
   const handleAstronautClick = (index, astronautObject, userData) => {
-    console.log("handleAstronautClick called with:", { index, focusedTarget: focusedTarget?.index, isMobileView });
+  
     
     if (index === null) { // Direct deselect signal
-      console.log("Deselecting astronaut (index was null)");
+    
       setFocusedTarget(null);
       setHighlightedAstronaut(null);
       return;
@@ -1903,14 +2079,14 @@ export default function MoonSceneComponent({userHelmetTextures, currentUser, onS
     if (isMobileView) {
       // If this astronaut is already highlighted, zoom in (second tap)
       if (highlightedAstronaut && highlightedAstronaut.index === index) {
-        console.log("Second tap on highlighted astronaut - zooming in");
+       
         setFocusedTarget(newTarget);
         setHighlightedAstronaut(null); // Clear highlight when zooming
         return;
       }
       
       // First tap - just highlight
-      console.log("First tap - highlighting astronaut", index, "newTarget:", newTarget);
+    
       setHighlightedAstronaut(newTarget);
       // Clear any existing focus
       if (focusedTarget) {
@@ -1922,12 +2098,12 @@ export default function MoonSceneComponent({userHelmetTextures, currentUser, onS
     // Desktop behavior - immediate zoom
     // Check if clicking the same astronaut that's already focused
     if (focusedTarget && focusedTarget.type === 'astronaut' && focusedTarget.index === index) {
-      console.log("Clicking same focused astronaut - clearing focus");
+     
       setFocusedTarget(null);
       return;
     }
 
-    console.log("Setting new focused target:", index);
+   
     setFocusedTarget(newTarget);
   };
 
@@ -1940,14 +2116,14 @@ export default function MoonSceneComponent({userHelmetTextures, currentUser, onS
       if (isMobileView) {
         // If this rocket is already highlighted, zoom in (second tap)
         if (highlightedRocket && highlightedRocket.object3D === targetInfo.object3D) {
-          console.log("Second tap on highlighted rocket - zooming in");
+        
           setFocusedTarget(targetInfo);
           setHighlightedRocket(null); // Clear highlight when zooming
           return;
         }
         
         // First tap - just highlight
-        console.log("First tap - highlighting rocket");
+      
         setHighlightedRocket(targetInfo);
         // Clear any existing focus
         if (focusedTarget) {
@@ -1972,7 +2148,7 @@ export default function MoonSceneComponent({userHelmetTextures, currentUser, onS
   const handleCanvasClick = (event) => {
     // Only clear focus if clicking directly on the canvas
     if (event.target === event.currentTarget) {
-      console.log("Canvas clicked - clearing focus and highlight");
+    
       setFocusedTarget(null);
       setHighlightedAstronaut(null);
       setHighlightedRocket(null);
@@ -1980,7 +2156,7 @@ export default function MoonSceneComponent({userHelmetTextures, currentUser, onS
   };
 
   const handleSaveCustomizations = useCallback((customizations) => {
-    console.log("Saving customizations:", customizations);
+
   }, []);
 
   
@@ -2036,11 +2212,11 @@ export default function MoonSceneComponent({userHelmetTextures, currentUser, onS
           });
           
           gl.domElement.addEventListener('webglcontextrestored', () => {
-            console.log("WebGL Context Restored - attempting to restore focus state");
+           
             // Restore the focused state after a brief delay to let Three.js reinitialize
             setTimeout(() => {
               if (focusedTargetRef.current) {
-                console.log("Restoring focus to:", focusedTargetRef.current.type, focusedTargetRef.current.index);
+               
                 // Force a re-render by temporarily clearing and restoring the focus
                 setFocusedTarget(null);
                 setTimeout(() => {
@@ -2051,8 +2227,8 @@ export default function MoonSceneComponent({userHelmetTextures, currentUser, onS
           });
         }}
       >
-        {/* <color attach="background" args={['#000010']} /> */}
-        <fog attach="fog" args={['#000010', 10, 50]} />
+        <color attach="background" args={['#000010']} />
+        <fog attach="fog" args={['#000020', 15, 60]} />
            {/* <Stars radius={50} depth={50} count={5000} factor={4} saturation={0} fade speed={1} /> */}
             {/* Add the constellation model before the star field */}
             <Suspense fallback={null}>
