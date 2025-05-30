@@ -146,10 +146,6 @@ const WordPressSlider = ({ setWordPressSliderLoaded }) => {
 
       // Start checking if content is actually ready
       startContentReadyCheck();
-
-      if (setWordPressSliderLoaded) {
-        setWordPressSliderLoaded(true);
-      }
     };
 
     // Function to handle iframe error
@@ -278,6 +274,14 @@ const WordPressSlider = ({ setWordPressSliderLoaded }) => {
       }
     }
   }, [iframeError, loadingAttempts]);
+
+  // Add effect to handle content ready state
+  useEffect(() => {
+    if (contentReady && setWordPressSliderLoaded) {
+      console.log("✅ WordPress content is ready, signaling completion");
+      setWordPressSliderLoaded(true);
+    }
+  }, [contentReady, setWordPressSliderLoaded]);
 
   return (
     <>

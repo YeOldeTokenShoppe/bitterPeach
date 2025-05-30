@@ -1237,11 +1237,17 @@ function initializeLeaderboard() {
 
 // Transcript Functions
 function initializeTranscript() {
-  const transcriptHeader = document.querySelector('.transcript-header');
+  const expandIcon = document.getElementById('transcript-expand-icon');
   const transcriptToggleBtn = document.querySelector('.transcript-toggle-btn');
   
-  if (transcriptHeader) {
-    transcriptHeader.addEventListener('click', toggleTranscript);
+  // Only add click handler to the expand icon, not the entire header
+  if (expandIcon) {
+    expandIcon.addEventListener('click', function(e) {
+      e.preventDefault(); // Prevent default behavior
+      e.stopPropagation(); // Prevent event bubbling
+      console.log('🔽 Expand icon clicked - toggling transcript');
+      toggleTranscript();
+    });
   }
   
   if (transcriptToggleBtn) {
@@ -1260,20 +1266,32 @@ function setupLanguageSelection() {
   
   if (!languageSelect) return;
   
-  languageSelect.addEventListener('change', function() {
+  // Prevent clicks on language select from bubbling up
+  languageSelect.addEventListener('click', function(e) {
+    e.stopPropagation();
+  });
+  
+  languageSelect.addEventListener('change', function(e) {
+    e.stopPropagation(); // Prevent event bubbling
+    
     const newLanguage = this.value;
     transcriptState.currentLanguage = newLanguage;
     console.log(`🌐 Language changed to: ${newLanguage}`);
     
-    // Update transcript content if currently visible
-    if (transcriptState.isVisible) {
-      updateTranscriptContent();
-      
-      // Re-sync with video if video is playing
-      const orientationVideo = document.getElementById("orientation-video");
-      if (orientationVideo && !orientationVideo.paused) {
-        syncTranscriptWithVideo();
-      }
+    // Always update transcript content, regardless of visibility
+    updateTranscriptContent();
+    
+    // Re-sync with video if video is playing
+    const orientationVideo = document.getElementById("orientation-video");
+    if (orientationVideo && !orientationVideo.paused) {
+      syncTranscriptWithVideo();
+    }
+    
+    // Ensure UI elements stay visible
+    const transcriptContainer = document.querySelector('.transcript-container');
+    if (transcriptContainer) {
+      transcriptContainer.style.display = 'block';
+      transcriptContainer.classList.remove('collapsed');
     }
   });
   
@@ -1326,11 +1344,34 @@ function updateTranscriptContent() {
 
 function toggleTranscript() {
   const content = document.querySelector('.transcript-content');
-  const icon = document.querySelector('.transcript-expand-icon');
+  const icon = document.getElementById('transcript-expand-icon');
+  const container = document.querySelector('.transcript-container');
+  
+  console.log('🔄 toggleTranscript called - current state:', {
+    contentCollapsed: content?.classList.contains('collapsed'),
+    iconText: icon?.textContent
+  });
   
   if (content && icon) {
+    // Only toggle collapsed on the content, not the icon or container
     content.classList.toggle('collapsed');
-    icon.classList.toggle('collapsed');
+    
+    // Force update icon text based on new state
+    const isCollapsed = content.classList.contains('collapsed');
+    icon.textContent = isCollapsed ? '▶' : '▼';
+    transcriptState.isVisible = !isCollapsed;
+    
+    console.log('🔄 toggleTranscript complete - new state:', {
+      contentCollapsed: isCollapsed,
+      iconText: icon.textContent,
+      transcriptVisible: transcriptState.isVisible
+    });
+    
+    // Make sure container stays visible
+    if (container) {
+      container.style.display = 'block';
+      container.classList.remove('collapsed');
+    }
   }
 }
 
@@ -1623,7 +1664,7 @@ function playOrientationVideo() {
 }
 
 // Function to stop orientation video
-function stopOrientationVideo() {
+function stopOrientationVideo(isManualStop = true) {
   const orientationVideo = document.getElementById("orientation-video");
   const deadAir = document.getElementById("deadAir");
   const offlineDisplay = document.getElementById("offline-display");
@@ -1648,7 +1689,10 @@ function stopOrientationVideo() {
     if (deadAir) deadAir.style.display = "block";
     if (offlineDisplay) offlineDisplay.style.display = "block";
     
-    hideTranscript();
+    // Only hide transcript if this was a manual stop (skip), not natural end
+    if (isManualStop) {
+      hideTranscript();
+    }
     enableToggles();
     
     window.orientationComplete = true;
@@ -1659,11 +1703,27 @@ function stopOrientationVideo() {
 function showTranscriptForOrientationVideo() {
   const transcriptToggleBtn = document.querySelector('.transcript-toggle-btn');
   const transcriptContainer = document.querySelector('.transcript-container');
+  const transcriptContent = document.querySelector('.transcript-content');
+  const expandIcon = document.getElementById('transcript-expand-icon');
 
   // Show the transcript container during orientation video
   if (transcriptContainer) {
     transcriptContainer.style.display = 'block';
     console.log("📄 Transcript container shown for orientation video");
+  }
+
+  // Keep transcript content collapsed by default
+  if (transcriptContent) {
+    transcriptContent.classList.add('collapsed');
+    transcriptState.isVisible = false;
+  }
+
+  // Update expand icon to show collapsed state (sideways arrow)
+  if (expandIcon) {
+    expandIcon.textContent = '▶';
+    expandIcon.style.cursor = 'pointer';
+    expandIcon.style.padding = '5px';
+    expandIcon.style.userSelect = 'none';
   }
 
   if (transcriptToggleBtn) {
@@ -1672,9 +1732,10 @@ function showTranscriptForOrientationVideo() {
   }
 
   initTranscriptForVideo();
-
-  if (transcriptToggleBtn && !transcriptState.isVisible) {
-    toggleTranscriptVisibility();
+  
+  // Ensure container never gets collapsed class
+  if (transcriptContainer) {
+    transcriptContainer.classList.remove('collapsed');
   }
 
   const orientationVideo = document.getElementById("orientation-video");

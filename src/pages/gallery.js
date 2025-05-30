@@ -23,7 +23,6 @@ const BurnGalleryClient = dynamic(() => import("../components/BurnGallery"), {
 export default function GalleryPage() {
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  // Initialize state
   const [showSpotify, setShowSpotify] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [is80sMode, setIs80sMode] = useState(false);
@@ -170,28 +169,33 @@ export default function GalleryPage() {
     const newMode = !is80sMode;
     setIs80sMode(newMode);
 
-    // Music state is now controlled by cyberpunk mission control
-    // No need to directly modify showSpotify here anymore
-  };
-
-  // Handle close for music player
-  const handleClose = () => {
-    // Always hide Spotify when closing the music player
-    setShowSpotify(false);
-
-    // Get iframe reference
-    const iframe = getMissionControlIframe();
-
-    // Notify mission control that music is no longer playing
-    if (iframe && iframe.contentWindow) {
-      iframe.contentWindow.postMessage(
-        { type: "SET_MUSIC_STATE", isPlaying: false },
-        "*"
-      );
-    } else {
-      console.warn("Mission control iframe not found");
+    // When turning ON 80s mode, automatically show music player
+    if (newMode) {
+      console.log("🎵 Gallery: Turning ON 80s mode - automatically showing music player");
+      setShowSpotify(true);
     }
+    // When turning OFF 80s mode, preserve the existing music state
+    // (showSpotify state is maintained separately)
   };
+
+  // // Handle close for music player
+  // const handleClose = () => {
+  //   // Always hide Spotify when closing the music player
+  //   setShowSpotify(false);
+
+  //   // Get iframe reference
+  //   const iframe = getMissionControlIframe();
+
+  //   // Notify mission control that music is no longer playing
+  //   if (iframe && iframe.contentWindow) {
+  //     iframe.contentWindow.postMessage(
+  //       { type: "SET_MUSIC_STATE", isPlaying: false },
+  //       "*"
+  //     );
+  //   } else {
+  //     console.warn("Mission control iframe not found");
+  //   }
+  // };
 
   // Update loading progress based on component and 3D scene loading states
   useEffect(() => {

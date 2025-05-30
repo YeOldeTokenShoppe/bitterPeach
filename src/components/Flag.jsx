@@ -68,17 +68,22 @@ export default function Flag({
   
 flagRef
 }) {
+  const [isReady, setIsReady] = React.useState(false);
+  const frameCount = useRef(0);
+  
   // Load texture with useLoader
   const texture = useLoader(THREE.TextureLoader, textureURL);
   
   // Configure texture immediately in the main thread
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.flipY = false;
-  texture.wrapS = THREE.ClampToEdgeWrapping;
-  texture.wrapT = THREE.ClampToEdgeWrapping;
-  texture.minFilter = THREE.LinearMipmapLinearFilter;
-  texture.magFilter = THREE.LinearFilter;
-  texture.generateMipmaps = true;
+  if (texture) {
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.flipY = false;
+    texture.wrapS = THREE.ClampToEdgeWrapping;
+    texture.wrapT = THREE.ClampToEdgeWrapping;
+    texture.minFilter = THREE.LinearMipmapLinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    texture.generateMipmaps = true;
+  }
   
   // Particles
   const particles = useMemo(() => {
@@ -185,16 +190,23 @@ flagRef
   useEffect(() => {
     if (flagRef) flagRef.current = meshRef.current;
   }, [flagRef]);
+  
+  // Use frame count to ensure flag is ready after a few frames
+  useFrame(() => {
+    if (!isReady && frameCount.current++ > 5) {
+      setIsReady(true);
+    }
+  });
 
   return (
-<group ref={meshRef} position={position} scale={[0.5, 0.5, 0.5]}>
+<group ref={meshRef} position={[0, 0, 0]} scale={[2, 2, 2]}>
   {/* Flag Cloth */}
   <mesh
     geometry={clothGeom}
     scale={scale}
     castShadow
     receiveShadow
-    visible={true}
+    visible={isReady}
     renderOrder={1}
     frustumCulled={false}
   >

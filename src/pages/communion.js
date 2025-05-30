@@ -3,7 +3,7 @@ import Carousel from "../components/Carousel";
 import NavBar from "../components/NavBar.client";
 import Footer from "../components/Footer";
 import gsap from "gsap";
-import Loader from "../components/Loader";
+import Magic8BallLoader from "../components/Magic8BallLoader";
 import Header from "../components/Header";
 // import { zIndex } from "html2canvas/dist/types/css/property-descriptors/z-index";
 
@@ -413,7 +413,21 @@ export default function CommunionPage() {
             pointerEvents: "all"
           }}
         >
-          <Loader progress={loadingProgress} />
+          <Magic8BallLoader 
+            isLoading={isLoading}
+            loadingProgress={loadingProgress}
+            onComplete={() => {
+              if (carouselLoaded && allImagesLoaded && communionLoaded) {
+                setShowContent(true);
+                setTimeout(() => {
+                  setIsLoading(false);
+                  setTimeout(() => {
+                    setContentOpacity(1);
+                  }, 500);
+                }, 500);
+              }
+            }}
+          />
           <div
             style={{
               color: "#e1b67e",

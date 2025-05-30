@@ -38,13 +38,13 @@ const Magic8BallLoader = ({ isLoading = true, onComplete, loadingProgress = 0 })
     "Patience<br/>young<br/>one...",
     "Consulting<br/>the<br/>spirits...",
     "Brewing<br/>digital<br/>magic...",
-    "Calculating<br/>infinite<br/>possibilities...",
-    "Warming up<br/>the<br/>servers...",
+    "Calculating<br/>infinite<br/>possibil80s...",
+    "Warming<br/>up the<br/>servers...",
     "Fetching<br/>ethereal<br/>data...",
     "Synchronizing<br/>dimensions...",
     "Optimizing<br/>your<br/>experience...",
     "Building<br/>something<br/>special...",
-    "Get ready<br/>for<br/>amazement..."
+    // "Get ready<br/>for<br/>amazement..."
   ];
 
   // Auto-reveal messages periodically
@@ -211,8 +211,8 @@ const Magic8BallLoader = ({ isLoading = true, onComplete, loadingProgress = 0 })
             </div>
           </div>
         </div>
-        <div className="thelma" style={{position: 'relative', top: '1.5rem', fontSize: '2.5rem', fontWeight: 'bold', textShadow: '0 0 10px rgba(138, 43, 226, 0.8), 0 0 20px rgba(138, 43, 226, 0.4)'}}>
-          LOADING...{displayProgress}%
+        <div className="thelma" style={{position: 'relative', top: '1.5rem', fontFamily: 'UnifrakturCook', fontSize: '2.5rem', fontWeight: 'bold', textShadow: '0 0 10px rgba(138, 43, 226, 0.8), 0 0 20px rgba(138, 43, 226, 0.4)'}}>
+         <span style={{fontFamily: 'UnifrakturMaguntia', fontSize: '3rem', fontWeight: 'bold', textShadow: '0 0 10px rgba(138, 43, 226, 0.8), 0 0 20px rgba(138, 43, 226, 0.4)'}}>L</span>oading <span style={{fontFamily: 'Roboto', fontSize: '3rem', fontWeight: 'bold', textShadow: '0 0 10px rgba(138, 43, 226, 0.8), 0 0 20px rgba(138, 43, 226, 0.4)'}}> ...</span>{displayProgress}%
         </div>
         {/* <div className={styles.loadingText}>
           <div className={styles.magicalDots} translate="no">

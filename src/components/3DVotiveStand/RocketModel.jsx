@@ -1004,49 +1004,49 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch,
         cleanupDuplicateRiders(model);
 
         // Set up animation
-        // if (gltf.animations && gltf.animations.length > 0) {
-        //   // Create a mixer for the rocket
-        //   mixerRef.current = new THREE.AnimationMixer(model);
+        if (gltf.animations && gltf.animations.length > 0) {
+          // Create a mixer for the rocket
+          mixerRef.current = new THREE.AnimationMixer(model);
 
-        //   // Find the animation named "Animation"
-        //   const animation = gltf.animations.find(
-        //     anim => anim.name === "Animation" || anim.name.includes("Animation")
-        //   );
+          // Find the animation named "Animation"
+          const animation = gltf.animations.find(
+            anim => anim.name === "Animation" || anim.name.includes("Animation")
+          );
 
-        //   if (animation) {
-        //     // Create an action for the animation and play it
-        //     const action = mixerRef.current.clipAction(animation);
+          if (animation) {
+            // Create an action for the animation and play it
+            const action = mixerRef.current.clipAction(animation);
 
-        //     // Increase animation speed by setting timeScale (2.0 = twice as fast)
-        //     action.timeScale = 2.5;
+            // Increase animation speed by setting timeScale (2.0 = twice as fast)
+            action.timeScale = 2.5;
 
-        //     // Make the animation loop
-        //     action.loop = THREE.LoopRepeat;
+            // Make the animation loop
+            action.loop = THREE.LoopRepeat;
 
-        //     // Start the animation
-        //     action.play();
+            // Start the animation
+            action.play();
 
-        //     console.log("Playing rocket animation at increased speed:", animation.name);
-        //   } else {
-        //     // If "Animation" is not found, log available animations
-        //     console.log(
-        //       "Available animations:",
-        //       gltf.animations.map(a => a.name)
-        //     );
+            console.log("Playing rocket animation at increased speed:", animation.name);
+          } else {
+            // If "Animation" is not found, log available animations
+            console.log(
+              "Available animations:",
+              gltf.animations.map(a => a.name)
+            );
 
-        //     // Play the first animation if "Animation" is not found
-        //     if (gltf.animations.length > 0) {
-        //       const action = mixerRef.current.clipAction(gltf.animations[0]);
-        //       action.timeScale = 2.5; // Increase speed
-        //       action.loop = THREE.LoopRepeat;
-        //       action.play();
-        //       console.log(
-        //         "Playing first available animation at increased speed:",
-        //         gltf.animations[0].name
-        //       );
-        //     }
-        //   }
-        // }
+            // Play the first animation if "Animation" is not found
+            if (gltf.animations.length > 0) {
+              const action = mixerRef.current.clipAction(gltf.animations[0]);
+              action.timeScale = 2.5; // Increase speed
+              action.loop = THREE.LoopRepeat;
+              action.play();
+              console.log(
+                "Playing first available animation at increased speed:",
+                gltf.animations[0].name
+              );
+            }
+          }
+        }
 
         // Add the anchor group to the scene
         scene.add(anchorGroup);

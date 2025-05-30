@@ -40,10 +40,11 @@ import dynamic from "next/dynamic";
 import Image from "next/image";
 import { getUserImageUrl, getUsername, createUserData } from "../utilities/clerkHelpers";
 
-// Dynamically import the MusicPlayer component
-const MusicPlayer2 = dynamic(() => import("./MusicPlayer2"), {
+// Dynamically import MusicPlayerCyberpunk to avoid SSR issues
+const MusicPlayerCyberpunk = dynamic(() => import("./MusicPlayerCyberpunk"), {
   ssr: false,
 });
+
 
 const SidePanel = ({
   onButtonClick,
@@ -51,10 +52,10 @@ const SidePanel = ({
   toggle80sMode,
   monsterMode,
   toggleMonsterMode,
-  showSpotify,
   rocketModelVisible,
   toggleRocketModel,
   toggleConstellationVisibility,
+  showSpotify,
   setShowSpotify,
 }) => {
   const [isTextBoxVisible, setIsTextBoxVisible] = useState(true);
@@ -227,6 +228,9 @@ const SidePanel = ({
     setIsTextBoxVisible(true);
     setHasUserInteracted(true);
   };
+
+  // Letters for scramble effect
+  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
   // Scramble effect functions
   const startScramble = (element, originalText) => {
@@ -420,11 +424,48 @@ const SidePanel = ({
 
   // Modified handler for 80s mode toggle
   const handle80sModeToggle = () => {
+    console.log("🎮 handle80sModeToggle called, current states:", {
+      is80sMode,
+      showSpotify,
+      monsterMode
+    });
+    
     if (!is80sMode && monsterMode) {
       // If turning on 80s mode while monster mode is on, turn off monster mode
       toggleMonsterMode(); // Turn off monster mode
     }
+    
+    // Store current music state before toggling
+    const currentMusicState = showSpotify;
+    console.log("🎵 Music state before 80s toggle:", currentMusicState);
+    
     toggle80sMode(); // Toggle 80s mode
+    
+    // When turning ON 80s mode, automatically show music player
+    // When turning OFF 80s mode, preserve the previous music state
+    if (!is80sMode) {
+      // We're turning ON 80s mode (because is80sMode hasn't updated yet)
+      console.log("🎵 Turning ON 80s mode - automatically showing music player");
+      setTimeout(() => {
+        setShowSpotify(true);
+        // Also sync with iframe
+        sendMessageToIframe({
+          type: "SET_MUSIC_MODE",
+          isActive: true
+        });
+      }, 100);
+    } else if (currentMusicState) {
+      // We're turning OFF 80s mode, preserve music state if it was playing
+      console.log("🎵 Turning OFF 80s mode - preserving music state");
+      setTimeout(() => {
+        setShowSpotify(true);
+        // Also sync with iframe
+        sendMessageToIframe({
+          type: "SET_MUSIC_MODE",
+          isActive: true
+        });
+      }, 100);
+    }
   };
 
   // Modified handler for monster mode toggle
@@ -602,8 +643,36 @@ const SidePanel = ({
           break;
 
         case "EIGHTIES_MODE_CHANGE": // Received from iframe toggle
- 
+          // Store current music state before toggling
+          const currentMusicState = showSpotify;
+          
           toggle80sMode(); // Call the function passed via props
+          
+          // When turning ON 80s mode, automatically show music player
+          // When turning OFF 80s mode, preserve the previous music state
+          if (!is80sMode) {
+            // We're turning ON 80s mode (because is80sMode hasn't updated yet)
+            console.log("🎵 Iframe toggle: Turning ON 80s mode - automatically showing music player");
+            setTimeout(() => {
+              setShowSpotify(true);
+              // Sync back to iframe
+              sendMessageToIframe({
+                type: "SET_MUSIC_MODE",
+                isActive: true
+              });
+            }, 100);
+          } else if (currentMusicState) {
+            // We're turning OFF 80s mode, preserve music state if it was playing
+            console.log("🎵 Iframe toggle: Turning OFF 80s mode - preserving music state");
+            setTimeout(() => {
+              setShowSpotify(true);
+              // Sync back to iframe
+              sendMessageToIframe({
+                type: "SET_MUSIC_MODE",
+                isActive: true
+              });
+            }, 100);
+          }
           break;
 
         case "SYNC_80S_STATE": // Received from iframe for PostProcessingEffects
@@ -1103,6 +1172,66 @@ const SidePanel = ({
         </Button>
       )}
 
+      {/* Glowing tab for non-mobile devices */}
+      {!isTouchDevice && !isTextBoxVisible && hasUserInteracted && (
+        <Box
+          position="fixed"
+          right="0"
+          top="50%"
+          transform="translateY(-50%)"
+          height="80px"
+          width="20px"
+          zIndex="5001"
+          onClick={handleButtonClick}
+          cursor="pointer"
+          background={is80sMode ? "linear-gradient(to bottom, #581c87, #4c1d95)" : "linear-gradient(to bottom, #0f172a, #1e293b)"}
+          borderRadius="8px 0 0 8px"
+          border="1px solid"
+          borderColor={is80sMode ? "#d946ef" : "#134e4a"}
+          borderRight="none"
+          overflow="hidden"
+          transition="all 0.3s ease"
+          _hover={{
+            width: "25px",
+            boxShadow: is80sMode 
+              ? "0 0 20px rgba(217, 70, 239, 0.6), inset 0 0 10px rgba(217, 70, 239, 0.3)"
+              : "0 0 20px rgba(0, 255, 255, 0.6), inset 0 0 10px rgba(0, 255, 255, 0.3)",
+          }}
+          sx={{
+            '&::before': {
+              content: '""',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: is80sMode 
+                ? 'linear-gradient(90deg, transparent, rgba(217, 70, 239, 0.5), transparent)'
+                : 'linear-gradient(90deg, transparent, rgba(0, 255, 255, 0.5), transparent)',
+              animation: 'tabGlow 2s linear infinite',
+            },
+            '@keyframes tabGlow': {
+              '0%': { transform: 'translateX(-100%)' },
+              '100%': { transform: 'translateX(100%)' },
+            },
+          }}
+        >
+          <Flex
+            height="100%"
+            alignItems="center"
+            justifyContent="center"
+            color={is80sMode ? "#ff00ff" : "#22d3ee"}
+            fontSize="14px"
+            fontWeight="bold"
+            textShadow={is80sMode ? "0 0 10px #ff00ff" : "0 0 10px #22d3ee"}
+            transform="rotate(-90deg)"
+            letterSpacing="0.1em"
+          >
+            TAB
+          </Flex>
+        </Box>
+      )}
+
       {/* Hotzone area */}
       {!isTouchDevice && hasUserInteracted && (
         <Box
@@ -1173,7 +1302,7 @@ const SidePanel = ({
         <Box flex="1" minHeight="0" overflow="hidden">
           <iframe
             ref={missionControlIframeRef}
-            src="/cyberpunk_mission_control_clean.html"
+            src="/cyberpunk_mission_control_enhanced.html"
             style={{
               width: "100%",
               height: "100%",
@@ -1187,17 +1316,24 @@ const SidePanel = ({
           />
         </Box>
         
-        {/* Integrated Music Player - NOT absolutely positioned but in the normal flow */}
+        {/* Music Player - Stacked layout to prevent overlap */}
         {showSpotify && (
           <Box
             width="100%"
             height="auto" 
-            backgroundColor="transparent"
             overflow="hidden"
+            flexShrink="0"
           >
-            <MusicPlayer2
+            <MusicPlayerCyberpunk
               isVisible={showSpotify}
-              onClose={() => setShowSpotify(false)}
+              onClose={() => {
+                setShowSpotify(false);
+                // Notify mission control about music player closing
+                sendMessageToIframe({
+                  type: "SET_MUSIC_STATE",
+                  isPlaying: false,
+                });
+              }}
               autoPlay={true}
               is80sMode={is80sMode}
             />

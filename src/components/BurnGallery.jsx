@@ -137,6 +137,7 @@ function BurnGallery({
   const [monsterMode, setMonsterMode] = useState(false);
   const [clerkUserData, setClerkUserData] = useState(null);
   const [rocketModelVisible, setRocketModelVisible] = useState(false);
+  const [showUI, setShowUI] = useState(true); // Control UI visibility during transitions
   const [isConstellationsVisible, setIsConstellationsVisible] = useState(false);
   const [paginationState, setPaginationState] = useState(null);
   const votiveStandRef = useRef(null);
@@ -390,8 +391,6 @@ function BurnGallery({
                 setIsLoading={setIsModelLoaded}
                 isInMarkerView={isInMarkerView}
                 isMobileView={isMobileView}
-                setShowSpotify={setShowSpotify}
-                showSpotify={showSpotify}
                 isModalOpen={isModalOpen}
                 setIsModalOpen={setIsModalOpen}
                 onSpawnReady={setSpawnFunction}
@@ -404,14 +403,19 @@ function BurnGallery({
                 toggleConstellationVisibility={toggleConstellationVisibility}
                 onPaginationChange={setPaginationState}
                 onCandleViewerStateChange={setIsCandleViewerVisible}
+                onUIVisibilityChange={setShowUI}
               />
             ) : null}
           </GridItem>
         </Grid>
 
-        {/* Conditionally render desktop or mobile panel */}
-        {currentView === "main" &&
-          (isMobileView ? (
+        {/* Keep panels mounted but hide during transitions to preserve music playback */}
+        <div style={{ 
+          display: currentView === "main" && showUI ? 'block' : 'none',
+          position: 'relative',
+          zIndex: currentView === "main" && showUI ? 'auto' : -1
+        }}>
+          {isMobileView ? (
             <MobileSidePanel
               onButtonClick={handleButtonClick}
               is80sMode={is80sMode}
@@ -440,7 +444,8 @@ function BurnGallery({
               toggleConstellationVisibility={toggleConstellationVisibility}
               isConstellationsVisible={isConstellationsVisible}
             />
-          ))}
+          )}
+        </div>
         {/* <Box
             display="flex"
             justifyContent="center"

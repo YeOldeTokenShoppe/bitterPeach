@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cyberpunk Mission Control Panel Enhanced</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles/cyberpunk-mission-control-enhanced.css" />
+    
+    <!-- SitePal AI Form Styling -->
+    <style>
+      /* Style SitePal generated elements to match cyberpunk theme - VERY AGGRESSIVE */
+      #vhss-aiplayer-aiform input[name="textToSay"],
+      #vhss-aiplayer-aiform input.vhss-ai-text,
+      #vhss-aiplayer-aiform input[type="text"] {
+        background: rgba(0, 0, 0, 0.9) !important;
+        background-color: rgba(0, 0, 0, 0.9) !important;
+        border: 3px solid #00c8ff !important;
+        border-radius: 6px !important;
+        color: #00ff41 !important;
+        font-family: 'Courier New', monospace !important;
+        font-size: 16px !important;
+        font-weight: bold !important;
+        padding: 15px !important;
+        width: calc(100% - 60px) !important;
+        min-width: 200px !important;
+        min-height: 30px !important;
+        height: auto !important;
+        max-height: none !important;
+        line-height: normal !important;
+        box-shadow: inset 0 0 15px rgba(0, 255, 65, 0.4), 0 0 25px rgba(0, 200, 255, 0.6) !important;
+        outline: none !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+        display: block !important;
+        position: relative !important;
+        z-index: 1000 !important;
+      }
+      
+      #vhss-aiplayer-aiform input[name="textToSay"]:focus {
+        border-color: #00ff41 !important;
+        box-shadow: inset 0 0 10px rgba(0, 255, 65, 0.5), 0 0 30px rgba(0, 255, 65, 0.8) !important;
+      }
+      
+      /* Style the placeholder text */
+      #vhss-aiplayer-aiform .custom-placeholder {
+        color: #00c8ff !important;
+        font-family: 'Courier New', monospace !important;
+        font-size: 12px !important;
+        opacity: 0.7 !important;
+      }
+      
+      /* Style the send button image */
+      #vhss-aiplayer-aiform .ai-txt-send-button {
+        filter: hue-rotate(180deg) brightness(2) !important;
+        cursor: pointer !important;
+        transition: all 0.3s ease !important;
+      }
+      
+      #vhss-aiplayer-aiform .ai-txt-send-button:hover {
+        filter: hue-rotate(180deg) brightness(3) drop-shadow(0 0 10px #00ff41) !important;
+        transform: scale(1.2) !important;
+      }
+      
+      /* Style the options button */
+      #vhss-aiplayer-aiform .ai-options-button {
+        filter: hue-rotate(180deg) brightness(2) !important;
+        cursor: pointer !important;
+      }
+      
+      /* Overall form container */
+      #vhss-aiplayer-aiform {
+        font-family: 'Courier New', monospace !important;
+        color: #fff !important;
+        padding: 10px !important;
+      }
+      
+      #vhss-aiplayer-aiform .vhss-aiplayer-aiform-inner {
+        background: linear-gradient(135deg, rgba(0, 255, 65, 0.1), rgba(0, 200, 255, 0.1)) !important;
+        border: 1px solid #00c8ff !important;
+        border-radius: 8px !important;
+        padding: 15px !important;
+        box-shadow: 0 0 20px rgba(0, 255, 65, 0.3) !important;
+      }
+      
+      /* Make sure everything is visible */
+      #vhss-aiplayer-aiform * {
+        visibility: visible !important;
+        display: inherit !important;
+      }
+      
+      #vhss-aiplayer-aiform form {
+        position: relative !important;
+        display: block !important;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Background Effects -->
+    <div class="scan-lines" id="scan-lines"></div>
+    <div class="color-shift color-shift-red" id="color-shift-red"></div>
+    <div class="color-shift color-shift-blue" id="color-shift-blue"></div>
+    <div class="glitch-overlay" id="glitch-overlay"></div>
+
+    <!-- Main Mission Control Interface -->
+    <div class="mission-control" id="mission-control">
+      <div class="threedy-shadow-red" id="threedy-shadow-red"></div>
+      <div class="threedy-shadow-blue" id="threedy-shadow-blue"></div>
+      
+      <!-- Header -->
+      <div class="panel-header">
+        <h1 class="panel-title">INFIN8O-LUNAR</h1>
+        <div class="panel-subtitle">MISSION CONTROL v2.0.80</div>
+      </div>
+
+      <!-- System Status Panel -->
+      <div class="system-status-panel">
+        <div class="status-grid">
+          <!-- Oxygen Level Gauge -->
+          <div class="gauge-container">
+            <div class="gauge-label">O₂ LEVEL</div>
+            <div class="gauge circular-gauge">
+              <svg viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="45" class="gauge-background" />
+                <circle cx="50" cy="50" r="45" class="gauge-fill oxygen-gauge" 
+                        stroke-dasharray="283" 
+                        stroke-dashoffset="70" />
+              </svg>
+              <div class="gauge-value">78%</div>
+            </div>
+          </div>
+
+          <!-- Power Level Gauge -->
+          <div class="gauge-container">
+            <div class="gauge-label">POWER</div>
+            <div class="gauge circular-gauge">
+              <svg viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="45" class="gauge-background" />
+                <circle cx="50" cy="50" r="45" class="gauge-fill power-gauge" 
+                        stroke-dasharray="283" 
+                        stroke-dashoffset="28" />
+              </svg>
+              <div class="gauge-value">90%</div>
+            </div>
+          </div>
+
+          <!-- Signal Strength -->
+          <div class="gauge-container">
+            <div class="gauge-label">SIGNAL</div>
+            <div class="signal-bars">
+              <div class="signal-bar active"></div>
+              <div class="signal-bar active"></div>
+              <div class="signal-bar active"></div>
+              <div class="signal-bar"></div>
+              <div class="signal-bar"></div>
+            </div>
+          </div>
+
+          <!-- Temperature Gauge -->
+          <div class="gauge-container">
+            <div class="gauge-label">TEMP</div>
+            <div class="temperature-display">
+              <div class="temp-value">-273°C</div>
+              <div class="temp-bar">
+                <div class="temp-fill"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Video Call Section -->
+      <div class="video-call">
+        <div class="video-header">
+          <span id="station-display">COMM:/lunar_base_alpha</span>
+          <div class="video-indicators">
+            <div class="indicator" data-label="REC">●</div>
+            <div class="indicator active" data-label="LIVE">●</div>
+            <div id="call-status" class="video-status"></div>
+          </div>
+        </div>
+
+        <div class="video-display">
+          <div id="video-feed" class="video-feed">
+            <video
+              id="deadAir"
+              loop
+              muted
+              playsinline
+              webkit-playsinline
+              style="width: 100%; height: 100%; object-fit: cover"
+            >
+              <source src="/1.mp4" type="video/mp4" />
+            </video>
+            
+            <!-- Offline Display -->
+            <div id="offline-display">
+              <span>SYS//OFFLINE</span>
+              <div class="crosshair-h"></div>
+              <div class="crosshair-v"></div>
+              <div class="scanlines-overlay"></div>
+            </div>
+
+            <!-- SitePal Container -->
+            <div id="sitepal-container">
+              <div id="vhss_aiPlayer"></div>
+              <div id="vhss-aiplayer-aiformlogs"></div>
+              <div id="vhss-aiplayer-aiformtranscript"></div>
+              <div id="vhss-aiplayer-aiformstatus"></div>
+            </div>
+
+            <!-- Video Overlay -->
+            <div class="video-overlay"></div>
+            <div id="self-view" class="self-view" style="display: none">
+              <div class="emoji-placeholder">👨‍🚀</div>
+            </div>
+            <div class="live-indicator" style="display: none">● LIVE</div>
+            
+            <!-- Loading Indicator -->
+            <div class="video-loading-indicator" style="display: none">
+              <div class="loading-spinner"></div>
+              <div>Establishing Connection...</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="video-controls">
+          <select class="station-select">
+            <option value="lunar_base_alpha">Lunar Base Alpha</option>
+            <option value="orbital_station_beta">Orbital Station Beta</option>
+            <option value="mars_outpost_gamma">Mars Outpost Gamma</option>
+          </select>
+        </div>
+
+        <!-- SitePal AI Text Form -->
+        <div class="text-comm-container" id="text-comm-container" style="display: none; margin-top: 10px; padding: 15px; background: linear-gradient(135deg, rgba(0, 255, 65, 0.1), rgba(0, 200, 255, 0.1)); border: 1px solid var(--accent-cyan); border-radius: 8px; box-shadow: 0 0 20px rgba(0, 255, 65, 0.3);">
+          <div class="text-comm-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-family: 'Press Start 2P', monospace; font-size: 11px;">
+            <span class="text-comm-title" style="color: var(--accent-cyan); text-shadow: 0 0 10px currentColor;">TEXT COMM//</span>
+            <span class="text-comm-status" id="text-comm-status" style="color: #00ff41; text-shadow: 0 0 10px currentColor; animation: pulse 2s infinite;">READY</span>
+          </div>
+          
+          <!-- Custom AI Input (bypassing SitePal's problematic form) -->
+          <div style="margin-top: 15px;">
+            <div style="position: relative; display: flex; align-items: center;">
+              <input 
+                type="text" 
+                id="custom-ai-input"
+                placeholder="Text your message..."
+                style="width: 100%; padding: 12px 50px 12px 12px; background: rgba(0, 0, 0, 0.8); border: 2px solid #00c8ff; border-radius: 4px; color: #00ff41; font-family: 'Courier New', monospace; font-size: 14px; outline: none; box-shadow: 0 0 15px rgba(0, 255, 65, 0.3);"
+              />
+              <img 
+                class="ai-text-send-button"
+                id="custom-ai-send"
+                src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTIgMjFMMjMgMTJMMiAzVjEwTDE3IDEyTDIgMTRWMjFaIiBmaWxsPSIjMDBmZjQxIiBzdHJva2U9IiMwMGZmNDEiIHN0cm9rZS13aWR0aD0iMSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+Cjwvc3ZnPg=="
+                style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); width: 20px; height: 20px; cursor: pointer; filter: drop-shadow(0 0 8px rgba(0, 255, 65, 0.6)); transition: all 0.3s ease; opacity: 0.8;"
+              />
+            </div>
+            <div style="font-size: 10px; color: #888; font-family: 'Courier New', monospace; text-align: center; margin-top: 8px; opacity: 0.8;">
+              Press ENTER or click arrow to communicate with the AI
+            </div>
+          </div>
+          
+          <!-- Hidden SitePal form (for AI functionality) -->
+          <div id="vhss-aiplayer-aiform" style="display: none !important;"></div>
+        </div>
+      </div>
+
+      <!-- Transcript Section (hidden by default, shown during orientation video) -->
+      <div class="transcript-container" style="display: none;">
+        <div class="transcript-header">
+          <h3 class="transcript-title">TRANSMISSION LOG</h3>
+          <div class="language-selector">
+            <select id="language-select">
+              <option value="en">EN</option>
+              <option value="es">ES</option>
+              <option value="fr">FR</option>
+              <option value="de">DE</option>
+              <option value="ja">JA</option>
+              <option value="zh">ZH</option>
+              <option value="ko">KO</option>
+              <option value="pt">PT</option>
+              <option value="ru">RU</option>
+              <option value="hi">HI</option>
+              <option value="ar">AR</option>
+              <option value="vi">VI</option>
+            </select>
+            <span class="transcript-expand-icon" id="transcript-expand-icon">▼</span>
+          </div>
+        </div>
+        <div class="transcript-content" id="transcript-content">
+          <div class="transcript-segment">Awaiting transmission...</div>
+        </div>
+      </div>
+
+      <!-- Mission Data Display -->
+      <div class="mission-data">
+        <div class="data-row">
+          <div class="data-item">
+            <span class="data-label">ALTITUDE</span>
+            <span class="data-value">384,400 km</span>
+          </div>
+          <div class="data-item">
+            <span class="data-label">VELOCITY</span>
+            <span class="data-value">1.022 km/s</span>
+          </div>
+        </div>
+        <div class="data-row">
+          <div class="data-item">
+            <span class="data-label">MISSION TIME</span>
+            <span class="data-value" id="mission-time">00:00:00</span>
+          </div>
+          <div class="data-item">
+            <span class="data-label">FUEL</span>
+            <span class="data-value">
+              <div class="fuel-gauge">
+                <div class="fuel-fill"></div>
+              </div>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Control Buttons -->
+      <div class="button-grid">
+        <button class="control-button enhanced" data-action="signal">
+          <div class="button-glow"></div>
+          <div class="button-prefix">SIG// 👽</div>
+          <div class="button-label">SIGNAL</div>
+          <div class="button-indicator"></div>
+        </button>
+        <button class="control-button enhanced" id="navigate-button" data-action="navigation" data-state="navigate">
+          <div class="button-glow"></div>
+          <div class="button-prefix">NAV//</div>
+          <div class="button-label">NAVIGATE</div>
+          <div class="button-indicator"></div>
+        </button>
+        <button class="control-button enhanced" data-action="systems">
+          <div class="button-glow"></div>
+          <div class="button-prefix">SYS//</div>
+          <div class="button-label">SYSTEMS</div>
+          <div class="button-indicator"></div>
+        </button>
+        <button class="control-button enhanced" data-action="communications">
+          <div class="button-glow"></div>
+          <div class="button-prefix">COM//</div>
+          <div class="button-label">Return to Earth</div>
+          <div class="button-indicator"></div>
+        </button>
+      </div>
+
+      <!-- Compact Toggle Switches -->
+      <div class="toggle-section compact">
+        <div class="toggle-row">
+          <!-- 80s Mode Toggle -->
+          <div class="toggle-group vertical">
+            <span class="toggle-label">80S MODE</span>
+            <div class="toggle-wrapper">
+              <div id="eighties-toggle" class="vertical-toggle purple">
+                <div class="toggle-track">
+                  <div class="toggle-handle"></div>
+                  <div class="toggle-glow"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Music Toggle -->
+          <div class="toggle-group vertical">
+            <span class="toggle-label">MUSIC</span>
+            <div class="toggle-wrapper">
+              <div id="music-toggle" class="vertical-toggle yellow">
+                <div class="toggle-track">
+                  <div class="toggle-handle"></div>
+                  <div class="toggle-glow"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Constellation Toggle -->
+          <div class="toggle-group vertical">
+            <span class="toggle-label">CONSTELLATIONS</span>
+            <div class="toggle-wrapper">
+              <div id="constellation-toggle" class="vertical-toggle cyan">
+                <div class="toggle-track">
+                  <div class="toggle-handle"></div>
+                  <div class="toggle-glow"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+
+      <!-- Status Bar -->
+      <div class="status-bar">
+        <div class="status-indicator">
+          <div class="status-light active"></div>
+          <span class="status-label">OPERATIONAL</span>
+        </div>
+        <div class="spacer"></div>
+        <div class="version-info">v2.0.80</div>
+      </div>
+
+      <!-- Mobile Tap to Start -->
+      <div class="tap-to-start">TAP TO START MISSION</div>
+    </div>
+
+    <!-- SitePal SDK -->
+    <script
+      type="text/javascript"
+      src="//vhss-d.oddcast.com/ai_embed_functions_v1.php" 
+    ></script>
+    
+    <!-- Immediate SitePal Setup (as recommended by SitePal) -->
+    <script type="text/javascript">
+      // This ensures AI_vhost_embed is available immediately
+      window.addEventListener('DOMContentLoaded', function() {
+        console.log("🚀 DOM loaded, AI_vhost_embed available:", typeof AI_vhost_embed);
+      });
+    </script>
+    
+
+    <!-- External JavaScript -->
+    <script src="/scripts/sitepal-integration.js"></script>
+    <script src="/scripts/custom-ai-interface.js"></script>
+    <script src="/scripts/cyberpunk-mission-control.js"></script>
+    <script src="/scripts/cyberpunk-mission-control-enhanced.js"></script>
+  </body>
+</html>

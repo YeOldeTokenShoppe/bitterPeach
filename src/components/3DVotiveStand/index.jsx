@@ -107,12 +107,10 @@ const ThreeDVotiveStand = forwardRef(({
   setIsLoading,
   isInMarkerView,
   isMobileView,
-  setShowSpotify,
   isModalOpen,
   setIsModalOpen,
   onSpawnReady,
   is80sMode,
-  showSpotify,
   monsterMode,
   userData,
   rocketModelVisible,
@@ -121,7 +119,11 @@ const ThreeDVotiveStand = forwardRef(({
   handleIgnition,
   onPaginationChange,
   onCandleViewerStateChange,
+  onUIVisibilityChange,
+  showSpotify,
+  setShowSpotify,
 }, ref) => {
+  // Use music context for showSpotify state
   const [showFloatingViewer, setShowFloatingViewer] = useState(false);
   const [selectedCandleData, setSelectedCandleData] = useState(null);
   const [viewerCandleIndex, setViewerCandleIndex] = useState(0);
@@ -781,6 +783,16 @@ const ThreeDVotiveStand = forwardRef(({
   const [preloadProgress, setPreloadProgress] = useState(0);
   const [galleryDisposed, setGalleryDisposed] = useState(false);
   
+  // State for UI visibility during transitions
+  const [showUI, setShowUI] = useState(true);
+  
+  // Notify parent when UI visibility changes
+  useEffect(() => {
+    if (onUIVisibilityChange) {
+      onUIVisibilityChange(showUI);
+    }
+  }, [showUI, onUIVisibilityChange]);
+  
   // Helper to load texture from URL with quality options
   const loadImageAsTexture = useCallback((url, options = {}) => {
     return new Promise((resolve, reject) => {
@@ -972,6 +984,10 @@ const ThreeDVotiveStand = forwardRef(({
   const handleTransitionStart = useCallback((onComplete) => {
     console.log('🚀 Transition started - RocketModel has already handled countdown');
     
+    // Hide UI immediately when transition starts
+    setShowUI(false);
+    console.log('🎭 Hiding UI for transition');
+    
     // Start the transition immediately since countdown is done in RocketModel
     setShowTransition(true);
     
@@ -985,6 +1001,14 @@ const ThreeDVotiveStand = forwardRef(({
         console.error('🎭 ERROR: onComplete is not a function!', onComplete);
       }
     });
+    
+    // Preload flag texture during transition
+    const flagImg = new Image();
+    flagImg.crossOrigin = 'anonymous';
+    flagImg.onload = () => {
+      console.log('🚩 Flag image preloaded during transition');
+    };
+    flagImg.src = '/flagLogo.jpg';
     
     // Dispose gallery resources during launch
     setTimeout(() => {

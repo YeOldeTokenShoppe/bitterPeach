@@ -6,7 +6,7 @@ import NavBar from "../components/NavBar.client";
 import Footer from "../components/Footer";
 import Carousel from "../components/Carousel";
 import dynamic from "next/dynamic";
-import Loader from "../components/Loader";
+import Magic8BallLoader from "../components/Magic8BallLoader";
 
 const BurningEffect = dynamic(() => import("../components/BurningEffect"), {
   ssr: false,
@@ -17,6 +17,7 @@ export default function Home() {
   const [heroLoaded, setHeroLoaded] = useState(false); // Track when Hero is loaded
   const [communionLoaded, setCommunionLoaded] = useState(false); // Track when Communion is loaded
   const [allImagesLoaded, setAllImagesLoaded] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState(0);
 
   // List of critical images to preload for the home page
   const criticalImages = useMemo(
@@ -28,7 +29,7 @@ export default function Home() {
       "/3d_spotify.png",
       "/3D_tiktok.png",
       "/3d_discord.png",
-      "/3d_X.png",
+      "/3D_X.png",
       "/3d_instagram.png",
       "/3d_tg2.png",
       // Coin images
@@ -59,6 +60,8 @@ export default function Home() {
         img.onload = () => {
           loadedCount++;
           console.log(`Loaded image ${loadedCount}/${totalImages}: ${src}`);
+          // Update loading progress based on images loaded
+          setLoadingProgress((loadedCount / totalImages) * 100);
           resolve(true);
         };
         img.onerror = () => {
@@ -98,7 +101,11 @@ export default function Home() {
   useEffect(() => {
     if (heroLoaded && communionLoaded && allImagesLoaded) {
       console.log("✅ All components and images loaded, showing home page");
-      setIsLoading(false);
+      setLoadingProgress(100);
+      // Add a small delay before hiding the loader
+      setTimeout(() => {
+        setIsLoading(false);
+      }, 500);
     }
   }, [heroLoaded, communionLoaded, allImagesLoaded]);
 
@@ -113,9 +120,22 @@ export default function Home() {
             right: 0,
             bottom: 0,
             zIndex: 50,
+            backgroundColor: "#1b1724",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            alignItems: "center",
           }}
         >
-          <Loader />
+          <Magic8BallLoader 
+            isLoading={isLoading}
+            loadingProgress={loadingProgress}
+            onComplete={() => {
+              if (heroLoaded && communionLoaded && allImagesLoaded) {
+                setIsLoading(false);
+              }
+            }}
+          />
         </div>
       )}
       <div

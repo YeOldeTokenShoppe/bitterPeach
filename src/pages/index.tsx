@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import WordPressSlider from "../components/WordPressSlider";
 import RotatingBadge from "../components/RotatingBadge";
 import Link from "next/link";
-import Loader from "../components/Loader";
+import Magic8BallLoader from "../components/Magic8BallLoader";
 
 export default function Page() {
   const [isLoading, setIsLoading] = useState(true);
@@ -55,8 +55,10 @@ export default function Page() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Simulate loading progress for the WordPress iframe
+  // Combined loading progress effect
   useEffect(() => {
+    console.log("Loading state:", { wordPressSliderLoaded, loadingProgress, loadingStage });
+    
     if (!wordPressSliderLoaded) {
       // Start with a small initial progress
       setLoadingProgress(5);
@@ -67,37 +69,29 @@ export default function Page() {
         setLoadingProgress((prev) => {
           // Slow down as it approaches the expected completion
           const increment = prev < 30 ? 2 : prev < 60 ? 1 : 0.5;
-          return Math.min(prev + increment, 70);
+          const newProgress = Math.min(prev + increment, 70);
+          console.log("Progress update:", { prev, newProgress });
+          return newProgress;
         });
       }, 200);
 
-      return () => clearInterval(progressInterval);
-    }
-  }, [wordPressSliderLoaded]);
+      // Add a fallback timeout to ensure the page loads
+      const fallbackTimeout = setTimeout(() => {
+        console.log("Fallback: WordPress loading timed out, forcing completion");
+        setWordPressSliderLoaded(true);
+      }, 10000); // 10 second timeout
 
-  // Update loading progress based on component states
-  useEffect(() => {
-    if (wordPressSliderLoaded) {
-      setLoadingProgress((prev) => Math.max(prev, 70));
-      setLoadingStage("wordpress loaded");
-    }
-
-    if (badgeLoaded) {
-      setLoadingProgress((prev) => Math.max(prev, 85));
-      setLoadingStage("badge loaded");
-    }
-
-    if (allImagesLoaded) {
-      setLoadingProgress((prev) => Math.max(prev, 95));
-      setLoadingStage("images loaded");
-    }
-
-    // When all components are loaded, set to 100%
-    if (wordPressSliderLoaded && badgeLoaded && allImagesLoaded) {
+      return () => {
+        clearInterval(progressInterval);
+        clearTimeout(fallbackTimeout);
+      };
+    } else {
+      // WordPress is loaded, set to 100%
+      console.log("WordPress loaded, setting to 100%");
       setLoadingProgress(100);
       setLoadingStage("complete");
     }
-  }, [wordPressSliderLoaded, badgeLoaded, allImagesLoaded]);
+  }, [wordPressSliderLoaded]);
 
   // Preload all critical images
   useEffect(() => {
@@ -139,62 +133,24 @@ export default function Page() {
       });
   }, [criticalImages]);
 
-  // Force loader to hide after timeout
+  // Handle transition from loading to content - simplified to focus on WordPress loading
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (isLoading) {
-        console.warn("⚠️ Loading timed out, forcing page to show");
-        setIsLoading(false);
-        setShowContent(true);
-
-        // Fade in content after a short delay
-        setTimeout(() => {
-          setContentOpacity(1);
-        }, 100);
-      }
-    }, 15000); // 15 second maximum wait time
-
-    return () => clearTimeout(timeoutId);
-  }, [isLoading]);
-
-  // Handle transition from loading to content
-  useEffect(() => {
-    if (wordPressSliderLoaded && allImagesLoaded && badgeLoaded) {
-      console.log("✅ All components and images loaded, showing index page");
-
-      // First show the content container (but keep it invisible)
-      setShowContent(true);
+    if (wordPressSliderLoaded) {
+      console.log("✅ WordPress content loaded, preparing to show page");
 
       // Add a small delay for smoother transition
       setTimeout(() => {
-        // Hide the loader
-        setIsLoading(false);
+        // First show the content container (but keep it invisible)
+        setShowContent(true);
 
-        // After loader is hidden, fade in the content
+        // After a short delay, hide the loader and fade in content
         setTimeout(() => {
-          setContentOpacity(1);
-        }, 500);
-      }, 500);
-    } else if (loadingProgress >= 95) {
-      // If we're at 95% or higher, we can show the page even if not everything is loaded
-      console.log(
-        "⚠️ Showing page at high progress but not all components loaded"
-      );
-
-      // First show the content container (but keep it invisible)
-      setShowContent(true);
-
-      setTimeout(() => {
-        // Hide the loader
-        setIsLoading(false);
-
-        // After loader is hidden, fade in the content
-        setTimeout(() => {
+          setIsLoading(false);
           setContentOpacity(1);
         }, 500);
       }, 500);
     }
-  }, [wordPressSliderLoaded, allImagesLoaded, badgeLoaded, loadingProgress]);
+  }, [wordPressSliderLoaded]);
 
   return (
     <div>
@@ -217,7 +173,13 @@ export default function Page() {
             opacity: isLoading ? 1 : 0,
           }}
         >
-          <Loader progress={loadingProgress} />
+          <Magic8BallLoader 
+            isLoading={isLoading}
+            loadingProgress={loadingProgress}
+            onComplete={() => {
+              console.log("Magic8BallLoader onComplete called");
+            }}
+          />
           <div
             style={{
               color: "#e1b67e",
@@ -260,7 +222,10 @@ export default function Page() {
             }}
           >
             <WordPressSlider
-              setWordPressSliderLoaded={setWordPressSliderLoaded}
+              setWordPressSliderLoaded={(loaded: boolean) => {
+                console.log("WordPressSlider loaded state changed:", loaded);
+                setWordPressSliderLoaded(loaded);
+              }}
             />
           </div>
           <Link

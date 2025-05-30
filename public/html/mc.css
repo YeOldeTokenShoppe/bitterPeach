@@ -1,0 +1,123 @@
+body {
+    align-items: center;
+    display: flex;
+    justify-content: center;
+    padding: 0;
+    height: 100vh;
+    margin: 0 auto;
+  }
+  
+  .content {
+    position: relative;
+    overflow: hidden;
+    height: 510px;
+  }
+  
+  .copilot-arm-left {
+    left: 540px;
+    top: 270px;
+    position: absolute;
+    animation: 1s ease-in-out 1s 6 alternate copilot-arm-left;
+    transform-origin: 158px 47px;
+    z-index: 2;
+  }
+  
+  @keyframes copilot-arm-left {
+    from {transform:rotate(0deg);}
+    to {transform:rotate(-15deg);}
+  }
+  
+  .knob {
+    left: 679px;
+    top: 294px;
+    position: absolute;
+    transform:rotate(-60deg);
+    transform-orgin: 20.6px 20.9px;
+    animation: 1s ease-in-out 1s 6 alternate knob;
+  }
+  
+  @keyframes knob {
+    from {transform:rotate(-60deg);}
+    to {transform:rotate(-75deg);}
+  }
+  
+  .copilot-arm-right {
+    left: 872px;
+    position: absolute;
+    top: 275px;
+    animation: 0.75s ease-out 1.5s 2 alternate copilot-arm-right;
+    z-index: 2;
+  }
+  
+  @keyframes copilot-arm-right {
+    from {top: 275px;}
+    to {top: 88px}
+  }
+  
+  .switch {
+    left: 928px;
+    position: absolute;
+    top: 80.6px;
+    transform: scaleY(-1);
+    animation: 0.25s ease-out 2.125s both switch-on;
+  }
+  
+  @keyframes switch-on {
+    from {top: 80.6px; transform: scaleY(-1);}
+    to { top: 57px; transform: scaleY(1);}
+  }
+  
+  .needle {
+    left: 983.68px;
+    position: absolute;
+    top: 145.8px;
+    transform-origin: 5.29px 26.95px;
+    transform: rotate(0deg);
+    animation: 0.75s ease-in-out 1.25s 4 alternate needle;
+  }
+  
+  @keyframes needle {
+    from {transform:rotate(0deg);}
+    to {transform:rotate(-15deg);}
+  }
+  
+  .needle-sm-yellow {
+    left: 163.78px;
+    position: absolute;
+    top: 284.3px;
+    transform: rotate(0deg);
+    transform-origin: 4.1837px 9.035px;
+    animation: 0.75s linear 1.25s infinite needle-sm-yellow;
+  }
+  
+  @keyframes needle-sm-yellow {
+    from {transform:rotate(0deg);}
+    to {transform:rotate(360deg);}
+  }
+  
+  .needle-sm-blue {
+    left: 217.2px;
+    position: absolute;
+    top: 284.3px;
+    transform: rotate(0deg);
+    transform-origin: 3.5329px 9.03px;
+    animation: 1.5s linear 1.25s infinite needle-sm-blue;
+  }
+  
+  @keyframes needle-sm-blue {
+    from {transform:rotate(0deg);}
+    to {transform:rotate(360deg);}
+  }
+  
+  .bottom-needle-sw {
+    top: 337.5617px;
+    left: 163.78px;
+    animation-duration: 4s;
+  }
+  
+  .bottom-needle-se {
+    top: 337.5617px;
+    left: 217.2px;
+    animation-duration: 8s;
+  }
+  

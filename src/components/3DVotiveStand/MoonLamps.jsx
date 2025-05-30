@@ -390,14 +390,20 @@ const MoonScene = forwardRef(
           const wallTransform = new ammoRef.current.btTransform();
           wallTransform.setIdentity();
           const wallMotionState = new ammoRef.current.btDefaultMotionState(wallTransform);
-          const wallBody = new ammoRef.current.btRigidBody(
-            new ammoRef.current.btRigidBodyConstructionInfo(
-              0, // Static mass
-              wallMotionState,
-              wallShape,
-              new ammoRef.current.btVector3(0, 0, 0)
-            )
+          const localInertia = new ammoRef.current.btVector3(0, 0, 0);
+          const rbInfo = new ammoRef.current.btRigidBodyConstructionInfo(
+            0, // Static mass
+            wallMotionState,
+            wallShape,
+            localInertia
           );
+          const wallBody = new ammoRef.current.btRigidBody(rbInfo);
+          
+          // Clean up construction objects
+          ammoRef.current.destroy(wallTransform);
+          ammoRef.current.destroy(localInertia);
+          ammoRef.current.destroy(rbInfo);
+          
           wallBody.setFriction(0.5);
           wallBody.setRestitution(0.3);
 
@@ -462,6 +468,9 @@ const MoonScene = forwardRef(
       }
 
       shape.setMargin(margin);  // Use the passed margin argument
+      
+      // Clean up temporary vector
+      AmmoLib.destroy(tempBtVec);
 
       shapeCache.current.set(cacheKey, shape); // Store in cache with the margin-specific key
 
@@ -492,6 +501,11 @@ const MoonScene = forwardRef(
 
         triangleMesh.addTriangle(v0, v1, v2);
       }
+      
+      // Clean up temporary vectors
+      AmmoLib.destroy(v0);
+      AmmoLib.destroy(v1);
+      AmmoLib.destroy(v2);
 
       const shape = new AmmoLib.btBvhTriangleMeshShape(triangleMesh, true, true);
       shape.setMargin(0.01);
@@ -549,21 +563,34 @@ const MoonScene = forwardRef(
 
       // Smaller margin
       shape.setMargin(0.01);
+      
+      // Clean up temp vector
+      AmmoLib.destroy(tempBtVec);
 
       // Create transform at origin since vertices are already in world space
       const transform = new AmmoLib.btTransform();
       transform.setIdentity();
-      transform.setOrigin(new AmmoLib.btVector3(0, 0, 0));
-      transform.setRotation(new AmmoLib.btQuaternion(0, 0, 0, 1));
+      const btOrigin = new AmmoLib.btVector3(0, 0, 0);
+      const btQuat = new AmmoLib.btQuaternion(0, 0, 0, 1);
+      transform.setOrigin(btOrigin);
+      transform.setRotation(btQuat);
 
       const motionState = new AmmoLib.btDefaultMotionState(transform);
+      const localInertia = new AmmoLib.btVector3(0, 0, 0);
       const rbInfo = new AmmoLib.btRigidBodyConstructionInfo(
         0, // static
         motionState,
         shape,
-        new AmmoLib.btVector3(0, 0, 0)
+        localInertia
       );
       const rigidBody = new AmmoLib.btRigidBody(rbInfo);
+      
+      // Clean up construction info objects
+      AmmoLib.destroy(btOrigin);
+      AmmoLib.destroy(btQuat);
+      AmmoLib.destroy(transform);
+      AmmoLib.destroy(localInertia);
+      AmmoLib.destroy(rbInfo);
 
       // Lower restitution for less bounce
       rigidBody.setFriction(GROUND_FRICTION);
@@ -1258,10 +1285,35 @@ const MoonScene = forwardRef(
       return () => {
         // Cleanup physics resources
         if (physicsRef.current.world && ammoRef.current) {
-          // Proper Ammo.js cleanup would go here
+          const AmmoLib = ammoRef.current;
+          
+          // Remove all rigid bodies from the world
+          bodiesRef.current.forEach(obj => {
+            if (obj.body) {
+              physicsRef.current.world.removeRigidBody(obj.body);
+              AmmoLib.destroy(obj.body);
+            }
+          });
+          
+          // Clear the shape cache
+          shapeCache.current.forEach((shape) => {
+            AmmoLib.destroy(shape);
+          });
+          shapeCache.current.clear();
+          
+          // Destroy the physics world and related objects
+          if (physicsRef.current.world) {
+            AmmoLib.destroy(physicsRef.current.world);
+          }
+          
+          // Note: We should also destroy collision config, dispatcher, broadphase, and solver
+          // but we need references to them
         }
 
         // Clean up animation mixers
+        if (scrollAnimationMixerRef.current) {
+          scrollAnimationMixerRef.current.stopAllAction();
+        }
       };
     }, []); // Keep dependencies minimal
 
@@ -1396,6 +1448,9 @@ const MoonScene = forwardRef(
 
           obj.mesh.position.set(origin.x(), origin.y(), origin.z());
           obj.mesh.quaternion.set(rotation.x(), rotation.y(), rotation.z(), rotation.w());
+          
+          // IMPORTANT: Destroy the transform to prevent memory leak
+          currentAmmo.destroy(transform);
         }
       });
 
