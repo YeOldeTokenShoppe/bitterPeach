@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rocket Launch Test</title>
+    <style>
+        body {
+            font-family: monospace;
+            background: #000;
+            color: #0f0;
+            padding: 20px;
+            margin: 0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #0ff;
+            text-shadow: 0 0 10px #0ff;
+        }
+        button {
+            background: #111;
+            color: #0f0;
+            border: 2px solid #0f0;
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            font-family: monospace;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+        button:hover {
+            background: #0f0;
+            color: #000;
+            box-shadow: 0 0 10px #0f0;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .status {
+            margin: 20px 0;
+            padding: 10px;
+            border: 1px solid #0f0;
+            background: #001100;
+        }
+        .log {
+            margin: 20px 0;
+            padding: 10px;
+            border: 1px solid #0f0;
+            background: #001100;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .log-entry {
+            margin: 2px 0;
+            padding: 2px;
+            font-size: 12px;
+        }
+        .success { color: #0f0; }
+        .error { color: #f00; }
+        .info { color: #0ff; }
+        .warning { color: #ff0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Rocket Launch Test Console</h1>
+        
+        <div class="status">
+            <h2>Status</h2>
+            <p>Rocket Available: <span id="rocketStatus">Checking...</span></p>
+            <p>Rocket Count: <span id="rocketCount">Checking...</span></p>
+            <p>Window Connected: <span id="windowStatus">Checking...</span></p>
+        </div>
+
+        <div>
+            <h2>Controls</h2>
+            <button onclick="checkRocketStatus()">Check Rocket Status</button>
+            <button onclick="debugRockets()">Debug Rocket Count</button>
+            <button onclick="launchRocket()">Launch Rocket</button>
+            <button onclick="launchRocketForce()">Force Launch Rocket</button>
+            <button onclick="clearLog()">Clear Log</button>
+        </div>
+
+        <div class="log" id="log">
+            <div class="log-entry info">Console initialized...</div>
+        </div>
+    </div>
+
+    <script>
+        // Get reference to parent window
+        const parentWindow = window.opener || window.parent;
+        
+        // Log function
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        // Clear log
+        function clearLog() {
+            document.getElementById('log').innerHTML = '<div class="log-entry info">Console cleared...</div>';
+        }
+
+        // Check if rocket functions are available
+        function checkWindowFunctions() {
+            const hasRocketLaunch = typeof parentWindow.rocketLaunch === 'function';
+            const hasIsRocketAvailable = typeof parentWindow.isRocketAvailable === 'function';
+            const hasDebugRocketCount = typeof parentWindow.debugRocketCount === 'function';
+            
+            document.getElementById('windowStatus').textContent = 
+                hasRocketLaunch && hasIsRocketAvailable ? '✅ Connected' : '❌ Not Connected';
+            
+            log(`Window functions check:`, 'info');
+            log(`  rocketLaunch: ${hasRocketLaunch ? '✅' : '❌'}`, hasRocketLaunch ? 'success' : 'error');
+            log(`  isRocketAvailable: ${hasIsRocketAvailable ? '✅' : '❌'}`, hasIsRocketAvailable ? 'success' : 'error');
+            log(`  debugRocketCount: ${hasDebugRocketCount ? '✅' : '❌'}`, hasDebugRocketCount ? 'success' : 'error');
+            
+            return hasRocketLaunch && hasIsRocketAvailable;
+        }
+
+        // Check rocket status
+        function checkRocketStatus() {
+            if (!checkWindowFunctions()) {
+                log('Window functions not available', 'error');
+                return;
+            }
+            
+            try {
+                const isAvailable = parentWindow.isRocketAvailable();
+                document.getElementById('rocketStatus').textContent = isAvailable ? '✅ Available' : '❌ Not Available';
+                log(`Rocket status: ${isAvailable ? 'Available' : 'Not Available'}`, isAvailable ? 'success' : 'warning');
+            } catch (error) {
+                log(`Error checking rocket status: ${error.message}`, 'error');
+            }
+        }
+
+        // Debug rocket count
+        function debugRockets() {
+            if (typeof parentWindow.debugRocketCount !== 'function') {
+                log('debugRocketCount function not available', 'error');
+                return;
+            }
+            
+            try {
+                const result = parentWindow.debugRocketCount();
+                if (result && typeof result === 'object') {
+                    document.getElementById('rocketCount').textContent = result.count || 0;
+                    log(`Rocket count: ${result.count}`, 'info');
+                    if (result.rockets && result.rockets.length > 0) {
+                        result.rockets.forEach((rocket, i) => {
+                            log(`  Rocket ${i + 1}: ${rocket.name} at (${rocket.position.x.toFixed(2)}, ${rocket.position.y.toFixed(2)}, ${rocket.position.z.toFixed(2)})`, 'info');
+                        });
+                    }
+                }
+            } catch (error) {
+                log(`Error debugging rockets: ${error.message}`, 'error');
+            }
+        }
+
+        // Launch rocket
+        function launchRocket(forceReset = false) {
+            if (!checkWindowFunctions()) {
+                log('Window functions not available', 'error');
+                return;
+            }
+            
+            try {
+                log(`Attempting to launch rocket${forceReset ? ' (force reset)' : ''}...`, 'info');
+                const result = parentWindow.rocketLaunch(forceReset);
+                
+                if (result === true || (result && result.success)) {
+                    log('🚀 Rocket launch initiated successfully!', 'success');
+                } else {
+                    log('❌ Rocket launch failed', 'error');
+                    if (result && result.message) {
+                        log(`  Reason: ${result.message}`, 'warning');
+                    }
+                }
+                
+                // Check status after launch
+                setTimeout(checkRocketStatus, 1000);
+            } catch (error) {
+                log(`Error launching rocket: ${error.message}`, 'error');
+            }
+        }
+
+        // Force launch rocket
+        function launchRocketForce() {
+            launchRocket(true);
+        }
+
+        // Initial checks
+        window.addEventListener('load', () => {
+            log('Test console loaded', 'success');
+            checkWindowFunctions();
+            checkRocketStatus();
+            debugRockets();
+            
+            // Set up periodic status checks
+            setInterval(() => {
+                checkRocketStatus();
+                const countEl = document.getElementById('rocketCount');
+                if (typeof parentWindow.debugRocketCount === 'function') {
+                    const result = parentWindow.debugRocketCount();
+                    if (result && typeof result === 'object') {
+                        countEl.textContent = result.count || 0;
+                    }
+                }
+            }, 2000);
+        });
+
+        // Listen for messages from parent
+        window.addEventListener('message', (event) => {
+            if (event.data && event.data.type) {
+                log(`Received message: ${event.data.type}`, 'info');
+                if (event.data.type === 'ROCKET_LAUNCH_RESPONSE') {
+                    log(`Launch response: ${event.data.success ? 'Success' : 'Failed'}`, 
+                        event.data.success ? 'success' : 'error');
+                    if (event.data.message) {
+                        log(`  Message: ${event.data.message}`, 'info');
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

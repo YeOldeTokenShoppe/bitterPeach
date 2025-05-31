@@ -17,6 +17,7 @@ import {
   ContactShadows,
   Box,
   useHelper,
+  Float, // Add Float import
 
 } from '@react-three/drei';
 import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
@@ -25,9 +26,8 @@ import { PointLightHelper } from 'three';
 import AstronautCustomizerModal from './AstronautCustomizerModal';
 import Flag from './Flag';
 import ParticleBackground from './ParticleBackground';
-import SidePanel from './SidePanel';
+import SidePanelEnhanced from './SidePanelEnhanced'; // Changed this line
 import MobileSidePanel from './MobileSidePanel';
-import CometSystem from './CometDemo';
 
 // Constants for collision detection
 const MOON_RADIUS = 2.5; // Matches the moon scale
@@ -1052,24 +1052,24 @@ function AstronautInfoDisplay({ userData, astronautIndex, parentObject }) {
 }
 
 // Component to wrap astronaut with Float
-// function FloatingAstronautWrapper({ children, enabled = true, isFocused = false }) {
-//   // Only apply Float to non-focused astronauts when enabled
-//   if (enabled && !isFocused) {
-//     return (
-//       <Float
-//         speed={1.5} // Animation speed, adjust to taste
-//         rotationIntensity={0.5} // XYZ rotation intensity, adjust to taste  
-//         floatIntensity={0.3} // Up/down float intensity, adjust to taste
-//         floatingRange={[-0.1, 0.1]} // Range of y-axis values the object will float within
-//       >
-//         {children}
-//       </Float>
-//     );
-//   }
+function FloatingAstronautWrapper({ children, enabled = true, isFocused = false }) {
+  // Only apply Float to non-focused astronauts when enabled
+  if (enabled && !isFocused) {
+    return (
+      <Float
+        speed={1.5} // Animation speed, adjust to taste
+        rotationIntensity={0.5} // XYZ rotation intensity, adjust to taste  
+        floatIntensity={0.3} // Up/down float intensity, adjust to taste
+        floatingRange={[-0.1, 0.1]} // Range of y-axis values the object will float within
+      >
+        {children}
+      </Float>
+    );
+  }
   
-//   // For focused astronauts or when Float is disabled, render children directly
-//   return <>{children}</>;
-// }
+  // For focused astronauts or when Float is disabled, render children directly
+  return <>{children}</>;
+}
 
 // Floating astronaut component with user textures
 function Astronauts(props) {
@@ -1672,12 +1672,12 @@ function Astronauts(props) {
                 key={`astronaut-position-${i}`}
                 position={[data.initialPosition.x, data.initialPosition.y, data.initialPosition.z]}
               >
-                {/* <FloatingAstronautWrapper 
+                <FloatingAstronautWrapper 
                   enabled={useFloatEffect} 
                   isFocused={isFocused}
-                > */}
+                >
                   <primitive object={astronautGroup} />
-                {/* </FloatingAstronautWrapper> */}
+                </FloatingAstronautWrapper>
               </group>
             );
           })}
@@ -2021,9 +2021,8 @@ function SimpleOrbitCamera({ focusedTarget, isMobileView, onAnimationComplete })
           initialAnimationStartRef.current = Date.now(); // Reset timer for zoom phase
         }
       } else if (animationPhaseRef.current === 'zoom') {
-        // Phase 2: Zoom out to neutral position
+        // Phase 2: Zoom out to neutral position with intermediate waypoint
         const zoomProgress = Math.min(elapsed / ZOOM_DURATION, 1);
-        const easedProgress = easeOutCubic(zoomProgress);
         
         if (zoomProgress < 1) {
           // Calculate current orbit position (end of orbit)
@@ -2034,9 +2033,43 @@ function SimpleOrbitCamera({ focusedTarget, isMobileView, onAnimationComplete })
             landingAreaPosition.z + Math.sin(finalOrbitAngle) * ORBIT_RADIUS
           );
           
-          // Interpolate to final position
-          camera.position.lerpVectors(orbitPosition, neutralPositionRef.current, easedProgress);
-          controlsRef.current.target.lerpVectors(landingAreaPosition, neutralTargetRef.current, easedProgress);
+          // Create intermediate waypoint - pull back and up first
+          const intermediatePosition = new THREE.Vector3();
+          const finalPosition = neutralPositionRef.current;
+          
+          if (zoomProgress < 0.5) {
+            // First half: Move away from moon and slightly up
+            const firstHalfProgress = zoomProgress * 2; // 0 to 1 for first half
+            const easedFirstHalf = easeOutCubic(firstHalfProgress);
+            
+            // Calculate direction away from moon center
+            const awayFromMoon = orbitPosition.clone().normalize();
+            
+            // Intermediate position: back away and slightly up
+            intermediatePosition.copy(orbitPosition);
+            intermediatePosition.add(awayFromMoon.multiplyScalar(3 * easedFirstHalf)); // Move 3 units away
+            intermediatePosition.y += 2 * easedFirstHalf; // Move 2 units up
+            
+            camera.position.copy(intermediatePosition);
+            // Keep looking at landing area during first half
+            controlsRef.current.target.copy(landingAreaPosition);
+          } else {
+            // Second half: Move from intermediate to final position
+            const secondHalfProgress = (zoomProgress - 0.5) * 2; // 0 to 1 for second half
+            const easedSecondHalf = easeInOutQuintic(secondHalfProgress);
+            
+            // Calculate the intermediate position at 50% progress
+            const awayFromMoon = orbitPosition.clone().normalize();
+            intermediatePosition.copy(orbitPosition);
+            intermediatePosition.add(awayFromMoon.multiplyScalar(3));
+            intermediatePosition.y += 2;
+            
+            // Interpolate from intermediate to final
+            camera.position.lerpVectors(intermediatePosition, finalPosition, easedSecondHalf);
+            // Also interpolate the target
+            controlsRef.current.target.lerpVectors(landingAreaPosition, neutralTargetRef.current, easedSecondHalf);
+          }
+          
           controlsRef.current.update();
           
           // Animation is progressing
@@ -2218,11 +2251,45 @@ function SimpleOrbitCamera({ focusedTarget, isMobileView, onAnimationComplete })
         const animateBackToNeutral = () => {
           const elapsedTime = (Date.now() - startTimeReturn) / 1000;
           const progress = Math.min(elapsedTime / durationReturn, 1);
-          const easeProgress = easeOutCubic(progress);
           
           if (controlsRef.current) {
-            controlsRef.current.target.lerpVectors(startTargetCam, endTargetCam, easeProgress);
-            camera.position.lerpVectors(startPositionCam, endPositionCam, easeProgress);
+            // Check if we're inside the moon (camera Y is low)
+            const needsAvoidance = startPositionCam.y < 2.5 && startPositionCam.length() < 3;
+            
+            if (needsAvoidance && progress < 0.5) {
+              // First half: Move up and back to avoid going through moon
+              const firstHalfProgress = progress * 2;
+              const easedFirstHalf = easeOutCubic(firstHalfProgress);
+              
+              // Calculate intermediate position - up and slightly back
+              const intermediatePos = startPositionCam.clone();
+              const directionOut = startPositionCam.clone().normalize();
+              intermediatePos.add(directionOut.multiplyScalar(2 * easedFirstHalf));
+              intermediatePos.y = Math.max(intermediatePos.y + 2 * easedFirstHalf, 3);
+              
+              camera.position.copy(intermediatePos);
+              // Keep looking at the start target initially
+              controlsRef.current.target.lerpVectors(startTargetCam, endTargetCam, easedFirstHalf * 0.5);
+            } else if (needsAvoidance) {
+              // Second half: From intermediate to final
+              const secondHalfProgress = (progress - 0.5) * 2;
+              const easedSecondHalf = easeInOutQuintic(secondHalfProgress);
+              
+              // Calculate intermediate position at 50%
+              const intermediatePos = startPositionCam.clone();
+              const directionOut = startPositionCam.clone().normalize();
+              intermediatePos.add(directionOut.multiplyScalar(2));
+              intermediatePos.y = Math.max(intermediatePos.y + 2, 3);
+              
+              camera.position.lerpVectors(intermediatePos, endPositionCam, easedSecondHalf);
+              controlsRef.current.target.lerpVectors(startTargetCam, endTargetCam, 0.5 + easedSecondHalf * 0.5);
+            } else {
+              // Normal direct interpolation if not inside moon
+              const easeProgress = easeOutCubic(progress);
+              controlsRef.current.target.lerpVectors(startTargetCam, endTargetCam, easeProgress);
+              camera.position.lerpVectors(startPositionCam, endPositionCam, easeProgress);
+            }
+            
             controlsRef.current.update();
           }
           
@@ -2325,8 +2392,6 @@ function SceneManager({ userHelmetTextures, focusedTarget, highlightedAstronaut,
         useFloatEffect={false} // Disable Float effect - use manual animation
       />
       
-      {/* Demo Comet System */}
-      {/* <CometSystem /> */}
       
       <EffectComposer>
         <Bloom 
@@ -2346,7 +2411,7 @@ function SceneManager({ userHelmetTextures, focusedTarget, highlightedAstronaut,
   );
 }
 
-export default function MoonSceneComponent({userHelmetTextures, currentUser, onSceneReady}) {
+export default function LunarLanding({userHelmetTextures, currentUser, onSceneReady}) {
   const [focusedTarget, setFocusedTarget] = useState(null);
   const [highlightedAstronaut, setHighlightedAstronaut] = useState(null); // For mobile two-stage selection
   const [highlightedRocket, setHighlightedRocket] = useState(null); // For mobile two-stage rocket selection
@@ -2501,7 +2566,13 @@ export default function MoonSceneComponent({userHelmetTextures, currentUser, onS
 
   }, []);
 
-  
+  console.log('Debugging component types in LunarLanding:');
+  console.log('ConstellationModel:', typeof ConstellationModel, ConstellationModel);
+  console.log('StarField:', typeof StarField, StarField);
+
+  console.log('MobileSidePanel:', typeof MobileSidePanel, MobileSidePanel);
+  console.log('AstronautCustomizerModal:', typeof AstronautCustomizerModal, AstronautCustomizerModal);
+  console.log('Flag (imported at top level):', typeof Flag, Flag);
 
   return (
  
@@ -2632,7 +2703,7 @@ export default function MoonSceneComponent({userHelmetTextures, currentUser, onS
             isConstellationsVisible={isConstellationsVisible}
           />
         ) : (
-          <SidePanel
+          <SidePanelEnhanced // Changed this line
             onButtonClick={() => {}}
             is80sMode={is80sMode}
             toggle80sMode={toggle80sMode}

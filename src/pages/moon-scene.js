@@ -5,7 +5,7 @@ import { doc, getDocs, collection, query } from 'firebase/firestore'; // Removed
 import { db } from '../utilities/firebaseClient'; // Your Firebase init
 import Loader from '../components/Loader'; // Import Loader component
 import { TransitionIn } from '../components/TransitionIn'; // Import transition component
-
+import LunarLanding from '../components/LunarLanding';
 // Helper to load texture (can be moved to a utils file later)
 const loadImageAsTexture = (url) => {
   return new Promise((resolve, reject) => {
@@ -366,7 +366,7 @@ export default function MoonScenePage() {
             Or let MoonSceneComponent handle empty textures gracefully.
             Assuming MoonSceneComponent can handle it or updates when textures arrive.
         */}
-        <MoonSceneComponent 
+        <LunarLanding 
           userHelmetTextures={userHelmetTextures} 
           onSceneReady={() => setIsSceneReady(true)} // Pass the callback
         />

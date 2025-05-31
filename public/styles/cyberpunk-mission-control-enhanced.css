@@ -266,6 +266,8 @@
 }
 
 /* Hide offline display when video is active */
+/* Note: Offline display is forced visible by default with !important above */
+/* This rule will hide it only when video is actively playing */
 .video-display.video-active #offline-display {
   display: none !important;
 }
@@ -1534,16 +1536,16 @@
   border-bottom-color: #d946ef;
 }
 
-.eighties-active .title-letter {
-  animation: rainbow-shift 3s linear infinite;
-}
+/* Keep title style consistent in 80s mode - no rainbow effect */
+/* Title letters maintain their normal appearance in 80s mode */
 
 .eighties-active .title-letter.lunar {
-  color: #ffff00;
+  /* Keep the same lunar styling as regular mode */
+  color: #d946ef;
   text-shadow:
-    0 0 10px #ff00ff,
-    0 0 20px #00ffff,
-    0 0 30px #ffff00;
+    0 0 5px currentColor,
+    0 0 10px currentColor,
+    0 0 15px #ff00ff;
 }
 
 @keyframes rainbow-shift {
@@ -1575,6 +1577,8 @@
   );
   position: relative;
   overflow: hidden;
+  /* Force display to be visible by default */
+  display: flex !important;
 }
 
 #offline-display::before {

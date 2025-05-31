@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Rocket Count</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #1a1a1a;
+            color: #fff;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 16px;
+            border-radius: 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #output {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #333;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .error {
+            color: #ff6b6b;
+        }
+        .success {
+            color: #51cf66;
+        }
+    </style>
+</head>
+<body>
+    <h1>Rocket Debug Tools</h1>
+    
+    <button onclick="checkRocketCount()">Check Rocket Count</button>
+    <button onclick="launchRocket()">Launch Rocket</button>
+    <button onclick="toggleMonsterMode()">Toggle Monster Mode</button>
+    <button onclick="checkRocketAvailable()">Check Rocket Available</button>
+    
+    <div id="output"></div>
+
+    <script>
+        function log(message, type = 'info') {
+            const output = document.getElementById('output');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : '';
+            output.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`;
+            console.log(message);
+        }
+
+        function checkRocketCount() {
+            try {
+                if (window.debugRocketCount) {
+                    const count = window.debugRocketCount();
+                    log(`Rocket count: ${count}`, count > 1 ? 'error' : 'success');
+                } else {
+                    log('debugRocketCount function not available. Make sure the app is loaded.', 'error');
+                }
+            } catch (error) {
+                log(`Error checking rocket count: ${error.message}`, 'error');
+            }
+        }
+
+        function launchRocket() {
+            try {
+                if (window.rocketLaunch) {
+                    const result = window.rocketLaunch();
+                    log(`Rocket launch result: ${JSON.stringify(result)}`, result.success ? 'success' : 'error');
+                } else {
+                    log('rocketLaunch function not available. Rocket might not be loaded.', 'error');
+                }
+            } catch (error) {
+                log(`Error launching rocket: ${error.message}`, 'error');
+            }
+        }
+
+        function toggleMonsterMode() {
+            log('Toggle monster mode functionality needs to be implemented in the main app', 'info');
+        }
+
+        function checkRocketAvailable() {
+            try {
+                if (window.isRocketAvailable) {
+                    const available = window.isRocketAvailable();
+                    log(`Rocket available: ${available}`, available ? 'success' : 'error');
+                } else {
+                    log('isRocketAvailable function not available', 'error');
+                }
+            } catch (error) {
+                log(`Error checking rocket availability: ${error.message}`, 'error');
+            }
+        }
+
+        // Initial check when page loads
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                log('Debug tools loaded. Open this page alongside your app to debug rocket issues.');
+                checkRocketCount();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

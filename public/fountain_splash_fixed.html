@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 	<head>
-		<title>Char80 Fountain</title>
+		<title>la fontaine</title>
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
 		<link type="text/css" rel="stylesheet" href="main.css">
@@ -261,7 +261,7 @@
 			// --- NEW: Splash Particle System Variables ---
 			let splashParticleSystem;
 			let splashParticles = [];
-			const maxSplashParticles = 500;
+			const maxSplashParticles = 1000;
 			const splashParticlePool = [];
 			// --- END NEW ---
 
@@ -299,7 +299,7 @@
     };
 
 			const effectController = {
-				mouseSize: 0.08,
+				mouseSize: 0.05,
 				mouseDeep: 0.003,
 				viscosity: 0.9,
 				speed: 5,
@@ -468,160 +468,122 @@
 
 			// --- NEW: Splash Particle System Functions ---
 			function initSplashParticleSystem() {
-				// Create particle geometry
-				const particleGeometry = new THREE.BufferGeometry();
-				const particleCount = maxSplashParticles;
-				
-				const positions = new Float32Array(particleCount * 3);
-				const velocities = new Float32Array(particleCount * 3);
-				const lifetimes = new Float32Array(particleCount);
-				const sizes = new Float32Array(particleCount);
-				
-				// Initialize all particles as inactive
-				for (let i = 0; i < particleCount; i++) {
-					positions[i * 3] = 0;
-					positions[i * 3 + 1] = -0.42; // Hide below scene
-					positions[i * 3 + 2] = 0;
-					velocities[i * 3] = 0;
-					velocities[i * 3 + 1] = 0;
-					velocities[i * 3 + 2] = 0;
-					lifetimes[i] = 0;
-					sizes[i] = 0;
-				}
-				
-				particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-				particleGeometry.setAttribute('velocity', new THREE.BufferAttribute(velocities, 3));
-				particleGeometry.setAttribute('lifetime', new THREE.BufferAttribute(lifetimes, 1));
-				particleGeometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
-				
-				// Create particle material with custom shader
-				const particleMaterial = new THREE.ShaderMaterial({
-					uniforms: {
-						color: { value: new THREE.Color(0xffffff) },
-						opacity: { value: 0.3 },
-						pointTexture: { value: new THREE.TextureLoader().load('/assets/textures/cloud.png') }
-					},
-					vertexShader: `
-						attribute float size;
-						attribute float lifetime;
-						varying float vLifetime;
-						
-						void main() {
-							vLifetime = lifetime;
-							vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-							gl_PointSize = size * (300.0 / -mvPosition.z);
-							gl_Position = projectionMatrix * mvPosition;
-						}
-					`,
-					fragmentShader: `
-						uniform vec3 color;
-						uniform float opacity;
-						uniform sampler2D pointTexture;
-						varying float vLifetime;
-						
-						void main() {
-							if (vLifetime <= 0.0) discard;
-
-      vec2 uv = vec2(gl_PointCoord.x, 1.0 - gl_PointCoord.y);
-      vec4 textureColor = texture2D(pointTexture, uv);
-
-      // Fade out based on lifetime
-      float alpha = opacity * vLifetime * textureColor.a;
-
-      // Discard pixels that are too transparent
-      if (alpha < 0.01) discard;
-
-      gl_FragColor = vec4(color, alpha);
-						}
-					`,
-					blending: THREE.NormalBlending,
-  depthWrite: true,
-  depthTest: true,
-  transparent: true,
-  opacity: 0.1,
-  alphaTest: 0.1,
-  renderOrder: 999
+				// Create instanced mesh for better performance
+				const particleGeometry = new THREE.SphereGeometry(0.02, 8, 6);
+				const particleMaterial = new THREE.MeshBasicMaterial({
+					color: 0xffffff,
+					transparent: true,
+					opacity: 0.8
 				});
 				
-				splashParticleSystem = new THREE.Points(particleGeometry, particleMaterial);
+				// Create instanced mesh
+				splashParticleSystem = new THREE.InstancedMesh(
+					particleGeometry,
+					particleMaterial,
+					maxSplashParticles
+				);
+				
+				// Initialize all particles off-screen
+				const matrix = new THREE.Matrix4();
+				const position = new THREE.Vector3();
+				const scale = new THREE.Vector3(0, 0, 0);
+				
+				for (let i = 0; i < maxSplashParticles; i++) {
+					position.set(0, -100, 0);
+					matrix.setPosition(position);
+					matrix.scale(scale);
+					splashParticleSystem.setMatrixAt(i, matrix);
+					
+					// Initialize particle data
+					splashParticles[i] = {
+						position: new THREE.Vector3(0, -100, 0),
+						velocity: new THREE.Vector3(0, 0, 0),
+						lifetime: 0,
+						scale: 0
+					};
+				}
+				
+				splashParticleSystem.instanceMatrix.needsUpdate = true;
 				scene.add(splashParticleSystem);
 			}
 			
-			function emitSplashParticles(centerX, centerZ, radius, particleCount = 20) {
-				const positions = splashParticleSystem.geometry.attributes.position.array;
-				const velocities = splashParticleSystem.geometry.attributes.velocity.array;
-				const lifetimes = splashParticleSystem.geometry.attributes.lifetime.array;
-				const sizes = splashParticleSystem.geometry.attributes.size.array;
-				
+			function emitSplashParticles(centerX, centerZ, radius, particleCount = 10) {
 				let particlesEmitted = 0;
 				
 				// Find inactive particles and activate them
 				for (let i = 0; i < maxSplashParticles && particlesEmitted < particleCount; i++) {
-					if (lifetimes[i] <= 0) {
+					const particle = splashParticles[i];
+					if (particle.lifetime <= 0) {
 						// Generate position on the ring
 						const angle = Math.random() * Math.PI * 2;
-						const r = radius + (Math.random() - 0.5) * 0.41; // Some variation in radius
-				
-						positions[i * 3] = centerX + Math.cos(angle) * r;
-						positions[i * 3 + 1] = -0.489; // Water surface level
-						positions[i * 3 + 2] = centerZ + Math.sin(angle) * r;
+						const r = radius + (Math.random() - 0.5) * 0.1;
+						
+						particle.position.set(
+							centerX + Math.cos(angle) * r,
+							-0.48, // Slightly above water surface
+							centerZ + Math.sin(angle) * r
+						);
 						
 						// Generate upward and outward velocity
-						const speed = 0.2 + Math.random() * 0.002;;
-						const upwardBias = 0.05 + Math.random() * 0.02;
+						const speed = 0.08 + Math.random() * 0.12;
+						const upwardBias = 0.6 + Math.random() * 0.3;
 						
-						velocities[i * 3] = Math.cos(angle) * speed * (1 - upwardBias);
-						velocities[i * 3 + 1] = speed * upwardBias * 0.008;
-						velocities[i * 3 + 2] = Math.sin(angle) * speed * (1 - upwardBias);
+						particle.velocity.set(
+							Math.cos(angle) * speed * (1 - upwardBias),
+							speed * upwardBias,
+							Math.sin(angle) * speed * (1 - upwardBias)
+						);
 						
-						lifetimes[i] = 1.0;
-						sizes[i] = 1.5;
+						particle.lifetime = 1.0;
+						particle.scale = 0.5 + Math.random() * 0.5;
 						
 						particlesEmitted++;
 					}
 				}
-				
-				// Mark attributes as needing update
-				splashParticleSystem.geometry.attributes.position.needsUpdate = true;
-				splashParticleSystem.geometry.attributes.velocity.needsUpdate = true;
-				splashParticleSystem.geometry.attributes.lifetime.needsUpdate = true;
-				splashParticleSystem.geometry.attributes.size.needsUpdate = true;
 			}
 			
 			function updateSplashParticles(deltaTime) {
-				const positions = splashParticleSystem.geometry.attributes.position.array;
-				const velocities = splashParticleSystem.geometry.attributes.velocity.array;
-				const lifetimes = splashParticleSystem.geometry.attributes.lifetime.array;
+				const matrix = new THREE.Matrix4();
+				const scale = new THREE.Vector3();
 				
 				for (let i = 0; i < maxSplashParticles; i++) {
-					if (lifetimes[i] > 0) {
+					const particle = splashParticles[i];
+					
+					if (particle.lifetime > 0) {
 						// Update position
-						positions[i * 3] += velocities[i * 3] * deltaTime;
-						positions[i * 3 + 1] += velocities[i * 3 + 1] * deltaTime;
-						positions[i * 3 + 2] += velocities[i * 3 + 2] * deltaTime;
+						particle.position.x += particle.velocity.x * deltaTime;
+						particle.position.y += particle.velocity.y * deltaTime;
+						particle.position.z += particle.velocity.z * deltaTime;
 						
 						// Apply gravity
-						velocities[i * 3 + 1] -= gravity * deltaTime * 0.5;
+						particle.velocity.y -= gravity * deltaTime * 2.0;
 						
 						// Apply air resistance
-						velocities[i * 3] *= 0.98;
-						velocities[i * 3 + 1] *= 0.98;
-						velocities[i * 3 + 2] *= 0.98;
+						particle.velocity.multiplyScalar(0.98);
 						
 						// Update lifetime
-						lifetimes[i] -= deltaTime * 2.0; // Particles live for ~0.5 seconds
+						particle.lifetime -= deltaTime * 2.5;
+						
+						// Update scale based on lifetime
+						const currentScale = particle.scale * particle.lifetime;
+						scale.set(currentScale, currentScale, currentScale);
+						
+						// Update instance matrix
+						matrix.setPosition(particle.position);
+						matrix.scale(scale);
+						splashParticleSystem.setMatrixAt(i, matrix);
 						
 						// Hide particle if it falls below water
-						if (positions[i * 3 + 1] < -0.5) {
-							lifetimes[i] = 0;
+						if (particle.position.y < -0.5) {
+							particle.lifetime = 0;
+							scale.set(0, 0, 0);
+							matrix.scale(scale);
+							splashParticleSystem.setMatrixAt(i, matrix);
 						}
 					}
 				}
 				
-				// Mark attributes as needing update
-				splashParticleSystem.geometry.attributes.position.needsUpdate = true;
-				splashParticleSystem.geometry.attributes.velocity.needsUpdate = true;
-				splashParticleSystem.geometry.attributes.lifetime.needsUpdate = true;
+				splashParticleSystem.instanceMatrix.needsUpdate = true;
 			}
 			// --- END NEW ---
 
@@ -1043,8 +1005,8 @@
 				heightmapVariable.material.uniforms[ 'deep' ] = { value: 0.01 };
 				heightmapVariable.material.uniforms[ 'time' ] = { value: 0.0 };
 				heightmapVariable.material.uniforms[ 'fallingWaterCenter' ] = { value: new THREE.Vector2( 0.052, -0.01 ) };
-				heightmapVariable.material.uniforms[ 'fallingWaterSize' ] = { value: 0.1 };
-				heightmapVariable.material.uniforms[ 'fallingWaterDeep' ] = { value: 0.001 };
+				heightmapVariable.material.uniforms[ 'fallingWaterSize' ] = { value: 0.7 };
+				heightmapVariable.material.uniforms[ 'fallingWaterDeep' ] = { value: 0.0003 };
 				heightmapVariable.material.defines.BOUNDS = BOUNDS.toFixed( 1 );
 
 				const error = gpuCompute.init(); 
@@ -1385,12 +1347,12 @@
 				const fallingWaterRadius = heightmapVariable.material.uniforms['fallingWaterSize'].value;
 				
 				// Emit a few particles each frame
-				if (Math.random() < 0.95) { // 80% chance each frame
+				if (Math.random() < 0.98) { // 98% chance each frame
 					emitSplashParticles(
 						fallingWaterCenter.x, 
 						fallingWaterCenter.y, 
 						fallingWaterRadius, 
-						Math.floor(2 + Math.random() * 6) // 2-4 particles per emission
+						Math.floor(5 + Math.random() * 10) // 5-15 particles per emission
 					);
 				}
 				// --- END NEW ---
@@ -1742,25 +1704,21 @@
 
 					// --- Falling water continuous splash ---
 					vec2 worldPos = (uv - vec2(0.5)) * BOUNDS;
-  float distToCenter = length(worldPos - fallingWaterCenter);
-
-  // Create expanding ripples from center
-  float rippleSpeed = 4.0; // How fast ripples expand
-  float rippleFrequency = 15.0; // How many ripples
-  float rippleDecay = 2.0; // How quickly ripples fade with distance
-
-  // Create outward moving ripples
-  float ripplePhase = distToCenter * rippleFrequency - time * rippleSpeed;
-  float rippleAmplitude = exp(-distToCenter * rippleDecay) * fallingWaterDeep;
-
-  // Single clean ripple pattern
-  float ripple = sin(ripplePhase) * rippleAmplitude;
-
-  // Only apply ripples within a certain radius
-  float maxRadius = 1.2; // Maximum ripple distance
-  ripple *= smoothstep(maxRadius, 0.0, distToCenter);
-
-  newHeight += ripple;
+					float distToCenter = length(worldPos - fallingWaterCenter);
+					
+					// Create continuous ripples at the water intersection ring
+					if (distToCenter > fallingWaterSize - 0.05 && distToCenter < fallingWaterSize + 0.05) {
+						// Multiple wave frequencies for more complex splash
+						float wave1 = sin(time * 12.0 + distToCenter * 40.0) * 0.002;
+						float wave2 = sin(time * 18.0 - distToCenter * 60.0) * 0.001;
+						float wave3 = cos(time * 8.0 + distToCenter * 30.0) * 0.0015;
+						
+						// Combine waves with distance-based falloff
+						float waveCombined = (wave1 + wave2 + wave3);
+						waveCombined *= smoothstep(fallingWaterSize + 0.05, fallingWaterSize - 0.05, distToCenter);
+						
+						newHeight += waveCombined * fallingWaterDeep;
+					}
 					// --- END falling water splash ---
 
 					// Update height history

@@ -14,8 +14,8 @@ import RocketModel from "./RocketModel";
 import MobileCandleOrbital from "./MobileCandleOrbital";
 
 // Lazy load MoonScene for better performance
-const MoonSceneComponent = React.lazy(() => import('../MoonScene'));
-
+const LunarLanding = React.lazy(() => import('../LunarLanding'));
+const MoonScene = React.lazy(() => import('./MoonLamps'));
 // Import Firebase functions
 import { getDocs, collection, query } from 'firebase/firestore';
 import { db } from '../../utilities/firebaseClient';
@@ -39,7 +39,7 @@ import styled from "styled-components";
 import { debounce } from "lodash";
 
 import FloatingCandleViewer from "./CandleInteraction";
-import MoonScene from "./MoonLamps";
+
 import CameraGUI from "./CameraGUI";
 import HolographicStatue from "./HolographicStatue";
 import PostProcessingEffects from "./PostProcessingEffects";
@@ -103,6 +103,11 @@ const HoldIndicator = ({ showIndicator, progress }) => {
 // Create a wrapper component to access the RocketContext
 
 
+// Track VotiveStand instances
+if (!window._votiveStandInstances) {
+  window._votiveStandInstances = 0;
+}
+
 const ThreeDVotiveStand = forwardRef(({
   setIsLoading,
   isInMarkerView,
@@ -123,6 +128,22 @@ const ThreeDVotiveStand = forwardRef(({
   showSpotify,
   setShowSpotify,
 }, ref) => {
+  // Track instance creation
+  const [instanceId] = useState(() => {
+    window._votiveStandInstances++;
+    const id = `VotiveStand-${window._votiveStandInstances}`;
+    console.log(`🎯 ${id} created at ${new Date().toISOString()}`);
+    console.log(`🎯 Stack trace:`, new Error().stack);
+    return id;
+  });
+  
+  // Log when component unmounts
+  useEffect(() => {
+    return () => {
+      console.log(`🎯 ${instanceId} unmounting`);
+    };
+  }, [instanceId]);
+  
   // Use music context for showSpotify state
   const [showFloatingViewer, setShowFloatingViewer] = useState(false);
   const [selectedCandleData, setSelectedCandleData] = useState(null);
@@ -155,9 +176,9 @@ const ThreeDVotiveStand = forwardRef(({
     setAllCandlesData([]);
   }, []);
 
-  // Add ref for MoonScene
+  // Add ref for LunarLanding
   const moonSceneRef = useRef();
-
+  const [showLunarLanding, setShowLunarLanding] = useState(false);
   const results = useFirestoreResults();
   // const [userData, setUserData] = useState([]);
   // // Add in index.jsx
@@ -777,7 +798,7 @@ const ThreeDVotiveStand = forwardRef(({
   
   // State for moon scene astronaut data
   const [userHelmetTextures, setUserHelmetTextures] = useState([]);
-  const [moonSceneDataLoaded, setMoonSceneDataLoaded] = useState(false);
+  const [lunarLandingDataLoaded, setLunarLandingDataLoaded] = useState(false);
   
   // State for preloading
   const [preloadProgress, setPreloadProgress] = useState(0);
@@ -852,10 +873,10 @@ const ThreeDVotiveStand = forwardRef(({
   }, []);
   
   // Function to fetch user data for astronauts with progressive loading
-  const fetchUserDataForMoonScene = useCallback(async (progressive = true) => {
-    if (moonSceneDataLoaded) return; // Already loaded
+  const fetchUserDataForLunarLanding = useCallback(async (progressive = true) => {
+    if (lunarLandingDataLoaded) return; // Already loaded
     
-    console.log("🌙 Fetching user data for moon scene astronauts...");
+    console.log("🌙 Fetching user data for lunar scene astronauts...");
     try {
       const usersRef = collection(db, "users");
       const q = query(usersRef);
@@ -864,7 +885,7 @@ const ThreeDVotiveStand = forwardRef(({
       if (querySnapshot.empty) {
         console.warn("No users found in Firestore");
         setUserHelmetTextures([]);
-        setMoonSceneDataLoaded(true);
+        setLunarLandingDataLoaded(true);
         return;
       }
 
@@ -932,13 +953,13 @@ const ThreeDVotiveStand = forwardRef(({
         setUserHelmetTextures(validTextures);
       }
       
-      setMoonSceneDataLoaded(true);
+      setLunarLandingDataLoaded(true);
     } catch (error) {
-      console.error("Error fetching user data for moon scene:", error);
+      console.error("Error fetching user data for lunar scene:", error);
       setUserHelmetTextures([]);
-      setMoonSceneDataLoaded(true);
+      setLunarLandingDataLoaded(true);
     }
-  }, [moonSceneDataLoaded, loadImageAsTexture]);
+  }, [lunarLandingDataLoaded, loadImageAsTexture]);
 
   // Function to dispose gallery resources
   const disposeGalleryResources = useCallback(() => {
@@ -980,27 +1001,103 @@ const ThreeDVotiveStand = forwardRef(({
     }, 6000);
   };
 
+  // Handle scene switching
+  const handleSceneSwitch = useCallback((sceneName) => {
+    console.log('🎬 Switching to scene:', sceneName);
+    if (sceneName === 'moon') {
+      setActiveScene('moon');
+      setShowLunarLanding(true);
+      
+      // Start fetching user data for astronauts
+      fetchUserDataForLunarLanding(true); // Use progressive loading
+      
+      // Hide the transition after scene switch
+      setTimeout(() => {
+        setShowTransition(false);
+        console.log('🎬 Transition hidden after scene switch');
+      }, 500); // Small delay to ensure smooth transition
+    } else if (sceneName === 'gallery') {
+      setActiveScene('gallery');
+      setShowLunarLanding(false);
+      setShowUI(true); // Restore UI when returning to gallery
+      console.log('🎬 Returned to gallery scene, UI restored');
+    }
+  }, [fetchUserDataForLunarLanding]);
+
   // Handle transition start from RocketModel
   const handleTransitionStart = useCallback((onComplete) => {
     console.log('🚀 Transition started - RocketModel has already handled countdown');
     
-    // Hide UI immediately when transition starts
-    setShowUI(false);
-    console.log('🎭 Hiding UI for transition');
+    // DON'T hide UI or change scenes immediately - just prepare for transition
+    console.log('🎭 Preparing for transition...');
     
-    // Start the transition immediately since countdown is done in RocketModel
+    // Start the transition effects but keep the scene active
     setShowTransition(true);
     
-    // Store the callback for transition completion
-    setTransitionCallback(() => () => {
-      console.log('🎭 Executing stored transition callback');
-      if (typeof onComplete === 'function') {
-        console.log('🎭 Calling original onComplete from RocketModel...');
-        onComplete();
-      } else {
-        console.error('🎭 ERROR: onComplete is not a function!', onComplete);
-      }
-    });
+    // Call the rocket's callback immediately so it can start fading
+    if (typeof onComplete === 'function') {
+      console.log('🎭 Calling RocketModel callback to start fade...');
+      // Create a new completion callback that will be called when transition peaks
+      const transitionPeakCallback = () => {
+        console.log('🎭 Transition peak reached - NOW switching scenes');
+        
+        // NOW is the time to hide UI and switch scenes
+        setShowUI(false);
+        console.log('🎭 Hiding UI for scene transition');
+        
+        // This was the original completion logic from RocketModel
+        console.log("🚀 Transition peak reached, switching to moon scene...");
+        
+        // Store transition state in sessionStorage for moon scene
+        sessionStorage.setItem('rocketLaunchTransition', JSON.stringify({
+          timestamp: Date.now(),
+          userData: userData,
+          is80sMode: is80sMode
+        }));
+        
+        // Switch to moon scene
+        console.log("🚀 Preparing to switch to moon scene...");
+        
+        // Add a small delay to ensure React Three Fiber cleanup
+        setTimeout(() => {
+          // Try to force exit from Canvas context first
+          console.log("🚀 Attempting to exit Canvas context before navigation...");
+          
+          // Dispatch a custom event to notify parent components
+          window.dispatchEvent(new CustomEvent('rocket-navigation-start', { 
+            detail: { destination: '/moon-scene' } 
+          }));
+          try {
+            console.log("🚀 Attempting scene switch after delay...");
+            
+            // Call the scene switch function if provided
+            if (typeof handleSceneSwitch === 'function') {
+              console.log("🚀 Calling handleSceneSwitch to switch to moon scene");
+              handleSceneSwitch('moon');
+            } else {
+              console.error("🚀 handleSceneSwitch function not provided!");
+              // Fallback to window.location if no scene switch function
+              console.log("🚀 Falling back to window.location navigation");
+              window.location.href = '/moon-scene';
+            }
+          } catch (syncError) {
+            console.error("🚀 Synchronous error during scene switch:", syncError);
+            console.error("🚀 Sync error name:", syncError?.name);
+            console.error("🚀 Sync error message:", syncError?.message);
+            console.log("🚀 Using window.location as ultimate fallback...");
+            window.location.href = '/moon-scene';
+          }
+        }, 100); // 100ms delay
+      };
+      
+      // Store the callback for when transition peaks
+      setTransitionCallback(() => transitionPeakCallback);
+      
+      // Call the rocket's callback to start the fade
+      onComplete();
+    } else {
+      console.error('🎭 ERROR: onComplete is not a function!', onComplete);
+    }
     
     // Preload flag texture during transition
     const flagImg = new Image();
@@ -1010,14 +1107,14 @@ const ThreeDVotiveStand = forwardRef(({
     };
     flagImg.src = '/flagLogo.jpg';
     
-    // Dispose gallery resources during launch
+    // Dispose gallery resources during launch (delayed)
     setTimeout(() => {
       disposeGalleryResources();
     }, 1000);
     
     // Start fetching user data
-    fetchUserDataForMoonScene(true);
-  }, [disposeGalleryResources, fetchUserDataForMoonScene]);
+    fetchUserDataForLunarLanding(true);
+  }, [disposeGalleryResources, fetchUserDataForLunarLanding, userData, is80sMode, handleSceneSwitch]);
 
   // Handle transition completion
   const handleTransitionComplete = useCallback(() => {
@@ -1030,27 +1127,6 @@ const ThreeDVotiveStand = forwardRef(({
       console.error('🎬 ERROR: No transition callback stored!');
     }
   }, [transitionCallback]);
-  
-  // Handle scene switching
-  const handleSceneSwitch = useCallback((sceneName) => {
-    console.log('🎬 Switching to scene:', sceneName);
-    if (sceneName === 'moon') {
-      setActiveScene('moon');
-      setShowMoonScene(true);
-      
-      // Start fetching user data for astronauts
-      fetchUserDataForMoonScene(true); // Use progressive loading
-      
-      // Hide the transition after scene switch
-      setTimeout(() => {
-        setShowTransition(false);
-        console.log('🎬 Transition hidden after scene switch');
-      }, 500); // Small delay to ensure smooth transition
-    } else if (sceneName === 'gallery') {
-      setActiveScene('gallery');
-      setShowMoonScene(false);
-    }
-  }, [fetchUserDataForMoonScene]);
   
   
 
@@ -1082,7 +1158,7 @@ const ThreeDVotiveStand = forwardRef(({
       let originalTarget = null;
       
       // Temporarily disable external controls if they exist
-      if (externalControls) {
+      if (externalControls && !rocketModelVisible) {
      
         originalTarget = externalControls.target.clone();
         externalControls.enabled = false;
@@ -1230,7 +1306,7 @@ const ThreeDVotiveStand = forwardRef(({
           updateScanlineEffect(0);
           
           // Re-enable external controls
-          if (externalControls) {
+          if (externalControls && !rocketModelVisible) {
 
             externalControls.enabled = true;
             externalControls.target.copy(lookAtTarget);
@@ -1289,7 +1365,7 @@ const ThreeDVotiveStand = forwardRef(({
         }
 
         const externalControls = controlsRef.current;
-        if (externalControls) {
+        if (externalControls && !rocketModelVisible) {
          
           externalControls.enabled = false; // Disable orbit controls during animation
         }
@@ -1351,7 +1427,7 @@ const ThreeDVotiveStand = forwardRef(({
         requestAnimationFrame(animateZoom);
       });
     }
-  }), [sceneCameraRef, controlsRef, modelCenter]); // Added modelCenter to dependencies
+  }), [sceneCameraRef, controlsRef, modelCenter, rocketModelVisible]); // Added modelCenter and rocketModelVisible to dependencies
 
   // Add this right after your imports
   const MemoizedHolographicStatue = React.memo(HolographicStatue);
@@ -1452,32 +1528,18 @@ const ThreeDVotiveStand = forwardRef(({
         </Suspense>
 
         {/* Conditionally render HolographicStatue or RocketModel based on monsterMode */}
-        {/* <Suspense fallback={null}>
-          {console.log("ThreeDVotiveStand render:", {
-            monsterMode,
-            rocketModelVisible,
-          })}
-          {!monsterMode ? (
-            <MemoizedHolographicStatue
-              key="holographic-statue"
-              isInMarkerView={isInMarkerView}
-              isMobileView={isMobileView}
-              setShowSpotify={setShowSpotify}
-              showSpotify={showSpotify}
-              isModalOpen={isModalOpen}
-              setIsModalOpen={setIsModalOpen}
-              onSpawnReady={onSpawnReady}
-              is80sMode={is80sMode}
-              userData={userData}
-              onLoad={handleHolographicStatueLoad} // Use the memoized callback
-            />
-          ) : (
-            rocketModelVisible && <RocketModel is80sMode={is80sMode} userData={userData} onTransitionStart={handleTransitionStart} onSceneSwitch={handleSceneSwitch} />
-          )}
-        </Suspense> */}
         <Suspense fallback={null}>
-
-          {!monsterMode ? (
+          {/* Only render RocketModel when BOTH conditions are met to prevent duplicates */}
+          {console.log(`🎯 [${instanceId}] Rocket render check: monsterMode=${monsterMode}, rocketModelVisible=${rocketModelVisible}, will render=${monsterMode && rocketModelVisible}`)}
+          {monsterMode && rocketModelVisible ? (
+            <RocketModel 
+              key="main-rocket-model" 
+              is80sMode={is80sMode} 
+              userData={userData} 
+              onTransitionStart={handleTransitionStart} 
+              onSceneSwitch={handleSceneSwitch} 
+            />
+          ) : !monsterMode ? (
             <HolographicStatue
               isInMarkerView={isInMarkerView}
               isMobileView={isMobileView}
@@ -1490,9 +1552,7 @@ const ThreeDVotiveStand = forwardRef(({
               userData={userData}
               onLoad={handleHolographicStatueLoad} // Use the memoized callback
             />
-          ) : (
-            rocketModelVisible && <RocketModel is80sMode={is80sMode} userData={userData} onTransitionStart={handleTransitionStart} onSceneSwitch={handleSceneSwitch} />
-          )}
+          ) : null}
         </Suspense>
         <Suspense fallback={null}>
           {!isMobileView && <TickerDisplay modelRef={modelRef} />}
@@ -1526,7 +1586,7 @@ const ThreeDVotiveStand = forwardRef(({
       </Canvas>
 
       {/* Moon Scene - rendered when rocket launch completes */}
-      {showMoonScene && (
+      {showLunarLanding && (
         <Suspense fallback={<div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', color: 'white', zIndex: 11 }}>Loading Moon Scene...</div>}>
           <div style={{ 
             position: 'absolute', 
@@ -1539,11 +1599,11 @@ const ThreeDVotiveStand = forwardRef(({
             transition: 'opacity 1s ease-in-out',
             backgroundColor: 'black' // Add black background to ensure visibility
           }}>
-            {console.log('🌙 Rendering MoonSceneComponent wrapper div')}
+            {console.log('🌙 Rendering LunarLanding wrapper div')}
             {console.log('🌙 Passing userHelmetTextures:', userHelmetTextures.length)}
             
             {/* Show loading indicator for astronaut data */}
-            {!moonSceneDataLoaded && (
+            {!lunarLandingDataLoaded && (
               <div style={{
                 position: 'absolute',
                 top: '20px',
@@ -1559,7 +1619,7 @@ const ThreeDVotiveStand = forwardRef(({
               </div>
             )}
             
-            <MoonSceneComponent 
+            <LunarLanding 
               userHelmetTextures={userHelmetTextures} 
               currentUser={userData}
               onSceneReady={() => {

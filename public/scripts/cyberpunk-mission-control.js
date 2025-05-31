@@ -465,6 +465,10 @@ function initializeVideoDisplay() {
   const videoDisplay = document.querySelector('.video-display');
   if (!videoDisplay) return;
   
+  // Set video display to expanded by default
+  videoDisplay.classList.add('active');
+  videoDisplay.classList.add('touched');
+  
   // Mobile video display toggle
   if (window.innerWidth <= 700) {
     videoDisplay.addEventListener('click', function() {
@@ -483,9 +487,17 @@ function initializeControlButtons() {
     const action = button.getAttribute('data-action');
     console.log(`🔲 Button ${index}: action="${action}"`);
     
-    button.addEventListener('click', function() {
+    button.addEventListener('click', function(e) {
+      e.stopPropagation(); // Prevent event bubbling
       const action = this.getAttribute('data-action');
-      console.log(`🔴 Button click intercepted: action="${action}"`);
+      console.log(`🔴 Button click intercepted: action="${action}" at ${new Date().toISOString()}`);
+      console.log(`🔴 Event details:`, {
+        eventPhase: e.eventPhase,
+        bubbles: e.bubbles,
+        target: e.target.tagName,
+        currentTarget: e.currentTarget.tagName,
+        timestamp: e.timeStamp
+      });
       handleControlButtonClick(action, this);
     });
   });
@@ -603,6 +615,9 @@ function handleSignalButton(button) {
   }
 }
 
+// Add a flag to prevent duplicate messages
+let rocketToggleInProgress = false;
+
 function handleNavigationButton(button) {
   console.log('🚀 Navigation button clicked');
   
@@ -610,9 +625,20 @@ function handleNavigationButton(button) {
   const buttonLabel = button.querySelector('.button-label');
   const buttonPrefix = button.querySelector('.button-prefix');
   
+  console.log('🚀 handleNavigationButton called with state:', currentState, 'at', new Date().toISOString());
+  
   if (currentState === 'navigate') {
     // State 1: NAVIGATE -> IGNITION -> Show rocket model
     console.log('🚀 Triggering ignition - switching to rocket model');
+    
+    // Check if we're already processing a toggle
+    if (rocketToggleInProgress) {
+      console.warn('🚀 Rocket toggle already in progress, skipping duplicate');
+      return;
+    }
+    
+    // Set flag to prevent duplicates
+    rocketToggleInProgress = true;
     
     // Update button to LAUNCH state
     button.setAttribute('data-state', 'launch');
@@ -622,9 +648,17 @@ function handleNavigationButton(button) {
     
     // Send ignition message to parent to show rocket model
     if (window.parent) {
+      console.log('🚀 Sending ROCKET_IGNITION_REQUEST message at', new Date().toISOString());
       window.parent.postMessage({
-        type: 'TOGGLE_ROCKET_MODEL'
+        type: 'ROCKET_IGNITION_REQUEST',
+        action: 'show_rocket'
       }, '*');
+      
+      // Reset flag after a delay
+      setTimeout(() => {
+        rocketToggleInProgress = false;
+        console.log('🚀 Rocket toggle flag reset');
+      }, 1000);
     }
     
     // Play ignition sound
@@ -661,8 +695,10 @@ function handleNavigationButton(button) {
     
     // Send launch message to parent
     if (window.parent) {
+      console.log('🚀 Sending ROCKET_LAUNCH_EXECUTE message');
       window.parent.postMessage({
-        type: 'ROCKET_LAUNCH'
+        type: 'ROCKET_LAUNCH_EXECUTE',
+        action: 'launch_rocket'
       }, '*');
     }
     
@@ -1581,9 +1617,9 @@ function playOrientationVideo() {
             if (buttonLabel) {
               buttonLabel.textContent = "CONNECT";
               // Add visual indication that video can be skipped
-              if (buttonPrefix) {
-                buttonPrefix.textContent = "SKIP// 🚀";
-              }
+              // if (buttonPrefix) {
+              //   buttonPrefix.textContent = "SKIP// 🚀";
+              // }
               console.log("🔄 CONNECT button available (video can be skipped)");
               
               // Add a subtle pulse animation to draw attention
@@ -1591,9 +1627,9 @@ function playOrientationVideo() {
               
               // Remove skip indication when video ends naturally
               orientationVideo.addEventListener("ended", () => {
-                if (buttonPrefix) {
-                  buttonPrefix.textContent = "SIG// 👽";
-                }
+                // if (buttonPrefix) {
+                //   buttonPrefix.textContent = "SIG// 👽";
+                // }
                 signalButton?.classList.remove("can-skip");
               }, { once: true });
             }
@@ -1646,8 +1682,9 @@ function playOrientationVideo() {
     hideTranscript();
     enableToggles();
     
-    if (deadAir) deadAir.style.display = "block";
-    if (offlineDisplay) offlineDisplay.style.display = "block";
+    // Only show offline display, not deadAir video
+    if (deadAir) deadAir.style.display = "none";
+    if (offlineDisplay) offlineDisplay.style.display = "flex";
     
     setTimeout(() => {
       orientationVideo.remove();
@@ -1686,8 +1723,9 @@ function stopOrientationVideo(isManualStop = true) {
   
   setTimeout(() => {
     orientationVideo.remove();
-    if (deadAir) deadAir.style.display = "block";
-    if (offlineDisplay) offlineDisplay.style.display = "block";
+    // Only show offline display, not deadAir video
+    if (deadAir) deadAir.style.display = "none";
+    if (offlineDisplay) offlineDisplay.style.display = "flex";
     
     // Only hide transcript if this was a manual stop (skip), not natural end
     if (isManualStop) {
@@ -2045,7 +2083,7 @@ function handleSitePalDisconnection(button) {
     deadAir.style.opacity = 0;
   }
   if (offlineDisplay) {
-    offlineDisplay.style.display = "block";
+    offlineDisplay.style.display = "flex";
     console.log("📺 Offline display restored");
   }
 

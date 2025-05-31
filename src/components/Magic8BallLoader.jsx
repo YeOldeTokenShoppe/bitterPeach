@@ -212,7 +212,7 @@ const Magic8BallLoader = ({ isLoading = true, onComplete, loadingProgress = 0 })
           </div>
         </div>
         <div className="thelma" style={{position: 'relative', top: '1.5rem', fontFamily: 'UnifrakturCook', fontSize: '2.5rem', fontWeight: 'bold', textShadow: '0 0 10px rgba(138, 43, 226, 0.8), 0 0 20px rgba(138, 43, 226, 0.4)'}}>
-         <span style={{fontFamily: 'UnifrakturMaguntia', fontSize: '3rem', fontWeight: 'bold', textShadow: '0 0 10px rgba(138, 43, 226, 0.8), 0 0 20px rgba(138, 43, 226, 0.4)'}}>L</span>oading <span style={{fontFamily: 'Roboto', fontSize: '3rem', fontWeight: 'bold', textShadow: '0 0 10px rgba(138, 43, 226, 0.8), 0 0 20px rgba(138, 43, 226, 0.4)'}}> ...</span>{displayProgress}%
+         <span style={{fontFamily: 'UnifrakturMaguntia', fontSize: '3rem', fontWeight: 'bold', textShadow: '0 0 10px rgba(138, 43, 226, 0.8), 0 0 20px rgba(138, 43, 226, 0.4)'}}>L</span>oading <span style={{fontFamily: 'Roboto', fontSize: '3rem', fontWeight: 'bold', textShadow: '0 0 10px rgba(138, 43, 226, 0.8), 0 0 20px rgba(138, 43, 226, 0.4)'}}> ... </span>{displayProgress}%
         </div>
         {/* <div className={styles.loadingText}>
           <div className={styles.magicalDots} translate="no">

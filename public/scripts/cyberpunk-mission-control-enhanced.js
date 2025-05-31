@@ -7,6 +7,29 @@ document.addEventListener('DOMContentLoaded', function() {
   setTimeout(() => {
     console.log('🚀 Initializing enhanced controls...');
     
+    // Ensure offline-display is visible by default
+    const offlineDisplay = document.getElementById('offline-display');
+    if (offlineDisplay) {
+      offlineDisplay.style.display = 'flex';
+      console.log('✅ Offline display set to visible');
+    }
+    
+    // Ensure video display is expanded by default
+    const videoDisplay = document.querySelector('.video-display');
+    if (videoDisplay) {
+      videoDisplay.classList.add('active');
+      videoDisplay.classList.add('touched');
+      console.log('✅ Video display set to expanded state');
+    }
+    
+    // Ensure deadAir video is hidden by default (only shown when SitePal is active)
+    const deadAir = document.getElementById('deadAir');
+    if (deadAir) {
+      deadAir.style.display = 'none';
+      deadAir.pause();
+      console.log('✅ DeadAir video hidden by default');
+    }
+    
     // Start mission timer
     startMissionTimer();
     
@@ -33,6 +56,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Fix language selector FIRST (includes toggleTranscript override)
     fixLanguageSelector();
+    
+    // Initialize navigation button state
+    initializeNavigationButtonState();
     
     // Wait a bit to ensure base script is loaded, then override functions
     setTimeout(() => {
@@ -62,8 +88,10 @@ function startMissionTimer() {
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
     
-    timerElement.textContent = 
-      `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    if (timerElement) {
+      timerElement.textContent = 
+        `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
   }, 1000);
 }
 
@@ -254,8 +282,18 @@ function initializeEnhancedButtons() {
   const buttons = document.querySelectorAll('.control-button.enhanced');
   
   buttons.forEach(button => {
-    button.addEventListener('click', function() {
-      // Add ripple effect
+    // Check if this button already has enhanced effects
+    if (button.hasAttribute('data-enhanced-initialized')) {
+      return; // Skip if already initialized
+    }
+    
+    // Mark as initialized
+    button.setAttribute('data-enhanced-initialized', 'true');
+    
+    // Add a separate click handler for visual effects only
+    button.addEventListener('click', function(e) {
+      // Don't interfere with the base functionality
+      // Just add the ripple effect
       const ripple = document.createElement('div');
       ripple.className = 'button-ripple';
       ripple.style.cssText = `
@@ -272,9 +310,10 @@ function initializeEnhancedButtons() {
       button.appendChild(ripple);
       
       setTimeout(() => ripple.remove(), 600);
-    });
+    }, { capture: true }); // Use capture phase to ensure effect runs first
   });
 }
+
 
 // Gauge Fluctuations
 function startGaugeFluctuations() {
@@ -851,6 +890,53 @@ function initializeHeaderEffects() {
     header.addEventListener('mouseleave', () => {
       header.style.background = '';
     });
+  }
+}
+
+// Initialize navigation button state
+function initializeNavigationButtonState() {
+  console.log('🚀 Initializing navigation button state');
+  
+  const navigateButton = document.getElementById('navigate-button');
+  if (!navigateButton) {
+    console.warn('Navigate button not found during initialization');
+    return;
+  }
+  
+  // The handleNavigationButton function from the main script already handles the button logic.
+  // We just need to make sure the button resets properly after launch or when rocket model is hidden.
+  
+  // Listen for messages from parent about rocket model visibility
+  window.addEventListener('message', function(event) {
+    if (event.data.type === 'ROCKET_VISIBILITY_STATE_RESPONSE' || event.data.type === 'ROCKET_VISIBILITY_CONFIRMED') {
+      console.log('🚀 Received rocket visibility update:', event.data.type, event.data.isVisible);
+      
+      const buttonLabel = navigateButton.querySelector('.button-label');
+      const buttonPrefix = navigateButton.querySelector('.button-prefix');
+      
+      if (!event.data.isVisible) {
+        // Rocket is hidden, ensure button is back to NAVIGATE state
+        const currentState = navigateButton.getAttribute('data-state');
+        if (currentState !== 'navigate') {
+          console.log('🚀 Resetting button to NAVIGATE state');
+          navigateButton.setAttribute('data-state', 'navigate');
+          navigateButton.setAttribute('data-action', 'navigation');
+          if (buttonLabel) buttonLabel.textContent = 'NAVIG8';
+          if (buttonPrefix) buttonPrefix.textContent = 'NAV//';
+        }
+      }
+      // Don't update when rocket becomes visible - let the click handler do that
+    }
+  });
+  
+  // Request current rocket state from parent to ensure initial sync
+  if (window.parent) {
+    console.log('🚀 Requesting current rocket model state from parent');
+    setTimeout(() => {
+      window.parent.postMessage({
+        type: 'REQUEST_ROCKET_VISIBILITY_STATE'
+      }, '*');
+    }, 100);
   }
 }
 

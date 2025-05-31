@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Rocket Fix</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        .controls {
+            margin-bottom: 20px;
+            padding: 20px;
+            background: #2a2a2a;
+            border-radius: 8px;
+        }
+        button {
+            background: #4a5568;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #5a6578;
+        }
+        .state-display {
+            margin: 20px 0;
+            padding: 15px;
+            background: #333;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .rocket-count {
+            font-size: 24px;
+            font-weight: bold;
+            color: #00ff00;
+        }
+        .error {
+            color: #ff4444;
+        }
+        .success {
+            color: #44ff44;
+        }
+        iframe {
+            width: 100%;
+            height: 600px;
+            border: 2px solid #555;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Rocket Model Duplicate Test</h1>
+    
+    <div class="controls">
+        <h2>Controls</h2>
+        <button onclick="toggleRocket()">Toggle Rocket</button>
+        <button onclick="checkRocketCount()">Check Rocket Count</button>
+        <button onclick="checkStates()">Check States</button>
+        <button onclick="resetStates()">Reset All States</button>
+    </div>
+    
+    <div class="state-display">
+        <h3>Current State:</h3>
+        <p>Monster Mode: <span id="monster-mode">Unknown</span></p>
+        <p>Rocket Visible: <span id="rocket-visible">Unknown</span></p>
+        <p>Active Rocket Instances: <span id="rocket-count" class="rocket-count">0</span></p>
+        <p>Last Check: <span id="last-check">Never</span></p>
+    </div>
+    
+    <div id="results"></div>
+    
+    <h2>Gallery Page:</h2>
+    <iframe src="/gallery" id="gallery-frame"></iframe>
+
+    <script>
+        let galleryWindow = null;
+        
+        // Wait for iframe to load
+        window.addEventListener('load', () => {
+            const iframe = document.getElementById('gallery-frame');
+            galleryWindow = iframe.contentWindow;
+            
+            // Give it time to initialize
+            setTimeout(() => {
+                checkStates();
+            }, 3000);
+        });
+        
+        function toggleRocket() {
+            if (!galleryWindow) {
+                alert('Gallery not loaded yet');
+                return;
+            }
+            
+            // Find and click the rocket toggle in the mobile panel
+            const toggleButtons = galleryWindow.document.querySelectorAll('button');
+            let found = false;
+            
+            toggleButtons.forEach(btn => {
+                if (btn.textContent.includes('Launch Rocket') || 
+                    btn.textContent.includes('Hide Rocket') ||
+                    btn.textContent.includes('🚀')) {
+                    console.log('Found rocket toggle button:', btn.textContent);
+                    btn.click();
+                    found = true;
+                }
+            });
+            
+            // Also try the switch if button not found
+            if (!found) {
+                const switches = galleryWindow.document.querySelectorAll('input[type="checkbox"]');
+                switches.forEach(sw => {
+                    const label = sw.closest('label');
+                    if (label && label.textContent.includes('Rocket')) {
+                        console.log('Found rocket switch');
+                        sw.click();
+                        found = true;
+                    }
+                });
+            }
+            
+            if (!found) {
+                addResult('Could not find rocket toggle control', 'error');
+            } else {
+                addResult('Toggled rocket control', 'success');
+                setTimeout(checkRocketCount, 500);
+            }
+        }
+        
+        function checkRocketCount() {
+            if (!galleryWindow) {
+                alert('Gallery not loaded yet');
+                return;
+            }
+            
+            // Check the global rocket instance tracker
+            const activeInstance = galleryWindow._activeRocketInstance;
+            document.getElementById('rocket-count').textContent = activeInstance ? '1' : '0';
+            
+            // Update last check time
+            document.getElementById('last-check').textContent = new Date().toLocaleTimeString();
+            
+            // Log console messages
+            const consoleMessages = [];
+            const originalLog = galleryWindow.console.log;
+            galleryWindow.console.log = function(...args) {
+                originalLog.apply(console, args);
+                const message = args.join(' ');
+                if (message.includes('RocketModel')) {
+                    consoleMessages.push(message);
+                }
+            };
+            
+            if (activeInstance) {
+                addResult(`Active rocket instance: ${activeInstance}`, 'success');
+            } else {
+                addResult('No active rocket instance', 'error');
+            }
+        }
+        
+        function checkStates() {
+            if (!galleryWindow) {
+                alert('Gallery not loaded yet');
+                return;
+            }
+            
+            // Try to find React fiber to get actual state
+            const reactRoot = galleryWindow.document.querySelector('#__next');
+            if (reactRoot && reactRoot._reactRootContainer) {
+                console.log('Found React root');
+            }
+            
+            // Check for state in various places
+            let monsterMode = 'Unknown';
+            let rocketVisible = 'Unknown';
+            
+            // Try to intercept console logs
+            const logs = [];
+            const tempLog = galleryWindow.console.log;
+            galleryWindow.console.log = function(...args) {
+                tempLog.apply(console, args);
+                const msg = args.join(' ');
+                if (msg.includes('monsterMode:') || msg.includes('rocketModelVisible:')) {
+                    logs.push(msg);
+                }
+            };
+            
+            // Trigger a state check by clicking a harmless element
+            const body = galleryWindow.document.body;
+            body.click();
+            
+            // Restore console
+            setTimeout(() => {
+                galleryWindow.console.log = tempLog;
+                
+                // Parse logs for state
+                logs.forEach(log => {
+                    if (log.includes('monsterMode:')) {
+                        const match = log.match(/monsterMode:\s*(true|false)/);
+                        if (match) monsterMode = match[1];
+                    }
+                    if (log.includes('rocketModelVisible:')) {
+                        const match = log.match(/rocketModelVisible:\s*(true|false)/);
+                        if (match) rocketVisible = match[1];
+                    }
+                });
+                
+                document.getElementById('monster-mode').textContent = monsterMode;
+                document.getElementById('rocket-visible').textContent = rocketVisible;
+                
+                checkRocketCount();
+            }, 100);
+        }
+        
+        function resetStates() {
+            if (!galleryWindow) {
+                alert('Gallery not loaded yet');
+                return;
+            }
+            
+            // Reset the global rocket instance tracker
+            galleryWindow._activeRocketInstance = null;
+            
+            addResult('Reset rocket instance tracker', 'success');
+            checkStates();
+        }
+        
+        function addResult(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = type;
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            results.insertBefore(div, results.firstChild);
+            
+            // Keep only last 10 results
+            while (results.children.length > 10) {
+                results.removeChild(results.lastChild);
+            }
+        }
+        
+        // Auto-check every 5 seconds
+        setInterval(() => {
+            const autoCheck = document.getElementById('rocket-count');
+            if (galleryWindow && galleryWindow._activeRocketInstance) {
+                autoCheck.style.color = '#00ff00';
+            } else {
+                autoCheck.style.color = '#ff4444';
+            }
+        }, 1000);
+    </script>
+</body>
+</html>

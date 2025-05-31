@@ -145,12 +145,12 @@ body {
 
 /* Media query for shorter screens (likely mobile) - allow collapsing */
 @media (max-height: 700px) {
-  /* Default collapsed height on mobile when inactive */
-  .video-display:not(.active) {
-    height: 40px;
+  /* Default expanded height - changed to be expanded by default */
+  .video-display {
+    height: 180px !important;
   }
 
-  /* When active, maintain original height */
+  /* Keep expanded height when active */
   .video-display.active {
     height: 180px !important;
   }

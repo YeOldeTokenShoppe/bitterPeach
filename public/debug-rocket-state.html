@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Rocket State</title>
+    <style>
+        body {
+            font-family: monospace;
+            background: #000;
+            color: #0f0;
+            padding: 20px;
+        }
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px;
+            border-left: 3px solid #0f0;
+        }
+        .state-change {
+            color: #ff0;
+        }
+        .render {
+            color: #0ff;
+        }
+        .error {
+            color: #f00;
+        }
+        button {
+            background: #333;
+            color: #0f0;
+            border: 1px solid #0f0;
+            padding: 10px;
+            margin: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0f0;
+            color: #000;
+        }
+    </style>
+</head>
+<body>
+    <h1>Rocket State Debugger</h1>
+    <div>
+        <button onclick="toggleRocket()">Toggle Rocket</button>
+        <button onclick="clearLogs()">Clear Logs</button>
+        <button onclick="checkRocketCount()">Check Rocket Count</button>
+    </div>
+    <div id="state-display">
+        <p>Monster Mode: <span id="monster-mode">false</span></p>
+        <p>Rocket Visible: <span id="rocket-visible">false</span></p>
+        <p>Rocket Count: <span id="rocket-count">0</span></p>
+    </div>
+    <div id="logs"></div>
+
+    <script>
+        const logs = document.getElementById('logs');
+        let logCount = 0;
+
+        function addLog(message, type = 'log') {
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${++logCount}] ${new Date().toISOString().substr(11, 12)} - ${message}`;
+            logs.insertBefore(entry, logs.firstChild);
+            
+            // Keep only last 50 logs
+            while (logs.children.length > 50) {
+                logs.removeChild(logs.lastChild);
+            }
+        }
+
+        // Override console methods to capture logs
+        const originalLog = console.log;
+        const originalError = console.error;
+        
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            const message = args.map(arg => 
+                typeof arg === 'object' ? JSON.stringify(arg) : arg
+            ).join(' ');
+            
+            if (message.includes('RocketModel') || message.includes('monster') || message.includes('🚀')) {
+                addLog(message, message.includes('render') ? 'render' : 'log');
+            }
+        };
+        
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            const message = args.map(arg => 
+                typeof arg === 'object' ? JSON.stringify(arg) : arg
+            ).join(' ');
+            addLog(message, 'error');
+        };
+
+        function toggleRocket() {
+            addLog('Toggle rocket button clicked', 'state-change');
+            
+            // Send message to parent window
+            window.parent.postMessage({
+                type: 'TOGGLE_ROCKET_TEST',
+                timestamp: Date.now()
+            }, '*');
+        }
+
+        function clearLogs() {
+            logs.innerHTML = '';
+            logCount = 0;
+        }
+
+        function checkRocketCount() {
+            // Query the DOM to count rocket instances
+            const rockets = window.parent.document.querySelectorAll('[data-testid="rocket-model"]');
+            addLog(`Found ${rockets.length} rocket elements in DOM`, 'state-change');
+            document.getElementById('rocket-count').textContent = rockets.length;
+            
+            // Also check Three.js scene
+            if (window.parent.THREE) {
+                const scenes = [];
+                window.parent.document.querySelectorAll('canvas').forEach(canvas => {
+                    const context = canvas.getContext('webgl') || canvas.getContext('webgl2');
+                    if (context) {
+                        addLog('Found WebGL canvas', 'log');
+                    }
+                });
+            }
+        }
+
+        // Listen for state updates from parent
+        window.addEventListener('message', (event) => {
+            if (event.data.type === 'STATE_UPDATE') {
+                document.getElementById('monster-mode').textContent = event.data.monsterMode;
+                document.getElementById('rocket-visible').textContent = event.data.rocketVisible;
+                addLog(`State update: monsterMode=${event.data.monsterMode}, rocketVisible=${event.data.rocketVisible}`, 'state-change');
+            }
+        });
+
+        // Initial check
+        setTimeout(checkRocketCount, 1000);
+    </script>
+</body>
+</html>

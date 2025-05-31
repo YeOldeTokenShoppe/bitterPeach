@@ -1,0 +1,202 @@
+<\!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Rocket Structure</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #00ff00;
+        }
+        pre {
+            background: #000;
+            padding: 15px;
+            border: 1px solid #00ff00;
+            overflow: auto;
+            max-height: 600px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            background: #003300;
+            color: #00ff00;
+            border: 1px solid #00ff00;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #005500;
+        }
+        .error { color: #ff0000; }
+        .warning { color: #ffff00; }
+        .info { color: #00ffff; }
+    </style>
+</head>
+<body>
+    <h1>Test Rocket Structure</h1>
+    
+    <div>
+        <button onclick="inspectComponentTree()">Inspect Component Tree</button>
+        <button onclick="checkRocketComponents()">Check RocketModel Components</button>
+        <button onclick="analyzeSceneStructure()">Analyze Scene Structure</button>
+        <button onclick="clearOutput()">Clear</button>
+    </div>
+    
+    <pre id="output"></pre>
+    
+    <script>
+        const output = document.getElementById('output');
+        
+        function log(message, className = '') {
+            const span = document.createElement('span');
+            if (className) span.className = className;
+            span.textContent = message + '\n';
+            output.appendChild(span);
+        }
+        
+        function inspectComponentTree() {
+            log('=== Inspecting React Component Tree ===', 'info');
+            
+            const canvas = document.querySelector('canvas');
+            if (\!canvas) {
+                log('No canvas found', 'error');
+                return;
+            }
+            
+            // Try to access React internals
+            const fiberKey = Object.keys(canvas).find(key => key.startsWith('__reactInternalInstance') || key.startsWith('_reactRootContainer'));
+            
+            if (\!fiberKey) {
+                log('No React fiber found on canvas', 'error');
+                return;
+            }
+            
+            const fiber = canvas[fiberKey];
+            if (\!fiber) {
+                log('Could not access fiber', 'error');
+                return;
+            }
+            
+            // Walk the component tree looking for RocketModel instances
+            let rocketModelCount = 0;
+            const visitedNodes = new WeakSet();
+            
+            function walkFiber(node, depth = 0) {
+                if (\!node || visitedNodes.has(node)) return;
+                visitedNodes.add(node);
+                
+                const indent = '  '.repeat(depth);
+                
+                // Check if this is a RocketModel component
+                if (node.type && (
+                    node.type.name === 'RocketModel' || 
+                    (node.type.displayName && node.type.displayName === 'RocketModel')
+                )) {
+                    rocketModelCount++;
+                    log(\`\${indent}FOUND RocketModel #\${rocketModelCount}\`, 'warning');
+                    log(\`\${indent}  key: \${node.key}\`, 'info');
+                    log(\`\${indent}  memoized: \${node.memoizedProps ? 'yes' : 'no'}\`, 'info');
+                }
+                
+                // Check if this node renders RocketModel
+                if (node.memoizedProps && node.memoizedProps.children) {
+                    const children = Array.isArray(node.memoizedProps.children) 
+                        ? node.memoizedProps.children 
+                        : [node.memoizedProps.children];
+                    
+                    children.forEach(child => {
+                        if (child && child.type && child.type.name === 'RocketModel') {
+                            log(\`\${indent}Parent renders RocketModel:\`, 'warning');
+                            log(\`\${indent}  Parent type: \${node.type?.name || 'Unknown'}\`, 'info');
+                        }
+                    });
+                }
+                
+                // Walk siblings and children
+                if (node.child) walkFiber(node.child, depth + 1);
+                if (node.sibling) walkFiber(node.sibling, depth);
+            }
+            
+            walkFiber(fiber);
+            
+            log(\`\nTotal RocketModel components found: \${rocketModelCount}\`, rocketModelCount > 1 ? 'error' : 'info');
+        }
+        
+        function checkRocketComponents() {
+            log('=== Checking RocketModel Components ===', 'info');
+            
+            // Check loading instances
+            if (window.__rocketLoadingInstances) {
+                log(\`\nLoading instances: \${window.__rocketLoadingInstances.size}\`, 'info');
+                window.__rocketLoadingInstances.forEach((value, key) => {
+                    log(\`  Instance \${key}: loading=\${value}\`, 'warning');
+                });
+            }
+            
+            // Look for React DevTools
+            if (window._REACT_DEVTOOLS_GLOBAL_HOOK_) {
+                const hook = window._REACT_DEVTOOLS_GLOBAL_HOOK_;
+                log('\nReact DevTools hook found', 'info');
+                
+                if (hook.renderers && hook.renderers.size > 0) {
+                    log(\`Renderers: \${hook.renderers.size}\`, 'info');
+                }
+            }
+            
+            // Check for multiple canvases
+            const canvases = document.querySelectorAll('canvas');
+            log(\`\nCanvases found: \${canvases.length}\`, canvases.length > 1 ? 'warning' : 'info');
+        }
+        
+        function analyzeSceneStructure() {
+            log('=== Analyzing Scene Structure ===', 'info');
+            
+            const scene = window.__threeScene;
+            if (\!scene) {
+                log('No scene found at window.__threeScene', 'error');
+                return;
+            }
+            
+            const structure = {};
+            let totalObjects = 0;
+            
+            scene.traverse(child => {
+                totalObjects++;
+                const type = child.type || child.constructor.name;
+                structure[type] = (structure[type] || 0) + 1;
+                
+                // Look for rocket-related objects
+                if (child.name && child.name.toLowerCase().includes('rocket')) {
+                    log(\`Found rocket-related object: \${child.name} (\${type})\`, 'warning');
+                }
+                
+                if (child.userData?.isRocketModel) {
+                    log(\`Found rocket model: \${child.name} UUID: \${child.uuid}\`, 'error');
+                }
+                
+                if (child.userData?.isAnchorGroup) {
+                    log(\`Found anchor group UUID: \${child.uuid}\`, 'warning');
+                }
+            });
+            
+            log(\`\nTotal objects in scene: \${totalObjects}\`, 'info');
+            log('\nObject types:', 'info');
+            Object.entries(structure).forEach(([type, count]) => {
+                log(\`  \${type}: \${count}\`, count > 10 ? 'warning' : '');
+            });
+        }
+        
+        function clearOutput() {
+            output.innerHTML = '';
+            log('Output cleared', 'info');
+        }
+        
+        // Initial message
+        log('Debug tools loaded. Use buttons above to analyze.', 'info');
+        log('Open alongside your main app for best results.', 'warning');
+    </script>
+</body>
+</html>
+EOF < /dev/null

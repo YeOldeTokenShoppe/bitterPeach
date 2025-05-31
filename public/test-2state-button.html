@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2-State NAVIG8/LAUNCH Button Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #111;
+            color: #0ff;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .test-section {
+            background: #222;
+            border: 1px solid #0ff;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        .status {
+            background: #333;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        button {
+            background: #0ff;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        button:hover {
+            background: #0aa;
+        }
+        #message-log {
+            background: #000;
+            color: #0ff;
+            padding: 10px;
+            height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 2-State NAVIG8/LAUNCH Button Test</h1>
+        
+        <div class="test-section">
+            <h2>Test Overview</h2>
+            <p>This page tests the 2-state button functionality:</p>
+            <ol>
+                <li>Initial state: Button shows "NAVIG8"</li>
+                <li>First click: Shows rocket model, button changes to "LAUNCH"</li>
+                <li>Second click: Launches the rocket</li>
+            </ol>
+        </div>
+
+        <div class="test-section">
+            <h2>Current Status</h2>
+            <div class="status">
+                <p>Rocket Visible: <span id="rocket-status">FALSE</span></p>
+                <p>Button State: <span id="button-state">NAVIG8</span></p>
+                <p>Launch Available: <span id="launch-available">NO</span></p>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>Test Controls</h2>
+            <button onclick="sendNavigateClick()">Simulate NAVIG8 Click</button>
+            <button onclick="sendRocketVisible()">Simulate Rocket Visible</button>
+            <button onclick="sendLaunchClick()">Simulate LAUNCH Click</button>
+            <button onclick="resetTest()">Reset Test</button>
+        </div>
+
+        <div class="test-section">
+            <h2>Message Log</h2>
+            <div id="message-log"></div>
+        </div>
+    </div>
+
+    <script>
+        const messageLog = document.getElementById('message-log');
+        const rocketStatus = document.getElementById('rocket-status');
+        const buttonState = document.getElementById('button-state');
+        const launchAvailable = document.getElementById('launch-available');
+
+        let isRocketVisible = false;
+        let currentButtonState = 'NAVIG8';
+
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            messageLog.textContent += `[${timestamp}] ${message}\n`;
+            messageLog.scrollTop = messageLog.scrollHeight;
+            console.log(message);
+        }
+
+        // Simulate window message handling
+        window.addEventListener('message', function(event) {
+            log(`📨 Received message: ${event.data.type}`);
+            
+            switch(event.data.type) {
+                case 'TOGGLE_ROCKET_MODEL':
+                    log('🚀 TOGGLE_ROCKET_MODEL received - showing rocket');
+                    isRocketVisible = true;
+                    updateStatus();
+                    // Simulate rocket becoming visible
+                    setTimeout(() => {
+                        sendUpdateButtonState();
+                    }, 500);
+                    break;
+                    
+                case 'ROCKET_LAUNCH':
+                    if (isRocketVisible) {
+                        log('🚀 ROCKET_LAUNCH received - launching rocket!');
+                        log('🎆 LAUNCH SUCCESSFUL! 🎆');
+                        // Simulate launch completion
+                        setTimeout(() => {
+                            isRocketVisible = false;
+                            currentButtonState = 'NAVIG8';
+                            updateStatus();
+                            log('🚀 Rocket has launched and left the scene');
+                        }, 2000);
+                    } else {
+                        log('⚠️ ROCKET_LAUNCH received but rocket not visible!');
+                    }
+                    break;
+                    
+                case 'UPDATE_BUTTON_STATE':
+                    log(`🔄 UPDATE_BUTTON_STATE received: ${event.data.buttonState}`);
+                    currentButtonState = event.data.buttonState;
+                    updateStatus();
+                    break;
+            }
+        });
+
+        function sendNavigateClick() {
+            log('👆 Simulating NAVIG8 button click');
+            if (!isRocketVisible) {
+                // First click - show rocket
+                window.postMessage({ type: 'TOGGLE_ROCKET_MODEL' }, '*');
+            } else {
+                log('⚠️ Rocket already visible - should be LAUNCH click instead');
+            }
+        }
+
+        function sendRocketVisible() {
+            log('👁️ Simulating rocket becoming visible');
+            isRocketVisible = true;
+            updateStatus();
+            sendUpdateButtonState();
+        }
+
+        function sendUpdateButtonState() {
+            log('📤 Sending UPDATE_BUTTON_STATE: LAUNCH');
+            window.postMessage({
+                type: 'UPDATE_BUTTON_STATE',
+                buttonState: 'LAUNCH'
+            }, '*');
+        }
+
+        function sendLaunchClick() {
+            log('👆 Simulating LAUNCH button click');
+            if (isRocketVisible) {
+                window.postMessage({ type: 'ROCKET_LAUNCH' }, '*');
+            } else {
+                log('⚠️ Cannot launch - rocket not visible!');
+            }
+        }
+
+        function resetTest() {
+            log('🔄 Resetting test state');
+            isRocketVisible = false;
+            currentButtonState = 'NAVIG8';
+            updateStatus();
+            messageLog.textContent = '';
+            log('✅ Test reset complete');
+        }
+
+        function updateStatus() {
+            rocketStatus.textContent = isRocketVisible ? 'TRUE' : 'FALSE';
+            rocketStatus.style.color = isRocketVisible ? '#0f0' : '#f00';
+            
+            buttonState.textContent = currentButtonState;
+            buttonState.style.color = currentButtonState === 'LAUNCH' ? '#ff0' : '#0ff';
+            
+            launchAvailable.textContent = isRocketVisible && currentButtonState === 'LAUNCH' ? 'YES' : 'NO';
+            launchAvailable.style.color = isRocketVisible && currentButtonState === 'LAUNCH' ? '#0f0' : '#888';
+        }
+
+        // Initialize
+        log('✅ Test page initialized');
+        updateStatus();
+    </script>
+</body>
+</html>

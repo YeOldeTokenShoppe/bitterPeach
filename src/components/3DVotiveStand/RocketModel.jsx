@@ -15,7 +15,34 @@ extend({ UnrealBloomPass, FilmPass, ShaderPass });
 
 // Main RocketModel component - much simpler without context
 function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch, onTransitionStart, onSceneSwitch }) {
-  console.log(`RocketModel: Initializing with is80sMode=${is80sMode}`);
+  const instanceId = useRef(Math.random().toString(36).substr(2, 9));
+  const [instanceLabel] = useState(() => {
+    // Create a unique label for this instance
+    const count = (window._rocketInstanceCount || 0) + 1;
+    window._rocketInstanceCount = count;
+    return `Rocket-${count}`;
+  });
+  
+  console.log(`🚀 RocketModel [${instanceLabel}]: Initializing at ${new Date().toISOString()} with is80sMode=${is80sMode}`);
+  
+  // Add mount/unmount tracking
+  useEffect(() => {
+    console.log(`🚀 RocketModel [${instanceLabel}]: MOUNTED`);
+    console.log(`🚀 Stack trace for ${instanceLabel}:`, new Error().stack);
+    
+    // Track all instances
+    if (!window._rocketInstances) {
+      window._rocketInstances = new Set();
+    }
+    window._rocketInstances.add(instanceLabel);
+    
+    console.log(`🚀 Active rocket instances:`, Array.from(window._rocketInstances));
+    
+    return () => {
+      console.log(`🚀 RocketModel [${instanceLabel}]: UNMOUNTING`);
+      window._rocketInstances.delete(instanceLabel);
+    };
+  }, [instanceLabel]);
 
   // Add a global test function to manually test scene switching
   useEffect(() => {
@@ -110,14 +137,14 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch,
   // Fixed avatar plane settings (previously controlled by GUI)
   const avatarPlaneSettings = {
     visible: true,
-    rotationX: 4.7,
-    rotationY: 72.3,
-    rotationZ: 47,
-    offsetX: -0.02,
-    offsetY: 0.0,
-    offsetZ: -0.0, // Increased z-offset to prevent z-fighting
+    rotationX: Math.PI / 2,  // 90 degrees rotation to face forward
+    rotationY: 0,
+    rotationZ: 0,
+    offsetX: 0,
+    offsetY: 0,
+    offsetZ: 0.1, // Small z-offset to prevent z-fighting
     scale: 0.35,
-    showOriginalMesh: false,
+    showOriginalMesh: true,
     followRider: true,
   };
 
@@ -254,6 +281,7 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch,
     // Find all meshes in the model
     let riderMesh = null;
     let meshCount = 0;
+    const allMeshes = [];
 
     // List of possible names for the RIDER mesh
     const possibleRiderNames = [
@@ -266,17 +294,21 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch,
       "Pilot",
     ];
 
-    // Find the RIDER mesh
+    // Find the RIDER mesh and log all meshes
     model.traverse(child => {
       if (child.isMesh) {
         meshCount++;
+        allMeshes.push({ name: child.name, vertexCount: child.geometry?.attributes?.position?.count || 0 });
 
         // Check if this mesh has a name that matches one of our possible RIDER names
         if (possibleRiderNames.some(name => child.name.includes(name))) {
+          console.log(`Found potential RIDER mesh: ${child.name}`);
           riderMesh = child;
         }
       }
     });
+    
+    console.log("All meshes in model:", allMeshes);
 
     // If we didn't find a RIDER mesh by name, try to find the most complex mesh
     if (!riderMesh) {
@@ -435,6 +467,21 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch,
 
   // Function to apply texture to the mesh
   const applyTextureToMesh = (texture, riderMesh) => {
+    // Check if we already have an avatar plane
+    if (avatarPlaneRef.current) {
+      console.log("Avatar plane already exists, cleaning up old one first");
+      const oldPlane = avatarPlaneRef.current;
+      if (oldPlane.parent) {
+        oldPlane.parent.remove(oldPlane);
+      }
+      if (oldPlane.geometry) oldPlane.geometry.dispose();
+      if (oldPlane.material) {
+        if (oldPlane.material.map) oldPlane.material.map.dispose();
+        oldPlane.material.dispose();
+      }
+      avatarPlaneRef.current = null;
+    }
+    
     // Store the texture for cleanup
     avatarTextureRef.current = texture;
 
@@ -479,14 +526,14 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch,
       // Set a higher renderOrder to ensure it renders on top
       plane.renderOrder = 1;
 
-      // Get the world position of the RIDER mesh
-      const riderWorldPosition = new THREE.Vector3();
-      riderMesh.getWorldPosition(riderWorldPosition);
-
-      // Position the plane at the RIDER mesh's world position
-      plane.position.copy(riderWorldPosition);
+      // Get the RIDER mesh's local position within the model
+      const riderLocalPosition = riderMesh.position.clone();
+      
+      // Position the plane at the RIDER mesh's local position
+      plane.position.copy(riderLocalPosition);
 
       // Add initial offset to position it better
+      plane.position.x += avatarPlaneSettings.offsetX;
       plane.position.y += avatarPlaneSettings.offsetY;
       plane.position.z += avatarPlaneSettings.offsetZ;
 
@@ -518,24 +565,32 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch,
       // Set scale based on fixed settings
       plane.scale.set(avatarPlaneSettings.scale, avatarPlaneSettings.scale, 1);
 
-      // Add the plane directly to the scene
-      scene.add(plane);
-      console.log("Added avatar plane to scene");
+      // Add the plane to the same parent as the rider mesh so it follows properly
+      if (riderMesh.parent) {
+        riderMesh.parent.add(plane);
+        console.log("Added avatar plane to rider mesh parent");
+      } else if (groupRef.current && groupRef.current.anchor) {
+        // Fallback to anchor group if rider has no parent
+        groupRef.current.anchor.add(plane);
+        console.log("Added avatar plane to rocket anchor group (fallback)");
+      } else {
+        console.error("Cannot add avatar plane - no suitable parent found");
+      }
 
-      // Make the original RIDER mesh fully transparent
+      // Make the original RIDER mesh transparent or visible based on settings
       riderMesh.visible = true; // Keep visible for positioning
       if (riderMesh.material) {
         if (Array.isArray(riderMesh.material)) {
           riderMesh.material.forEach(m => {
             m.transparent = true;
-            m.opacity = 0.0; // Completely transparent
-            m.depthWrite = false; // Disable depth writing for the RIDER mesh
+            m.opacity = avatarPlaneSettings.showOriginalMesh ? 1.0 : 0.0; // Show or hide based on settings
+            m.depthWrite = avatarPlaneSettings.showOriginalMesh; // Enable depth writing if showing mesh
             m.needsUpdate = true;
           });
         } else {
           riderMesh.material.transparent = true;
-          riderMesh.material.opacity = 0.0; // Completely transparent
-          riderMesh.material.depthWrite = false; // Disable depth writing for the RIDER mesh
+          riderMesh.material.opacity = avatarPlaneSettings.showOriginalMesh ? 1.0 : 0.0; // Show or hide based on settings
+          riderMesh.material.depthWrite = avatarPlaneSettings.showOriginalMesh; // Enable depth writing if showing mesh
           riderMesh.material.needsUpdate = true;
         }
       }
@@ -565,22 +620,25 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch,
 
   // Function to clean up any duplicate rider meshes
   const cleanupDuplicateRiders = model => {
-    // Find all meshes marked as riders
+    // Clean up any existing avatar planes first
+    cleanupAvatarPlanes();
+    
+    // Find all meshes marked as riders (avatar planes)
     const riderMeshes = [];
     model.traverse(child => {
-      if (child.userData && child.userData.isRider) {
+      if (child.userData && child.userData.isRider && child.userData.isAvatarPlane) {
         riderMeshes.push(child);
       }
     });
 
-    // If we have more than one rider mesh, keep only the first one
+    // If we have more than one avatar plane, keep only the first one
     if (riderMeshes.length > 1) {
-      console.log(`Found ${riderMeshes.length} rider meshes, removing duplicates...`);
+      console.log(`Found ${riderMeshes.length} avatar planes, removing duplicates...`);
 
       // Keep the first one, remove the rest
       for (let i = 1; i < riderMeshes.length; i++) {
         const mesh = riderMeshes[i];
-        console.log(`Removing duplicate rider mesh: ${mesh.name}`);
+        console.log(`Removing duplicate avatar plane: ${mesh.name}`);
 
         // If the mesh has a parent, remove it from the parent
         if (mesh.parent) {
@@ -598,7 +656,7 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch,
         }
       }
 
-      console.log("Duplicate rider meshes removed");
+      console.log("Duplicate avatar planes removed");
     }
   };
 
@@ -644,15 +702,26 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch,
 
   // Function to clean up avatar planes
   const cleanupAvatarPlanes = () => {
-    if (!rocketRef.current) return;
-
-    // Find all avatar planes
+    // Check both the rocket model and the anchor group for avatar planes
     const avatarPlanes = [];
-    rocketRef.current.traverse(child => {
-      if (child.name === "AvatarPlane" || child.userData.isAvatarPlane) {
-        avatarPlanes.push(child);
-      }
-    });
+    
+    // Look in the rocket model
+    if (rocketRef.current) {
+      rocketRef.current.traverse(child => {
+        if (child.name === "AvatarPlane" || child.userData.isAvatarPlane) {
+          avatarPlanes.push(child);
+        }
+      });
+    }
+    
+    // Also look in the anchor group
+    if (groupRef.current && groupRef.current.anchor) {
+      groupRef.current.anchor.traverse(child => {
+        if (child.name === "AvatarPlane" || child.userData.isAvatarPlane) {
+          avatarPlanes.push(child);
+        }
+      });
+    }
 
     console.log(`Found ${avatarPlanes.length} avatar planes to clean up`);
 
@@ -811,7 +880,7 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch,
 
   // Expose the triggerLaunch function globally so it can be called from anywhere
   useEffect(() => {
-    console.log("🚀 Setting up window.rocketLaunch function");
+    console.log(`🚀 RocketModel [${instanceId}]: Setting up window.rocketLaunch function`);
     
     // Create a global function to launch the rocket
     window.rocketLaunch = (forceReset = false) => {
@@ -831,7 +900,7 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch,
     
     // Cleanup function to remove the global function when unmounted
     return () => {
-      console.log("Cleaning up window.rocketLaunch function");
+      console.log(`🚀 RocketModel [${instanceId}]: Cleaning up window.rocketLaunch function`);
       delete window.rocketLaunch;
       delete window.isRocketAvailable;
     };
@@ -872,7 +941,7 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch,
   useEffect(() => {
     const handleMessage = (event) => {
       if (event.data && event.data.type === "ROCKET_LAUNCH") {
-        console.log("🚀 RocketModel received ROCKET_LAUNCH message directly");
+        console.log(`🚀 [${instanceLabel}] RocketModel received ROCKET_LAUNCH message directly`);
         
         // Check if rocket is still available
         if (!groupRef.current) {
@@ -912,11 +981,17 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch,
 
   // Load the rocket model
   useEffect(() => {
-    console.log("Loading rocket model...");
+    // Prevent double-loading in StrictMode
+    if (groupRef.current && groupRef.current.children.length > 0) {
+      console.log(`[${instanceLabel}] Rocket already loaded, skipping`);
+      return;
+    }
+    
+    console.log(`[${instanceLabel}] Loading rocket model...`);
     loader.load(
       "/COMPLETEROCKET.glb",
       gltf => {
-        console.log("Rocket model loaded successfully");
+        console.log(`[${instanceLabel}] Rocket model loaded successfully`);
         const model = gltf.scene;
 
         // Always set the model to be visible, regardless of is80sMode
@@ -1048,10 +1123,34 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch,
           }
         }
 
+        // Prevent duplicate rockets in the scene
+        if (window._rocketInScene) {
+          console.warn(`[${instanceLabel}] Another rocket already in scene, removing it first`);
+          // Remove the old rocket from scene
+          const oldRocket = scene.getObjectByName('rocket-anchor-group');
+          if (oldRocket) {
+            scene.remove(oldRocket);
+            oldRocket.traverse((child) => {
+              if (child.geometry) child.geometry.dispose();
+              if (child.material) {
+                if (Array.isArray(child.material)) {
+                  child.material.forEach(m => m.dispose());
+                } else {
+                  child.material.dispose();
+                }
+              }
+            });
+          }
+        }
+        
+        // Mark the anchor group so we can find it later
+        anchorGroup.name = 'rocket-anchor-group';
+        
         // Add the anchor group to the scene
         scene.add(anchorGroup);
+        window._rocketInScene = true;
 
-        console.log("Rocket model and lights added to scene");
+        console.log(`[${instanceLabel}] Rocket model and lights added to scene`);
       },
       // Handle loading errors
       undefined,
@@ -1095,7 +1194,10 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch,
       // Clean up avatar plane explicitly
       const plane = avatarPlaneRef.current;
       if (plane) {
-        scene.remove(plane);
+        // Remove from parent (which should be the rocket's anchor group)
+        if (plane.parent) {
+          plane.parent.remove(plane);
+        }
         if (plane.geometry) plane.geometry.dispose();
         if (plane.material) {
           if (plane.material.map) plane.material.map.dispose();
@@ -1178,7 +1280,9 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch,
       groupRef.current = null;
       mixerRef.current = null;
 
-      console.log("Rocket model and resources cleaned up");
+      // Clear the global flag when component unmounts
+      window._rocketInScene = false;
+      console.log(`[${instanceLabel}] Rocket model and resources cleaned up`);
     };
   }, [scene, loader, rocketSettings.rocketScale, userData]);
 
@@ -1236,11 +1340,9 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch,
           // Set isLaunching to false to indicate the animation is complete
           setIsLaunching(false);
           
-          // Set fade start time for gradual post-processing effect fadeout
-          setPostProcessingEffects(prev => ({
-            ...prev,
-            fadeStartTime: performance.now() / 1000
-          }));
+          // Don't set fade start time yet - wait until transition actually starts
+          // This prevents the gap between effects
+          console.log("🚀 Keeping effects active until transition starts...");
           
           // Clean up all smoke particles
           cleanupAllSmokeParticles(scene);
@@ -1248,6 +1350,8 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch,
           // Remove rocket from scene
           if (groupRef.current?.anchor) {
             scene.remove(groupRef.current.anchor);
+            // Clear the global flag
+            window._rocketInScene = false;
             
             // Clean up resources
             if (rocketRef.current) {
@@ -1272,7 +1376,10 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch,
           
           // Clean up avatar plane
           if (avatarPlaneRef.current) {
-            scene.remove(avatarPlaneRef.current);
+            // Remove from parent (avatar plane should be removed with the rocket group)
+            if (avatarPlaneRef.current.parent) {
+              avatarPlaneRef.current.parent.remove(avatarPlaneRef.current);
+            }
             if (avatarPlaneRef.current.geometry) avatarPlaneRef.current.geometry.dispose();
             if (avatarPlaneRef.current.material) {
               if (avatarPlaneRef.current.material.map) avatarPlaneRef.current.material.map.dispose();
@@ -1290,50 +1397,18 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch,
           
           if (typeof onTransitionStart === 'function') {
             console.log("🚀 Calling onTransitionStart function...");
+            
+            // DO NOT start fading yet - keep effects active
+            // The fade will start when the transition actually begins
+            
             onTransitionStart(() => {
-              // This callback will be called when transition reaches its peak
-              console.log("🚀 Transition peak reached, switching to moon scene...");
-              
-              // Store transition state in sessionStorage for moon scene
-              sessionStorage.setItem('rocketLaunchTransition', JSON.stringify({
-                timestamp: Date.now(),
-                userData: userData,
-                is80sMode: is80sMode
+              // NOW start fading the rocket effects when transition starts
+              console.log("🚀 Transition starting - NOW fading rocket effects");
+              setPostProcessingEffects(prev => ({
+                ...prev,
+                fadeStartTime: performance.now() / 1000,
+                fadeDuration: 2 // Fade over 2 seconds to overlap with transition
               }));
-              
-              // Switch to moon scene
-              console.log("🚀 Preparing to switch to moon scene...");
-              
-              // Add a small delay to ensure React Three Fiber cleanup
-              setTimeout(() => {
-                // Try to force exit from Canvas context first
-                console.log("🚀 Attempting to exit Canvas context before navigation...");
-                
-                // Dispatch a custom event to notify parent components
-                window.dispatchEvent(new CustomEvent('rocket-navigation-start', { 
-                  detail: { destination: '/moon-scene' } 
-                }));
-                try {
-                  console.log("🚀 Attempting scene switch after delay...");
-                  
-                  // Call the scene switch function if provided
-                  if (typeof onSceneSwitch === 'function') {
-                    console.log("🚀 Calling onSceneSwitch to switch to moon scene");
-                    onSceneSwitch('moon');
-                  } else {
-                    console.error("🚀 onSceneSwitch function not provided!");
-                    // Fallback to window.location if no scene switch function
-                    console.log("🚀 Falling back to window.location navigation");
-                    window.location.href = '/moon-scene';
-                  }
-                } catch (syncError) {
-                  console.error("🚀 Synchronous error during scene switch:", syncError);
-                  console.error("🚀 Sync error name:", syncError?.name);
-                  console.error("🚀 Sync error message:", syncError?.message);
-                  console.log("🚀 Using window.location as ultimate fallback...");
-                  window.location.href = '/moon-scene';
-                }
-              }, 100); // 100ms delay
             });
           } else {
             // Fallback to original navigation if no transition handler
@@ -1432,25 +1507,20 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch,
       plane.visible = avatarPlaneSettings.visible;
 
       if (avatarPlaneSettings.followRider) {
-        // Get the world position and rotation of the rider mesh
-        const riderWorldPosition = new THREE.Vector3();
-        riderMesh.getWorldPosition(riderWorldPosition);
-
-        // Get the world quaternion of the rider mesh
-        const riderWorldQuaternion = new THREE.Quaternion();
-        riderMesh.getWorldQuaternion(riderWorldQuaternion);
-
-        // Update the plane's position to match the rider's world position
-        plane.position.copy(riderWorldPosition);
-
-        // Apply offsets in world space
+        // Since the plane is parented to the anchor group, we need to update its local position
+        // relative to the rider mesh's position within the model
+        
+        // Copy the rider's local position
+        plane.position.copy(riderMesh.position);
+        
+        // Apply offsets
         plane.position.x += avatarPlaneSettings.offsetX;
         plane.position.y += avatarPlaneSettings.offsetY;
         plane.position.z += avatarPlaneSettings.offsetZ;
-
-        // Reset the plane's rotation to match the rider's world rotation
-        plane.quaternion.copy(riderWorldQuaternion);
-
+        
+        // Copy the rider's local rotation
+        plane.quaternion.copy(riderMesh.quaternion);
+        
         // Apply additional rotations from settings
         plane.rotateX(avatarPlaneSettings.rotationX);
         plane.rotateY(avatarPlaneSettings.rotationY);
@@ -1460,14 +1530,14 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch,
       // Update scale - use a fixed scale based on the settings
       plane.scale.set(avatarPlaneSettings.scale, avatarPlaneSettings.scale, 1);
 
-      // Keep the RIDER mesh fully transparent
+      // Keep the RIDER mesh visible or transparent based on settings
       riderMesh.visible = true; // Keep visible for positioning
       if (riderMesh.material) {
         if (Array.isArray(riderMesh.material)) {
           riderMesh.material.forEach(m => {
             m.transparent = true;
-            m.opacity = 0.0; // Always completely transparent
-            m.depthWrite = false; // Disable depth writing for the RIDER mesh
+            m.opacity = avatarPlaneSettings.showOriginalMesh ? 1.0 : 0.0; // Show or hide based on settings
+            m.depthWrite = avatarPlaneSettings.showOriginalMesh; // Enable depth writing if showing mesh
 
             // Update emissive properties if available
             if (m.emissive) {
@@ -1477,8 +1547,8 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch,
           });
         } else {
           riderMesh.material.transparent = true;
-          riderMesh.material.opacity = 0.0; // Always completely transparent
-          riderMesh.material.depthWrite = false; // Disable depth writing for the RIDER mesh
+          riderMesh.material.opacity = avatarPlaneSettings.showOriginalMesh ? 1.0 : 0.0; // Show or hide based on settings
+          riderMesh.material.depthWrite = avatarPlaneSettings.showOriginalMesh; // Enable depth writing if showing mesh
 
           // Update emissive properties if available
           if (riderMesh.material.emissive) {
@@ -1491,10 +1561,10 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch,
 
     // Update post-processing effects fade out
     if (!isLaunching && postProcessingEffects.fadeStartTime) {
-      const currentTime = performance.now() / 100;
+      const currentTime = performance.now() / 1000; // Fixed: was dividing by 100
       const fadeElapsed = currentTime - postProcessingEffects.fadeStartTime;
       const mainFadeDuration = postProcessingEffects.fadeDuration || 2; // Shortened to match page transition
-      const skyFadeDuration = postProcessingEffects.skyFadeDuration || 2;
+      const skyFadeDuration = 2; // Same duration as main fade
       
       const mainFadeProgress = Math.min(fadeElapsed / mainFadeDuration, 1);
       const skyFadeProgress = Math.min(fadeElapsed / skyFadeDuration, 1);

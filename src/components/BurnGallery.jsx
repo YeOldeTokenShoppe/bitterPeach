@@ -59,6 +59,7 @@ import Communion3 from "./Communion3";
 import Model from "./3DVotiveStand/Model";
 import * as THREE from "three";
 import MobileSidePanel from "./MobileSidePanel";
+import SidePanelEnhanced from "./SidePanelEnhanced";
 
 const BurnModal = dynamic(() => import("./BurnModal"), {
   ssr: false,
@@ -290,9 +291,10 @@ function BurnGallery({
     setMonsterMode((prev) => !prev);
   };
 
-  // Add toggleRocketModel function
+  // Add toggleRocketModel function with duplicate prevention
   const toggleRocketModel = () => {
     console.log("BurnGallery: Toggling rocket model visibility");
+    console.log("BurnGallery: Current rocketModelVisible state:", rocketModelVisible);
     
     // Close the floating candle viewer if it's open
     if (isCandleViewerVisible && votiveStandRef.current && votiveStandRef.current.closeFloatingViewer) {
@@ -311,6 +313,34 @@ function BurnGallery({
       return newValue;
     });
   };
+
+  // Add a combined function to handle rocket toggle with proper state management
+  const handleRocketToggle = useCallback(() => {
+    console.log("BurnGallery: handleRocketToggle called");
+    console.log("Current states - monsterMode:", monsterMode, "rocketModelVisible:", rocketModelVisible);
+    
+    // Use functional updates to ensure we're working with the latest state
+    if (rocketModelVisible) {
+      // Hide rocket first
+      setRocketModelVisible(false);
+      // Then disable monster mode after a slight delay
+      setTimeout(() => {
+        setMonsterMode(false);
+      }, 50);
+    } else {
+      // Enable monster mode first if needed
+      if (!monsterMode) {
+        setMonsterMode(true);
+        // Then show rocket after state update
+        setTimeout(() => {
+          setRocketModelVisible(true);
+        }, 50);
+      } else {
+        // Monster mode already enabled, just show rocket
+        setRocketModelVisible(true);
+      }
+    }
+  }, [monsterMode, rocketModelVisible]);
 
   // Update user data when Clerk user changes
   useEffect(() => {
@@ -409,13 +439,9 @@ function BurnGallery({
           </GridItem>
         </Grid>
 
-        {/* Keep panels mounted but hide during transitions to preserve music playback */}
-        <div style={{ 
-          display: currentView === "main" && showUI ? 'block' : 'none',
-          position: 'relative',
-          zIndex: currentView === "main" && showUI ? 'auto' : -1
-        }}>
-          {isMobileView ? (
+        {/* Conditionally render panels to prevent duplicate message handlers */}
+        {currentView === "main" && showUI && (
+          isMobileView ? (
             <MobileSidePanel
               onButtonClick={handleButtonClick}
               is80sMode={is80sMode}
@@ -426,12 +452,13 @@ function BurnGallery({
               setShowSpotify={setShowSpotify}
               rocketModelVisible={rocketModelVisible}
               toggleRocketModel={toggleRocketModel}
+              handleRocketToggle={handleRocketToggle}
               toggleConstellationVisibility={toggleConstellationVisibility}
               isConstellationsVisible={isConstellationsVisible}
               paginationState={paginationState}
             />
           ) : (
-            <SidePanel
+            <SidePanelEnhanced
               onButtonClick={handleButtonClick}
               is80sMode={is80sMode}
               toggle80sMode={toggle80sMode}
@@ -444,8 +471,8 @@ function BurnGallery({
               toggleConstellationVisibility={toggleConstellationVisibility}
               isConstellationsVisible={isConstellationsVisible}
             />
-          )}
-        </div>
+          )
+        )}
         {/* <Box
             display="flex"
             justifyContent="center"

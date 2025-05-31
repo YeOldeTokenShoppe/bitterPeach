@@ -2,7 +2,16 @@ import * as THREE from 'three';
 import React, { useRef, useMemo, useEffect } from 'react';
 import { useFrame, useLoader } from '@react-three/fiber';
 import { ParametricGeometry } from 'three/examples/jsm/geometries/ParametricGeometry';
-import { ParametricGeometries } from 'three/examples/jsm/geometries/ParametricGeometries';
+
+// Custom plane parametric function to replace the removed ParametricGeometries.plane
+function createPlaneParametricFunction(width, height) {
+  return function(u, v, target) {
+    const x = (u - 0.5) * width;
+    const y = (v - 0.5) * height;
+    const z = 0;
+    target.set(x, y, z);
+  };
+}
 
 // Cloth config
 const DAMPING = 0.97;
@@ -125,7 +134,7 @@ flagRef
   const clothGeom = useMemo(() => {
     // Use plane geometry and parametric for correct UVs and structure
     return new ParametricGeometry(
-      ParametricGeometries.plane(SEGMENTS_X, SEGMENTS_Y),
+      createPlaneParametricFunction(WIDTH, HEIGHT),
       SEGMENTS_X,
       SEGMENTS_Y
     );

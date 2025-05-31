@@ -41,7 +41,7 @@ import Image from "next/image";
 import { getUserImageUrl, getUsername, createUserData } from "../utilities/clerkHelpers";
 
 // Dynamically import the MusicPlayer component
-const MusicPlayer2 = dynamic(() => import("./MusicPlayer2"), {
+const MusicPlayerCyberpunk = dynamic(() => import("./MusicPlayerCyberpunk"), {
   ssr: false,
 });
 
@@ -62,7 +62,6 @@ const SidePanelEnhanced = ({
   const [isTouchDevice, setIsTouchDevice] = useState(false);
   const [showPayEmbed, setShowPayEmbed] = useState(false);
   const [showStake, setShowStake] = useState(false);
-  const [sitepalLoaded, setSitepalLoaded] = useState(false);
   const sitepalContainerRef = useRef(null);
   const panelRef = useRef(null);
   const hotzoneSize = 25;
@@ -112,25 +111,14 @@ const SidePanelEnhanced = ({
   // Update panel width based on screen size and orientation
   const [panelWidth, setPanelWidth] = useState("320px");
 
-  // Add state for video call functionality
-  const [activeCall, setActiveCall] = useState(false);
   const [currentStation, setCurrentStation] = useState("LUNAR BASE ALPHA");
   const [mounted, setMounted] = useState(false);
 
   // Add this new state for tracking video loading
   const [greetingsVideoLoaded, setGreetingsVideoLoaded] = useState(false);
 
-  // Add state for tracking connection sequence
-  const [connectionPhase, setConnectionPhase] = useState(0); // 0=not started, 1=static, 2=connecting, 3=stabilizing, 4=connected
-
   // Add a new state to track if we're in a browser environment
   const [isBrowser, setIsBrowser] = useState(false);
-
-  // Add a new state to track SitePal loading progress
-  const [sitepalLoadingStage, setSitepalLoadingStage] = useState(0); // 0=not started, 1=loading, 2=ready
-
-  // Add a new state to track the mute state of the SitePal agent
-  const [isMuted, setIsMuted] = useState(true);
 
   // Add state to track if the iframe content has loaded
   const [isIframeLoaded, setIsIframeLoaded] = useState(false);
@@ -614,10 +602,12 @@ const SidePanelEnhanced = ({
           }
           break;
 
-        // Add new case for rocket model toggle
-        case "TOGGLE_ROCKET_MODEL":
-
-          handleRocketModelToggle();
+        // Handle new rocket ignition request
+        case "ROCKET_IGNITION_REQUEST":
+          console.log("🚀 SidePanelEnhanced: Received ROCKET_IGNITION_REQUEST message");
+          if (event.data.action === 'show_rocket') {
+            handleRocketIgnition();
+          }
           break;
 
         // Modify handling for stereo power based on mode from iframe
@@ -719,21 +709,41 @@ const SidePanelEnhanced = ({
           break;
 
         // Handle rocket launch action
-        case "ROCKET_LAUNCH":
-          console.log("🚀 Rocket launch triggered from cyberpunk mission control");
-          // Send launch message to the rocket model component
-          if (window.parent) {
-            window.parent.postMessage({
-              type: "ROCKET_LAUNCH_EXECUTE",
+        // Handle new rocket launch execute message
+        case "ROCKET_LAUNCH_EXECUTE":
+          console.log("🚀 Rocket launch execute triggered from cyberpunk mission control");
+          if (event.data.action === 'launch_rocket') {
+            // Send launch message directly to the current window (where RocketModel is listening)
+            window.postMessage({
+              type: "ROCKET_LAUNCH",
+              forceReset: false,
               timestamp: Date.now()
             }, "*");
           }
+          break;
+
+        // Handle rocket visibility state request
+        case "REQUEST_ROCKET_VISIBILITY_STATE":
+          console.log("🚀 Responding to rocket visibility state request");
+          sendMessageToIframe({
+            type: "ROCKET_VISIBILITY_STATE_RESPONSE",
+            isVisible: rocketModelVisible
+          });
           break;
 
         // Handle navigation to home page
         case "NAVIGATE_TO_HOME":
 
           router.push("/home");
+          break;
+
+        // Handle request for current rocket state
+        case "REQUEST_ROCKET_STATE":
+          console.log('🚀 Received REQUEST_ROCKET_STATE from iframe');
+          sendMessageToIframe({
+            type: "SET_ROCKET_MODEL_VISIBLE",
+            isVisible: rocketModelVisible,
+          });
           break;
 
         // Handle video-related messages to position the vaporwave video
@@ -820,107 +830,6 @@ const SidePanelEnhanced = ({
     };
   }, []);
 
-  const toggleCall = (e) => {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-
-    setIsTextBoxVisible(true);
-    setHasUserInteracted(true);
-
-    if (!activeCall) {
-      // Starting a new call
-      navigator.mediaDevices
-        .getUserMedia({ audio: true })
-        .then((stream) => {
-          microphoneStreamRef.current = stream;
-          setActiveCall(true);
-          setConnectionPhase(1);
-          setIsMuted(true);
-
-          // Progress through connection phases with timeouts
-          setTimeout(() => setConnectionPhase(2), 1200);
-          setTimeout(() => setConnectionPhase(3), 3000);
-          setTimeout(() => {
-            setConnectionPhase(4);
-            setSitepalLoadingStage(2);
-            setSitepalLoaded(true);
-
-            // Tell the iframe to click the call button (CONNECT)
-            sendMessageToIframe({
-              type: "SIMULATE_CALL_BUTTON_CLICK",
-              action: "connect",
-            });
-          }, 4500);
-        })
-        .catch((err) => {
-          console.error("Microphone permission error:", err);
-          alert("Please allow microphone access to chat with the avatar");
-        });
-    } else if (activeCall && connectionPhase === 4 && isMuted) {
-      // Unmute - Send a message to the iframe to click the UN-MUTE button
-      try {
-        // First prime the audio context for Safari/mobile browsers
-        sendMessageToIframe({
-          type: "PRIME_AUDIO",
-        });
-
-        // Then send command to activate mic using the SitePal API
-        sendMessageToIframe({
-          type: "SITEPAL_API_CALL",
-          function: "startListening",
-        });
-
-        // Also send our standard button click message as backup
-        sendMessageToIframe({
-          type: "SIMULATE_CALL_BUTTON_CLICK",
-          action: "unmute",
-        });
-
-        // Also send our special message to directly access SitePal mic as last resort
-        sendMessageToIframe({
-          type: "ACTIVATE_SITEPAL_MIC",
-        });
-
-        setIsMuted(false); // Update parent component state optimistically
-
-      } catch (error) {
-        console.error("Error sending mic activation messages:", error);
-      }
-    } else {
-      // End call - clean up and reset everything
-      setActiveCall(false);
-      setConnectionPhase(0);
-      setSitepalLoadingStage(0);
-      setSitepalLoaded(false);
-      setIsMuted(true);
-
-      // Tell the iframe to click the disconnect button
-      sendMessageToIframe({
-        type: "SIMULATE_CALL_BUTTON_CLICK",
-        action: "disconnect",
-      });
-
-      // Clean up microphone if needed
-      if (microphoneStreamRef.current) {
-        microphoneStreamRef.current.getTracks().forEach((track) => {
-          track.stop();
-        });
-        microphoneStreamRef.current = null;
-      }
-
-      // Reset iframe
-      if (sitepalIframeRef.current) {
-        sitepalIframeRef.current.src = "about:blank";
-        setTimeout(() => {
-          if (sitepalIframeRef.current) {
-            sitepalIframeRef.current.src = "/sitepal/index.html";
-          }
-        }, 100);
-      }
-    }
-  };
 
   // Clean up on component unmount
   useEffect(() => {
@@ -938,25 +847,29 @@ const SidePanelEnhanced = ({
     };
   }, []);
 
-  // Add a function to handle rocket model toggle
-  const handleRocketModelToggle = () => {
+  // New function to handle rocket ignition
+  const handleRocketIgnition = () => {
+    console.log("🚀 SidePanelEnhanced: handleRocketIgnition called");
+    console.log("🚀 Current states - monsterMode:", monsterMode, "rocketModelVisible:", rocketModelVisible);
     
     // First ensure monster mode is enabled (required for rocket to appear)
     if (!monsterMode) {
-      console.log("🚀 Enabling monster mode for rocket model");
+      console.log("🚀 SidePanelEnhanced: Enabling monster mode for rocket model");
       toggleMonsterMode();
     }
     
-    // Then toggle rocket model visibility
+    // Show rocket model only if it's not already visible
     if (!rocketModelVisible) {
-      console.log("🚀 Making rocket model visible");
+      console.log("🚀 SidePanelEnhanced: Showing rocket model");
       toggleRocketModel();
+    } else {
+      console.log("🚀 SidePanelEnhanced: Rocket model already visible, skipping toggle");
     }
 
-    // Send message to iframe
+    // Send message to iframe confirming rocket visibility
     sendMessageToIframe({
-      type: "SET_ROCKET_MODEL_VISIBLE",
-      isVisible: true, // Always set to true when ignition is triggered
+      type: "ROCKET_VISIBILITY_CONFIRMED",
+      isVisible: true
     });
   };
 
@@ -1214,7 +1127,7 @@ const SidePanelEnhanced = ({
         }}
       >
         {/* Card Border Effect */}
-        <Box
+        {/* <Box
           position="absolute"
           inset="0"
           border="8px solid"
@@ -1223,7 +1136,7 @@ const SidePanelEnhanced = ({
           borderRadius="calc(380px * 0.05)"
           pointerEvents="none"
           zIndex={1}
-        />
+        /> */}
 
         {/* Aqueous Background Pattern */}
         <Box
@@ -1310,7 +1223,7 @@ const SidePanelEnhanced = ({
           >
             <iframe
               ref={missionControlIframeRef}
-              src="/cyberpunk_mission_control_clean.html"
+              src="/cyberpunk_mission_control_enhanced.html"
               style={{
                 width: "100%",
                 height: "100%",
@@ -1339,7 +1252,7 @@ const SidePanelEnhanced = ({
             position="relative"
             zIndex={4}
           >
-            <MusicPlayer2
+            <MusicPlayerCyberpunk
               isVisible={showSpotify}
               onClose={() => setShowSpotify(false)}
               autoPlay={true}

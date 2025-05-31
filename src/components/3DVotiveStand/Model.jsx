@@ -17,7 +17,7 @@ import { db } from "../../utilities/firebaseClient";
 import { gsap } from "gsap";
 
 // Configure draco loader for useGLTF
-useGLTF.preload("/alligatorStroll1.glb");
+useGLTF.preload("/alligatorStroll2.glb");
 const dracoLoader = new DRACOLoader();
 dracoLoader.setDecoderPath("/draco/");
 // Set up GLTFLoader to use Draco compression
@@ -57,7 +57,7 @@ function Model({
   isMobileView,
 }) {
   // STATE VARIABLES - consolidated in one place
-  const [modelUrl, setModelUrl] = useState("/alligatorStroll1.glb");
+  const [modelUrl, setModelUrl] = useState("/alligatorStroll2.glb");
   const { progress } = useProgress();
   const gltf = useGLTF(modelUrl, true);
   const { camera, scene } = useThree();
@@ -1423,14 +1423,14 @@ function Model({
 
     // Update state with all the materials we've set up for flickering
     setFlickeringMaterials(newFlickeringMaterials);
-  }, [gltf, scene, flickeringMaterials, is80sMode]);
+  }, [gltf, scene, is80sMode]);
 
-  // Call the setup function when the model is loaded
+  // Call the setup function when the model is loaded or 80s mode changes
   useEffect(() => {
     if (gltf && gltf.scene && progress === 100) {
       setupFlameFlickering();
     }
-  }, [gltf, progress, setupFlameFlickering]);
+  }, [gltf, progress, setupFlameFlickering, is80sMode]);
 
   // Re-setup flame flickering when 80s mode changes
   useEffect(() => {
@@ -1732,7 +1732,7 @@ function Model({
 }
 
 // Preload both models
-useGLTF.preload("/alligatorStroll1.glb");
+useGLTF.preload("/alligatorStroll2.glb");
 useGLTF.preload("/XCandle1.glb");
 
 export default Model;

@@ -37,6 +37,7 @@ const MobileSidePanel = ({
   setShowSpotify,
   rocketModelVisible,
   toggleRocketModel,
+  handleRocketToggle, // New combined toggle function
   toggleConstellationVisibility,
   isConstellationsVisible,
   handleIgnition,
@@ -127,40 +128,22 @@ const MobileSidePanel = ({
     }
   }, [is80sMode]);
 
-  // Function to toggle rocket model visibility - now uses the prop function
+  // Function to toggle rocket model visibility - now uses the combined prop function
   const handleRocketModelToggle = () => {
-    // If rocket is visible, hide it
-    if (rocketModelVisible) {
-      console.log("🚀 Hiding rocket model (mobile)");
-      toggleRocketModel();
+    console.log("🚀 MobileSidePanel: handleRocketModelToggle called");
+    console.log("🚀 Current states - monsterMode:", monsterMode, "rocketModelVisible:", rocketModelVisible);
+    
+    // Use the combined toggle function from parent
+    if (handleRocketToggle) {
+      handleRocketToggle();
       
-      // Also disable monster mode to restore the HolographicStatue
-      if (monsterMode) {
-        console.log("🚀 Disabling monster mode to restore statue (mobile)");
-        toggleMonsterMode();
-      }
-      
-      // Send message to iframe
+      // Send message to iframe based on current state
       sendMessageToMissionControl({
         type: "SET_ROCKET_MODEL_VISIBLE",
-        isVisible: false,
+        isVisible: !rocketModelVisible,
       });
     } else {
-      // First ensure monster mode is enabled (required for rocket to appear)
-      if (!monsterMode) {
-        console.log("🚀 Enabling monster mode for rocket model (mobile)");
-        toggleMonsterMode();
-      }
-      
-      // Then show rocket model
-      console.log("🚀 Making rocket model visible (mobile)");
-      toggleRocketModel();
-      
-      // Send message to iframe
-      sendMessageToMissionControl({
-        type: "SET_ROCKET_MODEL_VISIBLE",
-        isVisible: true,
-      });
+      console.error("🚀 MobileSidePanel: handleRocketToggle prop not provided!");
     }
   };
 
@@ -528,6 +511,7 @@ const MobileSidePanel = ({
           
           // Add new case for rocket model toggle
           case "TOGGLE_ROCKET_MODEL":
+            console.log("🚀 MobileSidePanel: Received TOGGLE_ROCKET_MODEL message");
             handleRocketModelToggle();
             break;
 
@@ -2533,104 +2517,8 @@ const MobileSidePanel = ({
             },
           }}
         >
-          {/* Rotating Infinity Symbol */}
-          <Text
-            fontSize="28px"
-            fontWeight="bold"
-            textShadow={is80sMode ? 
-              "0 0 10px #ff00ff, 0 0 20px rgba(255, 0, 255, 0.6)" :
-              "0 0 5px #06b6d4, 0 0 15px rgba(6, 182, 212, 0.4)"
-            }
-            transform="rotate(0deg)"
-            animation={is80sMode ? 
-              "infinityRotate 5s cubic-bezier(0.5, 0.1, 0.5, 1) infinite" :
-              "infinityRotate 8s cubic-bezier(0.5, 0.1, 0.5, 1) infinite"
-            }
-            filter={is80sMode ?
-              "drop-shadow(0 0 10px rgba(255, 0, 255, 0.8))" :
-              "drop-shadow(0 0 6px rgba(6, 182, 212, 0.6))"
-            }
-            _before={{
-              content: '"∞"',
-              position: "absolute",
-              top: "0",
-              left: "0",
-              right: "0",
-              bottom: "0",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              opacity: "0.6",
-              filter: "blur(2px)",
-              animation: is80sMode ? "glowPulse80s 3s infinite" : "glowPulse 4s infinite",
-            }}
-            sx={{
-              "@keyframes infinityRotate": {
-                "0%": { transform: "rotate(0deg) scale(1)" },
-                "20%": { transform: "rotate(0deg) scale(1)" },
-                "25%": { transform: "rotate(90deg) scale(1.1)" },
-                "45%": { transform: "rotate(90deg) scale(1)" },
-                "50%": { transform: "rotate(180deg) scale(1.1)" },
-                "70%": { transform: "rotate(180deg) scale(1)" },
-                "75%": { transform: "rotate(270deg) scale(1.1)" },
-                "95%": { transform: "rotate(270deg) scale(1)" },
-                "100%": { transform: "rotate(360deg) scale(1)" },
-              },
-              "@keyframes glowPulse": {
-                "0%": {
-                  textShadow: "0 0 5px #06b6d4, 0 0 15px rgba(6, 182, 212, 0.4)",
-                  opacity: "0.4",
-                  transform: "scale(0.9)",
-                },
-                "25%": {
-                  textShadow: "0 0 5px #ff0040, 0 0 15px rgba(255, 0, 64, 0.4)",
-                  opacity: "0.7",
-                  transform: "scale(1.1)",
-                },
-                "50%": {
-                  textShadow: "0 0 5px #0084ff, 0 0 15px rgba(0, 132, 255, 0.4)",
-                  opacity: "0.4",
-                  transform: "scale(0.9)",
-                },
-                "75%": {
-                  textShadow: "0 0 5px #d946ef, 0 0 15px rgba(217, 70, 239, 0.4)",
-                  opacity: "0.7",
-                  transform: "scale(1.1)",
-                },
-                "100%": {
-                  textShadow: "0 0 5px #06b6d4, 0 0 15px rgba(6, 182, 212, 0.4)",
-                  opacity: "0.4",
-                  transform: "scale(0.9)",
-                },
-              },
-              "@keyframes glowPulse80s": {
-                "0%": {
-                  textShadow: "0 0 10px #ff00ff, 0 0 20px rgba(255, 0, 255, 0.6)",
-                  opacity: "0.4",
-                  transform: "scale(0.9)",
-                },
-                "25%": {
-                  textShadow: "0 0 10px #00ffff, 0 0 20px rgba(0, 255, 255, 0.6)",
-                  opacity: "0.7",
-                  transform: "scale(1.1)",
-                },
-                "50%": {
-                  textShadow: "0 0 10px #ff00ff, 0 0 20px rgba(255, 0, 255, 0.6)",
-                  opacity: "0.4",
-                  transform: "scale(0.9)",
-                },
-                "75%": {
-                  textShadow: "0 0 10px #00ffff, 0 0 20px rgba(0, 255, 255, 0.6)",
-                  opacity: "0.7",
-                  transform: "scale(1.1)",
-                },
-                "100%": {
-                  textShadow: "0 0 10px #ff00ff, 0 0 20px rgba(255, 0, 255, 0.6)",
-                  opacity: "0.4",
-                  transform: "scale(0.9)",
-                },
-              },
-            }}
+          {/* Radio Tower Icon */}
+          <Box
             display="flex"
             alignItems="center"
             justifyContent="center"
@@ -2639,9 +2527,63 @@ const MobileSidePanel = ({
             position="relative"
             zIndex="2"
             margin="0 auto"
+            animation={is80sMode ? "radioPulse80s 2s ease-in-out infinite" : "radioPulse 2s ease-in-out infinite"}
+            sx={{
+              "@keyframes radioPulse": {
+                "0%": { 
+                  transform: "scale(1)",
+                  filter: "drop-shadow(0 0 4px rgba(6, 182, 212, 0.4))"
+                },
+                "50%": { 
+                  transform: "scale(1.1)",
+                  filter: "drop-shadow(0 0 8px rgba(6, 182, 212, 0.8))"
+                },
+                "100%": { 
+                  transform: "scale(1)",
+                  filter: "drop-shadow(0 0 4px rgba(6, 182, 212, 0.4))"
+                },
+              },
+              "@keyframes radioPulse80s": {
+                "0%": { 
+                  transform: "scale(1)",
+                  filter: "drop-shadow(0 0 6px rgba(255, 0, 255, 0.6))"
+                },
+                "50%": { 
+                  transform: "scale(1.1)",
+                  filter: "drop-shadow(0 0 12px rgba(0, 255, 255, 0.8))"
+                },
+                "100%": { 
+                  transform: "scale(1)",
+                  filter: "drop-shadow(0 0 6px rgba(255, 0, 255, 0.6))"
+                },
+              },
+            }}
           >
-            ∞
-          </Text>
+            <svg 
+              xmlns="http://www.w3.org/2000/svg" 
+              width="28" 
+              height="28" 
+              viewBox="0 0 24 24" 
+              fill="none" 
+              stroke={is80sMode ? "#ff00ff" : "#67e8f9"}
+              strokeWidth="2" 
+              strokeLinecap="round" 
+              strokeLinejoin="round"
+              style={{
+                filter: is80sMode ? 
+                  "drop-shadow(0 0 3px #ff00ff) drop-shadow(0 0 6px rgba(255, 0, 255, 0.4))" :
+                  "drop-shadow(0 0 2px #67e8f9) drop-shadow(0 0 4px rgba(103, 232, 249, 0.3))"
+              }}
+            >
+              <path d="M4.9 16.1C1 12.2 1 5.8 4.9 1.9"/>
+              <path d="M7.8 4.7a6.14 6.14 0 0 0-.8 7.5"/>
+              <circle cx="12" cy="9" r="2"/>
+              <path d="M16.2 4.8c2 2 2.26 5.11.8 7.47"/>
+              <path d="M19.1 1.9a9.96 9.96 0 0 1 0 14.1"/>
+              <path d="M9.5 18h5"/>
+              <path d="m8 22 4-11 4 11"/>
+            </svg>
+          </Box>
         </Button>
         
         {/* Launch Confirmation (When rocket is visible) */}
