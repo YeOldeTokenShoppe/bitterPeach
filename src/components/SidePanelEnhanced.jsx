@@ -40,6 +40,7 @@ import dynamic from "next/dynamic";
 import Image from "next/image";
 import { getUserImageUrl, getUsername, createUserData } from "../utilities/clerkHelpers";
 import { useMusic } from "../contexts/MusicContext";
+import MissionControlIframe from "./MissionControlIframe";
 
 // Dynamically import the simplified music player
 const SimplifiedMusicPlayer = dynamic(() => import("./SimplifiedMusicPlayer"), {
@@ -57,6 +58,7 @@ const SidePanelEnhanced = ({
   toggleRocketModel,
   toggleConstellationVisibility,
 }) => {
+  
   // Use context for music state
   const { showSpotify, setShowSpotify } = useMusic();
   const [isTextBoxVisible, setIsTextBoxVisible] = useState(true);
@@ -129,9 +131,6 @@ const SidePanelEnhanced = ({
 
   // First, add a new ref to store the active microphone stream
   const microphoneStreamRef = useRef(null);
-
-  // Add a ref for the mission control iframe
-  const missionControlIframeRef = useRef(null);
 
   // Detect touch devices
   useEffect(() => {
@@ -221,6 +220,7 @@ const SidePanelEnhanced = ({
   const startScramble = (element, originalText) => {
     if (!element || !originalText) return;
 
+    const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     let iterations = 0;
 
     if (activeInterval) {
@@ -236,7 +236,7 @@ const SidePanelEnhanced = ({
 
       element.innerText = originalText
         .split("")
-        .map((letter, index) => {
+        .map((_, index) => {
           if (index < iterations) {
             return originalText[index];
           }
@@ -254,27 +254,28 @@ const SidePanelEnhanced = ({
     setActiveInterval(interval);
   };
 
-  const handleMouseEnter = (e) => {
-    if (!e?.currentTarget) return;
-    const element = e.currentTarget;
-    const originalText = element.dataset.value;
-    isHovering.current = true;
-    startScramble(element, originalText);
-  };
+  // Unused scramble effect handlers - kept for potential future use
+  // const handleMouseEnter = (e) => {
+  //   if (!e?.currentTarget) return;
+  //   const element = e.currentTarget;
+  //   const originalText = element.dataset.value;
+  //   isHovering.current = true;
+  //   startScramble(element, originalText);
+  // };
 
-  const handleMouseLeave = (e) => {
-    if (!e?.currentTarget) return;
-    const element = e.currentTarget;
-    const originalText = element.dataset.value;
-    isHovering.current = false;
+  // const handleMouseLeave = (e) => {
+  //   if (!e?.currentTarget) return;
+  //   const element = e.currentTarget;
+  //   const originalText = element.dataset.value;
+  //   isHovering.current = false;
 
-    if (activeInterval) {
-      clearInterval(activeInterval);
-      setActiveInterval(null);
-    }
+  //   if (activeInterval) {
+  //     clearInterval(activeInterval);
+  //     setActiveInterval(null);
+  //   }
 
-    element.innerText = originalText;
-  };
+  //   element.innerText = originalText;
+  // };
 
   // Firebase authentication function
   const signIntoFirebaseWithClerk = useCallback(async () => {
@@ -407,23 +408,22 @@ const SidePanelEnhanced = ({
     };
   }, [activeInterval]);
 
-  // Modified handler for 80s mode toggle
-  const handle80sModeToggle = () => {
-    if (!is80sMode && monsterMode) {
-      // If turning on 80s mode while monster mode is on, turn off monster mode
-      toggleMonsterMode(); // Turn off monster mode
-    }
-    toggle80sMode(); // Toggle 80s mode
-  };
+  // Unused mode toggle handlers - kept for potential future use
+  // const handle80sModeToggle = () => {
+  //   if (!is80sMode && monsterMode) {
+  //     // If turning on 80s mode while monster mode is on, turn off monster mode
+  //     toggleMonsterMode(); // Turn off monster mode
+  //   }
+  //   toggle80sMode(); // Toggle 80s mode
+  // };
 
-  // Modified handler for monster mode toggle
-  const handleMonsterModeToggle = () => {
-    if (!monsterMode && is80sMode) {
-      // If turning on monster mode while 80s mode is on, turn off 80s mode
-      toggle80sMode(); // Turn off 80s mode
-    }
-    toggleMonsterMode(); // Toggle monster mode
-  };
+  // const handleMonsterModeToggle = () => {
+  //   if (!monsterMode && is80sMode) {
+  //     // If turning on monster mode while 80s mode is on, turn off 80s mode
+  //     toggle80sMode(); // Turn off 80s mode
+  //   }
+  //   toggleMonsterMode(); // Toggle monster mode
+  // };
 
   // Add this function at the top of your component to temporarily block WebGL during
   // Reference to the SitePal iframe
@@ -519,10 +519,11 @@ const SidePanelEnhanced = ({
       if (event.data && event.data.type === 'REQUEST_AVATAR') {
         console.log("[Parent SidePanel] Received REQUEST_AVATAR from iframe.");
 
-        if (missionControlIframeRef.current && missionControlIframeRef.current.contentWindow) {
+        const iframe = document.querySelector('iframe[title="Mission Control Panel"]');
+        if (iframe && iframe.contentWindow) {
           const avatarUrl = isSignedIn ? getUserImageUrl(user) : null; // Get the best URL or null if signed out
            console.log("[Parent SidePanel] Sending AVATAR_RESPONSE with URL:", avatarUrl);
-          missionControlIframeRef.current.contentWindow.postMessage({
+          iframe.contentWindow.postMessage({
             type: 'AVATAR_RESPONSE',
             avatarUrl: avatarUrl
           }, '*'); // Use specific origin instead of '*' in production
@@ -640,7 +641,8 @@ const SidePanelEnhanced = ({
           break;
         case "SITEPAL_STATE_CHANGE":
 
-          setIsMuted(!event.data.isListening);
+          // Handle mute state if needed
+          // setIsMuted(!event.data.isListening);
           break;
         case "SITEPAL_ERROR":
           console.error("SitePal error:", event.data.error);
@@ -743,9 +745,10 @@ const SidePanelEnhanced = ({
           }
           break;
         case "SITEPAL_LOADED":
-          if (is80sMode && missionControlIframeRef.current) {
+          const iframe = document.querySelector('iframe[title="Mission Control Panel"]');
+          if (is80sMode && iframe) {
             // Re-expand video screen after SitePal loads
-            missionControlIframeRef.current.contentWindow.postMessage(
+            iframe.contentWindow.postMessage(
               {
                 type: "EXPAND_VIDEO_SCREEN",
                 expanded: true,
@@ -797,8 +800,9 @@ const SidePanelEnhanced = ({
     });
     
     // Also send a direct update for the signal button state
-    if (missionControlIframeRef.current && missionControlIframeRef.current.contentWindow) {
-      missionControlIframeRef.current.contentWindow.postMessage({
+    const iframe = document.querySelector('iframe[title="Mission Control Panel"]');
+    if (iframe && iframe.contentWindow) {
+      iframe.contentWindow.postMessage({
         type: "UPDATE_SIGNAL_BUTTON_STATE",
         is80sModeActive: is80sMode,
         isMusicActive: showSpotify
@@ -867,7 +871,7 @@ const SidePanelEnhanced = ({
 
   // Function to sync state to the iframe
   const syncIframeState = useCallback(() => {
-    const iframe = missionControlIframeRef.current;
+    const iframe = document.querySelector('iframe[title="Mission Control Panel"]');
     if (iframe && iframe.contentWindow) {
       iframe.contentWindow.postMessage(
         {
@@ -890,7 +894,8 @@ const SidePanelEnhanced = ({
       syncIframeState();
       
       // Expand video screen immediately if in 80s mode
-      if (is80sMode && missionControlIframeRef.current) {
+      const iframe = document.querySelector('iframe[title="Mission Control Panel"]');
+      if (is80sMode && iframe) {
         // First, ensure the video is hidden
         const videoContainer = document.querySelector(".vaporwave-container");
         if (videoContainer) {
@@ -899,7 +904,7 @@ const SidePanelEnhanced = ({
         }
         
         // Tell the iframe to expand the video area
-        missionControlIframeRef.current.contentWindow.postMessage(
+        iframe.contentWindow.postMessage(
           {
             type: "EXPAND_VIDEO_SCREEN",
             expanded: true,
@@ -1152,42 +1157,24 @@ const SidePanelEnhanced = ({
           <Box
             position="absolute"
             inset="20px"
-            borderRadius="15px"
-            overflow="hidden"
-            boxShadow="inset 0 0 30px rgba(0,0,0,0.5)"
           >
-            <iframe
-              ref={missionControlIframeRef}
-              src="/cyberpunk_mission_control_enhanced.html"
-              style={{
-                width: "100%",
-                height: "100%",
-                border: "none",
-                overflow: "hidden",
-                display: "block",
-                backgroundColor: "transparent",
-              }}
-              title="Mission Control Panel"
-              onLoad={handleIframeLoad}
-            />
+            <MissionControlIframe onLoad={handleIframeLoad} />
           </Box>
         </Box>
         
-        {/* Simplified Music Player */}
-        {showSpotify && (
-          <SimplifiedMusicPlayer
-            isVisible={showSpotify}
-            onClose={() => setShowSpotify(false)}
-            is80sMode={is80sMode}
-            onModeChange={(enable80s) => {
-              console.log("🎵 SidePanel: Mode change requested:", enable80s);
-              if (enable80s !== is80sMode) {
-                toggle80sMode();
-              }
-            }}
-            autoPlay={true}
-          />
-        )}
+        {/* Simplified Music Player - Always rendered but visibility controlled */}
+        <SimplifiedMusicPlayer
+          isVisible={showSpotify}
+          onClose={() => setShowSpotify(false)}
+          is80sMode={is80sMode}
+          onModeChange={(enable80s) => {
+            console.log("🎵 SidePanel: Mode change requested:", enable80s);
+            if (enable80s !== is80sMode) {
+              toggle80sMode();
+            }
+          }}
+          autoPlay={true}
+        />
       </Box>
       
       {/* Enhanced Global Styles */}
@@ -1319,4 +1306,13 @@ const SidePanelEnhanced = ({
   );
 };
 
-export default SidePanelEnhanced;
+export default React.memo(SidePanelEnhanced, (prevProps, nextProps) => {
+  // Custom comparison to prevent unnecessary re-renders
+  // Only re-render if these specific props change
+  return (
+    prevProps.is80sMode === nextProps.is80sMode &&
+    prevProps.monsterMode === nextProps.monsterMode &&
+    prevProps.rocketModelVisible === nextProps.rocketModelVisible &&
+    prevProps.isConstellationsVisible === nextProps.isConstellationsVisible
+  );
+});

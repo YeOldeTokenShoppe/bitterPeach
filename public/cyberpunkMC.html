@@ -1533,6 +1533,48 @@
 
       /* Keep existing functionality styles */
       /* ... the rest of the existing CSS ... */
+      
+      /* Moon scene specific styles */
+      .moon-scene {
+        --primary-color: #6366f1; /* Indigo for moon */
+        --secondary-color: #8b5cf6; /* Purple */
+        --accent-color: #a78bfa; /* Light purple */
+        --background-gradient: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%);
+      }
+      
+      .moon-scene .mission-control {
+        background: var(--background-gradient);
+        border-color: var(--primary-color);
+      }
+      
+      .moon-scene .control-button {
+        background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+        border-color: var(--primary-color);
+      }
+      
+      .moon-scene .control-button:hover {
+        background: linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(139, 92, 246, 0.2) 100%);
+        box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
+      }
+      
+      .moon-scene .control-button[data-action="ignition"] .button-label {
+        color: #e0e7ff; /* Light indigo for return button */
+      }
+      
+      .moon-scene .status-bar {
+        background: linear-gradient(to right, rgba(99, 102, 241, 0.1), transparent);
+      }
+      
+      .moon-scene .communication-display {
+        color: var(--accent-color);
+      }
+      
+      /* Gallery scene styles (default) */
+      .gallery-scene {
+        --primary-color: #67e8f9; /* Cyan */
+        --secondary-color: #00ff41; /* Green */
+        --accent-color: #D946EF; /* Pink */
+      }
     </style>
     <script>
       const deadAir = document.getElementById("deadAir");
@@ -5198,6 +5240,98 @@ function startCharacterInteraction() {
 
     <!-- Add this script to handle postMessage events -->
     <script>
+      // Function to update UI based on scene configuration
+      function updateUIForScene(sceneType, config) {
+        console.log(`🎬 Updating UI for scene: ${sceneType}`, config);
+        
+        // Update station display based on scene
+        const stationSelect = document.getElementById('station-select');
+        
+        if (sceneType === 'moon') {
+          // Update station options for moon scene
+          if (stationSelect) {
+            // Save the current selection if any
+            const currentValue = stationSelect.value;
+            stationSelect.innerHTML = `
+              <option>LUNAR BASE ALPHA</option>
+              <option>TYCHO CRATER</option>
+              <option>MARE TRANQUILLITATIS</option>
+              <option>APOLLO LANDING SITE</option>
+            `;
+            // Try to restore the selection or default to first
+            if (stationSelect.querySelector(`option[value="${currentValue}"]`)) {
+              stationSelect.value = currentValue;
+            }
+          }
+          
+          // Update communication display - only change the text content
+          const commDisplay = document.querySelector('.communication-display');
+          if (commDisplay) {
+            const labelSpan = commDisplay.querySelector('.label');
+            const valueSpan = commDisplay.querySelector('span:not(.label)');
+            if (labelSpan) labelSpan.textContent = 'LUNAR COMM//';
+            if (valueSpan) valueSpan.textContent = 'SURFACE_OPS';
+          }
+          
+          // Update button labels for moon scene
+          const ignitionButton = document.querySelector('.control-button[data-action="ignition"]');
+          if (ignitionButton && config.rocketAction) {
+            const label = ignitionButton.querySelector('.button-label');
+            if (label) {
+              label.textContent = config.rocketAction.label || 'RETURN';
+            }
+          }
+          
+          // Add moon scene class for styling
+          document.body.classList.add('moon-scene');
+          document.body.classList.remove('gallery-scene');
+          
+        } else if (sceneType === 'gallery') {
+          // Reset to gallery defaults
+          if (stationSelect) {
+            const currentValue = stationSelect.value;
+            stationSelect.innerHTML = `
+              <option>LUNAR BASE ALPHA</option>
+              <option>MARS OUTPOST</option>
+              <option>ORBITAL STATION</option>
+              <option>EARTH HQ</option>
+            `;
+            if (stationSelect.querySelector(`option[value="${currentValue}"]`)) {
+              stationSelect.value = currentValue;
+            }
+          }
+          
+          // Update communication display - only change the text content
+          const commDisplay = document.querySelector('.communication-display');
+          if (commDisplay) {
+            const labelSpan = commDisplay.querySelector('.label');
+            const valueSpan = commDisplay.querySelector('span:not(.label)');
+            if (labelSpan) labelSpan.textContent = 'COMM//';
+            if (valueSpan) valueSpan.textContent = 'SECURE';
+          }
+          
+          // Update button labels for gallery scene
+          const ignitionButton = document.querySelector('.control-button[data-action="ignition"]');
+          if (ignitionButton && config.rocketAction) {
+            const label = ignitionButton.querySelector('.button-label');
+            if (label) {
+              label.textContent = config.rocketAction.label || 'MISSION';
+            }
+          }
+          
+          // Add gallery scene class for styling
+          document.body.classList.add('gallery-scene');
+          document.body.classList.remove('moon-scene');
+        }
+        
+        // Update the panel title if needed (optional)
+        const panelTitle = document.querySelector('.panel-title');
+        if (panelTitle) {
+          // Keep the original title for now - you can customize this per scene if needed
+          // panelTitle.textContent = sceneType === 'moon' ? 'LUNAR-INFIN8O' : 'INFIN8O-LUNAR';
+        }
+      }
+
       // Add this case to handle DISCONNECT_SITEPAL message
       function handlePostMessage(event) {
         const message = event.data;
@@ -5208,6 +5342,12 @@ function startCharacterInteraction() {
 
         switch (message.type) {
           // ... existing cases ...
+          case "SET_SCENE_CONFIG":
+            console.log("🎬 Received SET_SCENE_CONFIG message:", message);
+            if (message.sceneType && message.config) {
+              updateUIForScene(message.sceneType, message.config);
+            }
+            break;
           case "DISCONNECT_SITEPAL":
             console.log("🔌 Received DISCONNECT_SITEPAL message from parent");
             // Find and click the disconnect button if it exists
@@ -5371,11 +5511,22 @@ function startCharacterInteraction() {
 
       // Function to handle ignition button click
       function handleIgnitionClick() {
-        console.log('Ignition button clicked: Requesting pre-transition camera zoom and then synthwave transition.');
+        console.log('Ignition button clicked');
         
-        // Send message to parent window to initiate the camera zoom first,
-        // and then the parent will handle the model switch.
-        window.parent.postMessage({ type: 'PRE_TRANSITION_CAMERA_ZOOM' }, '*');
+        // Check if we're in moon scene
+        if (document.body.classList.contains('moon-scene')) {
+          console.log('In moon scene - sending rocket ignition request to return to gallery');
+          // Send rocket ignition request which will be handled differently in moon scene
+          window.parent.postMessage({ 
+            type: 'ROCKET_IGNITION_REQUEST',
+            action: 'show_rocket'
+          }, '*');
+        } else {
+          console.log('In gallery scene - requesting pre-transition camera zoom');
+          // Send message to parent window to initiate the camera zoom first,
+          // and then the parent will handle the model switch.
+          window.parent.postMessage({ type: 'PRE_TRANSITION_CAMERA_ZOOM' }, '*');
+        }
         
         // Add visual feedback
         const ignitionButton = document.querySelector('.control-button[data-action="ignition"]');

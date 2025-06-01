@@ -27,13 +27,11 @@ export default function GalleryPage() {
   const { showSpotify, setShowSpotify } = useMusic(); // Use context for music state
   const musicPlayerRef = useRef(null);
   const isTogglingRef = useRef(false); // Prevent multiple rapid toggles
-  const [loadingProgress, setLoadingProgress] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [is80sMode, setIs80sMode] = useState(false);
   // Add synthwave mode state
   const [synthwaveMode, setSynthwaveMode] = useState(false);
-  const [mobile, setMobile] = useState(false);
   const [shouldRenderGallery, setShouldRenderGallery] = useState(false);
   const [isMobileView, setIsMobileView] = useState(false);
   const [isDefinitelyPhone, setIsDefinitelyPhone] = useState(false); // Lock mobile view for phones
@@ -155,7 +153,6 @@ export default function GalleryPage() {
     if (forceMobile) {
       console.log('🔧 Force mobile mode via URL parameter');
       setIsDefinitelyPhone(true);
-      setMobile(true);
       setIsMobileView(true);
       return;
     }
@@ -166,12 +163,10 @@ export default function GalleryPage() {
     if (isMobile) {
       console.log('📱 Definitely a phone - locking mobile view');
       setIsDefinitelyPhone(true);
-      setMobile(true);
       setIsMobileView(true);
     } else {
       console.log('💻 Not a phone - using desktop view');
       setIsDefinitelyPhone(false);
-      setMobile(false);
       setIsMobileView(false);
     }
   }, []);
@@ -181,14 +176,12 @@ export default function GalleryPage() {
     const handleResize = () => {
       // If we've already determined it's a phone, keep mobile view
       if (isDefinitelyPhone) {
-        setMobile(true);
         setIsMobileView(true);
         return;
       }
       
       // Otherwise, do normal detection
       const isMobile = detectMobileDevice();
-      setMobile(isMobile);
       setIsMobileView(isMobile);
       // Remove automatic showSpotify setting
     };
@@ -247,27 +240,16 @@ export default function GalleryPage() {
   //   }
   // };
 
-  // Update loading progress based on component and 3D scene loading states
+  // Update loading state based on component and 3D scene loading states
   useEffect(() => {
     if (componentLoaded && threeDSceneLoaded) {
-      // Both components are loaded, set progress to 100%
-      setLoadingProgress(100);
-
+      // Both components are loaded, hide loader
       // Add a small delay before hiding the loader to ensure smooth transition
       const timer = setTimeout(() => {
         setIsLoading(false);
       }, 500);
 
       return () => clearTimeout(timer);
-    } else if (componentLoaded) {
-      // Component is loaded but 3D scene is still loading
-      setLoadingProgress(50);
-    } else if (threeDSceneLoaded) {
-      // 3D scene is loaded but component is still loading
-      setLoadingProgress(30);
-    } else {
-      // Neither is loaded yet
-      setLoadingProgress(10);
     }
   }, [componentLoaded, threeDSceneLoaded]);
 
@@ -527,10 +509,9 @@ export default function GalleryPage() {
       >
         {shouldRenderGallery && (
           <BurnGalleryClient
+            key="burn-gallery-client" // Add stable key
             setComponentLoaded={setComponentLoaded}
             setThreeDSceneLoaded={setThreeDSceneLoaded}
-            setShowSpotify={handleMusicToggle}
-            showSpotify={showSpotify}
             isModalOpen={isModalOpen}
             setIsModalOpen={setIsModalOpen}
             is80sMode={is80sMode}

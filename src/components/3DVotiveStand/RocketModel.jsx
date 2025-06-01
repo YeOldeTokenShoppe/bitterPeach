@@ -1397,6 +1397,7 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch,
           
           if (typeof onTransitionStart === 'function') {
             console.log("🚀 Calling onTransitionStart function...");
+            console.log("🚀 onSceneSwitch available:", typeof onSceneSwitch === 'function');
             
             // DO NOT start fading yet - keep effects active
             // The fade will start when the transition actually begins

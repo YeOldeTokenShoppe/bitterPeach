@@ -80,14 +80,24 @@ const contract = getContract({
   address: "0xde7Cc5B93e0c1A2131c0138d78d0D0a33cc36e42",
 });
 
-// Memoize child components
-const MemoizedThreeDVotiveStand = memo(ThreeDVotiveStand);
+// Memoize child components with deep comparison for props
+const MemoizedThreeDVotiveStand = memo(ThreeDVotiveStand, (prevProps, nextProps) => {
+  // Custom comparison to prevent unnecessary re-renders
+  return (
+    prevProps.isInMarkerView === nextProps.isInMarkerView &&
+    prevProps.isMobileView === nextProps.isMobileView &&
+    prevProps.isModalOpen === nextProps.isModalOpen &&
+    prevProps.is80sMode === nextProps.is80sMode &&
+    prevProps.monsterMode === nextProps.monsterMode &&
+    prevProps.rocketModelVisible === nextProps.rocketModelVisible &&
+    prevProps.isConstellationsVisible === nextProps.isConstellationsVisible &&
+    prevProps.userData === nextProps.userData
+  );
+});
 
 function BurnGallery({
   setComponentLoaded,
   setThreeDSceneLoaded,
-  setShowSpotify,
-  showSpotify,
   isModalOpen,
   setIsModalOpen,
   is80sMode,
@@ -351,12 +361,10 @@ function BurnGallery({
     }
   }, [isLoaded, isSignedIn, user]);
 
-  // Add some debugging with stack trace
+  // Add some debugging
   useEffect(() => {
-    console.log("🎵 BurnGallery showSpotify state changed to:", showSpotify);
     console.log("🎵 Current is80sMode:", is80sMode);
-    console.trace("🎵 Stack trace for showSpotify change:");
-  }, [showSpotify, is80sMode]);
+  }, [is80sMode]);
 
   // Music player visibility is now controlled by cyberpunk mission control
   // useEffect(() => {
@@ -417,6 +425,7 @@ function BurnGallery({
           <GridItem colSpan={1} height="100%" overflow="hidden">
             {currentView === "main" ? (
               <MemoizedThreeDVotiveStand
+                key="votive-stand-main" // Add stable key to prevent remounting
                 ref={votiveStandRef}
                 setIsLoading={setIsModelLoaded}
                 isInMarkerView={isInMarkerView}
@@ -439,10 +448,16 @@ function BurnGallery({
           </GridItem>
         </Grid>
 
-        {/* Conditionally render panels to prevent duplicate message handlers */}
-        {currentView === "main" && showUI && (
-          isMobileView ? (
+        {/* Render panels with CSS visibility control to prevent remounting */}
+        {isMobileView ? (
+          <Box
+            key="mobile-panel-container"
+            display={currentView === "main" && showUI ? "block" : "none"}
+            position="fixed"
+            zIndex={1000}
+          >
             <MobileSidePanel
+              key="mobile-side-panel"
               onButtonClick={handleButtonClick}
               is80sMode={is80sMode}
               toggle80sMode={toggle80sMode}
@@ -454,11 +469,17 @@ function BurnGallery({
               toggleConstellationVisibility={toggleConstellationVisibility}
               isConstellationsVisible={isConstellationsVisible}
               paginationState={paginationState}
-              showSpotify={showSpotify}
-              setShowSpotify={setShowSpotify}
             />
-          ) : (
+          </Box>
+        ) : (
+          <Box
+            key="desktop-panel-container"
+            display={currentView === "main" && showUI ? "block" : "none"}
+            position="fixed"
+            zIndex={1000}
+          >
             <SidePanelEnhanced
+              key="side-panel-enhanced"
               onButtonClick={handleButtonClick}
               is80sMode={is80sMode}
               toggle80sMode={toggle80sMode}
@@ -469,7 +490,7 @@ function BurnGallery({
               toggleConstellationVisibility={toggleConstellationVisibility}
               isConstellationsVisible={isConstellationsVisible}
             />
-          )
+          </Box>
         )}
         {/* <Box
             display="flex"

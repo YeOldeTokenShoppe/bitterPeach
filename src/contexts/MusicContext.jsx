@@ -21,6 +21,8 @@ export const MusicProvider = ({ children }) => {
   const [trackProgress, setTrackProgress] = useState(0);
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
   const [is80sMode, setIs80sMode] = useState(false);
+  const [currentTrackUrl, setCurrentTrackUrl] = useState('');
+  const [currentTrackPath, setCurrentTrackPath] = useState(''); // Add path tracking
   const audioRef = React.useRef(null);
   const [audioElement, setAudioElement] = useState(null);
   
@@ -107,14 +109,66 @@ export const MusicProvider = ({ children }) => {
       console.log("🎵 MusicContext: Creating persistent audio element");
       const audio = new Audio();
       audio.volume = volume;
+      audio.crossOrigin = "anonymous"; // Add CORS support
       audioRef.current = audio;
       setAudioElement(audio);
+      
+      // Create an audio context to prevent suspension
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (AudioContext) {
+        const audioContext = new AudioContext();
+        const source = audioContext.createMediaElementSource(audio);
+        const gainNode = audioContext.createGain();
+        source.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        // Resume audio context if it gets suspended
+        const resumeAudioContext = () => {
+          if (audioContext.state === 'suspended') {
+            console.log("🎵 Resuming suspended audio context");
+            audioContext.resume();
+          }
+        };
+        
+        // Check periodically for suspended state
+        const contextCheckInterval = setInterval(resumeAudioContext, 1000);
+        
+        // Store references for cleanup
+        audio._audioContext = audioContext;
+        audio._contextCheckInterval = contextCheckInterval;
+      }
       
       // Add event listeners
       audio.addEventListener('ended', () => {
         console.log("🎵 Track ended");
         setIsPlaying(false);
       });
+      
+      // Handle audio context suspension/interruption
+      audio.addEventListener('pause', (e) => {
+        console.log("🎵 Audio paused event", e);
+      });
+      
+      audio.addEventListener('play', (e) => {
+        console.log("🎵 Audio play event", e);
+      });
+      
+      // Handle visibility changes
+      const handleVisibilityChange = () => {
+        if (document.hidden && audioRef.current && !audioRef.current.paused) {
+          console.log("🎵 Document hidden, but keeping audio playing");
+          // Don't pause the audio when tab becomes hidden
+        }
+      };
+      
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      
+      return () => {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+        if (audio._contextCheckInterval) {
+          clearInterval(audio._contextCheckInterval);
+        }
+      };
     }
     
     return () => {
@@ -150,6 +204,10 @@ export const MusicProvider = ({ children }) => {
     setCurrentTrackIndex,
     is80sMode,
     setIs80sMode,
+    currentTrackUrl,
+    setCurrentTrackUrl,
+    currentTrackPath,
+    setCurrentTrackPath,
     audioElement: audioRef.current,
     audioRef,
   };

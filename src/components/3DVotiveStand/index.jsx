@@ -48,6 +48,7 @@ import StarField from "./StarField";
 // import FlyInEffect from './FlyInEffect';
 import ScrollDetailViewer from "./ScrollDetailViewer";
 import MobileCandleMarquee from "./MobileCandleMarquee";
+import { useMusic } from "../../contexts/MusicContext";
 
 // Scene is created internally by React Three Fiber
 
@@ -141,6 +142,9 @@ const ThreeDVotiveStand = forwardRef(({
       console.log(`🎯 ${instanceId} unmounting`);
     };
   }, [instanceId]);
+  
+  // Use music context for audio control during transitions
+  const { audioRef, isPlaying, setIsPlaying } = useMusic();
   
   // Use music context for showSpotify state
   const [showFloatingViewer, setShowFloatingViewer] = useState(false);
@@ -790,20 +794,18 @@ const ThreeDVotiveStand = forwardRef(({
   //   };
   // }, []);
 
-  const [showFlyIn, setShowFlyIn] = useState(false);
+  const [showFlyIn] = useState(false); // setShowFlyIn unused
   const [showTransition, setShowTransition] = useState(false);
-  const [transitionCallback, setTransitionCallback] = useState(null);
+  const transitionCallbackRef = useRef(null); // Use ref instead of state for callback
+  const [frameloop, setFrameloop] = useState('always'); // 'always' | 'demand' | 'never'
   
   // State to control which scene is active
   const [activeScene, setActiveScene] = useState('gallery'); // 'gallery' or 'moon'
-  const [showMoonScene, setShowMoonScene] = useState(false);
   
   // State for moon scene astronaut data
   const [userHelmetTextures, setUserHelmetTextures] = useState([]);
   const [lunarLandingDataLoaded, setLunarLandingDataLoaded] = useState(false);
   
-  // State for preloading
-  const [preloadProgress, setPreloadProgress] = useState(0);
   const [galleryDisposed, setGalleryDisposed] = useState(false);
   
   // State for UI visibility during transitions
@@ -818,14 +820,14 @@ const ThreeDVotiveStand = forwardRef(({
   
   // Helper to load texture from URL with quality options
   const loadImageAsTexture = useCallback((url, options = {}) => {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       if (!url) {
         console.warn("loadImageAsTexture: URL is null or undefined.");
         resolve(null);
         return;
       }
       
-      const { lowRes = false, maxSize = 1024 } = options;
+      const { lowRes = false } = options;
       
       if (lowRes) {
         // Create low-res version using canvas
@@ -993,15 +995,14 @@ const ThreeDVotiveStand = forwardRef(({
     console.log('✅ Gallery resources disposed');
   }, [galleryDisposed]);
 
-  const handleLocalIgnition = () => {
-  
-    setShowFlyIn(true);
-    // Reset after animation completes
-    setTimeout(() => {
-
-      setShowFlyIn(false);
-    }, 6000);
-  };
+  // Unused function - kept for potential future use
+  // const handleLocalIgnition = () => {
+  //   setShowFlyIn(true);
+  //   // Reset after animation completes
+  //   setTimeout(() => {
+  //     setShowFlyIn(false);
+  //   }, 6000);
+  // };
 
   // Handle scene switching
   const handleSceneSwitch = useCallback((sceneName) => {
@@ -1016,15 +1017,19 @@ const ThreeDVotiveStand = forwardRef(({
       // Hide the transition after scene switch
       setTimeout(() => {
         setShowTransition(false);
+        // Restore normal frameloop after transition
+        setFrameloop('always');
         console.log('🎬 Transition hidden after scene switch');
       }, 500); // Small delay to ensure smooth transition
     } else if (sceneName === 'gallery') {
       setActiveScene('gallery');
       setShowLunarLanding(false);
       setShowUI(true); // Restore UI when returning to gallery
+      setFrameloop('always'); // Restore normal frameloop
       console.log('🎬 Returned to gallery scene, UI restored');
     }
   }, [fetchUserDataForLunarLanding]);
+  
 
   // Handle transition start from RocketModel
   const handleTransitionStart = useCallback((onComplete) => {
@@ -1033,8 +1038,23 @@ const ThreeDVotiveStand = forwardRef(({
     // DON'T hide UI or change scenes immediately - just prepare for transition
     console.log('🎭 Preparing for transition...');
     
+    // Keep audio playing during scene transition
+    // The audio should persist across scenes
+    console.log('🎵 Keeping audio playing during scene transition');
+    
+    // Don't change frameloop to 'demand' as it might stop the animation loop
+    // Keep it as 'always' to ensure CinematicTransition can animate
+    console.log('🎭 Keeping frameloop as always during transition');
+    
     // Start the transition effects but keep the scene active
     setShowTransition(true);
+    
+    // Add a fail-safe timeout to ensure scene switches even if transition callback fails
+    setTimeout(() => {
+      console.log('🚀 Fail-safe timer triggered after 3 seconds');
+      // Force switch to moon scene
+      handleSceneSwitch('moon');
+    }, 3000); // 3 seconds should be enough for the 2.5s transition
     
     // Call the rocket's callback immediately so it can start fading
     if (typeof onComplete === 'function') {
@@ -1072,16 +1092,10 @@ const ThreeDVotiveStand = forwardRef(({
           try {
             console.log("🚀 Attempting scene switch after delay...");
             
-            // Call the scene switch function if provided
-            if (typeof handleSceneSwitch === 'function') {
-              console.log("🚀 Calling handleSceneSwitch to switch to moon scene");
-              handleSceneSwitch('moon');
-            } else {
-              console.error("🚀 handleSceneSwitch function not provided!");
-              // Fallback to window.location if no scene switch function
-              console.log("🚀 Falling back to window.location navigation");
-              window.location.href = '/moon-scene';
-            }
+            // Use the handleSceneSwitch function directly from the component scope
+            console.log("🚀 Switching to moon scene using handleSceneSwitch");
+            // handleSceneSwitch is defined in the component scope and should be available here
+            handleSceneSwitch('moon');
           } catch (syncError) {
             console.error("🚀 Synchronous error during scene switch:", syncError);
             console.error("🚀 Sync error name:", syncError?.name);
@@ -1093,7 +1107,8 @@ const ThreeDVotiveStand = forwardRef(({
       };
       
       // Store the callback for when transition peaks
-      setTransitionCallback(() => transitionPeakCallback);
+      // Use ref to avoid React's closure issues
+      transitionCallbackRef.current = transitionPeakCallback;
       
       // Call the rocket's callback to start the fade
       onComplete();
@@ -1116,19 +1131,36 @@ const ThreeDVotiveStand = forwardRef(({
     
     // Start fetching user data
     fetchUserDataForLunarLanding(true);
-  }, [disposeGalleryResources, fetchUserDataForLunarLanding, userData, is80sMode, handleSceneSwitch]);
+    
+    // Preload LunarLanding component during transition
+    import('../LunarLanding').then(() => {
+      console.log('🌙 LunarLanding component preloaded');
+    }).catch(err => {
+      console.error('🌙 Failed to preload LunarLanding:', err);
+    });
+  }, [disposeGalleryResources, fetchUserDataForLunarLanding, userData, is80sMode, handleSceneSwitch, audioRef, isPlaying, setIsPlaying]);
 
   // Handle transition completion
   const handleTransitionComplete = useCallback(() => {
-
-    if (transitionCallback) {
-
-      transitionCallback();
-
-    } else {
-      console.error('🎬 ERROR: No transition callback stored!');
+    console.log('🎬 handleTransitionComplete called');
+    console.log('🎬 Current activeScene:', activeScene);
+    console.log('🎬 transitionCallback exists:', !!transitionCallbackRef.current);
+    console.log('🎬 transitionCallback type:', typeof transitionCallbackRef.current);
+    
+    // Always switch to moon scene when transition completes
+    console.log('🎬 Switching to moon scene...');
+    handleSceneSwitch('moon');
+    
+    // Also try to execute any stored callback
+    if (transitionCallbackRef.current && typeof transitionCallbackRef.current === 'function') {
+      console.log('🎬 Also executing stored transition callback...');
+      try {
+        transitionCallbackRef.current();
+      } catch (error) {
+        console.error('🎬 Error executing stored callback:', error);
+      }
     }
-  }, [transitionCallback]);
+  }, [handleSceneSwitch, activeScene]);
   
   
 
@@ -1157,12 +1189,9 @@ const ThreeDVotiveStand = forwardRef(({
 
       // Store external controls reference if it exists
       const externalControls = controlsRef.current;
-      let originalTarget = null;
       
       // Temporarily disable external controls if they exist
       if (externalControls && !rocketModelVisible) {
-     
-        originalTarget = externalControls.target.clone();
         externalControls.enabled = false;
       }
 
@@ -1431,9 +1460,6 @@ const ThreeDVotiveStand = forwardRef(({
     }
   }), [sceneCameraRef, controlsRef, modelCenter, rocketModelVisible]); // Added modelCenter and rocketModelVisible to dependencies
 
-  // Add this right after your imports
-  const MemoizedHolographicStatue = React.memo(HolographicStatue);
-
   return (
     <div style={{ width: "100%", height: "100vh", position: "relative" }}>
       <Canvas
@@ -1449,6 +1475,7 @@ const ThreeDVotiveStand = forwardRef(({
         }}
         dpr={currentDpr}
         performance={{ min: 0.5 }}
+        frameloop={frameloop}
         gl={{ 
           alpha: true,
           antialias: true,
@@ -1595,7 +1622,12 @@ const ThreeDVotiveStand = forwardRef(({
         {/* Cinematic transition effect */}
         <CinematicTransition 
           active={showTransition} 
-          onComplete={handleTransitionComplete}
+          onComplete={() => {
+            console.log('🎬 CinematicTransition onComplete triggered');
+            console.log('🎬 showTransition state:', showTransition);
+            console.log('🎬 activeScene state:', activeScene);
+            handleTransitionComplete();
+          }}
           type="warp"
         />
       </Canvas>
