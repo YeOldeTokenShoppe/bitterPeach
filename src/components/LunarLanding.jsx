@@ -661,8 +661,6 @@ function Moon(props) {
             rotate={true}
             isInMarkerView={false}
             isMobileView={false}
-            setShowSpotify={() => {}}
-            showSpotify={false}
             isModalOpen={false}
             setIsModalOpen={() => {}}
             onSpawnReady={() => {
@@ -2429,7 +2427,6 @@ export default function LunarLanding({userHelmetTextures, currentUser, onSceneRe
   }, [focusedTarget]);
   const [isCustomizerOpen, setIsCustomizerOpen] = useState(false);
   const [isMobileView, setIsMobileView] = useState(false);
-  const [showSpotify, setShowSpotify] = useState(false);
   const [is80sMode, setIs80sMode] = useState(false);
   const [monsterMode, setMonsterMode] = useState(false);
   const [rocketModelVisible, setRocketModelVisible] = useState(false);
@@ -2467,7 +2464,11 @@ export default function LunarLanding({userHelmetTextures, currentUser, onSceneRe
   }, []);
 
   const toggleConstellationVisibility = useCallback(() => {
-    setIsConstellationsVisible(prev => !prev);
+    setIsConstellationsVisible(prev => {
+      const newState = !prev;
+      console.log("🌟 LunarLanding: Toggling constellation visibility from", prev, "to", newState);
+      return newState;
+    });
   }, []);
 
   const handleAstronautClick = (index, astronautObject, userData) => {
@@ -2695,8 +2696,6 @@ export default function LunarLanding({userHelmetTextures, currentUser, onSceneRe
             toggle80sMode={toggle80sMode}
             monsterMode={monsterMode}
             toggleMonsterMode={toggleMonsterMode}
-            showSpotify={showSpotify}
-            setShowSpotify={setShowSpotify}
             rocketModelVisible={rocketModelVisible}
             toggleRocketModel={toggleRocketModel}
             toggleConstellationVisibility={toggleConstellationVisibility}
@@ -2709,8 +2708,6 @@ export default function LunarLanding({userHelmetTextures, currentUser, onSceneRe
             toggle80sMode={toggle80sMode}
             monsterMode={monsterMode}
             toggleMonsterMode={toggleMonsterMode}
-            showSpotify={showSpotify}
-            setShowSpotify={setShowSpotify}
             rocketModelVisible={rocketModelVisible}
             toggleRocketModel={toggleRocketModel}
             toggleConstellationVisibility={toggleConstellationVisibility}

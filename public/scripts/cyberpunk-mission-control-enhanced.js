@@ -224,17 +224,14 @@ function initializeEnhancedToggles() {
   }
   
   // Vertical Toggle (Constellation)
+  // NOTE: The constellation toggle is already handled by the base cyberpunk-mission-control.js script
+  // We don't need to add another click handler here as it would cause duplicate messages
   const constellationToggle = document.getElementById('constellation-toggle');
   
   if (constellationToggle) {
-    constellationToggle.addEventListener('click', function() {
-      this.classList.toggle('active');
-      
-      // Trigger parent toggle function
-      if (window.parent) {
-        window.parent.postMessage({ type: 'CONSTELLATION_TOGGLE' }, '*');
-      }
-    });
+    console.log('🌟 Constellation toggle button found (handled by base script)');
+  } else {
+    console.error('🌟 Constellation toggle button not found');
   }
 }
 
@@ -540,6 +537,17 @@ window.addEventListener('message', function(event) {
       } else {
         musicToggle.classList.remove('active');
       }
+    }
+    
+    // Sync constellation mode
+    const constellationToggle = document.getElementById('constellation-toggle');
+    if (constellationToggle && event.data.isConstellationsEnabled !== undefined) {
+      if (event.data.isConstellationsEnabled) {
+        constellationToggle.classList.add('active');
+      } else {
+        constellationToggle.classList.remove('active');
+      }
+      console.log('🌟 Synced constellation toggle state:', event.data.isConstellationsEnabled);
     }
   }
 });

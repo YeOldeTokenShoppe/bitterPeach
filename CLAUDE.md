@@ -1,0 +1,1 @@
+- the color on 80s mode is #D946EF. Let's make them white or #67e8f9, and the '80' numbers in #00ff41 in both versions.

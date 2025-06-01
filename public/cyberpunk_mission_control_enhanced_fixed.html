@@ -112,24 +112,24 @@
       body.loaded {
         opacity: 1;
       }
-      /* Touch overlay styles */
-      .touch-overlay {
-        position: fixed;
+      /* Touch overlay styles - positioned for video-feed area */
+      #video-feed .touch-overlay {
+        position: absolute;
         top: 0;
         left: 0;
         width: 100%;
         height: 100%;
-        background: rgba(0, 0, 0, 0.9);
+        background: rgba(0, 0, 0, 0.95);
         display: flex;
         flex-direction: column;
         justify-content: center;
         align-items: center;
-        z-index: 10000;
+        z-index: 100;
         opacity: 0;
         pointer-events: none;
         transition: opacity 0.3s ease;
       }
-      .touch-overlay.show {
+      #video-feed .touch-overlay.show {
         opacity: 1;
         pointer-events: auto;
       }
@@ -140,7 +140,7 @@
         padding: 20px;
       }
       .touch-overlay-title {
-        font-size: 16px;
+        font-size: 12px;
         margin-bottom: 20px;
         text-shadow: 0 0 10px currentColor;
       }
@@ -149,8 +149,8 @@
         border: none;
         color: #000;
         font-family: 'Press Start 2P', monospace;
-        font-size: 12px;
-        padding: 15px 30px;
+        font-size: 10px;
+        padding: 12px 24px;
         cursor: pointer;
         text-transform: uppercase;
         letter-spacing: 2px;
@@ -162,8 +162,8 @@
         box-shadow: 0 0 30px rgba(0, 255, 65, 0.8);
       }
       .touch-overlay-icon {
-        font-size: 48px;
-        margin-bottom: 20px;
+        font-size: 36px;
+        margin-bottom: 16px;
         animation: pulse 2s infinite;
       }
       @keyframes pulse {
@@ -173,14 +173,6 @@
     </style>
   </head>
   <body>
-    <!-- Touch to Unmute Overlay -->
-    <div class="touch-overlay" id="touch-overlay">
-      <div class="touch-overlay-content">
-        <div class="touch-overlay-icon">🔊</div>
-        <div class="touch-overlay-title">AUDIO SYSTEM READY</div>
-        <button class="touch-overlay-button" id="touch-overlay-button">TOUCH TO ACTIVATE</button>
-      </div>
-    </div>
     <!-- Background Effects -->
     <div class="scan-lines" id="scan-lines"></div>
     <div class="color-shift color-shift-red" id="color-shift-red"></div>
@@ -216,118 +208,6 @@
         </div>
         <div class="header-scanline"></div>
       </div>
-
-      <!-- Combined Status & Mission Panel -->
-      <!-- <div class="combined-status-panel"> -->
-        <!-- Gauges in a single row -->
-        <!-- <div class="gauges-row">
-          <div class="compact-gauge">
-            <div class="gauge-label">O₂</div>
-            <div class="gauge-mini">
-              <svg viewBox="0 0 50 50" width="50" height="50">
-                <rect x="0" y="0" width="50" height="50" fill="#5a6887"/>
-                <rect x="4" y="4" width="42" height="42" fill="#021a40"/>
-                <circle cx="25" cy="25" r="13" fill="#e0e1ec" opacity="0.3"/>
-                <circle cx="25" cy="25" r="11" fill="#021a40"/>
-                <path d="M25,14 A11,11 0 0,1 36,25" fill="none" stroke="#e0e1ec" stroke-width="2" opacity="0.3"/>
-                <path d="M25,14 A11,11 0 0,1 36,25" fill="none" stroke="#00e5ff" stroke-width="2" 
-                      stroke-dasharray="34.5" stroke-dashoffset="8.6" stroke-linecap="round"
-                      filter="drop-shadow(0 0 4px #00e5ff)"/>
-                <rect x="22" y="28" width="6" height="1.5" fill="#dceb08"/>
-                <circle cx="8" cy="8" r="1.5" fill="#6f7e9e"/>
-                <circle cx="42" cy="8" r="1.5" fill="#6f7e9e"/>
-                <circle cx="8" cy="42" r="1.5" fill="#6f7e9e"/>
-                <circle cx="42" cy="42" r="1.5" fill="#6f7e9e"/>
-              </svg>
-              <div class="gauge-value-mini">78%</div>
-            </div> -->
-          <!-- </div> -->
-          
-          <!-- <div class="compact-gauge"> -->
-            <!-- <div class="gauge-label">PWR</div>
-            <div class="gauge-mini">
-              <svg viewBox="0 0 50 50" width="50" height="50">
-                <rect x="0" y="0" width="50" height="50" fill="#5a6887"/>
-                <rect x="4" y="4" width="42" height="42" fill="#021a40"/>
-                <circle cx="25" cy="25" r="13" fill="#e0e1ec" opacity="0.3"/>
-                <circle cx="25" cy="25" r="11" fill="#021a40"/>
-                <path d="M25,14 A11,11 0 0,1 36,25" fill="none" stroke="#e0e1ec" stroke-width="2" opacity="0.3"/>
-                <path d="M25,14 A11,11 0 0,1 36,25" fill="none" stroke="#76ff03" stroke-width="2" 
-                      stroke-dasharray="34.5" stroke-dashoffset="3.4" stroke-linecap="round"
-                      filter="drop-shadow(0 0 4px #76ff03)"/>
-                <rect x="22" y="28" width="6" height="1.5" fill="#dceb08"/>
-                <circle cx="8" cy="8" r="1.5" fill="#6f7e9e"/>
-                <circle cx="42" cy="8" r="1.5" fill="#6f7e9e"/>
-                <circle cx="8" cy="42" r="1.5" fill="#6f7e9e"/>
-                <circle cx="42" cy="42" r="1.5" fill="#6f7e9e"/>
-              </svg>
-              <div class="gauge-value-mini">90%</div>
-            </div>
-          </div> -->
-          
-          <!-- <div class="compact-gauge">
-            <div class="gauge-label">TEMP</div>
-            <div class="gauge-mini">
-              <svg viewBox="0 0 50 50" width="50" height="50">
-                <rect x="0" y="0" width="50" height="50" fill="#5a6887"/>
-                <rect x="4" y="4" width="42" height="42" fill="#021a40"/>
-                <circle cx="25" cy="25" r="13" fill="#e0e1ec" opacity="0.3"/>
-                <circle cx="25" cy="25" r="11" fill="#021a40"/>
-                <path d="M25,14 A11,11 0 0,1 36,25" fill="none" stroke="#e0e1ec" stroke-width="2" opacity="0.3"/>
-                <path d="M25,14 A11,11 0 0,1 36,25" fill="none" stroke="#ff9500" stroke-width="2" 
-                      stroke-dasharray="34.5" stroke-dashoffset="25.8" stroke-linecap="round"
-                      filter="drop-shadow(0 0 4px #ff9500)"/>
-                <rect x="22" y="28" width="6" height="1.5" fill="#dceb08"/>
-                <circle cx="8" cy="8" r="1.5" fill="#6f7e9e"/>
-                <circle cx="42" cy="8" r="1.5" fill="#6f7e9e"/>
-                <circle cx="8" cy="42" r="1.5" fill="#6f7e9e"/>
-                <circle cx="42" cy="42" r="1.5" fill="#6f7e9e"/>
-              </svg>
-              <div class="gauge-value-mini">25%</div>
-            </div>
-          </div> -->
-          
-          <!-- <div class="compact-gauge">
-            <div class="gauge-label">FUEL</div>
-            <div class="gauge-mini">
-              <svg viewBox="0 0 50 50" width="50" height="50">
-                <rect x="0" y="0" width="50" height="50" fill="#5a6887"/>
-                <rect x="4" y="4" width="42" height="42" fill="#021a40"/>
-                <circle cx="25" cy="25" r="13" fill="#e0e1ec" opacity="0.3"/>
-                <circle cx="25" cy="25" r="11" fill="#021a40"/>
-                <path d="M25,14 A11,11 0 0,1 36,25" fill="none" stroke="#e0e1ec" stroke-width="2" opacity="0.3"/>
-                <path d="M25,14 A11,11 0 0,1 36,25" fill="none" stroke="#ffff00" stroke-width="2" 
-                      stroke-dasharray="34.5" stroke-dashoffset="12" stroke-linecap="round"
-                      filter="drop-shadow(0 0 4px #ffff00)"/>
-                <rect x="22" y="28" width="6" height="1.5" fill="#dceb08"/>
-                <circle cx="8" cy="8" r="1.5" fill="#6f7e9e"/>
-                <circle cx="42" cy="8" r="1.5" fill="#6f7e9e"/>
-                <circle cx="8" cy="42" r="1.5" fill="#6f7e9e"/>
-                <circle cx="42" cy="42" r="1.5" fill="#6f7e9e"/>
-              </svg>
-              <div class="gauge-value-mini">65%</div>
-            </div>
-          </div> -->
-        <!-- </div> -->
-        
-        <!-- Mission data below -->
-        <!-- <div class="mission-data-row">
-          <div class="data-compact">
-            <span class="data-label">ALT</span>
-            <span class="data-value">384.4k km</span>
-          </div>
-          <div class="data-divider">|</div>
-          <div class="data-compact">
-            <span class="data-label">VEL</span>
-            <span class="data-value">1.022 km/s</span>
-          </div>
-          <div class="data-divider">|</div>
-          <div class="data-compact">
-            <span class="data-label">TIME</span>
-            <span class="data-value" id="mission-time">00:00:00</span>
-          </div>
-        </div>
-      </div> -->
 
       <!-- Video Call Section -->
       <div class="video-call">
@@ -377,6 +257,15 @@
               <div class="emoji-placeholder">👨‍🚀</div>
             </div>
             <div class="live-indicator" style="display: none">● LIVE</div>
+            
+            <!-- Touch to Unmute Overlay (video-feed only) -->
+            <div class="touch-overlay" id="touch-overlay">
+              <div class="touch-overlay-content">
+                <div class="touch-overlay-icon">🔊</div>
+                <div class="touch-overlay-title">AUDIO SYSTEM READY</div>
+                <button class="touch-overlay-button" id="touch-overlay-button">TOUCH TO ACTIVATE</button>
+              </div>
+            </div>
             
             <!-- Loading Indicator -->
             <div class="video-loading-indicator" style="display: none">
@@ -454,14 +343,12 @@
         </div>
       </div>
 
-      <!-- Mission Data is now combined in the panel above -->
-
       <!-- Control Buttons -->
       <div class="button-grid">
         <button class="control-button enhanced" data-action="signal">
           <div class="button-inner">
             <div class="button-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-radio-tower-icon lucide-radio-tower">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-radio-tower-icon lucide lucide-radio-tower">
                 <path d="M4.9 16.1C1 12.2 1 5.8 4.9 1.9"/>
                 <path d="M7.8 4.7a6.14 6.14 0 0 0-.8 7.5"/>
                 <circle cx="12" cy="9" r="2"/>
@@ -500,15 +387,6 @@
         <button class="control-button enhanced" data-action="systems">
           <div class="button-inner">
             <div class="button-icon">
-              <!-- <svg viewBox="0 0 24 24" width="24" height="24">
-                <circle cx="12" cy="12" r="6" fill="none" stroke="currentColor" stroke-width="1.5"/>
-                <circle cx="12" cy="8" r="2" fill="currentColor"/>
-                <circle cx="16" cy="14" r="2" fill="currentColor"/>
-                <circle cx="8" cy="14" r="2" fill="currentColor"/>
-                <line x1="12" y1="8" x2="16" y2="14" stroke="currentColor" stroke-width="1"/>
-                <line x1="12" y1="8" x2="8" y2="14" stroke="currentColor" stroke-width="1"/>
-                <line x1="8" y1="14" x2="16" y2="14" stroke="currentColor" stroke-width="1"/>
-              </svg> -->
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24
    24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
    stroke-linejoin="round">
@@ -593,8 +471,6 @@
         </div>
       </div>
 
-
-
       <!-- Status Bar -->
       <div class="status-bar">
         <div class="status-indicator">
@@ -604,9 +480,6 @@
         <div class="spacer"></div>
         <div class="version-info">v2.0.80</div>
       </div>
-<!-- 
-      Mobile Tap to Start
-      <div class="tap-to-start">TAP TO START MISSION</div> -->
     </div>
 
     <!-- SitePal SDK -->
@@ -625,7 +498,7 @@
     
 
     <!-- External JavaScript -->
-    <script src="/scripts/sitepal-integration.js"></script>
+    <script src="/scripts/sitepal-integration-fixed.js"></script>
     <script src="/scripts/custom-ai-interface.js"></script>
     <script src="/scripts/cyberpunk-mission-control.js"></script>
     <script src="/scripts/cyberpunk-mission-control-enhanced.js"></script>
@@ -637,13 +510,13 @@
         document.body.classList.add('loaded');
       });
       
-      // Touch overlay handler
+      // Touch overlay handler - Modified to only handle after CONNECT
       document.addEventListener('DOMContentLoaded', function() {
         const touchOverlay = document.getElementById('touch-overlay');
         const touchButton = document.getElementById('touch-overlay-button');
         
         // DO NOT show overlay on page load
-        // It will be shown by SitePal integration when needed after CONNECT is clicked
+        // It will be shown by SitePal integration when needed
         
         // Handle touch overlay button click
         touchButton?.addEventListener('click', function() {
@@ -670,7 +543,15 @@
           // Hide overlay
           touchOverlay.classList.remove('show');
           
-          // Orientation video will be created dynamically when needed
+          // Trigger the greeting after audio is enabled
+          if (window.pendingGreeting && typeof window.sayText === 'function') {
+            setTimeout(() => {
+              window.sayText("Greetings, Earthling. I am ready to assist you. Please type your message below.", 9, 1, 7);
+              console.log("👋 Welcome greeting played after audio activation");
+              window.greetingPlayed = true;
+              window.pendingGreeting = false;
+            }, 500);
+          }
           
           console.log('✅ Audio system activated');
         });

@@ -28,6 +28,7 @@ import Header3 from "../components/Header3";
 import styles from "../../styles/MusicPlayer.module.css";
 import { useEffect } from "react";
 import { ClerkProvider } from "@clerk/nextjs";
+import { MusicProvider } from "../contexts/MusicContext";
 
 function MyApp({ Component, pageProps }) {
   const router = useRouter();
@@ -122,6 +123,7 @@ function MyApp({ Component, pageProps }) {
           activeChain={sepolia}
         >
           <ChakraProvider theme={special}>
+            <MusicProvider>
             <Head>
               {" "}
               <title>𝓞𝖚𝖗 𝕷𝖆𝖉𝖞 𝔬𝔣 𝕻𝖊𝖗𝖕𝖊𝖙𝖚𝖆𝖑 𝕻𝖗𝖔𝖋𝖎𝖙</title>
@@ -165,6 +167,7 @@ function MyApp({ Component, pageProps }) {
                 <Component {...pageProps} />
               </ThemeProvider>
             </div>
+            </MusicProvider>
           </ChakraProvider>
         </ThirdwebProvider>
       </ClerkProvider>

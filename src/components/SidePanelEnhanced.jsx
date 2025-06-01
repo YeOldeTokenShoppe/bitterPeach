@@ -39,6 +39,7 @@ import { Stake } from "./3DVotiveStand/Stake";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import { getUserImageUrl, getUsername, createUserData } from "../utilities/clerkHelpers";
+import { useMusic } from "../contexts/MusicContext";
 
 // Dynamically import the MusicPlayer component
 const MusicPlayerCyberpunk = dynamic(() => import("./MusicPlayerCyberpunk"), {
@@ -51,12 +52,12 @@ const SidePanelEnhanced = ({
   toggle80sMode,
   monsterMode,
   toggleMonsterMode,
-  showSpotify,
   rocketModelVisible,
   toggleRocketModel,
   toggleConstellationVisibility,
-  setShowSpotify,
 }) => {
+  // Use context for music state
+  const { showSpotify, setShowSpotify } = useMusic();
   const [isTextBoxVisible, setIsTextBoxVisible] = useState(true);
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const [isTouchDevice, setIsTouchDevice] = useState(false);
@@ -123,8 +124,7 @@ const SidePanelEnhanced = ({
   // Add state to track if the iframe content has loaded
   const [isIframeLoaded, setIsIframeLoaded] = useState(false);
 
-  // Add state for vaporwave video overlay
-  const [showVaporwaveVideo, setShowVaporwaveVideo] = useState(false);
+  // Vaporwave video state removed - handled within iframe
 
   // First, add a new ref to store the active microphone stream
   const microphoneStreamRef = useRef(null);
@@ -501,29 +501,9 @@ const SidePanelEnhanced = ({
       console.warn("Mission Control iframe not found");
     }
   };
+  // updateVideoPosition removed - vaporwave video is handled within iframe
   const updateVideoPosition = useCallback(() => {
-    const iframe = missionControlIframeRef.current;
-    if (iframe && iframe.contentWindow) {
-      const offlineDisplay = 
-        iframe.contentDocument?.querySelector("#offline-display");
-      if (offlineDisplay) {
-        const rect = offlineDisplay.getBoundingClientRect();
-        const videoContainer = document.querySelector(".vaporwave-container");
-        if (videoContainer) {
-          // Set dimensions first
-          videoContainer.style.top = `${rect.top}px`;
-          videoContainer.style.left = `${rect.left}px`;
-          videoContainer.style.width = `${rect.width}px`;
-          videoContainer.style.height = `${rect.height}px`;
-          
-          // After a small delay, make it visible
-          setTimeout(() => {
-            videoContainer.style.opacity = "1";
-            videoContainer.style.visibility = "visible";
-          }, 50);
-        }
-      }
-    }
+    // No longer needed
   }, []);
 
   // Update the useEffect for message handling
@@ -698,8 +678,11 @@ const SidePanelEnhanced = ({
 
         // ---> ADD: Handle Constellation Toggle <---
         case "CONSTELLATION_TOGGLE":
-   
+          console.log("🌟 SidePanelEnhanced: Received CONSTELLATION_TOGGLE message");
+          console.log("🌟 Message data:", event.data);
+          console.log("🌟 toggleConstellationVisibility function exists:", !!toggleConstellationVisibility);
           if (toggleConstellationVisibility) {
+            console.log("🌟 SidePanelEnhanced: Calling toggleConstellationVisibility");
             toggleConstellationVisibility();
           } else {
             console.error(
@@ -936,17 +919,7 @@ const SidePanelEnhanced = ({
 
   // Add effect to monitor 80s mode changes
   useEffect(() => {
-
-    setShowVaporwaveVideo(is80sMode);
-    
-    // When exiting 80s mode, ensure the video overlay is hidden immediately
-    if (!is80sMode) {
-      const videoContainer = document.querySelector(".vaporwave-container");
-      if (videoContainer) {
-        videoContainer.style.opacity = "0";
-        videoContainer.style.visibility = "hidden";
-      }
-    }
+    // Vaporwave video is now handled within the iframe
   }, [is80sMode]);
 
   // Handle Tenor script loading for 80s mode
@@ -1171,46 +1144,7 @@ const SidePanelEnhanced = ({
           zIndex={2}
         />
 
-        {/* Video overlay */}
-        {is80sMode && (
-          <Box
-            className="vaporwave-container"
-            position="absolute"
-            zIndex="5002"
-            overflow="hidden"
-            backgroundColor="black"
-            borderRadius="10px"
-            width="340px"
-            height="200px"
-            top="80px"
-            left="20px"
-            opacity="0"
-            transition="all 0.5s cubic-bezier(0.4, 0, 0.2, 1)"
-            visibility="hidden"
-            border="3px solid"
-            borderImage="linear-gradient(45deg, #ff0080, #00bcd4, #ff0080)"
-            borderImageSlice="1"
-            boxShadow="0 0 40px rgba(255,0,128,0.5), inset 0 0 20px rgba(0,188,212,0.3)"
-          >
-            <video
-              autoPlay
-              loop
-              muted
-              playsInline
-              style={{
-                position: "absolute",
-                top: "0",
-                left: "0",
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-                pointerEvents: "none",
-              }}
-            >
-              <source src="/vaporwave-sunset.mp4" type="video/mp4" />
-            </video>
-          </Box>
-        )}
+        {/* Video overlay removed - vaporwave video is handled inside the iframe */}
         
         {/* Mission Control iframe with enhanced styling */}
         <Box flex="1" minHeight="0" overflow="hidden" position="relative" zIndex={3}>

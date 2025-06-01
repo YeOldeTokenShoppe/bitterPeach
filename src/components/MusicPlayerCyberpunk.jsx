@@ -2,20 +2,32 @@ import React, { useState, useRef, useEffect, useMemo, forwardRef, useImperativeH
 import styles from "../../styles/CyberpunkMusicPlayer.module.css";
 import { storage } from "../utilities/firebaseClient";
 import { ref as storageRefUtil, getDownloadURL } from "firebase/storage";
+import { useMusic } from "../contexts/MusicContext";
 
 const MusicPlayerCyberpunk = forwardRef(
   ({ isVisible, onClose, autoPlay = true, is80sMode = false }, ref) => {
-    const [isPlaying, setIsPlaying] = useState(false);
+    // Use context for persistent state
+    const {
+      isPlaying,
+      setIsPlaying,
+      volume,
+      setVolume,
+      trackProgress: playProgress,
+      setTrackProgress: setPlayProgress,
+      currentTrackIndex,
+      setCurrentTrackIndex,
+      audioRef,
+      audioElement,
+      setIs80sMode: setContextIs80sMode,
+    } = useMusic();
+    
+    // Local state for UI
     const [currentTime, setCurrentTime] = useState("00:00");
     const [duration, setDuration] = useState("00:00");
-    const [playProgress, setPlayProgress] = useState(0);
     const [isShuffled, setIsShuffled] = useState(false);
     const [shuffledQueue, setShuffledQueue] = useState([]);
-    const audioRef = useRef(null);
-    const [volume, setVolume] = useState(0.2);
     const [isLoaded, setIsLoaded] = useState(false);
     const [trackUrl, setTrackUrl] = useState("");
-    const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
     const [previousMode, setPreviousMode] = useState(is80sMode);
 
     // Track Lists
@@ -82,16 +94,14 @@ const MusicPlayerCyberpunk = forwardRef(
       loadTrackUrl();
     }, [currentTrackIndex, firebasePaths]);
 
-    // Initialize audio element
+    // Use persistent audio element from context
     useEffect(() => {
-      if (!trackUrl) return;
+      if (!trackUrl || !audioElement) return;
 
-      const audio = new Audio();
+      const audio = audioElement; // Use audio from context
       audio.preload = "metadata";
       audio.volume = volume;
       audio.src = trackUrl;
-
-      audioRef.current = audio;
 
       const handlePlay = () => setIsPlaying(true);
       const handlePause = () => setIsPlaying(false);
@@ -119,27 +129,28 @@ const MusicPlayerCyberpunk = forwardRef(
         audio.removeEventListener("pause", handlePause);
         audio.removeEventListener("error", handleError);
         audio.removeEventListener("timeupdate", updateProgress);
-        audio.pause();
-        audio.src = "";
-        audioRef.current = null;
+        // Don't pause or clear src - let the audio persist
+        // audio.pause();
+        // audio.src = "";
+        // audioElement = null;
       };
     }, [trackUrl, isVisible, autoPlay, volume]);
 
     // Playback control
     useEffect(() => {
-      if (audioRef.current) {
+      if (audioElement) {
         if (isPlaying) {
-          audioRef.current.play().catch((error) => console.error("Error playing:", error));
+          audioElement.play().catch((error) => console.error("Error playing:", error));
         } else {
-          audioRef.current.pause();
+          audioElement.pause();
         }
       }
-    }, [isPlaying]);
+    }, [isPlaying, audioElement]);
 
     // Volume control
     useEffect(() => {
-      if (audioRef.current) {
-        audioRef.current.volume = volume;
+      if (audioElement) {
+        audioElement.volume = volume;
       }
     }, [volume]);
 
@@ -150,12 +161,12 @@ const MusicPlayerCyberpunk = forwardRef(
     };
 
     const updateProgress = () => {
-      if (audioRef.current) {
-        const progress = (audioRef.current.currentTime / audioRef.current.duration) * 100;
+      if (audioElement) {
+        const progress = (audioElement.currentTime / audioElement.duration) * 100;
         setPlayProgress(progress || 0);
-        setCurrentTime(formatTime(audioRef.current.currentTime));
+        setCurrentTime(formatTime(audioElement.currentTime));
         
-        if (audioRef.current.ended) {
+        if (audioElement.ended) {
           changeTrack(1);
         }
       }
@@ -166,12 +177,12 @@ const MusicPlayerCyberpunk = forwardRef(
     };
 
     const handleSeek = (e) => {
-      if (audioRef.current) {
+      if (audioElement) {
         const progressBar = e.currentTarget;
         const clickX = e.nativeEvent.offsetX;
         const width = progressBar.offsetWidth;
-        const newTime = (clickX / width) * audioRef.current.duration;
-        audioRef.current.currentTime = newTime;
+        const newTime = (clickX / width) * audioElement.duration;
+        audioElement.currentTime = newTime;
       }
     };
 
@@ -210,14 +221,14 @@ const MusicPlayerCyberpunk = forwardRef(
     // Expose controls to parent
     useImperativeHandle(ref, () => ({
       play: () => {
-        if (audioRef.current) {
-          audioRef.current.play();
+        if (audioElement) {
+          audioElement.play();
           setIsPlaying(true);
         }
       },
       pause: () => {
-        if (audioRef.current) {
-          audioRef.current.pause();
+        if (audioElement) {
+          audioElement.pause();
           setIsPlaying(false);
         }
       },
@@ -233,7 +244,11 @@ const MusicPlayerCyberpunk = forwardRef(
         <div className={styles.playerContent}>
           <div 
             className={`${styles.albumArt} ${isPlaying ? styles.playing : ''}`}
-            onClick={playPause}
+            onClick={(e) => {
+              e.stopPropagation();
+              console.log('Album art clicked');
+              playPause();
+            }}
           >
             <img
               src="/virginRecords.jpg"
@@ -263,28 +278,44 @@ const MusicPlayerCyberpunk = forwardRef(
             <div className={styles.controlsRow}>
               <div className={styles.controls}>
                 <button
-                  onClick={() => changeTrack(-1)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    console.log('Previous track clicked');
+                    changeTrack(-1);
+                  }}
                   className={styles.controlButton}
                 >
                   ⏮
                 </button>
                 
                 <button
-                  onClick={playPause}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    console.log('Play/pause clicked');
+                    playPause();
+                  }}
                   className={`${styles.controlButton} ${styles.playButton}`}
                 >
                   {isPlaying ? "⏸" : "▶"}
                 </button>
                 
                 <button
-                  onClick={() => changeTrack(1)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    console.log('Next track clicked');
+                    changeTrack(1);
+                  }}
                   className={styles.controlButton}
                 >
                   ⏭
                 </button>
                 
                 <button
-                  onClick={toggleShuffle}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    console.log('Shuffle clicked');
+                    toggleShuffle();
+                  }}
                   className={`${styles.controlButton} ${styles.shuffleButton} ${isShuffled ? styles.active : ''}`}
                 >
                   🔀

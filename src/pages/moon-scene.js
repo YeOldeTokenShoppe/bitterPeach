@@ -1,5 +1,4 @@
 import React, { useState, useEffect, Suspense } from 'react';
-import MoonSceneComponent from '../components/MoonScene'; // Assuming MoonScene.jsx exports default
 import * as THREE from 'three'; // Corrected import alias
 import { doc, getDocs, collection, query } from 'firebase/firestore'; // Removed limit
 import { db } from '../utilities/firebaseClient'; // Your Firebase init

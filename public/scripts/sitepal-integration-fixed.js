@@ -223,17 +223,32 @@ function initSitePal() {
     // Don't auto-change button state here - wait for external JS to handle the flow
     console.log("✅ SitePal character interaction ready - waiting for external button handler");
     
-    // Play greeting when character loads (only once)
-    if (!window.greetingPlayed) {
-      setTimeout(() => {
-        if (typeof window.sayText === "function") {
-          window.sayText("Greetings, Earthling. I am ready to assist you. Please type your message below.", 9, 1, 7);
-          console.log("👋 Welcome greeting played");
-          window.greetingPlayed = true;
-        } else {
-          console.warn("⚠️ sayText not available for greeting");
-        }
-      }, 1000); // Brief delay to ensure character is fully loaded
+    // Check if we need to show touch overlay for audio
+    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    const hasInteracted = sessionStorage.getItem('hasInteracted') === 'true';
+    
+    if (isTouchDevice && !hasInteracted && !window.greetingPlayed) {
+      // Show touch overlay in the video-feed area
+      const touchOverlay = document.getElementById('touch-overlay');
+      if (touchOverlay) {
+        console.log("📱 Touch device detected - showing audio activation overlay");
+        touchOverlay.classList.add('show');
+        // Mark that we're waiting for audio activation before greeting
+        window.pendingGreeting = true;
+      }
+    } else {
+      // Not a touch device or already interacted - play greeting directly
+      if (!window.greetingPlayed) {
+        setTimeout(() => {
+          if (typeof window.sayText === "function") {
+            window.sayText("Greetings, Earthling. I am ready to assist you. Please type your message below.", 9, 1, 7);
+            console.log("👋 Welcome greeting played");
+            window.greetingPlayed = true;
+          } else {
+            console.warn("⚠️ sayText not available for greeting");
+          }
+        }, 1000); // Brief delay to ensure character is fully loaded
+      }
     }
     
     console.log("📝 Text-only communication mode - ready for input");

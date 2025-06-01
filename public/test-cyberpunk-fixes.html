@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cyberpunk Mission Control - Test Fixes</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #000;
+            color: #00ff41;
+            font-family: monospace;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #00ff41;
+            background: rgba(0, 255, 65, 0.1);
+        }
+        h2 {
+            color: #00c8ff;
+            text-shadow: 0 0 10px currentColor;
+        }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            border-left: 3px solid #00ff41;
+        }
+        .error {
+            border-left-color: #ff0040;
+            color: #ff0040;
+        }
+        .warning {
+            border-left-color: #ff9500;
+            color: #ff9500;
+        }
+        button {
+            background: linear-gradient(135deg, #00ff41, #00c8ff);
+            border: none;
+            color: #000;
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            font-family: monospace;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.5);
+        }
+        iframe {
+            width: 100%;
+            height: 800px;
+            border: 2px solid #00c8ff;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🚀 Cyberpunk Mission Control - Fix Testing</h1>
+    
+    <div class="test-section">
+        <h2>📋 Test Checklist</h2>
+        <div id="test-results">
+            <div class="status" id="page-load-test">⏳ Page Load Test: Checking for white flash...</div>
+            <div class="status" id="touch-overlay-test">⏳ Touch Overlay Test: Checking for mobile audio handler...</div>
+            <div class="status" id="orientation-audio-test">⏳ Orientation Video Audio: Checking audio functionality...</div>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>🎮 Test Controls</h2>
+        <button onclick="testPageLoad()">Test Page Load</button>
+        <button onclick="testTouchOverlay()">Simulate Touch Device</button>
+        <button onclick="testOrientationAudio()">Test Orientation Audio</button>
+        <button onclick="clearSession()">Clear Session Storage</button>
+        <button onclick="reloadFrame()">Reload Frame</button>
+    </div>
+    
+    <div class="test-section">
+        <h2>📺 Live Preview</h2>
+        <iframe id="test-frame" src="/cyberpunk_mission_control_enhanced.html"></iframe>
+    </div>
+    
+    <script>
+        const testFrame = document.getElementById('test-frame');
+        
+        // Test 1: Page Load (no white flash)
+        function testPageLoad() {
+            const status = document.getElementById('page-load-test');
+            status.textContent = '⏳ Testing page load...';
+            status.className = 'status';
+            
+            // Create a fresh iframe to test load
+            const newFrame = document.createElement('iframe');
+            newFrame.style.position = 'absolute';
+            newFrame.style.left = '-9999px';
+            newFrame.src = '/cyberpunk_mission_control_enhanced.html';
+            
+            // Monitor for white background
+            let hasWhiteBackground = false;
+            const checkInterval = setInterval(() => {
+                try {
+                    const frameBody = newFrame.contentDocument?.body;
+                    if (frameBody) {
+                        const bgColor = window.getComputedStyle(frameBody).backgroundColor;
+                        if (bgColor === 'rgb(255, 255, 255)' || bgColor === 'white') {
+                            hasWhiteBackground = true;
+                        }
+                    }
+                } catch (e) {}
+            }, 10);
+            
+            newFrame.onload = () => {
+                setTimeout(() => {
+                    clearInterval(checkInterval);
+                    document.body.removeChild(newFrame);
+                    
+                    if (hasWhiteBackground) {
+                        status.textContent = '❌ Page Load Test: White flash detected!';
+                        status.className = 'status error';
+                    } else {
+                        status.textContent = '✅ Page Load Test: No white flash - page loads with dark background';
+                        status.className = 'status';
+                    }
+                }, 500);
+            };
+            
+            document.body.appendChild(newFrame);
+        }
+        
+        // Test 2: Touch Overlay
+        function testTouchOverlay() {
+            const status = document.getElementById('touch-overlay-test');
+            status.textContent = '⏳ Testing touch overlay...';
+            status.className = 'status';
+            
+            try {
+                // Clear session storage in iframe
+                testFrame.contentWindow.sessionStorage.removeItem('hasInteracted');
+                
+                // Check if overlay exists
+                const overlay = testFrame.contentDocument.getElementById('touch-overlay');
+                if (!overlay) {
+                    status.textContent = '❌ Touch Overlay Test: Overlay element not found!';
+                    status.className = 'status error';
+                    return;
+                }
+                
+                // Simulate touch device
+                Object.defineProperty(testFrame.contentWindow.navigator, 'maxTouchPoints', {
+                    value: 1,
+                    configurable: true
+                });
+                
+                // Reload to trigger touch detection
+                testFrame.contentWindow.location.reload();
+                
+                setTimeout(() => {
+                    const overlay = testFrame.contentDocument.getElementById('touch-overlay');
+                    if (overlay && overlay.classList.contains('show')) {
+                        status.textContent = '✅ Touch Overlay Test: Overlay shown on touch device';
+                        status.className = 'status';
+                    } else {
+                        status.textContent = '⚠️ Touch Overlay Test: Overlay not shown (may need real touch device)';
+                        status.className = 'status warning';
+                    }
+                }, 1000);
+            } catch (e) {
+                status.textContent = '❌ Touch Overlay Test: Error - ' + e.message;
+                status.className = 'status error';
+            }
+        }
+        
+        // Test 3: Orientation Audio
+        function testOrientationAudio() {
+            const status = document.getElementById('orientation-audio-test');
+            status.textContent = '⏳ Testing orientation video audio...';
+            status.className = 'status';
+            
+            try {
+                // Set interaction state
+                testFrame.contentWindow.sessionStorage.setItem('hasInteracted', 'true');
+                
+                // Find or create orientation video
+                let orientationVideo = testFrame.contentDocument.getElementById('orientation-video');
+                if (!orientationVideo) {
+                    // Trigger signal button to create orientation video
+                    const signalButton = testFrame.contentDocument.querySelector('.control-button[data-action="signal"]');
+                    if (signalButton) {
+                        signalButton.click();
+                    }
+                }
+                
+                setTimeout(() => {
+                    orientationVideo = testFrame.contentDocument.getElementById('orientation-video');
+                    if (orientationVideo) {
+                        const isMuted = orientationVideo.muted;
+                        const volume = orientationVideo.volume;
+                        
+                        if (!isMuted && volume > 0) {
+                            status.textContent = '✅ Orientation Audio Test: Audio enabled (muted=' + isMuted + ', volume=' + volume + ')';
+                            status.className = 'status';
+                        } else {
+                            status.textContent = '⚠️ Orientation Audio Test: Audio may be muted (muted=' + isMuted + ', volume=' + volume + ')';
+                            status.className = 'status warning';
+                        }
+                    } else {
+                        status.textContent = '⚠️ Orientation Audio Test: Video element not found (try clicking AI//CHAT button)';
+                        status.className = 'status warning';
+                    }
+                }, 1000);
+            } catch (e) {
+                status.textContent = '❌ Orientation Audio Test: Error - ' + e.message;
+                status.className = 'status error';
+            }
+        }
+        
+        function clearSession() {
+            testFrame.contentWindow.sessionStorage.clear();
+            testFrame.contentWindow.localStorage.removeItem('orientationViewed');
+            alert('Session storage cleared!');
+        }
+        
+        function reloadFrame() {
+            testFrame.src = testFrame.src;
+        }
+        
+        // Run initial tests after frame loads
+        testFrame.onload = () => {
+            setTimeout(() => {
+                testPageLoad();
+            }, 1000);
+        };
+    </script>
+</body>
+</html>

@@ -17,14 +17,18 @@ export const MusicProvider = ({ children }) => {
   const [showSpotify, setShowSpotify] = useState(false);
   const [currentTrack, setCurrentTrack] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [volume, setVolume] = useState(1);
+  const [volume, setVolume] = useState(0.2);
   const [trackProgress, setTrackProgress] = useState(0);
+  const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
+  const [is80sMode, setIs80sMode] = useState(false);
+  const audioRef = React.useRef(null);
+  const [audioElement, setAudioElement] = useState(null);
   
   // Helper function to get the mission control iframe
   const getMissionControlIframe = useCallback(() => {
     const iframes = document.querySelectorAll("iframe");
     for (const iframe of iframes) {
-      if (iframe.src && iframe.src.includes("cyberpunk_mission_control_clean.html")) {
+      if (iframe.src && (iframe.src.includes("cyberpunk_mission_control_clean.html") || iframe.src.includes("cyberpunk_mission_control_enhanced.html"))) {
         return iframe;
       }
     }
@@ -82,6 +86,41 @@ export const MusicProvider = ({ children }) => {
     return () => window.removeEventListener("message", handleMessage);
   }, [showSpotify, syncWithMissionControl]);
   
+  // Initialize audio element once and persist it
+  useEffect(() => {
+    if (!audioRef.current) {
+      console.log("🎵 MusicContext: Creating persistent audio element");
+      const audio = new Audio();
+      audio.volume = volume;
+      audioRef.current = audio;
+      setAudioElement(audio);
+      
+      // Add event listeners
+      audio.addEventListener('ended', () => {
+        console.log("🎵 Track ended");
+        setIsPlaying(false);
+      });
+      
+      audio.addEventListener('timeupdate', () => {
+        if (audio.duration) {
+          setTrackProgress((audio.currentTime / audio.duration) * 100);
+        }
+      });
+    }
+    
+    return () => {
+      // Don't destroy the audio element on unmount
+      // It will persist across scene changes
+    };
+  }, []);
+  
+  // Update volume when it changes
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.volume = volume;
+    }
+  }, [volume]);
+  
   // Debug logging
   useEffect(() => {
     console.log("🎵 MusicContext showSpotify state:", showSpotify);
@@ -98,6 +137,12 @@ export const MusicProvider = ({ children }) => {
     setVolume,
     trackProgress,
     setTrackProgress,
+    currentTrackIndex,
+    setCurrentTrackIndex,
+    is80sMode,
+    setIs80sMode,
+    audioElement: audioRef.current,
+    audioRef,
   };
   
   return (

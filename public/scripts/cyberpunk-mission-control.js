@@ -432,15 +432,18 @@ if (!window.myAudioContext) {
 
 // Initialize on load
 document.addEventListener('DOMContentLoaded', function() {
-  // Reset orientation state for fresh testing (comment out in production)
-  localStorage.removeItem("orientationViewed");
+  // Check if orientation video was previously viewed and update button accordingly
+  const orientationViewed = localStorage.getItem("orientationViewed") === "true";
   const signalButton = document.querySelector('.control-button[data-action="signal"]');
-  if (signalButton) {
-    signalButton.removeAttribute("data-video-viewed");
+  if (signalButton && orientationViewed) {
+    signalButton.setAttribute("data-video-viewed", "true");
     const buttonLabel = signalButton.querySelector(".button-label");
-    if (buttonLabel) buttonLabel.textContent = "SIGNAL";
+    // Keep button as SIGNAL always - don't change to CONNECT
+    // if (buttonLabel) buttonLabel.textContent = "CONNECT";
+    console.log("✅ Orientation previously viewed - button remains SIGNAL");
+  } else {
+    console.log("🎬 Orientation not viewed yet - button shows SIGNAL");
   }
-  console.log("🧹 Reset orientation state and button for testing");
   
   // Initialize leaderboard based on screen size
   if (window.innerWidth >= 768) {
@@ -530,7 +533,7 @@ function handleSignalButton(button) {
   console.log("🚀 Signal button clicked! Starting handleSignalButton...");
   
   // Check if 80s mode is active and turn it off to prevent video conflicts
-  const eightiesToggle = document.querySelector('.toggle-switch.eighties');
+  const eightiesToggle = document.getElementById('eighties-toggle');
   if (eightiesToggle && eightiesToggle.classList.contains('active')) {
     console.log("📺 80s mode is active - turning off to prevent video conflict");
     // Programmatically trigger the eighties mode toggle
@@ -538,7 +541,7 @@ function handleSignalButton(button) {
   }
   
   // Check if music mode is active and turn it off to prevent audio conflicts
-  const musicToggle = document.querySelector('.toggle-switch.music');
+  const musicToggle = document.getElementById('music-toggle');
   if (musicToggle && musicToggle.classList.contains('active')) {
     console.log("🎵 Music mode is active - turning off to prevent audio conflict during communication");
     // Programmatically trigger the music mode toggle
@@ -577,39 +580,42 @@ function handleSignalButton(button) {
   const currentButtonState = buttonLabel ? buttonLabel.textContent : "";
   console.log("🏷️ Current button state:", currentButtonState);
 
-  if (videoViewed || currentButtonState === "CONNECT") {
-    // If orientation is complete, handle SitePal connection or disconnection
-    if (currentButtonState === "CONNECT") {
-      console.log("🔗 Signal button initiating SitePal connection...");
+  // Handle button based on current state
+  if (currentButtonState === "CONNECT") {
+    console.log("🔗 CONNECT button clicked - initiating SitePal connection...");
+    
+    // If video is still playing, stop it first (skip functionality)
+    if (orientationVideo && !orientationVideo.paused) {
+      console.log("⏭️ Skipping orientation video to connect...");
+      stopOrientationVideo();
+      // Mark as viewed since user chose to skip
+      button.setAttribute("data-video-viewed", "true");
+      localStorage.setItem("orientationViewed", "true");
       
-      // 🆕 If video is still playing, stop it first (skip functionality)
-      if (orientationVideo && !orientationVideo.paused) {
-        console.log("⏭️ Skipping orientation video to connect...");
-        stopOrientationVideo();
-        // Mark as viewed since user chose to skip
-        button.setAttribute("data-video-visited", "true");
-        localStorage.setItem("orientationViewed", "true");
-      }
-      
-      handleSitePalConnection(button);
-    } else if (currentButtonState === "DISCONNECT") {
-      console.log("🔌 Disconnecting SitePal...");
-      handleSitePalDisconnection(button);
-    } else if (videoViewed && currentButtonState === "SIGNAL") {
-      // If video was already viewed and button shows SIGNAL, start connection
-      console.log("🔗 Video already viewed, initiating SitePal connection...");
+      // Wait a moment for video cleanup before starting SitePal connection
+      setTimeout(() => {
+        handleSitePalConnection(button);
+      }, 500);
+    } else {
+      // Video not playing, connect immediately
       handleSitePalConnection(button);
     }
-  } else {
-    // If orientation video is playing, stop it
-    if (orientationVideo) {
-      console.log("🛑 Stopping existing orientation video...");
+  } else if (currentButtonState === "DISCONNECT") {
+    console.log("🔌 Disconnecting SitePal...");
+    handleSitePalDisconnection(button);
+  } else if (currentButtonState === "SIGNAL") {
+    // SIGNAL button always plays orientation video first
+    console.log("📡 SIGNAL button clicked - playing orientation video...");
+    
+    // If orientation video exists and is currently playing, stop it
+    if (orientationVideo && !orientationVideo.paused && orientationVideo.style.display !== "none") {
+      console.log("🛑 Stopping currently playing orientation video...");
       stopOrientationVideo();
       button.classList.add("active");
       setTimeout(() => button.classList.remove("active"), 500);
     } else {
-      console.log("▶️ Playing orientation video...");
       // Play orientation video
+      console.log("▶️ Playing orientation video...");
       playOrientationVideo();
     }
   }
@@ -770,24 +776,37 @@ function handleCommunicationsButton(button) {
 
 // Toggle Switch Functions
 function initializeToggleSwitches() {
-  const toggleSwitches = document.querySelectorAll('.toggle-switch');
+  const toggleSwitches = document.querySelectorAll('.toggle-switch, .vertical-toggle');
   
   toggleSwitches.forEach(toggle => {
-    toggle.addEventListener('click', function() {
+    toggle.addEventListener('click', function(e) {
+      e.stopPropagation(); // Prevent event bubbling
       if (this.classList.contains('disabled')) return;
+      if (this.dataset.processing === 'true') return; // Prevent double-clicks
       
+      this.dataset.processing = 'true';
       const toggleType = getToggleType(this);
       handleToggleSwitch(toggleType, this);
+      
+      // Reset processing flag after a short delay
+      setTimeout(() => {
+        this.dataset.processing = 'false';
+      }, 300);
     });
   });
 }
 
 function getToggleType(toggle) {
+  // Check by ID first
+  if (toggle.id === 'eighties-toggle') return 'eighties';
+  if (toggle.id === 'music-toggle') return 'music';
+  if (toggle.id === 'constellation-toggle') return 'constellations';
+  
+  // Then check by class
   if (toggle.classList.contains('eighties')) return 'eighties';
   if (toggle.classList.contains('threedy-toggle')) return 'threedy';
   if (toggle.classList.contains('music')) return 'music';
   if (toggle.classList.contains('constellations')) return 'constellations';
-  if (toggle.id === 'constellation-toggle') return 'constellations';
   if (toggle.classList.contains('emergency')) return 'emergency';
   return 'default';
 }
@@ -848,18 +867,11 @@ function handleEightiesMode(isActive) {
     }
     
     // Auto-enable MUSIC toggle when 80s mode is activated
-    const musicToggle = document.querySelector('.toggle-switch.music');
+    const musicToggle = document.getElementById('music-toggle');
     if (musicToggle && !musicToggle.classList.contains('active')) {
       console.log('🎵 Auto-enabling MUSIC toggle for 80s mode');
-      musicToggle.classList.add('active');
-      // Send MUSIC_TOGGLE message with 80s mode enabled
-      if (window.parent) {
-        window.parent.postMessage({
-          type: 'MUSIC_TOGGLE',
-          enabled: true,
-          eightiesMode: true
-        }, '*');
-      }
+      // Programmatically click the toggle to ensure proper state management
+      musicToggle.click();
     }
     
     // Activate 80s mode visual effects
@@ -916,6 +928,14 @@ function handleEightiesMode(isActive) {
           deadAir.style.display = 'none';
           deadAir.pause && deadAir.pause();
           console.log('📺 DeadAir video hidden for vaporwave effect');
+        }
+        
+        // Also ensure orientation video is removed if it exists
+        const orientationVideo = document.getElementById('orientation-video');
+        if (orientationVideo) {
+          orientationVideo.pause();
+          orientationVideo.remove();
+          console.log('📺 Orientation video removed for vaporwave effect');
         }
         
         // Add vaporwave video
@@ -1164,6 +1184,7 @@ function handleEightiesMode(isActive) {
 
 function handleMusicMode(isActive) {
   console.log('🎵 Music mode:', isActive ? 'ON' : 'OFF');
+  console.log('🎵 Music toggle current state:', document.getElementById('music-toggle')?.classList.contains('active'));
   
   // Play toggle sound
   try {
@@ -1194,18 +1215,20 @@ function handleMusicMode(isActive) {
   }
 
   // Check if 80s mode is currently active to determine track type
-  const eightiesToggle = document.querySelector('.toggle-switch.eighties');
+  const eightiesToggle = document.getElementById('eighties-toggle');
   const is80sModeActive = eightiesToggle && eightiesToggle.classList.contains('active');
   
-  // Notify parent of the music toggle
-  if (window.parent) {
-    window.parent.postMessage({
-      type: 'MUSIC_TOGGLE',
-      enabled: isActive,
-      eightiesMode: is80sModeActive // Use current 80s mode state
-    }, '*');
-    console.log('📡 Sent MUSIC_TOGGLE:', isActive, `(${is80sModeActive ? '80s' : 'non-80s'} tracks) to parent`);
-  }
+  // Notify parent of the music toggle with a small delay to ensure state is updated
+  setTimeout(() => {
+    if (window.parent) {
+      window.parent.postMessage({
+        type: 'MUSIC_TOGGLE',
+        enabled: isActive,
+        eightiesMode: is80sModeActive // Use current 80s mode state
+      }, '*');
+      console.log('📡 Sent MUSIC_TOGGLE:', isActive, `(${is80sModeActive ? '80s' : 'non-80s'} tracks) to parent`);
+    }
+  }, 100);
 }
 
 function handleConstellationsMode(isActive) {
@@ -1568,11 +1591,20 @@ function playOrientationVideo() {
   orientationVideo.setAttribute("id", "orientation-video");
   orientationVideo.setAttribute("playsinline", "");
   orientationVideo.setAttribute("webkit-playsinline", "");
-  orientationVideo.setAttribute("muted", "");
+  
+  // Check if user has already interacted (audio should be enabled)
+  const hasInteracted = sessionStorage.getItem('hasInteracted') === 'true';
+  if (!hasInteracted) {
+    orientationVideo.setAttribute("muted", "");
+  } else {
+    // Audio enabled - set volume
+    orientationVideo.volume = 0.7;
+  }
+  
   orientationVideo.setAttribute("preload", "auto");
   orientationVideo.style.cssText = `
     width: 100%; height: 100%; object-fit: cover;
-    position: absolute; top: 0; left: 0; z-index: 50;
+    position: absolute; top: 0; left: 0; z-index: 100;
     display: block; opacity: 0; transition: opacity 0.5s ease-in-out;
     background-color: #000;
   `;
@@ -1586,7 +1618,7 @@ function playOrientationVideo() {
   `;
   loadingIndicator.style.cssText = `
     position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-    z-index: 60; color: var(--accent-cyan); text-align: center;
+    z-index: 110; color: var(--accent-cyan); text-align: center;
   `;
 
   // Set video source
@@ -1615,6 +1647,7 @@ function playOrientationVideo() {
             const buttonLabel = signalButton?.querySelector(".button-label");
             const buttonPrefix = signalButton?.querySelector(".button-prefix");
             if (buttonLabel) {
+              // Change button to CONNECT during video (can skip)
               buttonLabel.textContent = "CONNECT";
               // Add visual indication that video can be skipped
               // if (buttonPrefix) {
@@ -1666,7 +1699,7 @@ function playOrientationVideo() {
     orientationVideo.removeAttribute("src");
     orientationVideo.load();
     
-    // Update button state
+    // Keep button as CONNECT after video ends (user can now connect to SitePal)
     const buttonLabel = signalButton?.querySelector(".button-label");
     if (buttonLabel) {
       buttonLabel.textContent = "CONNECT";
@@ -1727,10 +1760,8 @@ function stopOrientationVideo(isManualStop = true) {
     if (deadAir) deadAir.style.display = "none";
     if (offlineDisplay) offlineDisplay.style.display = "flex";
     
-    // Only hide transcript if this was a manual stop (skip), not natural end
-    if (isManualStop) {
-      hideTranscript();
-    }
+    // Always hide transcript when orientation video stops
+    hideTranscript();
     enableToggles();
     
     window.orientationComplete = true;
@@ -1927,6 +1958,8 @@ function handleSitePalConnection(button) {
 
   // Set up deadAir video for transmission effect with high z-index to cover SitePal loader
   if (deadAir) {
+    // Ensure we're using 1.mp4 for transmission effect
+    deadAir.src = "/1.mp4";
     deadAir.style.display = "block";
     deadAir.style.opacity = 1;
     deadAir.style.zIndex = "100"; // High z-index to cover SitePal loader
@@ -1941,9 +1974,9 @@ function handleSitePalConnection(button) {
     
     // Actually play the deadAir video for the transmission effect
     deadAir.play().then(() => {
-      console.log("📡 Transmission effect (deadAir) playing at high z-index to cover loader...");
+      console.log("📡 Transmission effect (1.mp4) playing at high z-index to cover loader...");
     }).catch(e => {
-      console.warn("⚠️ Could not play deadAir video:", e);
+      console.warn("⚠️ Could not play transmission video:", e);
     });
   }
 

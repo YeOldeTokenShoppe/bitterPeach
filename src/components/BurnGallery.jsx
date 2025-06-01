@@ -448,8 +448,6 @@ function BurnGallery({
               toggle80sMode={toggle80sMode}
               monsterMode={monsterMode}
               toggleMonsterMode={toggleMonsterMode}
-              showSpotify={showSpotify}
-              setShowSpotify={setShowSpotify}
               rocketModelVisible={rocketModelVisible}
               toggleRocketModel={toggleRocketModel}
               handleRocketToggle={handleRocketToggle}
@@ -464,8 +462,6 @@ function BurnGallery({
               toggle80sMode={toggle80sMode}
               monsterMode={monsterMode}
               toggleMonsterMode={toggleMonsterMode}
-              showSpotify={showSpotify}
-              setShowSpotify={setShowSpotify}
               rocketModelVisible={rocketModelVisible}
               toggleRocketModel={toggleRocketModel}
               toggleConstellationVisibility={toggleConstellationVisibility}
