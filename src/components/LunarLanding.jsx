@@ -2391,18 +2391,27 @@ function SceneManager({ userHelmetTextures, focusedTarget, highlightedAstronaut,
       />
       
       
-      <EffectComposer>
-        <Bloom 
-          intensity={0.3} 
-          luminanceThreshold={0.9} 
-          luminanceSmoothing={0.9} 
-          kernelSize={2}
-        />
-        <Vignette 
-          opacity={0.3} 
-          darkness={0.8} 
-        />
-      </EffectComposer>
+      <Suspense fallback={null}>
+        <EffectComposer
+          multisampling={0}
+          renderPriority={1}
+          stencilBuffer={false}
+          disableNormalPass
+          depthBuffer={true}
+          autoClear={true}
+        >
+          <Bloom 
+            intensity={0.3} 
+            luminanceThreshold={0.9} 
+            luminanceSmoothing={0.9} 
+            kernelSize={2}
+          />
+          <Vignette 
+            opacity={0.3} 
+            darkness={0.8} 
+          />
+        </EffectComposer>
+      </Suspense>
       <SimpleOrbitCamera focusedTarget={focusedTarget} isMobileView={isMobileView} onAnimationComplete={onAnimationComplete} />
       <ReportReady onReady={onReady} /> {/* Call onReady when this part of the scene is ready */}
     </>
@@ -2687,9 +2696,13 @@ export default function LunarLanding({userHelmetTextures, currentUser, onSceneRe
         </Suspense>
       </Canvas>
       </div>
-      {/* Add SidePanel/MobileSidePanel - only show after camera animation */}
-      {isCameraAnimationComplete && (
-        isMobileView ? (
+      {/* Add SidePanel/MobileSidePanel - always render but hide until camera animation completes */}
+      <div style={{ 
+        opacity: isCameraAnimationComplete ? 1 : 0,
+        pointerEvents: isCameraAnimationComplete ? 'auto' : 'none',
+        transition: 'opacity 0.5s ease-in-out'
+      }}>
+        {isMobileView ? (
           <MobileSidePanel
             onButtonClick={() => {}}
             is80sMode={is80sMode}
@@ -2713,8 +2726,8 @@ export default function LunarLanding({userHelmetTextures, currentUser, onSceneRe
             toggleConstellationVisibility={toggleConstellationVisibility}
             isConstellationsVisible={isConstellationsVisible}
           />
-        )
-      )}
+        )}
+      </div>
       {isCameraAnimationComplete && (
         <div
           className="fixed bottom-6 right-6 z-50"

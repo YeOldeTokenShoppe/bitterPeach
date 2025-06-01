@@ -121,12 +121,14 @@ const MobileSidePanel = ({
     if (is80sMode) {
       setShowMobileMusicPlayer(true);
       setMusicPlayerVisible(true);
-      setShowSpotify(false); // Ensure MusicPlayer2 is off
+      if (setShowSpotify && typeof setShowSpotify === 'function') {
+        setShowSpotify(false); // Ensure MusicPlayer2 is off
+      }
     } else {
       setShowMobileMusicPlayer(false);
       setMusicPlayerVisible(false);
     }
-  }, [is80sMode]);
+  }, [is80sMode, setShowSpotify]);
 
   // Function to toggle rocket model visibility - now uses the combined prop function
   const handleRocketModelToggle = () => {
@@ -503,7 +505,9 @@ const MobileSidePanel = ({
             break;
           case "MUSIC_TOGGLE":
             if (typeof event.data.enabled === "boolean") {
-              setShowSpotify(event.data.enabled); // Call the function from gallery.js
+              if (setShowSpotify && typeof setShowSpotify === 'function') {
+                setShowSpotify(event.data.enabled); // Call the function from gallery.js
+              }
             } else {
               console.warn("MUSIC_TOGGLE message received without boolean 'enabled' property.");
             }
@@ -1735,7 +1739,11 @@ const MobileSidePanel = ({
       >
         <MusicPlayer2
           isVisible={showSpotify}
-          onClose={() => setShowSpotify(false)}
+          onClose={() => {
+            if (setShowSpotify && typeof setShowSpotify === 'function') {
+              setShowSpotify(false);
+            }
+          }}
           autoPlay={true}
           is80sMode={is80sMode}
         />
@@ -3515,7 +3523,11 @@ const MobileSidePanel = ({
                 <Switch
                   id="spotify-toggle"
                   isChecked={showSpotify}
-                  onChange={() => setShowSpotify(!showSpotify)}
+                  onChange={() => {
+                    if (setShowSpotify && typeof setShowSpotify === 'function') {
+                      setShowSpotify(!showSpotify);
+                    }
+                  }}
                   colorScheme="cyan"
                 />
               </FormControl>

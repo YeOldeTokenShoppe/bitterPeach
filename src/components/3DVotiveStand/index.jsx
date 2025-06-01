@@ -49,7 +49,7 @@ import StarField from "./StarField";
 import ScrollDetailViewer from "./ScrollDetailViewer";
 import MobileCandleMarquee from "./MobileCandleMarquee";
 
-const scene = new THREE.Scene();
+// Scene is created internally by React Three Fiber
 
 // Add constants for scale management
 const MIN_MODEL_SCALE = 10;
@@ -125,8 +125,6 @@ const ThreeDVotiveStand = forwardRef(({
   onPaginationChange,
   onCandleViewerStateChange,
   onUIVisibilityChange,
-  showSpotify,
-  setShowSpotify,
 }, ref) => {
   // Track instance creation
   const [instanceId] = useState(() => {
@@ -535,6 +533,9 @@ const ThreeDVotiveStand = forwardRef(({
   };
 
   // Add an effect to dim ambient light when monsterMode is active
+  // NOTE: This effect needs to be moved inside a component that has access to the Three.js scene
+  // For now, commenting out to fix the "scene is not defined" error
+  /*
   useEffect(() => {
     // Find ambient light in the scene
     scene.traverse(object => {
@@ -566,6 +567,7 @@ const ThreeDVotiveStand = forwardRef(({
       });
     };
   }, [monsterMode, scene]);
+  */
 
   // Add a cleanup function in your component
   useEffect(() => {
@@ -1436,17 +1438,33 @@ const ThreeDVotiveStand = forwardRef(({
     <div style={{ width: "100%", height: "100vh", position: "relative" }}>
       <Canvas
         style={{
-          display: activeScene === 'gallery' ? 'block' : 'none',
+          position: 'absolute',
+          top: 0,
+          left: 0,
           width: '100%',
-          height: '100%'
+          height: '100%',
+          opacity: activeScene === 'gallery' ? 1 : 0,
+          pointerEvents: activeScene === 'gallery' ? 'auto' : 'none',
+          transition: 'opacity 0.5s ease-in-out'
         }}
         dpr={currentDpr}
         performance={{ min: 0.5 }}
+        gl={{ 
+          alpha: true,
+          antialias: true,
+          preserveDrawingBuffer: true,
+          powerPreference: "high-performance",
+          failIfMajorPerformanceCaveat: false,
+          depth: true,
+          stencil: false
+        }}
         onCreated={({ gl, camera: createdCamera }) => {
           sceneCameraRef.current = createdCamera;
           // rendererRef.current = gl; // Assuming rendererRef is defined elsewhere
-        
-          // ... other onCreated logic like gl.setClearColor etc. ...
+          
+          // Configure the renderer
+          gl.setClearColor(0x000000, 0);
+          gl.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         }}
       >
         {/* {!isMobile && <AdaptiveDpr pixelated />} */}
@@ -1471,12 +1489,11 @@ const ThreeDVotiveStand = forwardRef(({
           groundColor={groundColor}
           showLightHelper={showLightHelper}
           is80sMode={is80sMode}
-          showSpotify={showSpotify}
           monsterMode={monsterMode}
           rocketModelVisible={rocketModelVisible}
           onHoldStateChange={handleHoldStateChange}
           isMobileView={isMobileView}
-          onModelDataLoaded={({ scene, animations }) => { // Callback to get animations
+          onModelDataLoaded={({ animations }) => { // Callback to get animations
             // modelRef.current is already being set by the <primitive> in Model.jsx
             // using the ref prop. We just need the animations here.
          
@@ -1543,8 +1560,6 @@ const ThreeDVotiveStand = forwardRef(({
             <HolographicStatue
               isInMarkerView={isInMarkerView}
               isMobileView={isMobileView}
-              setShowSpotify={setShowSpotify}
-              showSpotify={showSpotify}
               isModalOpen={isModalOpen}
               setIsModalOpen={setIsModalOpen}
               onSpawnReady={onSpawnReady}

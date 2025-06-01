@@ -44,8 +44,6 @@ function Model({
   groundColor: parentGroundColor,
   showLightHelper: parentShowLightHelper,
   is80sMode,
-  showSpotify,
-  setShowSpotify,
   isLaunching,
 
   monsterMode,

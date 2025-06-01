@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import {
   EffectComposer,
@@ -14,25 +14,106 @@ import { BlendFunction, GlitchMode } from "postprocessing";
 
 // Set default is80sMode to false so component can be used without props
 const PostProcessingEffects = ({ is80sMode = false }) => {
-  const { scene } = useThree();
+  const { scene, gl, camera } = useThree();
   const composerRef = useRef();
   const timeRef = useRef(0);
+  const [isReady, setIsReady] = useState(false);
 
   // Increase time for animated effects
   useFrame((state, delta) => {
     timeRef.current += delta;
   });
 
-  // Make the component visible from window for debugging
+  // Check if WebGL context is ready
   useEffect(() => {
-    // Store a reference to this component on window for external access
-    window.postProcessingEffects = {
-      composerRef,
-      filmScanlines: 0
+    let checkTimer = null;
+    let mounted = true;
+    
+    if (gl && camera && scene) {
+      const checkContext = () => {
+        if (!mounted) return;
+        
+        try {
+          // Check if gl exists and has getContext method
+          if (!gl || typeof gl.getContext !== 'function') {
+            console.warn('PostProcessingEffects: WebGL renderer not ready');
+            checkTimer = setTimeout(checkContext, 100);
+            return;
+          }
+          
+          // Check if WebGL context has required properties
+          const webglContext = gl.getContext();
+          
+          // Additional null check for the context itself
+          if (!webglContext) {
+            console.warn('PostProcessingEffects: WebGL context is null');
+            checkTimer = setTimeout(checkContext, 100);
+            return;
+          }
+          
+          // Check for valid dimensions
+          if (webglContext.drawingBufferWidth > 0 && webglContext.drawingBufferHeight > 0) {
+            setIsReady(true);
+          } else {
+            // Retry after a short delay
+            checkTimer = setTimeout(checkContext, 100);
+          }
+        } catch (error) {
+          console.warn('PostProcessingEffects: WebGL context check failed', error);
+          checkTimer = setTimeout(checkContext, 100);
+        }
+      };
+      checkContext();
+    }
+    
+    // Handle WebGL context loss
+    const canvas = gl?.domElement;
+    const handleContextLost = (event) => {
+      event.preventDefault();
+      console.warn('PostProcessingEffects: WebGL context lost');
+      setIsReady(false);
     };
     
+    const handleContextRestored = () => {
+      console.log('PostProcessingEffects: WebGL context restored');
+      setIsReady(true);
+    };
+    
+    if (canvas) {
+      canvas.addEventListener('webglcontextlost', handleContextLost);
+      canvas.addEventListener('webglcontextrestored', handleContextRestored);
+    }
+    
     return () => {
-      delete window.postProcessingEffects;
+      mounted = false;
+      if (checkTimer) {
+        clearTimeout(checkTimer);
+      }
+      if (canvas) {
+        canvas.removeEventListener('webglcontextlost', handleContextLost);
+        canvas.removeEventListener('webglcontextrestored', handleContextRestored);
+      }
+    };
+  }, [gl, camera, scene]);
+
+  // Make the component visible from window for debugging
+  useEffect(() => {
+    try {
+      // Store a reference to this component on window for external access
+      window.postProcessingEffects = {
+        composerRef,
+        filmScanlines: 0
+      };
+    } catch (error) {
+      console.warn('PostProcessingEffects: Error setting window reference', error);
+    }
+    
+    return () => {
+      try {
+        delete window.postProcessingEffects;
+      } catch (error) {
+        console.warn('PostProcessingEffects: Error cleaning up window reference', error);
+      }
     };
   }, []);
 
@@ -75,12 +156,31 @@ const PostProcessingEffects = ({ is80sMode = false }) => {
     </>
   );
 
-  return (
-    <EffectComposer ref={composerRef}>
-      {/* In Synthwave context, we'll always use normalEffects */}
-      {is80sMode ? eightiesEffects : normalEffects}
-    </EffectComposer>
-  );
+  try {
+    // Don't render effects until WebGL context is ready
+    if (!isReady) {
+      return null;
+    }
+
+    return (
+      <EffectComposer 
+        ref={composerRef}
+        multisampling={0} // Disable multisampling to avoid potential issues
+        renderPriority={1} // Ensure proper render order
+        stencilBuffer={false} // Disable stencil buffer if not needed
+        disableNormalPass // Disable normal pass to improve performance
+        depthBuffer={true} // Ensure depth buffer is enabled
+        autoClear={true} // Auto clear before rendering
+      >
+        {/* In Synthwave context, we'll always use normalEffects */}
+        {is80sMode ? eightiesEffects : normalEffects}
+      </EffectComposer>
+    );
+  } catch (error) {
+    console.error('PostProcessingEffects: Error rendering effects', error);
+    // Return null to prevent the entire scene from crashing
+    return null;
+  }
 };
 
 export default PostProcessingEffects;

@@ -454,6 +454,8 @@ function BurnGallery({
               toggleConstellationVisibility={toggleConstellationVisibility}
               isConstellationsVisible={isConstellationsVisible}
               paginationState={paginationState}
+              showSpotify={showSpotify}
+              setShowSpotify={setShowSpotify}
             />
           ) : (
             <SidePanelEnhanced

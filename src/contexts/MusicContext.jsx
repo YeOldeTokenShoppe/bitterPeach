@@ -61,8 +61,16 @@ export const MusicProvider = ({ children }) => {
     const newValue = value !== undefined ? value : !showSpotify;
     console.log("🎵 MusicContext: Setting showSpotify to", newValue);
     setShowSpotify(newValue);
+    
+    // Pause audio when music is toggled off
+    if (!newValue && audioRef.current && isPlaying) {
+      console.log("🎵 MusicContext: Pausing audio as music is toggled off");
+      audioRef.current.pause();
+      setIsPlaying(false);
+    }
+    
     syncWithMissionControl(newValue);
-  }, [showSpotify, syncWithMissionControl]);
+  }, [showSpotify, isPlaying, syncWithMissionControl]);
   
   // Handle messages from mission control
   useEffect(() => {
@@ -72,6 +80,13 @@ export const MusicProvider = ({ children }) => {
         if (event.data.type === "MUSIC_TOGGLE") {
           console.log("🎵 MusicContext: Music toggle message received:", event.data.enabled);
           setShowSpotify(event.data.enabled);
+          
+          // Pause audio when music is toggled off via iframe
+          if (!event.data.enabled && audioRef.current && isPlaying) {
+            console.log("🎵 MusicContext: Pausing audio as music is toggled off via iframe");
+            audioRef.current.pause();
+            setIsPlaying(false);
+          }
         }
         
         // Handle request for current music state
@@ -84,7 +99,7 @@ export const MusicProvider = ({ children }) => {
     
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [showSpotify, syncWithMissionControl]);
+  }, [showSpotify, isPlaying, syncWithMissionControl]);
   
   // Initialize audio element once and persist it
   useEffect(() => {
@@ -99,12 +114,6 @@ export const MusicProvider = ({ children }) => {
       audio.addEventListener('ended', () => {
         console.log("🎵 Track ended");
         setIsPlaying(false);
-      });
-      
-      audio.addEventListener('timeupdate', () => {
-        if (audio.duration) {
-          setTrackProgress((audio.currentTime / audio.duration) * 100);
-        }
       });
     }
     

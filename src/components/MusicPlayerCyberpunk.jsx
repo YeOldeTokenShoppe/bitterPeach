@@ -134,7 +134,7 @@ const MusicPlayerCyberpunk = forwardRef(
         // audio.src = "";
         // audioElement = null;
       };
-    }, [trackUrl, isVisible, autoPlay, volume]);
+    }, [trackUrl, isVisible, autoPlay, volume, setPlayProgress, setCurrentTime]);
 
     // Playback control
     useEffect(() => {
@@ -153,6 +153,20 @@ const MusicPlayerCyberpunk = forwardRef(
         audioElement.volume = volume;
       }
     }, [volume]);
+    
+    // Handle track ended
+    useEffect(() => {
+      if (!audioElement) return;
+      
+      const handleEnded = () => {
+        changeTrack(1);
+      };
+      
+      audioElement.addEventListener('ended', handleEnded);
+      return () => {
+        audioElement.removeEventListener('ended', handleEnded);
+      };
+    }, [audioElement, currentTrackIndex]);
 
     const formatTime = (seconds) => {
       const mins = Math.floor(seconds / 60);
@@ -238,6 +252,11 @@ const MusicPlayerCyberpunk = forwardRef(
       nextTrack: () => changeTrack(1),
       prevTrack: () => changeTrack(-1),
     }));
+
+    // Don't render if not visible
+    if (!isVisible) {
+      return null;
+    }
 
     return (
       <div className={`${styles.musicPlayer} ${is80sMode ? styles.eighties : ''} ${!isLoaded ? styles.loading : ''}`}>

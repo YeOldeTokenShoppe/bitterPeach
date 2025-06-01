@@ -1371,6 +1371,7 @@ const MoonScene = forwardRef(
           // Destroy the physics world and related objects
           if (physicsRef.current.world) {
             AmmoLib.destroy(physicsRef.current.world);
+            physicsRef.current.world = null; // Ensure the ref is nulled after destruction
           }
           
           // Note: We should also destroy collision config, dispatcher, broadphase, and solver

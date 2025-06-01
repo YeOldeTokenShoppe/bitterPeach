@@ -41,9 +41,10 @@ import Image from "next/image";
 import { getUserImageUrl, getUsername, createUserData } from "../utilities/clerkHelpers";
 import { useMusic } from "../contexts/MusicContext";
 
-// Dynamically import the MusicPlayer component
-const MusicPlayerCyberpunk = dynamic(() => import("./MusicPlayerCyberpunk"), {
+// Dynamically import the simplified music player
+const SimplifiedMusicPlayer = dynamic(() => import("./SimplifiedMusicPlayer"), {
   ssr: false,
+  loading: () => null
 });
 
 const SidePanelEnhanced = ({
@@ -1172,27 +1173,20 @@ const SidePanelEnhanced = ({
           </Box>
         </Box>
         
-        {/* Integrated Music Player with enhanced styling */}
+        {/* Simplified Music Player */}
         {showSpotify && (
-          <Box
-            width="100%"
-            height="auto" 
-            backgroundColor="rgba(0,0,0,0.7)"
-            backdropFilter="blur(10px)"
-            borderTop="2px solid"
-            borderImage="linear-gradient(90deg, transparent, rgba(255,215,0,0.5), transparent)"
-            borderImageSlice="1"
-            overflow="hidden"
-            position="relative"
-            zIndex={4}
-          >
-            <MusicPlayerCyberpunk
-              isVisible={showSpotify}
-              onClose={() => setShowSpotify(false)}
-              autoPlay={true}
-              is80sMode={is80sMode}
-            />
-          </Box>
+          <SimplifiedMusicPlayer
+            isVisible={showSpotify}
+            onClose={() => setShowSpotify(false)}
+            is80sMode={is80sMode}
+            onModeChange={(enable80s) => {
+              console.log("🎵 SidePanel: Mode change requested:", enable80s);
+              if (enable80s !== is80sMode) {
+                toggle80sMode();
+              }
+            }}
+            autoPlay={true}
+          />
         )}
       </Box>
       

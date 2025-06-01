@@ -1,15 +1,17 @@
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
-import NavBar from "../components/NavBar.client";
-import Communion3 from "../components/Communion3";
 // import Loader from "../components/Loader";
 import Magic8BallLoader from "../components/Magic8BallLoader";
-import { X } from "lucide-react";
+import { useUser } from "@clerk/nextjs";
+import { useMusic } from "../contexts/MusicContext";
 
 // Dynamically import music players (keep for potential 80s mode use)
 // const MusicPlayer3 = dynamic(() => import("../components/MusicPlayer3"), {
 //   ssr: false,
 // });
+
+
+// SimplifiedMusicPlayer removed - handled in SidePanelEnhanced
 
 // const NavBarDynamic = dynamic(() => import("../components/NavBar.client"), {
 //   ssr: false,
@@ -21,12 +23,14 @@ const BurnGalleryClient = dynamic(() => import("../components/BurnGallery"), {
 });
 
 export default function GalleryPage() {
+  const { user: currentUser } = useUser();
+  const { showSpotify, setShowSpotify } = useMusic(); // Use context for music state
+  const musicPlayerRef = useRef(null);
+  const isTogglingRef = useRef(false); // Prevent multiple rapid toggles
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [showSpotify, setShowSpotify] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [is80sMode, setIs80sMode] = useState(false);
-  const [monsterMode, setMonsterMode] = useState(false);
   // Add synthwave mode state
   const [synthwaveMode, setSynthwaveMode] = useState(false);
   const [mobile, setMobile] = useState(false);
@@ -36,10 +40,57 @@ export default function GalleryPage() {
   const [componentLoaded, setComponentLoaded] = useState(false);
   const [threeDSceneLoaded, setThreeDSceneLoaded] = useState(false);
 
+  // Handle music toggle - control both visibility and playback
+  const handleMusicToggle = (enabled) => {
+    console.log("🎵 Music toggle requested:", enabled, "Current showSpotify:", showSpotify);
+    
+    // Prevent rapid toggling
+    if (isTogglingRef.current) {
+      console.log("🎵 Toggle in progress, ignoring");
+      return;
+    }
+    
+    // If already in the desired state, do nothing
+    if (enabled === showSpotify) {
+      console.log("🎵 Already in desired state:", enabled);
+      // But if enabled and music isn't playing, try to play it
+      if (enabled && musicPlayerRef.current && typeof musicPlayerRef.current.play === 'function') {
+        musicPlayerRef.current.play();
+      }
+      return;
+    }
+    
+    isTogglingRef.current = true;
+    
+    if (enabled) {
+      // Show the player first
+      setShowSpotify(true);
+      // Then play music after a delay to ensure component is mounted
+      setTimeout(() => {
+        if (musicPlayerRef.current && typeof musicPlayerRef.current.play === 'function') {
+          console.log("🎵 Playing music");
+          musicPlayerRef.current.play();
+        }
+        isTogglingRef.current = false;
+      }, 300); // Slightly longer delay for mounting
+    } else {
+      // Pause first, then hide
+      if (musicPlayerRef.current && typeof musicPlayerRef.current.pause === 'function') {
+        console.log("🎵 Pausing music");
+        musicPlayerRef.current.pause();
+      }
+      // Hide after pausing
+      setTimeout(() => {
+        setShowSpotify(false);
+        isTogglingRef.current = false;
+      }, 100);
+    }
+  };
+
   // Detect if device is actually a phone (not tablet or desktop)
   const detectMobileDevice = () => {
     // Get all the info for debugging
-    const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+    const userAgent = navigator.userAgent || window.opera;
     const lowerUA = userAgent.toLowerCase();
     
     // More comprehensive mobile detection
@@ -91,7 +142,6 @@ export default function GalleryPage() {
       RESULT: isMobile
     });
     
-    // Debug panel removed - mobile detection working properly
     
     return isMobile;
   };
@@ -169,10 +219,10 @@ export default function GalleryPage() {
     const newMode = !is80sMode;
     setIs80sMode(newMode);
 
-    // When turning ON 80s mode, automatically show music player
-    if (newMode) {
-      console.log("🎵 Gallery: Turning ON 80s mode - automatically showing music player");
-      setShowSpotify(true);
+    // When turning ON 80s mode, automatically show and play music ONLY for desktop
+    if (newMode && !showSpotify && !isMobileView) {
+      console.log("🎵 Gallery: Turning ON 80s mode - automatically showing and playing music (desktop only)");
+      handleMusicToggle(true);
     }
     // When turning OFF 80s mode, preserve the existing music state
     // (showSpotify state is maintained separately)
@@ -234,6 +284,8 @@ export default function GalleryPage() {
   // Add debugging
   useEffect(() => {
     console.log("Gallery page showSpotify state:", showSpotify);
+    console.log("Gallery page is80sMode state:", is80sMode);
+    console.log("Gallery page isMobileView state:", isMobileView);
 
     // Get iframe reference
     const iframe = getMissionControlIframe();
@@ -309,7 +361,7 @@ export default function GalleryPage() {
         // Handle music toggle
         if (event.data.type === "MUSIC_TOGGLE") {
           console.log("Music toggle message received:", event.data.enabled);
-          setShowSpotify(event.data.enabled);
+          handleMusicToggle(event.data.enabled);
         }
 
         // Handle request for current music state
@@ -477,7 +529,7 @@ export default function GalleryPage() {
           <BurnGalleryClient
             setComponentLoaded={setComponentLoaded}
             setThreeDSceneLoaded={setThreeDSceneLoaded}
-            setShowSpotify={setShowSpotify}
+            setShowSpotify={handleMusicToggle}
             showSpotify={showSpotify}
             isModalOpen={isModalOpen}
             setIsModalOpen={setIsModalOpen}
@@ -492,6 +544,8 @@ export default function GalleryPage() {
           />
         )}
       </div>
+      
+      {/* Simplified Music Player - Removed from here as it's handled in SidePanelEnhanced */}
     </div>
   );
 }

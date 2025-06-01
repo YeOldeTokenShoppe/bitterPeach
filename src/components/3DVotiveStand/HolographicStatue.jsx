@@ -18,6 +18,7 @@ function HolographicStatue({
   const initialY = useRef(position[1]); // Use provided Y position as initial Y
   const mixerRef = useRef();
   const hasLoadedRef = useRef(false);
+  const animatedMaterialsRef = useRef([]); // Cache materials that need animation
 
   // Use useMemo to prevent recreating the loader on every render
   const loader = useMemo(() => {
@@ -185,6 +186,9 @@ function HolographicStatue({
         side: THREE.DoubleSide,
       });
 
+      // Clear previous animated materials
+      animatedMaterialsRef.current = [];
+      
       statue.traverse((child) => {
         if (child.isMesh) {
           const meshName = child.name.toLowerCase();
@@ -208,7 +212,11 @@ function HolographicStatue({
             // Keep original material for Heart objects
  
           } else {
-            child.material = holographicMaterial;
+            // Clone the material for each mesh to prevent shared state conflicts
+            const clonedMaterial = holographicMaterial.clone();
+            child.material = clonedMaterial;
+            // Cache materials that need animation
+            animatedMaterialsRef.current.push(clonedMaterial);
           }
         }
       });
@@ -263,6 +271,9 @@ function HolographicStatue({
 
       // Reset loaded flag
       hasLoadedRef.current = false;
+      
+      // Clear animated materials cache
+      animatedMaterialsRef.current = [];
     };
   }, [scene, holographicMaterial, loader, onLoad, position, rotation, scale, hover, rotate]);
 
@@ -284,12 +295,12 @@ function HolographicStatue({
         groupRef.current.rotation.rotation.y -= delta * 0.02;
       }
 
-      // Keep your existing shader update logic
-      statueRef.current.traverse((child) => {
-        if (child.material?.uniforms?.uTime) {
-          child.material.uniforms.uTime.value -= delta;
+      // Update shader uniforms using cached materials (more efficient)
+      for (const material of animatedMaterialsRef.current) {
+        if (material.uniforms?.uTime) {
+          material.uniforms.uTime.value -= delta;
         }
-      });
+      }
     }
   });
 
