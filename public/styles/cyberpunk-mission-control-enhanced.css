@@ -1348,7 +1348,7 @@
 }
 
 .title-letter {
-  color: #67e8f9;  /* Cyan for all letters */
+  color: white;  /* White for all letters as per CLAUDE.md */
   text-shadow:
     0 0 5px currentColor,
     0 0 10px currentColor,
@@ -1357,7 +1357,7 @@
 }
 
 .title-letter.lunar {
-  color: #67e8f9;  /* Cyan for lunar letters */
+  color: white;  /* White for lunar letters as per CLAUDE.md */
   text-shadow:
     0 0 5px currentColor,
     0 0 10px currentColor,
@@ -1377,7 +1377,7 @@
 }
 
 .title-divider {
-  color: #67e8f9;  /* Cyan to match letters */
+  color: white;  /* White to match letters as per CLAUDE.md */
   margin: 0 4px;
   animation: letter-flicker 5s infinite;
 }
@@ -1536,9 +1536,15 @@
   border-bottom-color: #d946ef;
 }
 
-/* Keep title style consistent in 80s mode - no rainbow effect */
-/* Title letters maintain their normal appearance in 80s mode */
-/* Removed the eighties-active override to keep colors consistent */
+/* 80s mode specific title colors - override to use cyan per CLAUDE.md */
+.eighties-active .title-letter,
+.eighties-active .title-divider {
+  color: #67e8f9;  /* Cyan for letters in 80s mode */
+}
+
+.eighties-active .title-number {
+  color: #00ff41;  /* Keep green for numbers in 80s mode */
+}
 
 @keyframes rainbow-shift {
   0% { color: #ff0080; }
@@ -1772,4 +1778,117 @@ body {
   top: 337.5617px;
   left: 217.2px;
   animation-duration: 8s;
+}
+
+
+/* Lunar Theme Styles */
+.lunar-theme {
+  /* Override primary colors for lunar theme */
+  --accent-cyan: #6366f1; /* Indigo instead of cyan */
+  --accent-green: #a78bfa; /* Purple instead of green */
+  --neon-cyan: #6366f1;
+  --neon-green: #a78bfa;
+}
+
+.lunar-theme .enhanced-header {
+  background: linear-gradient(
+    135deg,
+    rgba(0, 0, 0, 0.9) 0%,
+    rgba(99, 102, 241, 0.1) 50%,
+    rgba(139, 92, 246, 0.1) 100%
+  );
+  border-bottom-color: #6366f1;
+}
+
+.lunar-theme .header-glow {
+  background: radial-gradient(
+    ellipse at center,
+    rgba(99, 102, 241, 0.4) 0%,
+    transparent 70%
+  );
+}
+
+.lunar-theme .control-button.enhanced {
+  background: linear-gradient(135deg, rgba(49, 46, 129, 0.8), rgba(30, 27, 75, 0.9));
+  border-color: #6366f1;
+}
+
+.lunar-theme .control-button.enhanced:hover {
+  box-shadow: 0 4px 20px rgba(99, 102, 241, 0.3);
+  border-color: #a78bfa;
+}
+
+.lunar-theme .station-select {
+  background: linear-gradient(135deg, rgba(49, 46, 129, 0.8), rgba(30, 27, 75, 0.9));
+  border-color: #6366f1;
+  color: #e0e7ff;
+}
+
+.lunar-theme .video-header {
+  background: linear-gradient(135deg, rgba(49, 46, 129, 0.9), rgba(30, 27, 75, 0.95));
+  border-bottom-color: #6366f1;
+}
+
+.lunar-theme #offline-display {
+  background: radial-gradient(
+    ellipse at center,
+    rgba(30, 27, 75, 1) 0%,
+    rgba(49, 46, 129, 0.95) 40%,
+    rgba(67, 56, 202, 0.9) 70%,
+    rgba(99, 102, 241, 0.85) 100%
+  );
+}
+
+.lunar-theme #offline-display::after {
+  background: radial-gradient(
+    circle at 20% 80%,
+    rgba(99, 102, 241, 0.03) 0%,
+    transparent 50%
+  );
+}
+
+.lunar-theme .status-light.active {
+  background: #a78bfa;
+  box-shadow: 0 0 10px #a78bfa;
+}
+
+/* Lunar theme button overrides */
+.lunar-theme .control-button[data-action="signal"] .button-label {
+  color: #a78bfa;
+}
+
+.lunar-theme .control-button[data-action="signal"] .button-icon {
+  color: #6366f1;
+}
+
+.lunar-theme .control-button[data-action="signal"]:hover .button-label {
+  color: #c4b5fd;
+  text-shadow: 0 0 10px #a78bfa;
+}
+
+.lunar-theme .control-button[data-action="signal"] .button-status-led {
+  background: #a78bfa;
+  box-shadow: 0 0 6px #a78bfa;
+}
+
+/* Lunar theme toggle adjustments */
+.lunar-theme .vertical-toggle.purple.active .toggle-handle {
+  background: radial-gradient(circle at 40% 40%, #a78bfa, #6366f1);
+  box-shadow: 
+    0 0 20px #a78bfa,
+    0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.lunar-theme .vertical-toggle.yellow.active .toggle-handle {
+  background: radial-gradient(circle at 40% 40%, #c4b5fd, #8b5cf6);
+  box-shadow: 
+    0 0 20px #c4b5fd,
+    0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.lunar-theme .vertical-toggle.cyan.active .toggle-handle {
+  background: radial-gradient(circle at 40% 40%, #6366f1, #4338ca);
+  box-shadow: 
+    0 0 20px #6366f1,
+    0 2px 8px rgba(0, 0, 0, 0.5);
 }

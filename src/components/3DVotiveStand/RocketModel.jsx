@@ -2271,7 +2271,7 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch,
     <>
       {/* Countdown Display */}
       {isCountingDown && groupRef.current && (
-        <group position={[0, 10, 0]}>
+        <group position={[0, 5, 0]}>
           <Html
             center
             style={{

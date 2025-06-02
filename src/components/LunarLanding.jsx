@@ -26,7 +26,7 @@ import { PointLightHelper } from 'three';
 import AstronautCustomizerModal from './AstronautCustomizerModal';
 import Flag from './Flag';
 import ParticleBackground from './ParticleBackground';
-import SidePanelEnhanced from './SidePanelEnhanced'; // Changed this line
+import LunarSidePanel from './LunarSidePanel'; // Changed to use lunar-specific panel
 import MobileSidePanel from './MobileSidePanel';
 
 // Constants for collision detection
@@ -84,7 +84,7 @@ function PointLightWithHelper({ position, color, intensity, distance, decay, sho
 
 // Moon model component
 function Moon(props) {
-  const { onMoonClick, isMobileView, highlightedRocket, focusedTarget } = props;
+  const { onMoonClick, isMobileView, highlightedRocket, focusedTarget, isTelescopeView } = props;
   const moonRef = useRef();
   const flagRef = useRef();
   const videoRef = useRef();
@@ -125,6 +125,7 @@ function Moon(props) {
   const [screenObject, setScreenObject] = useState(null);
   const tvLightRef = useRef(null);
   const [telescopeObject, setTelescopeObject] = useState(null);
+  const [insideRocketLight, setInsideRocketLight] = useState(null);
 
   const videoTextureRef = useRef(null);
 
@@ -134,6 +135,7 @@ function Moon(props) {
     let lAnchor = null;
     let lAnchor2 = null;
     let screen = null;
+    let insideRocketLightAnchor = null;
     scene.traverse((child) => {
       if (child.name === "FlagAnchor") {
         fAnchor = child;
@@ -143,6 +145,10 @@ function Moon(props) {
       }
       if (child.name === "LightAnchor2") {
         lAnchor2 = child;
+      }
+      if (child.name === "insideRocketLight") {
+        insideRocketLightAnchor = child;
+        console.log('Found insideRocketLight:', child.name, 'at position:', child.position);
       }
       if (child.name && child.name.toLowerCase().includes('mary')) {
         const worldPos = child.getWorldPosition(new THREE.Vector3());
@@ -168,6 +174,7 @@ function Moon(props) {
     setLightAnchor(lAnchor);
     setLightAnchor2(lAnchor2);
     setScreenObject(screen);
+    setInsideRocketLight(insideRocketLightAnchor);
     
     if (!screen) {
       console.log('Warning: No screen object found in the scene');
@@ -400,73 +407,73 @@ function Moon(props) {
     };
   }, [scene]);
   
-  // Add mobile touch helpers and selection rings for rockets
-  useEffect(() => {
-    if (!isMobileView || rocketObjects.length === 0) return;
+  // // Add mobile touch helpers and selection rings for rockets
+  // useEffect(() => {
+  //   if (!isMobileView || rocketObjects.length === 0) return;
 
-    rocketObjects.forEach((rocket) => {
-      // Check if helpers already exist
-      const existingHelper = rocket.getObjectByName('rocketTouchHelper');
-      const existingRing = rocket.getObjectByName('rocketSelectionRing');
+  //   rocketObjects.forEach((rocket) => {
+  //     // Check if helpers already exist
+  //     const existingHelper = rocket.getObjectByName('rocketTouchHelper');
+  //     const existingRing = rocket.getObjectByName('rocketSelectionRing');
       
-      if (!existingHelper) {
-        // Add invisible touch helper sphere for easier selection
-        const touchHelperGeometry = new THREE.SphereGeometry(0.6, 8, 8); // Larger for rocket
-        const touchHelperMaterial = new THREE.MeshBasicMaterial({ 
-          visible: false 
-        });
-        const touchHelper = new THREE.Mesh(touchHelperGeometry, touchHelperMaterial);
-        touchHelper.name = 'rocketTouchHelper';
-        touchHelper.userData.isRocket = true;
-        touchHelper.userData.rocketObject = rocket;
-        rocket.add(touchHelper);
-      }
+  //     if (!existingHelper) {
+  //       // Add invisible touch helper sphere for easier selection
+  //       const touchHelperGeometry = new THREE.SphereGeometry(0.6, 8, 8); // Larger for rocket
+  //       const touchHelperMaterial = new THREE.MeshBasicMaterial({ 
+  //         visible: false 
+  //       });
+  //       const touchHelper = new THREE.Mesh(touchHelperGeometry, touchHelperMaterial);
+  //       touchHelper.name = 'rocketTouchHelper';
+  //       touchHelper.userData.isRocket = true;
+  //       touchHelper.userData.rocketObject = rocket;
+  //       rocket.add(touchHelper);
+  //     }
       
-      if (!existingRing) {
-        // Create selection ring sprite
-        const canvas = document.createElement('canvas');
-        canvas.width = 128;
-        canvas.height = 128;
-        const ctx = canvas.getContext('2d');
+  //     if (!existingRing) {
+  //       // Create selection ring sprite
+  //       const canvas = document.createElement('canvas');
+  //       canvas.width = 128;
+  //       canvas.height = 128;
+  //       const ctx = canvas.getContext('2d');
         
-        // Draw a green ring
-        ctx.strokeStyle = '#00ff00';
-        ctx.lineWidth = 8;
-        ctx.beginPath();
-        ctx.arc(64, 64, 56, 0, Math.PI * 2);
-        ctx.stroke();
+  //       // Draw a green ring
+  //       ctx.strokeStyle = '#00ff00';
+  //       ctx.lineWidth = 8;
+  //       ctx.beginPath();
+  //       ctx.arc(64, 64, 56, 0, Math.PI * 2);
+  //       ctx.stroke();
         
-        const texture = new THREE.CanvasTexture(canvas);
-        const spriteMaterial = new THREE.SpriteMaterial({ 
-          map: texture,
-          transparent: true,
-          opacity: 0.7
-        });
-        const selectionRing = new THREE.Sprite(spriteMaterial);
-        selectionRing.name = 'rocketSelectionRing';
-        selectionRing.visible = false;
-        selectionRing.scale.set(1.5, 1.5, 1); // Larger ring for rocket
-        selectionRing.userData.nonInteractive = true;
-        rocket.add(selectionRing);
-      }
-    });
-  }, [isMobileView, rocketObjects]);
+  //       const texture = new THREE.CanvasTexture(canvas);
+  //       const spriteMaterial = new THREE.SpriteMaterial({ 
+  //         map: texture,
+  //         transparent: true,
+  //         opacity: 0.7
+  //       });
+  //       const selectionRing = new THREE.Sprite(spriteMaterial);
+  //       selectionRing.name = 'rocketSelectionRing';
+  //       selectionRing.visible = false;
+  //       selectionRing.scale.set(1.5, 1.5, 1); // Larger ring for rocket
+  //       selectionRing.userData.nonInteractive = true;
+  //       rocket.add(selectionRing);
+  //     }
+  //   });
+  // }, [isMobileView, rocketObjects]);
 
   // Update selection ring visibility and animation
-  useEffect(() => {
-    if (!isMobileView) return;
+  // useEffect(() => {
+  //   if (!isMobileView) return;
     
-    rocketObjects.forEach((rocket) => {
-      const selectionRing = rocket.getObjectByName('rocketSelectionRing');
-      if (selectionRing) {
-        const isHighlighted = highlightedRocket && highlightedRocket.object3D === rocket;
-        const anyObjectFocused = focusedTarget !== null;
+  //   rocketObjects.forEach((rocket) => {
+  //     const selectionRing = rocket.getObjectByName('rocketSelectionRing');
+  //     if (selectionRing) {
+  //       const isHighlighted = highlightedRocket && highlightedRocket.object3D === rocket;
+  //       const anyObjectFocused = focusedTarget !== null;
         
-        // Show ring only when highlighted and nothing is focused
-        selectionRing.visible = isHighlighted && !anyObjectFocused;
-      }
-    });
-  }, [isMobileView, rocketObjects, highlightedRocket, focusedTarget]);
+  //       // Show ring only when highlighted and nothing is focused
+  //       selectionRing.visible = isHighlighted && !anyObjectFocused;
+  //     }
+  //   });
+  // }, [isMobileView, rocketObjects, highlightedRocket, focusedTarget]);
 
   // Add gentle rotation to the moon and update rocket selection rings
   useFrame((state, delta) => {
@@ -478,6 +485,13 @@ function Moon(props) {
     // Update video texture if needed
     if (videoTextureRef.current && videoRef.current && !videoRef.current.paused) {
       videoTextureRef.current.needsUpdate = true;
+    }
+    
+    // Animate telescope glow
+    if (telescopeObject && telescopeObject.material && telescopeObject.userData.glowAnimation) {
+      const time = state.clock.getElapsedTime();
+      const { baseIntensity, pulseSpeed } = telescopeObject.userData.glowAnimation;
+      telescopeObject.material.emissiveIntensity = baseIntensity + Math.sin(time * pulseSpeed) * 0.2;
     }
     
     // Update TV light position
@@ -538,9 +552,23 @@ function Moon(props) {
     }
   });
 
-  // Add telescope marker as child of telescope object
+  // Add telescope glow effect and marker
   useEffect(() => {
     if (!telescopeObject) return;
+
+    // Add pulsing glow to telescope itself
+    if (telescopeObject.isMesh && telescopeObject.material) {
+      // Clone material to avoid affecting other objects
+      telescopeObject.material = telescopeObject.material.clone();
+      telescopeObject.material.emissive = new THREE.Color(0x0066ff);
+      telescopeObject.material.emissiveIntensity = 0.3;
+      
+      // Store original values for animation
+      telescopeObject.userData.glowAnimation = {
+        baseIntensity: 0.3,
+        pulseSpeed: 3
+      };
+    }
 
     // Create marker using Three.js directly
     const markerGroup = new THREE.Group();
@@ -554,16 +582,9 @@ function Moon(props) {
       const ctx = canvas.getContext("2d");
 
       const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-      gradient.addColorStop(0, "#584827");
-      gradient.addColorStop(0.37, "#c7a03c");
-      gradient.addColorStop(0.3, "#f9de90");
-      gradient.addColorStop(0.33, "#c7a03c");
-      gradient.addColorStop(0.4, "#584827");
-      gradient.addColorStop(0.5, "#584827");
-      gradient.addColorStop(0.77, "#c7a03c");
-      gradient.addColorStop(0.8, "#f9de90");
-      gradient.addColorStop(0.83, "#c7a03c");
-      gradient.addColorStop(1, "#584827");
+      gradient.addColorStop(0, "#0044aa");
+      gradient.addColorStop(0.5, "#0088ff");
+      gradient.addColorStop(1, "#0044aa");
 
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -573,23 +594,27 @@ function Moon(props) {
       return texture;
     }
 
-    // Black circle center
+    // Glowing blue circle center
     const markerGeometry = new THREE.CircleGeometry(0.15, 32);
     const markerMaterial = new THREE.MeshBasicMaterial({
-      color: 0x000000,
+      color: 0x0088ff,
       side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.8
     });
     const markerMesh = new THREE.Mesh(markerGeometry, markerMaterial);
     markerMesh.position.z = 0.001;
     markerGroup.add(markerMesh);
 
-    // Golden gradient ring border
+    // Blue gradient ring border
     const borderGeometry = new THREE.RingGeometry(0.16, 0.2, 32);
     const borderMaterial = new THREE.MeshStandardMaterial({
       map: createGradientTexture(),
-      emissive: 0xc7a03c,
+      emissive: 0x0088ff,
       emissiveIntensity: 1,
       side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.9
     });
     const borderMesh = new THREE.Mesh(borderGeometry, borderMaterial);
     borderMesh.position.z = 0;
@@ -610,11 +635,25 @@ function Moon(props) {
       const scale = 1 + Math.sin(pulseTime * 3) * 0.15;
       borderMesh.scale.set(scale, scale, scale);
       borderMaterial.emissiveIntensity = 0.8 + Math.sin(pulseTime * 3) * 0.2;
+      markerMaterial.opacity = 0.6 + Math.sin(pulseTime * 3) * 0.2;
     };
+
+    // Add invisible touch helper for easier selection on mobile
+    if (isMobileView) {
+      const touchHelperGeometry = new THREE.SphereGeometry(0.3, 8, 8);
+      const touchHelperMaterial = new THREE.MeshBasicMaterial({ 
+        visible: false 
+      });
+      const touchHelper = new THREE.Mesh(touchHelperGeometry, touchHelperMaterial);
+      touchHelper.name = 'telescopeTouchHelper';
+      touchHelper.userData.isTelescope = true;
+      touchHelper.userData.telescopeObject = telescopeObject;
+      telescopeObject.add(touchHelper);
+    }
 
     // Add marker to telescope
     telescopeObject.add(markerGroup);
-    console.log('Added marker to telescope:', telescopeObject.name);
+    console.log('Added glow and marker to telescope:', telescopeObject.name);
 
     // Cleanup
     return () => {
@@ -623,8 +662,12 @@ function Moon(props) {
       markerMaterial.dispose();
       borderGeometry.dispose();
       borderMaterial.dispose();
+      if (telescopeObject.material && telescopeObject.material.emissive) {
+        telescopeObject.material.emissive = new THREE.Color(0x000000);
+        telescopeObject.material.emissiveIntensity = 0;
+      }
     };
-  }, [telescopeObject]);
+  }, [telescopeObject, isMobileView]);
 
 
   
@@ -635,19 +678,7 @@ function Moon(props) {
       <Suspense fallback={null}>
         <Flag flagRef={flagRef} />
       </Suspense>
-      
-      {/* HolographicStatue parented to moon */}
-      {/* <HolographicStatueMoon
-        position={[0.03, 1.005, 0.2]}
-        scale={[0.05, 0.05, 0.05]}
-        rotation={[0, 0, 0]}
-        hover={true}
-        rotate={true}
-        parentRef={moonRef}
-        onLoad={() => {
-          console.log("HolographicStatueMoon loaded at position:", [0.2, 2.52, 0.2]);
-        }}
-      /> */}
+
 
       {maryPosition && (
         <>
@@ -690,10 +721,22 @@ function Moon(props) {
           position={[0, 0, 0]}
           color={new THREE.Color(0xFF8C00)}
           intensity={1.2}
-          distance={0.7}
-          decay={0.6}
+          distance={0.4}
+          decay={0.3}
           castShadow={false}
           onUpdate={(self) => lightAnchor2.add(self)}
+        />
+      )}
+      {/* Rocket interior light */}
+      {insideRocketLight && (
+        <pointLight
+          position={[0, 0, 0]}
+          color={new THREE.Color(0x5c5ed5)} // Blue-green/turquoise color
+          intensity={0.8}
+          distance={0.2}
+          decay={0.2}
+          castShadow={false}
+          onUpdate={(self) => insideRocketLight.add(self)}
         />
       )}
       {/* TV screen light */}
@@ -756,12 +799,12 @@ function AstronautInfoDisplay({ userData, astronautIndex, parentObject }) {
     <Html
       transform
       sprite
-      scale={0.12} // Much smaller scale for close-up view
+      scale={0.2} // Further increased scale for better visibility
       depthTest={true}
       depthWrite={false}
       geometry={<planeGeometry args={[.15, .15]} />}
       distanceFactor={3} // Closer distance factor
-      position={[0.0, 0.15, -0.1]} // Positioned closer to astronaut
+      position={[0.0, 0.35, 0.0]} // Positioned slightly higher
       style={{
         pointerEvents: 'auto',
         userSelect: 'none',
@@ -853,16 +896,22 @@ function AstronautInfoDisplay({ userData, astronautIndex, parentObject }) {
             gap: '6px',
             background: 'rgba(255,0,0,0.0)', // Transparent background like original
             border: 'none',
-            borderRadius: '0'
+            borderRadius: '0',
+            minWidth: '120px' // Ensure minimum width
           }}>
             <span style={{
-              fontFamily: 'UnifrakturMaguntia',
-              fontSize: '1.5rem',
-              color: 'white',
+              fontFamily: 'UnifrakturMaguntia, serif', // Original gothic font with fallback
+              fontSize: '16px', // Keep the pixel size that works
+              color: '#ffffff',
               textShadow: '0 0 0.1em #fff, 0 0 0.2em #0ff, 0 0 0.3em #f0f',
-              animation: 'pulse 1.5s infinite alternate'
+              animation: 'pulse 1.5s infinite alternate',
+              whiteSpace: 'nowrap',
+              display: 'inline-block',
+              fontWeight: 'normal',
+              letterSpacing: '0.02em',
+              padding: '0 5px' // Keep some padding for better visibility
             }}>
-              {userData.username}
+              {userData.username || 'Anonymous'}
             </span>
             <button
               onClick={(e) => {
@@ -874,7 +923,7 @@ function AstronautInfoDisplay({ userData, astronautIndex, parentObject }) {
                 border: 'none',
                 cursor: 'pointer',
                 color: '#e8f4fd',
-                fontSize: '18px', // Bigger star
+                fontSize: '0.7rem', // Adjusted star size to match
                 transition: 'all 0.3s ease',
                 textShadow: '0 0 0.5em rgba(100,200,255,0.8), 0 0 1em rgba(0,200,255,0.6)',
                 padding: '0',
@@ -1733,8 +1782,117 @@ function Astronauts(props) {
   );
 }
 
+// Telescope view components
+function TelescopeStars() {
+  const starsRef = useRef();
+  
+  useFrame((state) => {
+    if (starsRef.current) {
+      // Rotate star field slowly
+      starsRef.current.rotation.y += 0.0001;
+      starsRef.current.rotation.x += 0.00005;
+    }
+  });
+  
+  // Create star positions and colors
+  const starCount = 5000;
+  const positions = new Float32Array(starCount * 3);
+  const colors = new Float32Array(starCount * 3);
+  
+  for (let i = 0; i < starCount; i++) {
+    const i3 = i * 3;
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.acos(Math.random() * 2 - 1);
+    const r = 800 + Math.random() * 200;
+    
+    positions[i3] = r * Math.sin(phi) * Math.cos(theta);
+    positions[i3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+    positions[i3 + 2] = r * Math.cos(phi);
+    
+    const colorChoice = Math.random();
+    if (colorChoice < 0.7) {
+      colors[i3] = colors[i3 + 1] = colors[i3 + 2] = 1; // White
+    } else if (colorChoice < 0.85) {
+      colors[i3] = 0.8;
+      colors[i3 + 1] = 0.8;
+      colors[i3 + 2] = 1; // Blue
+    } else {
+      colors[i3] = 1;
+      colors[i3 + 1] = 0.9;
+      colors[i3 + 2] = 0.7; // Yellow
+    }
+  }
+  
+  return (
+    <points ref={starsRef}>
+      <bufferGeometry>
+        <bufferAttribute
+          attach="attributes-position"
+          count={starCount}
+          array={positions}
+          itemSize={3}
+        />
+        <bufferAttribute
+          attach="attributes-color"
+          count={starCount}
+          array={colors}
+          itemSize={3}
+        />
+      </bufferGeometry>
+      <pointsMaterial
+        size={2}
+        sizeAttenuation={true}
+        vertexColors={true}
+        transparent={true}
+        opacity={0.9}
+      />
+    </points>
+  );
+}
+
+function TelescopePlanets() {
+  const groupRef = useRef();
+  
+  useFrame((state) => {
+    if (groupRef.current) {
+      // Rotate planets slowly
+      groupRef.current.children.forEach((planet, i) => {
+        planet.rotation.y += 0.001 * (i + 1);
+      });
+    }
+  });
+  
+  return (
+    <group ref={groupRef}>
+      {/* Red planet */}
+      <mesh position={[100, 50, -200]}>
+        <sphereGeometry args={[8, 32, 32]} />
+        <meshPhongMaterial color={0xff4444} emissive={0x440000} emissiveIntensity={0.2} />
+      </mesh>
+      
+      {/* Blue planet with ring */}
+      <group position={[-150, -80, -300]}>
+        <mesh>
+          <sphereGeometry args={[12, 32, 32]} />
+          <meshPhongMaterial color={0x4488ff} emissive={0x000044} emissiveIntensity={0.3} />
+        </mesh>
+        <mesh rotation={[Math.PI / 3, 0, 0]}>
+          <ringGeometry args={[18, 25, 64]} />
+          <meshBasicMaterial color={0x888888} side={THREE.DoubleSide} transparent opacity={0.7} />
+        </mesh>
+      </group>
+      
+      {/* Green planet */}
+      <mesh position={[80, -60, -250]}>
+        <sphereGeometry args={[6, 32, 32]} />
+        <meshPhongMaterial color={0x44ff44} emissive={0x004400} emissiveIntensity={0.2} />
+      </mesh>
+    </group>
+  );
+}
+
 // Scene lighting and camera setup
-function SceneSetup({ isMobileView }) {
+function SceneSetup({ isMobileView, isTelescopeView }) {
   const { camera } = useThree();
   
   useEffect(() => {
@@ -1752,6 +1910,16 @@ function SceneSetup({ isMobileView }) {
     // Update camera matrix after position change
     camera.updateProjectionMatrix();
   }, [camera, isMobileView]);
+
+  // Different lighting for telescope view
+  if (isTelescopeView) {
+    return (
+      <>
+        <ambientLight intensity={0.2} />
+        <directionalLight position={[100, 100, 100]} intensity={0.8} color="#ffffff" />
+      </>
+    );
+  }
 
   return (
     <>
@@ -1793,7 +1961,7 @@ function SceneSetup({ isMobileView }) {
 }
 
 // Simple orbit controls for rotating around the moon
-function SimpleOrbitCamera({ focusedTarget, isMobileView, onAnimationComplete }) {
+function SimpleOrbitCamera({ focusedTarget, isMobileView, onAnimationComplete, isTelescopeView }) {
   const { camera, gl } = useThree();
   const controlsRef = useRef();
   const followModeRef = useRef(false);
@@ -1805,6 +1973,13 @@ function SimpleOrbitCamera({ focusedTarget, isMobileView, onAnimationComplete })
   const initialAnimationStartRef = useRef(null);
   const animationPhaseRef = useRef('orbit'); // 'orbit' | 'zoom' | 'complete'
   const userInterruptedRef = useRef(false);
+  
+  // Store camera state before telescope view
+  const preTelesopeStateRef = useRef({
+    position: new THREE.Vector3(),
+    target: new THREE.Vector3(),
+    fov: 75
+  });
   
   // CAMERA CONFIGURATION
   // =====================
@@ -1977,8 +2152,112 @@ function SimpleOrbitCamera({ focusedTarget, isMobileView, onAnimationComplete })
     };
   }, [gl]);
 
+  // Handle telescope view camera setup
+  useEffect(() => {
+    if (isTelescopeView && camera && controlsRef.current) {
+      // Save current camera state before entering telescope view
+      preTelesopeStateRef.current.position.copy(camera.position);
+      preTelesopeStateRef.current.target.copy(controlsRef.current.target);
+      preTelesopeStateRef.current.fov = camera.fov;
+      
+      // Animate to telescope view
+      const startFov = camera.fov;
+      const targetFov = 30; // Zoomed in view
+      const startTime = Date.now();
+      const duration = 1500; // 1.5 seconds
+      
+      const animateToTelescope = () => {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const easeProgress = easeInOutQuintic(progress);
+        
+        // Animate FOV for zoom effect
+        camera.fov = startFov + (targetFov - startFov) * easeProgress;
+        camera.updateProjectionMatrix();
+        
+        if (progress < 1) {
+          requestAnimationFrame(animateToTelescope);
+        } else {
+          // Final telescope setup
+          if (controlsRef.current) {
+            controlsRef.current.enabled = true;
+            controlsRef.current.enablePan = false;
+            controlsRef.current.enableZoom = true;
+            controlsRef.current.minDistance = 50;
+            controlsRef.current.maxDistance = 200;
+            controlsRef.current.autoRotate = false;
+            controlsRef.current.target.set(0, 0, 0);
+            controlsRef.current.update();
+          }
+        }
+      };
+      
+      animateToTelescope();
+    } else if (!isTelescopeView && camera && preTelesopeStateRef.current && controlsRef.current) {
+      // Restore camera state when exiting telescope view
+      const startTime = Date.now();
+      const duration = 800; // 0.8 seconds for exit animation
+      const startPos = camera.position.clone();
+      const startFov = camera.fov;
+      const startTarget = controlsRef.current.target.clone();
+      
+      const animateFromTelescope = () => {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const easeProgress = easeOutCubic(progress);
+        
+        // Animate camera position
+        camera.position.lerpVectors(startPos, preTelesopeStateRef.current.position, easeProgress);
+        
+        // Animate FOV
+        camera.fov = startFov + (preTelesopeStateRef.current.fov - startFov) * easeProgress;
+        camera.updateProjectionMatrix();
+        
+        // Animate controls target
+        if (controlsRef.current) {
+          controlsRef.current.target.lerpVectors(startTarget, preTelesopeStateRef.current.target, easeProgress);
+          controlsRef.current.update();
+        }
+        
+        if (progress < 1) {
+          requestAnimationFrame(animateFromTelescope);
+        } else {
+          // Restore controls settings
+          if (controlsRef.current) {
+            controlsRef.current.enabled = true;
+            controlsRef.current.enablePan = true;
+            controlsRef.current.enableZoom = true;
+            controlsRef.current.minDistance = 0.3;
+            controlsRef.current.maxDistance = 18;
+            controlsRef.current.autoRotate = !focusedTarget;
+            controlsRef.current.autoRotateSpeed = 0.1;
+          }
+        }
+      };
+      
+      animateFromTelescope();
+    }
+  }, [isTelescopeView, camera, focusedTarget]);
+
   // Add useFrame to handle continuous rotation when not focused and track rocket
   useFrame(() => {
+      // Handle telescope view mouse tracking
+    if (isTelescopeView && controlsRef.current) {
+      // Parallax effect based on mouse position
+      const mouseX = (window.__mouseTrail?.xPx || 0) - window.innerWidth / 2;
+      const mouseY = (window.__mouseTrail?.yPx || 0) - window.innerHeight / 2;
+      
+      // Smooth parallax movement
+      const targetX = mouseX * 0.15;
+      const targetY = -mouseY * 0.15;
+      
+      camera.position.x += (targetX - camera.position.x) * 0.1;
+      camera.position.y += (targetY - camera.position.y) * 0.1;
+      camera.lookAt(0, 0, 0);
+      controlsRef.current.update();
+      return; // Skip other camera animations when in telescope view
+    }
+    
     // The user interaction is now handled by event listeners only
     // This prevents false positives from animation-induced position changes
     
@@ -2330,7 +2609,7 @@ function ModelInspector() {
 
 
 
-function SceneManager({ userHelmetTextures, focusedTarget, highlightedAstronaut, highlightedRocket, onAstronautClick, onSceneObjectClick, onReady, isConstellationsVisible, is80sMode, isMobileView, debugMode = false, onAnimationComplete }) {
+function SceneManager({ userHelmetTextures, focusedTarget, highlightedAstronaut, highlightedRocket, onAstronautClick, onSceneObjectClick, onReady, isConstellationsVisible, is80sMode, isMobileView, debugMode = false, onAnimationComplete, isTelescopeView }) {
   const handleMoonOrRocketClick = (event) => {
     event.stopPropagation(); // Stop event from bubbling to canvas click handler
     let clickedObjectName = event.object.name;
@@ -2358,6 +2637,11 @@ function SceneManager({ userHelmetTextures, focusedTarget, highlightedAstronaut,
     if (clickedObjectName && (clickedObjectName === 'Rocket' || clickedObjectName.toLowerCase().includes('rocket'))) {
 
       onSceneObjectClick({ type: 'rocket', object3D: targetObject });
+    } else if (event.object.userData?.isTelescope || (clickedObjectName && clickedObjectName.toLowerCase().includes('telescope'))) {
+      // Handle telescope click
+      const telescopeTarget = event.object.userData?.telescopeObject || targetObject;
+      console.log('Telescope clicked:', telescopeTarget);
+      onSceneObjectClick({ type: 'telescope', object3D: telescopeTarget });
     } else {
       // Clicked on Moon surface or other non-specific part
 
@@ -2367,9 +2651,20 @@ function SceneManager({ userHelmetTextures, focusedTarget, highlightedAstronaut,
 
   
   
+  // Render telescope view if active
+  if (isTelescopeView) {
+    return (
+      <>
+        <SceneSetup isMobileView={isMobileView} isTelescopeView={isTelescopeView} />
+        <TelescopeStars />
+        <TelescopePlanets />
+      </>
+    );
+  }
+
   return (
     <>
-      <SceneSetup isMobileView={isMobileView} />
+      <SceneSetup isMobileView={isMobileView} isTelescopeView={isTelescopeView} />
       <Moon 
         position={[0, 0, 0]} 
         scale={MOON_RADIUS} 
@@ -2377,6 +2672,7 @@ function SceneManager({ userHelmetTextures, focusedTarget, highlightedAstronaut,
         isMobileView={isMobileView}
         highlightedRocket={highlightedRocket}
         focusedTarget={focusedTarget}
+        isTelescopeView={isTelescopeView}
       />
       
       
@@ -2442,6 +2738,7 @@ export default function LunarLanding({userHelmetTextures, currentUser, onSceneRe
   const [isConstellationsVisible, setIsConstellationsVisible] = useState(false);
   const [debugMode, setDebugMode] = useState(false); // Set to true to show light helpers
   const [isCameraAnimationComplete, setIsCameraAnimationComplete] = useState(false); // Track camera animation state
+  const [isTelescopeView, setIsTelescopeView] = useState(false); // Track telescope view state
 
   // Add mobile view detection
   useEffect(() => {
@@ -2559,6 +2856,12 @@ export default function LunarLanding({userHelmetTextures, currentUser, onSceneRe
       } else {
         setFocusedTarget(targetInfo);
       }
+    } else if (targetInfo.type === 'telescope') {
+      console.log('Telescope object clicked, entering telescope view');
+      setIsTelescopeView(true);
+      setFocusedTarget(null); // Clear any existing focus
+      setHighlightedAstronaut(null);
+      setHighlightedRocket(null);
     }
   };
 
@@ -2670,7 +2973,7 @@ export default function LunarLanding({userHelmetTextures, currentUser, onSceneRe
             radius={40} // Smaller radius for MoonScene
           />
         </Suspense>
-        <Suspense fallback={<Loader />}>
+        <Suspense fallback={null}>
           {/* <ParticleBackground /> */}
           <SceneManager
             userHelmetTextures={userHelmetTextures}
@@ -2692,14 +2995,72 @@ export default function LunarLanding({userHelmetTextures, currentUser, onSceneRe
               console.log('📸 Camera animation complete, showing UI');
               setIsCameraAnimationComplete(true);
             }}
+            isTelescopeView={isTelescopeView}
           />
         </Suspense>
+        
+        {/* Pass camera control props including telescope view */}
+        <SimpleOrbitCamera 
+          focusedTarget={focusedTarget} 
+          isMobileView={isMobileView} 
+          onAnimationComplete={() => setIsCameraAnimationComplete(true)}
+          isTelescopeView={isTelescopeView}
+        />
       </Canvas>
       </div>
-      {/* Add SidePanel/MobileSidePanel - always render but hide until camera animation completes */}
+      
+      {/* Telescope view overlay and exit button */}
+      {isTelescopeView && (
+        <>
+          <div
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              pointerEvents: 'none',
+              opacity: 1,
+              background: 'radial-gradient(circle at center, transparent 0%, transparent 38%, transparent 38.5%, black 39%, black 100%)',
+              zIndex: 10,
+            }}
+          />
+          <button
+            onClick={() => {
+              console.log('Exiting telescope view');
+              setIsTelescopeView(false);
+            }}
+            style={{
+              position: 'fixed',
+              bottom: '30px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              padding: '10px 20px',
+              background: 'rgba(255, 255, 255, 0.2)',
+              border: '2px solid white',
+              color: 'white',
+              cursor: 'pointer',
+              borderRadius: '5px',
+              fontSize: '16px',
+              transition: 'all 0.3s',
+              zIndex: 20,
+              backdropFilter: 'blur(10px)',
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.background = 'rgba(255, 255, 255, 0.3)';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.background = 'rgba(255, 255, 255, 0.2)';
+            }}
+          >
+            Exit Telescope View
+          </button>
+        </>
+      )}
+      {/* Add SidePanel/MobileSidePanel - always render but hide until camera animation completes or in telescope view */}
       <div style={{ 
-        opacity: isCameraAnimationComplete ? 1 : 0,
-        pointerEvents: isCameraAnimationComplete ? 'auto' : 'none',
+        opacity: isCameraAnimationComplete && !isTelescopeView ? 1 : 0,
+        pointerEvents: isCameraAnimationComplete && !isTelescopeView ? 'auto' : 'none',
         transition: 'opacity 0.5s ease-in-out'
       }}>
         {isMobileView ? (
@@ -2715,7 +3076,7 @@ export default function LunarLanding({userHelmetTextures, currentUser, onSceneRe
             isConstellationsVisible={isConstellationsVisible}
           />
         ) : (
-          <SidePanelEnhanced // Changed this line
+          <LunarSidePanel // Changed to use lunar-specific panel
             onButtonClick={() => {}}
             is80sMode={is80sMode}
             toggle80sMode={toggle80sMode}
@@ -2728,7 +3089,7 @@ export default function LunarLanding({userHelmetTextures, currentUser, onSceneRe
           />
         )}
       </div>
-      {isCameraAnimationComplete && (
+      {/* {isCameraAnimationComplete && (
         <div
           className="fixed bottom-6 right-6 z-50"
           style={{
@@ -2768,9 +3129,9 @@ export default function LunarLanding({userHelmetTextures, currentUser, onSceneRe
           <span>Customize Astronaut</span>
         </button>
       </div>
-      )}
+      )} */}
       
-      <AstronautCustomizerModal
+      {/* <AstronautCustomizerModal
         isOpen={isCustomizerOpen}
         onClose={() => {
       
@@ -2779,7 +3140,7 @@ export default function LunarLanding({userHelmetTextures, currentUser, onSceneRe
         onSave={handleSaveCustomizations}
         defaultProfileImage={currentUser?.profileImage}
       />
-      
+       */}
       {/* Mobile hint overlay - only show after camera animation */}
       {isMobileView && showMobileHint && isCameraAnimationComplete && (
         <div

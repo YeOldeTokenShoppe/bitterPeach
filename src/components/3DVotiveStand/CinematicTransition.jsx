@@ -261,7 +261,7 @@ export const CinematicTransition = ({ active, onComplete, type = 'warp' }) => {
           ref={bloomRef}
           strength={0}
           radius={1}
-          threshold={0.1}
+          threshold={0.5}
         />
         <shaderPass
           ref={shaderRef}

@@ -1030,6 +1030,31 @@ const ThreeDVotiveStand = forwardRef(({
     }
   }, [fetchUserDataForLunarLanding]);
   
+  // Listen for navigation messages from child components
+  useEffect(() => {
+    const handleMessage = (event) => {
+      if (event.data.type === 'NAVIGATE_TO_GALLERY') {
+        console.log('🌍 Received NAVIGATE_TO_GALLERY message, returning to gallery scene');
+        handleSceneSwitch('gallery');
+      } else if (event.data.type === 'ASTRONAUT_CUSTOMIZED') {
+        console.log('🚀 Received ASTRONAUT_CUSTOMIZED message:', event.data.data);
+        // Store the customization data or pass it to the lunar scene
+        if (window.astronautCustomization) {
+          window.astronautCustomization = event.data.data;
+        }
+        // You can also dispatch an event for the lunar scene to listen to
+        window.dispatchEvent(new CustomEvent('astronaut-customized', {
+          detail: event.data.data
+        }));
+      }
+    };
+    
+    window.addEventListener('message', handleMessage);
+    
+    return () => {
+      window.removeEventListener('message', handleMessage);
+    };
+  }, [handleSceneSwitch]);
 
   // Handle transition start from RocketModel
   const handleTransitionStart = useCallback((onComplete) => {

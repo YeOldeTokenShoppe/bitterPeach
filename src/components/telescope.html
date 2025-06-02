@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Three.js Telescope Effect</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            background: #000;
+        }
+        #canvas {
+            display: block;
+        }
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 5px;
+            user-select: none;
+        }
+        .telescope-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 1s ease-in-out;
+            background: radial-gradient(circle at center, 
+                transparent 0%, 
+                transparent 38%, 
+                transparent 38.5%,
+                black 39%,
+                black 100%);
+            z-index: 10;
+        }
+        .telescope-overlay.active {
+            opacity: 1;
+        }
+        #exit-button {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid white;
+            color: white;
+            cursor: pointer;
+            border-radius: 5px;
+            font-size: 16px;
+            opacity: 0;
+            transition: all 0.3s;
+            z-index: 20;
+        }
+        #exit-button.visible {
+            opacity: 1;
+        }
+        #exit-button:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <h3>Lunar Telescope Demo</h3>
+        <p>Click on the glowing telescope to look through it!</p>
+        <p>Move your mouse while viewing to explore the stars</p>
+        <p>Use scroll wheel to zoom in/out</p>
+    </div>
+    <div class="telescope-overlay" id="telescopeOverlay"></div>
+    <button id="exit-button">Exit Telescope View</button>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script>
+        // Scene setup
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 10000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        document.body.appendChild(renderer.domElement);
+
+        // Separate scene for telescope view
+        const telescopeScene = new THREE.Scene();
+        const telescopeCamera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 10000);
+        telescopeCamera.position.z = 100;
+
+        // Lighting for main scene
+        const ambientLight = new THREE.AmbientLight(0x404040);
+        scene.add(ambientLight);
+        
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+        directionalLight.position.set(50, 50, 50);
+        directionalLight.castShadow = true;
+        scene.add(directionalLight);
+
+        // Create lunar surface
+        const moonGeometry = new THREE.PlaneGeometry(200, 200, 50, 50);
+        const moonMaterial = new THREE.MeshPhongMaterial({ 
+            color: 0x888888,
+            roughness: 0.8,
+            metalness: 0.1
+        });
+        
+        // Add some terrain variation
+        const vertices = moonGeometry.attributes.position.array;
+        for (let i = 0; i < vertices.length; i += 3) {
+            vertices[i + 2] = Math.random() * 2 - 1;
+        }
+        moonGeometry.attributes.position.needsUpdate = true;
+        moonGeometry.computeVertexNormals();
+        
+        const moon = new THREE.Mesh(moonGeometry, moonMaterial);
+        moon.rotation.x = -Math.PI / 2;
+        moon.receiveShadow = true;
+        scene.add(moon);
+
+        // Create telescope
+        const telescopeGroup = new THREE.Group();
+        
+        // Telescope body
+        const bodyGeometry = new THREE.CylinderGeometry(1, 1.5, 6, 32);
+        const bodyMaterial = new THREE.MeshPhongMaterial({ 
+            color: 0x333333,
+            emissive: 0x0066ff,
+            emissiveIntensity: 0.3
+        });
+        const telescopeBody = new THREE.Mesh(bodyGeometry, bodyMaterial);
+        telescopeBody.rotation.z = Math.PI / 6;
+        telescopeGroup.add(telescopeBody);
+
+        // Telescope lens
+        const lensGeometry = new THREE.CylinderGeometry(1.2, 1.2, 0.5, 32);
+        const lensMaterial = new THREE.MeshPhongMaterial({ 
+            color: 0x4488ff,
+            emissive: 0x0088ff,
+            emissiveIntensity: 0.5,
+            transparent: true,
+            opacity: 0.8
+        });
+        const lens = new THREE.Mesh(lensGeometry, lensMaterial);
+        lens.position.y = 3;
+        lens.rotation.z = Math.PI / 6;
+        telescopeGroup.add(lens);
+
+        // Telescope stand
+        const standGeometry = new THREE.CylinderGeometry(0.3, 0.5, 4, 16);
+        const standMaterial = new THREE.MeshPhongMaterial({ color: 0x222222 });
+        const stand = new THREE.Mesh(standGeometry, standMaterial);
+        stand.position.y = -2;
+        telescopeGroup.add(stand);
+
+        telescopeGroup.position.set(10, 2, -5);
+        telescopeGroup.castShadow = true;
+        scene.add(telescopeGroup);
+
+        // Add some lunar rocks
+        for (let i = 0; i < 20; i++) {
+            const rockGeometry = new THREE.DodecahedronGeometry(Math.random() * 0.5 + 0.2);
+            const rockMaterial = new THREE.MeshPhongMaterial({ color: 0x666666 });
+            const rock = new THREE.Mesh(rockGeometry, rockMaterial);
+            rock.position.set(
+                (Math.random() - 0.5) * 50,
+                Math.random() * 0.5,
+                (Math.random() - 0.5) * 50
+            );
+            rock.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+            rock.castShadow = true;
+            scene.add(rock);
+        }
+
+        // Create stars for telescope view
+        const starGeometry = new THREE.BufferGeometry();
+        const starCount = 5000;
+        const positions = new Float32Array(starCount * 3);
+        const colors = new Float32Array(starCount * 3);
+
+        for (let i = 0; i < starCount * 3; i += 3) {
+            // Create a sphere of stars
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos(Math.random() * 2 - 1);
+            const r = 800 + Math.random() * 200;
+            
+            positions[i] = r * Math.sin(phi) * Math.cos(theta);
+            positions[i + 1] = r * Math.sin(phi) * Math.sin(theta);
+            positions[i + 2] = r * Math.cos(phi);
+            
+            // Star colors (white to blue to yellow)
+            const colorChoice = Math.random();
+            if (colorChoice < 0.7) {
+                colors[i] = colors[i + 1] = colors[i + 2] = 1; // White
+            } else if (colorChoice < 0.85) {
+                colors[i] = 0.8;
+                colors[i + 1] = 0.8;
+                colors[i + 2] = 1; // Blue
+            } else {
+                colors[i] = 1;
+                colors[i + 1] = 0.9;
+                colors[i + 2] = 0.7; // Yellow
+            }
+        }
+
+        starGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        starGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        
+        const starMaterial = new THREE.PointsMaterial({ 
+            size: 2,
+            sizeAttenuation: true,
+            vertexColors: true,
+            transparent: true,
+            opacity: 0.9
+        });
+        const stars = new THREE.Points(starGeometry, starMaterial);
+        telescopeScene.add(stars);
+
+        // Add some planets to telescope view
+        const planets = [];
+        
+        // Red planet
+        const planet1Geometry = new THREE.SphereGeometry(8, 32, 32);
+        const planet1Material = new THREE.MeshPhongMaterial({ 
+            color: 0xff4444,
+            emissive: 0x440000,
+            emissiveIntensity: 0.2
+        });
+        const planet1 = new THREE.Mesh(planet1Geometry, planet1Material);
+        planet1.position.set(100, 50, -200);
+        telescopeScene.add(planet1);
+        planets.push({ mesh: planet1, rotationSpeed: 0.01 });
+
+        // Blue planet with ring
+        const planet2Geometry = new THREE.SphereGeometry(12, 32, 32);
+        const planet2Material = new THREE.MeshPhongMaterial({ 
+            color: 0x4488ff,
+            emissive: 0x000044,
+            emissiveIntensity: 0.3
+        });
+        const planet2 = new THREE.Mesh(planet2Geometry, planet2Material);
+        planet2.position.set(-150, -80, -300);
+        telescopeScene.add(planet2);
+        
+        // Ring for planet 2
+        const ringGeometry = new THREE.RingGeometry(18, 25, 64);
+        const ringMaterial = new THREE.MeshBasicMaterial({ 
+            color: 0x888888, 
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 0.7
+        });
+        const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+        ring.rotation.x = Math.PI / 3;
+        planet2.add(ring);
+        planets.push({ mesh: planet2, rotationSpeed: 0.008 });
+
+        // Green planet
+        const planet3Geometry = new THREE.SphereGeometry(6, 32, 32);
+        const planet3Material = new THREE.MeshPhongMaterial({ 
+            color: 0x44ff44,
+            emissive: 0x004400,
+            emissiveIntensity: 0.2
+        });
+        const planet3 = new THREE.Mesh(planet3Geometry, planet3Material);
+        planet3.position.set(80, -60, -250);
+        telescopeScene.add(planet3);
+        planets.push({ mesh: planet3, rotationSpeed: 0.015 });
+
+        // Lighting for telescope scene
+        const telescopeLight = new THREE.AmbientLight(0x222222);
+        telescopeScene.add(telescopeLight);
+        
+        const sunLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        sunLight.position.set(100, 100, 100);
+        telescopeScene.add(sunLight);
+
+        // Camera setup
+        camera.position.set(20, 10, 20);
+        camera.lookAt(0, 0, 0);
+
+        // Raycaster for clicking
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        let isTelescopeView = false;
+
+        // Mouse tracking for parallax effect
+        let mouseX = 0;
+        let mouseY = 0;
+        let telescopeZoom = 45; // Default FOV for telescope
+
+        function onMouseMove(event) {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            
+            mouseX = event.clientX - window.innerWidth / 2;
+            mouseY = event.clientY - window.innerHeight / 2;
+        }
+
+        function onWheel(event) {
+            if (!isTelescopeView) return;
+            
+            event.preventDefault();
+            
+            // Adjust zoom based on scroll direction
+            telescopeZoom += event.deltaY * 0.01;
+            
+            // Clamp zoom between 15 (zoomed in) and 60 (zoomed out)
+            telescopeZoom = Math.max(15, Math.min(60, telescopeZoom));
+            
+            // Apply zoom to telescope camera
+            telescopeCamera.fov = telescopeZoom;
+            telescopeCamera.updateProjectionMatrix();
+        }
+
+        function onMouseClick(event) {
+            if (isTelescopeView) return;
+            
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(telescopeGroup.children);
+            
+            if (intersects.length > 0) {
+                enterTelescopeView();
+            }
+        }
+
+        function enterTelescopeView() {
+            isTelescopeView = true;
+            document.getElementById('telescopeOverlay').classList.add('active');
+            document.getElementById('exit-button').classList.add('visible');
+            
+            // Reset telescope zoom to default
+            telescopeZoom = 45;
+            telescopeCamera.fov = telescopeZoom;
+            telescopeCamera.updateProjectionMatrix();
+            
+            // Animate camera zoom
+            gsap.to(camera, {
+                fov: 30,
+                duration: 1.5,
+                ease: "power2.inOut",
+                onUpdate: () => camera.updateProjectionMatrix()
+            });
+        }
+
+        function exitTelescopeView() {
+            isTelescopeView = false;
+            document.getElementById('telescopeOverlay').classList.remove('active');
+            document.getElementById('exit-button').classList.remove('visible');
+            
+            // Reset camera
+            gsap.to(camera, {
+                fov: 75,
+                duration: 1,
+                ease: "power2.inOut",
+                onUpdate: () => camera.updateProjectionMatrix()
+            });
+        }
+
+        // Event listeners
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('click', onMouseClick);
+        window.addEventListener('wheel', onWheel, { passive: false });
+        document.getElementById('exit-button').addEventListener('click', exitTelescopeView);
+        
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            telescopeCamera.aspect = window.innerWidth / window.innerHeight;
+            telescopeCamera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Glow animation for telescope
+        let glowTime = 0;
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Update glow effect
+            glowTime += 0.02;
+            bodyMaterial.emissiveIntensity = 0.3 + Math.sin(glowTime) * 0.2;
+            lensMaterial.emissiveIntensity = 0.5 + Math.sin(glowTime * 1.5) * 0.3;
+            
+            // Rotate telescope slightly
+            telescopeGroup.rotation.y = Math.sin(glowTime * 0.5) * 0.1;
+            
+            // Update planets
+            planets.forEach(planet => {
+                planet.mesh.rotation.y += planet.rotationSpeed;
+            });
+            
+            // Parallax effect for telescope view
+            if (isTelescopeView) {
+                telescopeCamera.position.x = mouseX * 0.15;
+                telescopeCamera.position.y = -mouseY * 0.15;
+                telescopeCamera.lookAt(0, 0, 0);
+                
+                // Rotate star field slowly
+                stars.rotation.y += 0.0001;
+                stars.rotation.x += 0.00005;
+            }
+            
+            // Render the appropriate scene
+            if (isTelescopeView) {
+                renderer.render(telescopeScene, telescopeCamera);
+            } else {
+                renderer.render(scene, camera);
+            }
+        }
+
+        animate();
+    </script>
+</body>
+</html>

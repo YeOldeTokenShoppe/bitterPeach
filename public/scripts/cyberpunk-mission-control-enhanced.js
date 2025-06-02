@@ -517,6 +517,127 @@ window.addEventListener('message', function(event) {
     }
   }
   
+  // Handle scene configuration from parent
+  if (event.data.type === 'SET_SCENE_CONFIG') {
+    console.log('🌙 Received scene configuration:', event.data);
+    
+    if (event.data.scene === 'lunar' && event.data.config) {
+      const config = event.data.config;
+      
+      // Update station display
+      const stationDisplay = document.getElementById('station-display');
+      if (stationDisplay && config.stations && config.stations[0]) {
+        stationDisplay.textContent = `COMM:/${config.stations[0].toLowerCase().replace(/\s+/g, '_')}`;
+      }
+      
+      // Update station select options
+      const stationSelect = document.querySelector('.station-select');
+      if (stationSelect && config.stations) {
+        stationSelect.innerHTML = ''; // Clear existing options
+        config.stations.forEach(station => {
+          const option = document.createElement('option');
+          option.value = station.toLowerCase().replace(/\s+/g, '_');
+          option.textContent = station;
+          stationSelect.appendChild(option);
+        });
+      }
+      
+      // Update title if needed
+      if (config.title) {
+        const titleElement = document.querySelector('.enhanced-title');
+        if (titleElement) {
+          // The title is already set to INFIN80-LUNAR in the HTML
+          console.log('🌙 Title already configured for lunar scene');
+        }
+      }
+      
+      // Apply lunar theme styles
+      if (config.theme === 'moon') {
+        document.querySelector('.mission-control')?.classList.add('lunar-theme');
+      }
+      
+      // Store lunar video configurations
+      if (config.videos) {
+        window.lunarVideos = config.videos;
+        console.log('🌙 Lunar video configurations stored:', window.lunarVideos);
+      }
+      
+      // Hide unnecessary buttons for lunar scene
+      if (config.hideButtons) {
+        console.log('🌙 Hiding buttons:', config.hideButtons);
+        config.hideButtons.forEach(buttonAction => {
+          const button = document.querySelector(`.control-button[data-action="${buttonAction}"]`);
+          if (button) {
+            button.style.display = 'none';
+            console.log(`🌙 Hidden button: ${buttonAction}`);
+          }
+        });
+        
+        // Also hide the bottom toggle section if all buttons are hidden
+        const toggleSection = document.querySelector('.toggle-section.compact');
+        if (toggleSection) {
+          // Keep the music toggle visible but hide others
+          const eightiesToggle = document.getElementById('eighties-toggle')?.closest('.toggle-group');
+          const constellationToggle = document.getElementById('constellation-toggle')?.closest('.toggle-group');
+          
+          if (eightiesToggle) eightiesToggle.style.display = 'none';
+          // Keep constellation toggle visible for Star Chart functionality
+        }
+      }
+    }
+  }
+  
+  // Handle lunar-specific communications
+  if (event.data.type === 'LUNAR_COMM') {
+    console.log('🌙 Lunar communication request:', event.data.action);
+    
+    if (event.data.action === 'start_transmission') {
+      const deadAir = document.getElementById('deadAir');
+      const offlineDisplay = document.getElementById('offline-display');
+      const videoDisplay = document.querySelector('.video-display');
+      
+      // Check if lunar videos are configured
+      if (window.lunarVideos && window.lunarVideos.comm) {
+        console.log('🌙 Starting lunar transmission with video:', window.lunarVideos.comm);
+        
+        // Show video display
+        videoDisplay?.classList.add('video-active');
+        
+        // Hide offline display
+        if (offlineDisplay) {
+          offlineDisplay.style.display = 'none';
+        }
+        
+        // Play lunar communication video
+        if (deadAir) {
+          // If it's an HTML file, we need to handle it differently
+          if (window.lunarVideos.comm.endsWith('.html')) {
+            // For now, just play the orientation video as placeholder
+            deadAir.src = '/orientation.mp4';
+          } else {
+            deadAir.src = window.lunarVideos.comm;
+          }
+          deadAir.style.display = 'block';
+          deadAir.play().catch(e => console.log('Lunar video play failed:', e));
+        }
+        
+        // Simulate transmission end after some time
+        setTimeout(() => {
+          console.log('🌙 Lunar transmission ended');
+          if (deadAir) {
+            deadAir.pause();
+            deadAir.style.display = 'none';
+            deadAir.src = window.lunarVideos.default || '/1.mp4';
+          }
+          if (offlineDisplay) {
+            offlineDisplay.style.display = 'flex';
+          }
+          videoDisplay?.classList.remove('video-active');
+        }, 10000); // 10 seconds
+      }
+    }
+  }
+  
   // Handle complete state sync from parent
   if (event.data.type === 'SYNC_STATE') {
     // Sync eighties mode

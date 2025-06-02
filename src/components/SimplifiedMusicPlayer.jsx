@@ -44,10 +44,12 @@ const SimplifiedMusicPlayer = memo(({
     { name: "Intergalactic", path: "audio/320k/intergalactic-beastie-boys.m4a" },
 
 
+
   ];
   
   const tracksAlt = [
     { name: "Rocket Man", path: "audio/320k/rocket-man---steven-drozd.m4a" },
+    { name: "Magnetic", path: "audio/320k/01-magnetic.m4a" },
   ];
   
   const currentTracks = is80sMode ? tracks80s : tracksAlt;
