@@ -752,7 +752,7 @@ body {
 
 /* 80s mode styles */
 .mission-control.eighties-active {
-  border-left: 1px solid #d946ef;
+  border-left: 1px solid #67e8f9;
   box-shadow:
     0 0 12px rgba(217, 70, 239, 0.3),
     inset 0 0 8px rgba(217, 70, 239, 0.1);
@@ -762,10 +762,10 @@ body {
   height: 22px;
   line-height: 1.5;
   font-size: 0.8rem;
-  color: #d946ef;
+  color: #67e8f9;
   text-shadow:
-    0 0 3px #d946ef,
-    0 0 6px #d946ef;
+    0 0 3px #67e8f9,
+    0 0 6px #67e8f9;
   font-family: "Press Start 2P", cursive;
   display: flex;
   align-items: center;
@@ -792,7 +792,7 @@ body {
   font-family: "Press Start 2P", cursive;
   font-size: 0.6rem !important; /* Ensure override */
   line-height: 1.5 !important; /* Ensure override */
-  text-shadow: 0 0 3px #d946ef !important;
+  text-shadow: 0 0 3px #67e8f9 !important;
 }
 
 /* Keep button-prefix smaller in 80s mode */
@@ -801,17 +801,17 @@ body {
   font-size: 0.5rem !important;
   line-height: 1.3 !important;
   opacity: 0.8;
-  text-shadow: 0 0 3px #d946ef !important;
+  text-shadow: 0 0 3px #67e8f9 !important;
 }
 
 .eighties-active .control-button {
-  border: 1px solid #d946ef !important; /* Consistent 1px border */
+  border: 1px solid #67e8f9 !important; /* Consistent 1px border */
   padding: 12px !important; /* Use same padding as base */
   min-height: 62px !important; /* Ensure override for consistency */
   box-shadow: 0 0 3px rgba(217, 70, 239, 0.3) !important;
   background-image: linear-gradient(to bottom, #0f172a, #2a1786) !important;
-  border-left: 1px solid #d946ef !important;
-  border-right: 1px solid #d946ef !important;
+  border-left: 1px solid #67e8f9 !important;
+  border-right: 1px solid #67e8f9 !important;
   transition: all 0.3s;
 }
 
@@ -821,14 +821,14 @@ body {
 }
 
 .eighties-active .button-indicator {
-  background-color: #d946ef;
-  box-shadow: 0 0 3px #d946ef;
+  background-color: #67e8f9;
+  box-shadow: 0 0 3px #67e8f9;
 }
 
 .eighties-active .toggle-section,
 .eighties-active .leaderboard-header,
 .eighties-active .leaderboard-content {
-  border-color: #d946ef;
+  border-color: #67e8f9;
 }
 
 .eighties-active .status-light.active {
@@ -1113,10 +1113,10 @@ body {
 
 /* Override specific 80s styles to ensure they take precedence */
 .eighties-active .panel-title {
-  color: #d946ef;
+  color: #67e8f9;
   text-shadow:
-    0 0 3px #d946ef,
-    0 0 6px #d946ef !important;
+    0 0 3px #67e8f9,
+    0 0 6px #67e8f9 !important;
   font-family: "Press Start 2P", cursive;
   font-size: 0.8rem !important; /* Ensure override */
   line-height: 1.5 !important; /* Ensure override */
@@ -1138,17 +1138,17 @@ body {
   font-family: "Press Start 2P", cursive;
   font-size: 0.6rem !important; /* Ensure override */
   line-height: 1.5 !important; /* Ensure override */
-  text-shadow: 0 0 3px #d946ef !important;
+  text-shadow: 0 0 3px #67e8f9 !important;
 }
 
 .eighties-active .control-button {
-  border: 1px solid #d946ef !important;
+  border: 1px solid #67e8f9 !important;
   padding: 12px !important; /* Use same padding as base */
   min-height: 62px !important; /* Ensure override for consistency */
   box-shadow: 0 0 3px rgba(217, 70, 239, 0.3) !important;
   background-image: linear-gradient(to bottom, #0f172a, #2a1786) !important;
-  border-left: 1px solid #d946ef !important;
-  border-right: 1px solid #d946ef !important;
+  border-left: 1px solid #67e8f9 !important;
+  border-right: 1px solid #67e8f9 !important;
   transition: all 0.3s;
 }
 
@@ -1215,14 +1215,14 @@ body {
 
 /* 80s mode video call styles */
 .eighties-active .video-call {
-  border: 1px solid #d946ef;
+  border: 1px solid #67e8f9;
   background-color: #020617;
   box-shadow: 0 0 8px rgba(217, 70, 239, 0.3);
 }
 
 .eighties-active .video-header {
   background-color: #0f172a;
-  border-bottom: 1px solid #d946ef;
+  border-bottom: 1px solid #67e8f9;
   font-family: "Press Start 2P", cursive;
   font-size: 0.55rem;
   color: #22d3ee;
@@ -1242,14 +1242,14 @@ body {
 
 .eighties-active .video-controls {
   background-color: #0f172a;
-  border-top: 1px solid #d946ef;
+  border-top: 1px solid #67e8f9;
 }
 
 .eighties-active .station-select {
   font-family: "Press Start 2P", cursive;
   font-size: 0.55rem;
   background-color: #0f172a;
-  border: 1px solid #d946ef;
+  border: 1px solid #67e8f9;
   color: #22d3ee;
   box-shadow: 0 0 3px rgba(217, 70, 239, 0.4);
 }
@@ -1386,14 +1386,14 @@ body {
 
 /* 80s mode video call styles */
 .eighties-active .video-call {
-  border: 1px solid #d946ef;
+  border: 1px solid #67e8f9;
   background-color: #020617;
   box-shadow: 0 0 8px rgba(217, 70, 239, 0.3);
 }
 
 .eighties-active .video-header {
   background-color: #0f172a;
-  border-bottom: 1px solid #d946ef;
+  border-bottom: 1px solid #67e8f9;
   font-family: "Press Start 2P", cursive;
   font-size: 0.55rem;
   color: #22d3ee;
@@ -1413,13 +1413,13 @@ body {
 
 .eighties-active .video-controls {
   background-color: #0f172a;
-  border-top: 1px solid #d946ef;
+  border-top: 1px solid #67e8f9;
 }
 
 @keyframes eighties-pulse {
   0% {
     box-shadow: 0 0 3px rgba(217, 70, 239, 0.4);
-    border-color: #d946ef;
+    border-color: #67e8f9;
   }
   100% {
     box-shadow: 0 0 10px rgba(34, 211, 238, 0.7);
@@ -1452,7 +1452,7 @@ body {
 /* Update eighties mode styles to include constellations toggle */
 .eighties-active .toggle-switch.constellations {
   background-color: #581c87;
-  border-color: #d946ef;
+  border-color: #67e8f9;
 }
 
 .eighties-active .toggle-switch.constellations .toggle-handle {
@@ -1893,13 +1893,13 @@ body {
 
 /* 80s mode transcript styles */
 .eighties-active .transcript-container {
-  border-color: #d946ef;
+  border-color: #67e8f9;
   box-shadow: 0 0 8px rgba(217, 70, 239, 0.3);
 }
 
 .eighties-active .transcript-header {
   background-color: #0f172a;
-  border-bottom: 1px solid #d946ef;
+  border-bottom: 1px solid #67e8f9;
 }
 
 .eighties-active .transcript-title,
@@ -1916,14 +1916,14 @@ body {
 
 .eighties-active .transcript-segment.active {
   background-color: rgba(217, 70, 239, 0.1);
-  border-left: 2px solid #d946ef;
+  border-left: 2px solid #67e8f9;
 }
 
 .eighties-active .transcript-toggle-btn {
   font-family: "Press Start 2P", cursive;
   font-size: 0.55rem;
   background-color: #0f172a;
-  border: 1px solid #d946ef;
+  border: 1px solid #67e8f9;
   color: #22d3ee;
   box-shadow: 0 0 3px rgba(217, 70, 239, 0.4);
 }
@@ -1934,7 +1934,7 @@ body {
 
 .eighties-active .transcript-toggle-btn.active {
   border-color: #22d3ee;
-  color: #d946ef;
+  color: #67e8f9;
   box-shadow: 0 0 8px rgba(34, 211, 238, 0.6);
 }
 
@@ -2004,7 +2004,7 @@ body {
   font-size: 0.5rem !important;
   line-height: 1.3 !important;
   opacity: 0.8 !important;
-  text-shadow: 0 0 3px #d946ef !important;
+  text-shadow: 0 0 3px #67e8f9 !important;
   letter-spacing: 0 !important;
 }
 
@@ -2155,7 +2155,7 @@ body {
 @keyframes eighties-pulse {
   0% {
     box-shadow: 0 0 3px rgba(217, 70, 239, 0.4);
-    border-color: #d946ef;
+    border-color: #67e8f9;
     transform: scale(1);
   }
   100% {

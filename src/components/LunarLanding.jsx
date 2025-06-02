@@ -90,6 +90,7 @@ function Moon(props) {
   const videoRef = useRef();
   const { scene, materials } = useGLTF('/Ochi_moon01.glb');
   const [rocketObjects, setRocketObjects] = useState([]);
+  const [flagVisible, setFlagVisible] = useState(false); // Hide flag initially to prevent flash
 
   // Add debug logging for moon model structure and store rocket objects
   useEffect(() => {
@@ -188,10 +189,14 @@ function Moon(props) {
     }
   }, [scene]);
 
-  // Parent flag mesh to anchor
+  // Parent flag mesh to anchor and show it once ready
   useEffect(() => {
     if (flagAnchor && flagRef.current) {
       flagAnchor.add(flagRef.current);
+      // Show flag after a short delay to ensure it's properly positioned
+      setTimeout(() => {
+        setFlagVisible(true);
+      }, 100);
     }
   }, [flagAnchor, flagRef]);
 
@@ -527,12 +532,7 @@ function Moon(props) {
       // Log once per second to avoid spam
       if (Math.floor(state.clock.elapsedTime) % 2 === 0 && 
           Math.floor(state.clock.elapsedTime * 10) % 10 === 0) {
-        console.log('TV Light:', {
-          position: tvLightRef.current.position,
-          screenPos: worldPos,
-          screenSize: size,
-          forward: forward
-        });
+
       }
     }
     
@@ -676,7 +676,7 @@ function Moon(props) {
     <group ref={moonRef} {...props} onClick={onMoonClick} dispose={null}>
       <primitive object={scene} />
       <Suspense fallback={null}>
-        <Flag flagRef={flagRef} />
+        {flagVisible && <Flag flagRef={flagRef} />}
       </Suspense>
 
 
@@ -1898,8 +1898,8 @@ function SceneSetup({ isMobileView, isTelescopeView }) {
   useEffect(() => {
     // Set camera position based on screen size
     if (isMobileView) {
-      // Position camera further back on mobile for better moon visibility
-      camera.position.set(0, 0, 15);
+      // Position camera closer on mobile for better astronaut visibility
+      camera.position.set(0, 0, 9);
     
     } else {
       // Default desktop position
@@ -1961,18 +1961,23 @@ function SceneSetup({ isMobileView, isTelescopeView }) {
 }
 
 // Simple orbit controls for rotating around the moon
-function SimpleOrbitCamera({ focusedTarget, isMobileView, onAnimationComplete, isTelescopeView }) {
+function SimpleOrbitCamera({ focusedTarget, isMobileView, onAnimationComplete, isTelescopeView, forceCompleteAnimation, setForceCompleteAnimation }) {
   const { camera, gl } = useThree();
   const controlsRef = useRef();
   const followModeRef = useRef(false);
-  const neutralPositionRef = useRef(new THREE.Vector3(0, 0, isMobileView ? 14 : 8));
+  const neutralPositionRef = useRef(new THREE.Vector3(0, 0, isMobileView ? 9 : 8));
   const neutralTargetRef = useRef(new THREE.Vector3(0, 0, 0));
   const animationFrameIdRef = useRef(null);
   const autoRotateRef = useRef(true);
   const initialAnimationRef = useRef(false);
   const initialAnimationStartRef = useRef(null);
-  const animationPhaseRef = useRef('orbit'); // 'orbit' | 'zoom' | 'complete'
+  const animationPhaseRef = useRef(null); // 'orbit' | 'zoom' | 'complete' - start as null
   const userInterruptedRef = useRef(false);
+  const initialPositionSetRef = useRef(false);
+  
+  // Add refs for smooth transition
+  const transitionStartTimeRef = useRef(null);
+  const transitionStartPositionRef = useRef(new THREE.Vector3());
   
   // Store camera state before telescope view
   const preTelesopeStateRef = useRef({
@@ -1999,7 +2004,7 @@ function SimpleOrbitCamera({ focusedTarget, isMobileView, onAnimationComplete, i
   const ROCKET_LANDING_POSITION = new THREE.Vector3( .05, 1.2, -0.15);
   
   // Animation timings
-  const ORBIT_DURATION = 55000; // 9 seconds for the cinematic orbit
+  const ORBIT_DURATION = 55000; 
   const ZOOM_DURATION = 4000;  // 4 seconds for the zoom out
   const ORBIT_RADIUS = 0.85;    // Radius of the orbit around the landing area
   const ORBIT_HEIGHT = 1.25;    // Height above landing position for lateral view (lower = more horizontal)
@@ -2028,9 +2033,11 @@ function SimpleOrbitCamera({ focusedTarget, isMobileView, onAnimationComplete, i
       controlsRef.current.enabled = false; // Disable controls during initial animation
       
       // Set neutral position based on mobile view
-      const neutralZ = isMobileView ? 14 : 8;
+      const neutralZ = isMobileView ? 9 : 8;
       neutralPositionRef.current.set(0, 0, neutralZ);
       neutralTargetRef.current.copy(controlsRef.current.target);
+      console.log('🎯 Setting neutral position - isMobileView:', isMobileView, 'neutralZ:', neutralZ);
+      console.log('🎯 neutralPositionRef.current:', neutralPositionRef.current);
       
       // Start from a position looking at the moon's surface where the rocket would have landed
       // Use the predefined landing position
@@ -2109,10 +2116,16 @@ function SimpleOrbitCamera({ focusedTarget, isMobileView, onAnimationComplete, i
       initialAnimationStartRef.current = Date.now();
       animationPhaseRef.current = 'orbit';
       userInterruptedRef.current = false;
+      initialPositionSetRef.current = true; // Add this line
       
       console.log('🎬 Starting camera animation sequence - Phase: Orbit');
       console.log('📍 Landing position:', landingAreaPosition);
       console.log('📷 Initial camera position:', closePosition);
+      console.log('🎯 Animation refs set:', {
+        initialAnimation: initialAnimationRef.current,
+        animationPhase: animationPhaseRef.current,
+        initialPositionSet: initialPositionSetRef.current
+      });
     }
   }, [camera, gl, isMobileView]);
   
@@ -2121,36 +2134,24 @@ function SimpleOrbitCamera({ focusedTarget, isMobileView, onAnimationComplete, i
     if (!gl || !gl.domElement) return;
     
     const handleUserInteraction = (e) => {
-      if (initialAnimationRef.current && !userInterruptedRef.current && animationPhaseRef.current !== 'complete') {
-        console.log('🎮 User interaction detected via', e.type);
-        userInterruptedRef.current = true;
-        initialAnimationRef.current = false;
-        animationPhaseRef.current = 'complete';
-        
-        if (controlsRef.current) {
-          controlsRef.current.enabled = true; // Re-enable controls
-          controlsRef.current.autoRotate = true;
-        }
-        autoRotateRef.current = false;
-        
-        // Notify parent that animation was interrupted
-        if (onAnimationComplete) {
-          onAnimationComplete();
-        }
+      // Only handle clicks during the orbit phase, not during zoom
+      if (initialAnimationRef.current && animationPhaseRef.current === 'orbit' && !forceCompleteAnimation) {
+        console.log('🎮 User clicked during orbit animation - initiating smooth transition');
+        // Set forceCompleteAnimation to trigger smooth transition in useFrame
+        setForceCompleteAnimation(true);
+        // Don't mark as complete yet - let the smooth transition handle that
       }
     };
     
-    // Listen for various interaction events
-    gl.domElement.addEventListener('pointerdown', handleUserInteraction);
-    gl.domElement.addEventListener('wheel', handleUserInteraction);
-    gl.domElement.addEventListener('touchstart', handleUserInteraction);
+    // Listen for click/tap events only (not pointerdown which is too sensitive)
+    gl.domElement.addEventListener('click', handleUserInteraction);
+    gl.domElement.addEventListener('touchend', handleUserInteraction);
     
     return () => {
-      gl.domElement.removeEventListener('pointerdown', handleUserInteraction);
-      gl.domElement.removeEventListener('wheel', handleUserInteraction);
-      gl.domElement.removeEventListener('touchstart', handleUserInteraction);
+      gl.domElement.removeEventListener('click', handleUserInteraction);
+      gl.domElement.removeEventListener('touchend', handleUserInteraction);
     };
-  }, [gl]);
+  }, [gl, forceCompleteAnimation, setForceCompleteAnimation]);
 
   // Handle telescope view camera setup
   useEffect(() => {
@@ -2240,7 +2241,83 @@ function SimpleOrbitCamera({ focusedTarget, isMobileView, onAnimationComplete, i
   }, [isTelescopeView, camera, focusedTarget]);
 
   // Add useFrame to handle continuous rotation when not focused and track rocket
-  useFrame(() => {
+  // Handle force complete animation
+  useEffect(() => {
+    console.log('🔍 Force complete effect:', {
+      forceCompleteAnimation,
+      animationPhase: animationPhaseRef.current,
+      initialAnimation: initialAnimationRef.current
+    });
+    
+    // We're now handling the smooth transition in useFrame
+    // This effect just logs the state change
+  }, [forceCompleteAnimation]);
+  
+  useFrame((state) => {
+    // Check if we should force complete the animation
+    if (forceCompleteAnimation && animationPhaseRef.current !== 'complete') {
+      // Initialize transition if not already started
+      if (!transitionStartTimeRef.current) {
+        console.log('🚀 Starting smooth camera transition');
+        transitionStartTimeRef.current = Date.now();
+        transitionStartPositionRef.current.copy(camera.position);
+      }
+      
+      // Calculate transition progress
+      const transitionDuration = 1500; // 1.5 seconds for smooth transition
+      const elapsed = Date.now() - transitionStartTimeRef.current;
+      const progress = Math.min(elapsed / transitionDuration, 1);
+      
+      // Use ease-out cubic for smooth deceleration
+      const easedProgress = 1 - Math.pow(1 - progress, 3);
+      
+      // Smoothly interpolate camera position
+      camera.position.lerpVectors(
+        transitionStartPositionRef.current,
+        neutralPositionRef.current,
+        easedProgress
+      );
+      
+      if (controlsRef.current) {
+        // Also interpolate the target
+        const currentTarget = controlsRef.current.target.clone();
+        controlsRef.current.target.lerpVectors(
+          currentTarget,
+          neutralTargetRef.current,
+          easedProgress * 0.1 // Slower target interpolation for smoother motion
+        );
+        controlsRef.current.update();
+      }
+      
+      // Check if transition is complete
+      if (progress >= 1) {
+        console.log('🚀 Smooth transition complete');
+        // Ensure final position is exact
+        camera.position.copy(neutralPositionRef.current);
+        if (controlsRef.current) {
+          controlsRef.current.target.copy(neutralTargetRef.current);
+          controlsRef.current.update();
+          
+          // Mark animation as complete
+          animationPhaseRef.current = 'complete';
+          initialAnimationRef.current = false;
+          controlsRef.current.enabled = true;
+          controlsRef.current.autoRotate = false;
+          autoRotateRef.current = false;
+        }
+        
+        // Notify parent
+        if (onAnimationComplete) {
+          onAnimationComplete();
+        }
+        
+        // Reset transition refs for potential future use
+        transitionStartTimeRef.current = null;
+      }
+      
+      return; // Skip the rest of the frame
+    }
+    
       // Handle telescope view mouse tracking
     if (isTelescopeView && controlsRef.current) {
       // Parallax effect based on mouse position
@@ -2261,8 +2338,18 @@ function SimpleOrbitCamera({ focusedTarget, isMobileView, onAnimationComplete, i
     // The user interaction is now handled by event listeners only
     // This prevents false positives from animation-induced position changes
     
+    // Log animation state once per second
+    if (Math.floor(state.clock.elapsedTime) % 1 === 0 && 
+        Math.floor(state.clock.elapsedTime * 10) % 10 === 0) {
+      console.log('🎬 Animation state:', {
+        initialAnimation: initialAnimationRef.current,
+        animationPhase: animationPhaseRef.current,
+        forceComplete: forceCompleteAnimation
+      });
+    }
+    
     // Handle initial animation sequence
-    if (initialAnimationRef.current && initialAnimationStartRef.current && controlsRef.current && !userInterruptedRef.current) {
+    if (initialAnimationRef.current && initialPositionSetRef.current && initialAnimationStartRef.current && controlsRef.current && !userInterruptedRef.current && animationPhaseRef.current !== 'complete') {
       const elapsed = Date.now() - initialAnimationStartRef.current;
       const landingAreaPosition = ROCKET_LANDING_POSITION.clone();
       
@@ -2358,6 +2445,9 @@ function SimpleOrbitCamera({ focusedTarget, isMobileView, onAnimationComplete, i
           controlsRef.current.autoRotate = false;
           autoRotateRef.current = false;
           console.log('🎬 Camera animation sequence complete');
+          console.log('📷 Final camera position:', camera.position);
+          console.log('📷 Neutral position ref:', neutralPositionRef.current);
+          console.log('📷 Is mobile view:', isMobileView);
           
           // Notify parent that animation completed naturally
           if (onAnimationComplete) {
@@ -2609,8 +2699,9 @@ function ModelInspector() {
 
 
 
-function SceneManager({ userHelmetTextures, focusedTarget, highlightedAstronaut, highlightedRocket, onAstronautClick, onSceneObjectClick, onReady, isConstellationsVisible, is80sMode, isMobileView, debugMode = false, onAnimationComplete, isTelescopeView }) {
+function SceneManager({ userHelmetTextures, focusedTarget, highlightedAstronaut, highlightedRocket, onAstronautClick, onSceneObjectClick, onReady, isConstellationsVisible, is80sMode, isMobileView, debugMode = false, onAnimationComplete, isTelescopeView, forceCompleteAnimation, setForceCompleteAnimation }) {
   const handleMoonOrRocketClick = (event) => {
+    console.log('🌙 Moon/Rocket clicked - stopping propagation');
     event.stopPropagation(); // Stop event from bubbling to canvas click handler
     let clickedObjectName = event.object.name;
     let targetObject = event.object;
@@ -2708,7 +2799,7 @@ function SceneManager({ userHelmetTextures, focusedTarget, highlightedAstronaut,
           />
         </EffectComposer>
       </Suspense>
-      <SimpleOrbitCamera focusedTarget={focusedTarget} isMobileView={isMobileView} onAnimationComplete={onAnimationComplete} />
+      <SimpleOrbitCamera focusedTarget={focusedTarget} isMobileView={isMobileView} onAnimationComplete={onAnimationComplete} forceCompleteAnimation={forceCompleteAnimation} setForceCompleteAnimation={setForceCompleteAnimation} />
       <ReportReady onReady={onReady} /> {/* Call onReady when this part of the scene is ready */}
     </>
   );
@@ -2718,8 +2809,21 @@ export default function LunarLanding({userHelmetTextures, currentUser, onSceneRe
   const [focusedTarget, setFocusedTarget] = useState(null);
   const [highlightedAstronaut, setHighlightedAstronaut] = useState(null); // For mobile two-stage selection
   const [highlightedRocket, setHighlightedRocket] = useState(null); // For mobile two-stage rocket selection
-  const [showMobileHint, setShowMobileHint] = useState(true); // Show hint on first load
+  const [showMobileHint, setShowMobileHint] = useState(false); // Don't show hint initially
+  const [forceCompleteAnimation, setForceCompleteAnimation] = useState(false); // Force camera animation to complete
   const focusedTargetRef = useRef(null); // Keep a ref to restore after context loss
+  const sceneLoadTimeRef = useRef(Date.now()); // Track when scene loaded
+  
+  // Debug initial state
+  useEffect(() => {
+    console.log('🚀 LunarLanding mounted with initial showMobileHint:', showMobileHint);
+    sceneLoadTimeRef.current = Date.now();
+  }, []);
+  
+  // Debug forceCompleteAnimation changes
+  useEffect(() => {
+    console.log('🔄 forceCompleteAnimation changed to:', forceCompleteAnimation);
+  }, [forceCompleteAnimation]);
   
   // Keep ref in sync with state
   useEffect(() => {
@@ -2739,11 +2843,17 @@ export default function LunarLanding({userHelmetTextures, currentUser, onSceneRe
   const [debugMode, setDebugMode] = useState(false); // Set to true to show light helpers
   const [isCameraAnimationComplete, setIsCameraAnimationComplete] = useState(false); // Track camera animation state
   const [isTelescopeView, setIsTelescopeView] = useState(false); // Track telescope view state
+  const [hasInteractedPostAnimation, setHasInteractedPostAnimation] = useState(false); // Track if user has clicked after animation
 
   // Add mobile view detection
   useEffect(() => {
     const checkMobile = () => {
       const mobile = typeof window !== "undefined" && window.innerWidth <= 576;
+      console.log('📱 Mobile detection:', { 
+        innerWidth: window.innerWidth, 
+        isMobile: mobile,
+        userAgent: navigator.userAgent 
+      });
       setIsMobileView(mobile);
     };
 
@@ -2779,6 +2889,24 @@ export default function LunarLanding({userHelmetTextures, currentUser, onSceneRe
 
   const handleAstronautClick = (index, astronautObject, userData) => {
   
+    
+    // If camera animation is not complete and user clicks an astronaut, complete the animation first
+    if (!isCameraAnimationComplete) {
+      console.log('📸 User clicked astronaut during intro animation - completing animation', { isMobileView });
+      // Force complete the camera animation
+      setForceCompleteAnimation(true);
+      // Don't process the click further - let them click again after animation completes
+      return;
+    }
+    
+    // Track that user has interacted after animation
+    if (isCameraAnimationComplete && isMobileView && !hasInteractedPostAnimation) {
+      setHasInteractedPostAnimation(true);
+      // Don't show hint on first interaction
+    } else if (isCameraAnimationComplete && isMobileView && hasInteractedPostAnimation && !showMobileHint) {
+      // Second interaction - now show the hint
+      setShowMobileHint(true);
+    }
     
     if (index === null) { // Direct deselect signal
     
@@ -2822,6 +2950,36 @@ export default function LunarLanding({userHelmetTextures, currentUser, onSceneRe
   };
 
   const handleSceneObjectClick = (targetInfo) => {
+    console.log('🔍 handleSceneObjectClick called:', {
+      isCameraAnimationComplete,
+      isMobileView,
+      hasInteractedPostAnimation,
+      showMobileHint,
+      targetInfo
+    });
+    
+    // If camera animation is not complete and user clicks anywhere, complete the animation first
+    if (!isCameraAnimationComplete) {
+      console.log('📸 User clicked during intro animation - completing animation', { isMobileView });
+      // Force complete the camera animation
+      console.log('🎯 Setting forceCompleteAnimation to true');
+      setForceCompleteAnimation(true);
+      // Don't process the click further - let them click again after animation completes
+      return;
+    }
+    
+    // Track that user has interacted after animation
+    if (isCameraAnimationComplete && isMobileView && !hasInteractedPostAnimation) {
+      console.log('📱 First interaction after animation complete');
+      setHasInteractedPostAnimation(true);
+      // Don't show hint here - wait for second interaction
+      // This ensures user sees the full scene first
+    } else if (isCameraAnimationComplete && isMobileView && hasInteractedPostAnimation && !showMobileHint) {
+      // Second interaction - now show the hint
+      console.log('📱 Second interaction - showing hint');
+      setShowMobileHint(true);
+    }
+    
     if (targetInfo === null) {
       setFocusedTarget(null);
       setHighlightedRocket(null);
@@ -2866,6 +3024,22 @@ export default function LunarLanding({userHelmetTextures, currentUser, onSceneRe
   };
 
   const handleCanvasClick = (event) => {
+    console.log('🎯 Canvas clicked:', {
+      isCameraAnimationComplete,
+      isMobileView,
+      hasInteractedPostAnimation,
+      eventTarget: event.target,
+      eventCurrentTarget: event.currentTarget
+    });
+    
+    // During intro animation, any click should complete it
+    if (!isCameraAnimationComplete) {
+      console.log('📸 Canvas clicked during intro animation - completing animation', { isMobileView });
+      console.log('🎯 Setting forceCompleteAnimation to true from canvas click');
+      setForceCompleteAnimation(true);
+      return;
+    }
+    
     // Only clear focus if clicking directly on the canvas
     if (event.target === event.currentTarget) {
     
@@ -2879,13 +3053,6 @@ export default function LunarLanding({userHelmetTextures, currentUser, onSceneRe
 
   }, []);
 
-  console.log('Debugging component types in LunarLanding:');
-  console.log('ConstellationModel:', typeof ConstellationModel, ConstellationModel);
-  console.log('StarField:', typeof StarField, StarField);
-
-  console.log('MobileSidePanel:', typeof MobileSidePanel, MobileSidePanel);
-  console.log('AstronautCustomizerModal:', typeof AstronautCustomizerModal, AstronautCustomizerModal);
-  console.log('Flag (imported at top level):', typeof Flag, Flag);
 
   return (
  
@@ -2921,7 +3088,7 @@ export default function LunarLanding({userHelmetTextures, currentUser, onSceneRe
       <Canvas 
         shadows 
         dpr={isMobileView ? [1, 1] : [1, 1.5]} // Further reduce pixel ratio to prevent context loss
-        camera={{ fov: 50, position: [0,0,8], near: 0.1, far: 1000 }}
+        camera={{ fov: 50, position: [0, 0, isMobileView ? 3 : 8], near: 0.1, far: 1000 }}
         onClick={handleCanvasClick}
         gl={{ 
           antialias: false, // Disable antialiasing to reduce GPU load
@@ -2991,21 +3158,39 @@ export default function LunarLanding({userHelmetTextures, currentUser, onSceneRe
             is80sMode={is80sMode}
             isMobileView={isMobileView}
             debugMode={debugMode}
+            forceCompleteAnimation={forceCompleteAnimation}
+            setForceCompleteAnimation={setForceCompleteAnimation}
             onAnimationComplete={() => {
-              console.log('📸 Camera animation complete, showing UI');
+              const timeSinceLoad = Date.now() - sceneLoadTimeRef.current;
+              console.log('📸 Camera animation complete:', {
+                isMobileView,
+                forceCompleteAnimation,
+                hasInteractedPostAnimation,
+                showMobileHint,
+                timeSinceLoad
+              });
               setIsCameraAnimationComplete(true);
+              
+              // Only show hint for natural completion if enough time has passed
+              // This prevents the hint from showing if animation completes too quickly (emulator issue)
+              const MIN_ANIMATION_TIME = 5000; // At least 5 seconds should pass
+              
+              if (isMobileView && !forceCompleteAnimation && timeSinceLoad > MIN_ANIMATION_TIME && !hasInteractedPostAnimation) {
+                console.log('🎬 Natural animation completion after sufficient time - will show hint in 1s');
+                setTimeout(() => {
+                  // Double check that user hasn't interacted before showing
+                  if (!hasInteractedPostAnimation) {
+                    console.log('💡 Setting showMobileHint to true (natural completion)');
+                    setShowMobileHint(true);
+                  }
+                }, 1000); // Show hint 1 second after animation completes
+              } else if (isMobileView && !forceCompleteAnimation) {
+                console.log('⚠️ Animation completed too quickly or user already interacted, not showing hint automatically');
+              }
             }}
             isTelescopeView={isTelescopeView}
           />
         </Suspense>
-        
-        {/* Pass camera control props including telescope view */}
-        <SimpleOrbitCamera 
-          focusedTarget={focusedTarget} 
-          isMobileView={isMobileView} 
-          onAnimationComplete={() => setIsCameraAnimationComplete(true)}
-          isTelescopeView={isTelescopeView}
-        />
       </Canvas>
       </div>
       

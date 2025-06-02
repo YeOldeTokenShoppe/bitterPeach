@@ -2,8 +2,8 @@ import * as THREE from "three";
 
 export const moonShader = {
   uniforms: {
-    time: { value: 0 },
-    resolution: { value: new THREE.Vector2(512, 512) },
+    time: { value: 0.0 },
+    resolution: { value: new THREE.Vector2(512.0, 512.0) },
   },
   vertexShader: `
       varying vec2 vUv;
@@ -165,7 +165,7 @@ float fbm(vec3 p)
 
 export const flowingPatternShader = {
   uniforms: {
-    time: { value: 0 },
+    time: { value: 0.0 },
   },
   vertexShader: `
         varying vec2 vUv;
@@ -212,8 +212,8 @@ export const flowingPatternShader = {
 
 export const glitchyPlaid = {
   uniforms: {
-    time: { value: 0 },
-    resolution: { value: new THREE.Vector2(512, 512) },
+    time: { value: 0.0 },
+    resolution: { value: new THREE.Vector2(512.0, 512.0) },
   },
   vertexShader: `
       varying vec2 vUv;
@@ -296,7 +296,7 @@ export const glitchyPlaid = {
 
 export const spiralPatternShader = {
   uniforms: {
-    time: { value: 0 },
+    time: { value: 0.0 },
   },
   vertexShader: `
       varying vec2 vUv;
@@ -332,8 +332,8 @@ export const spiralPatternShader = {
 };
 export const starShader = {
   uniforms: {
-    time: { value: 0 },
-    resolution: { value: new THREE.Vector2(512, 512) },
+    time: { value: 0.0 },
+    resolution: { value: new THREE.Vector2(512.0, 512.0) },
   },
   vertexShader: `
          varying vec2 vUv;

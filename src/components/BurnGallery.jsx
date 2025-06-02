@@ -51,6 +51,7 @@ import Candle from "../components/Candle";
 import { useUser, useClerk } from "@clerk/nextjs";
 import { Canvas } from "@react-three/fiber";
 import { getUserImageUrl, getUsername, createUserData } from "../utilities/clerkHelpers";
+import { useMusic } from "../contexts/MusicContext";
 
 import ThreeDVotiveStand from "./3DVotiveStand/index";
 
@@ -116,6 +117,7 @@ function BurnGallery({
   const router = useRouter();
   const { isLoaded, isSignedIn, user } = useUser();
   const { openSignIn } = useClerk();
+  const { showSpotify, setShowSpotify } = useMusic();
   const [isBurnModalOpen, setIsBurnModalOpen] = useState(false);
   const [isImageSelectionModalOpen, setIsImageSelectionModalOpen] =
     useState(false);
@@ -463,6 +465,8 @@ function BurnGallery({
               toggle80sMode={toggle80sMode}
               monsterMode={monsterMode}
               toggleMonsterMode={toggleMonsterMode}
+              showSpotify={showSpotify}
+              setShowSpotify={setShowSpotify}
               rocketModelVisible={rocketModelVisible}
               toggleRocketModel={toggleRocketModel}
               handleRocketToggle={handleRocketToggle}

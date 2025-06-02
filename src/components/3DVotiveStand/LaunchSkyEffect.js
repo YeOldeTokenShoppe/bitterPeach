@@ -19,8 +19,8 @@ function LaunchSkyEffect({ active, fadeProgress = 0 }) {
   
   // Create refs for uniforms that will be updated in the animation frame
   const skyUniforms = useRef({
-    time: { value: 0 },
-    fadeOpacity: { value: 0 } // Start with 0 opacity regardless of active state
+    time: { value: 0.0 },
+    fadeOpacity: { value: 0.0 } // Start with 0 opacity regardless of active state
   });
 
   // When active state changes, set or clear activation time
@@ -197,7 +197,9 @@ function LaunchSkyEffect({ active, fadeProgress = 0 }) {
     if (!skyUniforms.current) return;
     
     // Update time uniform for shader animation
-    skyUniforms.current.time.value = state.clock.elapsedTime * 4.5;
+    if (skyUniforms.current && skyUniforms.current.time) {
+      skyUniforms.current.time.value = state.clock.elapsedTime * 4.5;
+    }
     
     // Check if we need to activate the effect after the delay
     if (activationTime && !isReallyActive) {
@@ -255,7 +257,9 @@ function LaunchSkyEffect({ active, fadeProgress = 0 }) {
         ? Math.min(targetOpacity, currentOpacity + step)
         : Math.max(targetOpacity, currentOpacity - step);
       
-      skyUniforms.current.fadeOpacity.value = newOpacity;
+      if (skyUniforms.current && skyUniforms.current.fadeOpacity) {
+        skyUniforms.current.fadeOpacity.value = newOpacity;
+      }
     }
     
     // Position and scale the plane - with proper error handling

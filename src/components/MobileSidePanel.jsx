@@ -70,10 +70,11 @@ const MobileSidePanel = ({
   const messageQueueRef = useRef([]);
   const missionControlIframeRef = useRef(null);
   const [musicPlayerControls, setMusicPlayerControls] = useState(null);
+  const [showLaunchDialog, setShowLaunchDialog] = useState(false);
   
   // Callback to receive controls from MobileMusicPlayer
   const handleMusicControlsReady = useCallback((controls) => {
-    console.log('MobileSidePanel: Received music player controls:', controls);
+
     setMusicPlayerControls(controls);
   }, []);
 
@@ -95,12 +96,12 @@ const MobileSidePanel = ({
 
   // Music player handlers
   const handleMusicModeChange = (enable80s) => {
-    console.log("🎵 Mode change requested:", enable80s, "current 80s mode:", is80sMode);
+
     if (enable80s && !is80sMode) {
-      console.log("🎵 Enabling 80s mode");
+
       toggle80sMode();
     } else if (!enable80s && is80sMode) {
-      console.log("🎵 Disabling 80s mode");
+
       toggle80sMode();
     }
   };
@@ -128,16 +129,44 @@ const MobileSidePanel = ({
       setShowMobileMusicPlayer(false);
       setMusicPlayerVisible(false);
     }
-  }, [is80sMode, setShowSpotify]);
+  }, [is80sMode]);
+
+  // Function to send messages to the Mission Control iframe or queue them
+  const sendMessageToMissionControl = useCallback((message) => {
+    const iframe = missionControlIframeRef.current;
+    if (iframe && iframe.contentWindow && iframeReady) {
+      try {
+        // Send any queued messages first
+        while (messageQueueRef.current.length > 0) {
+          const queuedMessage = messageQueueRef.current.shift();
+          iframe.contentWindow.postMessage(queuedMessage, "*");
+       
+        }
+        // Send the current message
+        iframe.contentWindow.postMessage(message, "*");
+
+      } catch (error) {
+        console.error("Error sending message to iframe:", error);
+      }
+    } else {
+      // Queue the message if iframe is not ready
+      console.warn("Iframe not ready, queuing message:", message);
+      messageQueueRef.current.push(message);
+    }
+  }, [iframeReady]);
 
   // Function to toggle rocket model visibility - now uses the combined prop function
-  const handleRocketModelToggle = () => {
-    console.log("🚀 MobileSidePanel: handleRocketModelToggle called");
-    console.log("🚀 Current states - monsterMode:", monsterMode, "rocketModelVisible:", rocketModelVisible);
+  const handleRocketModelToggle = useCallback(() => {
+   
     
     // Use the combined toggle function from parent
     if (handleRocketToggle) {
       handleRocketToggle();
+      
+      // Show the launch dialog when rocket becomes visible
+      if (!rocketModelVisible) {
+        setShowLaunchDialog(true);
+      }
       
       // Send message to iframe based on current state
       sendMessageToMissionControl({
@@ -147,10 +176,10 @@ const MobileSidePanel = ({
     } else {
       console.error("🚀 MobileSidePanel: handleRocketToggle prop not provided!");
     }
-  };
+  }, [handleRocketToggle, monsterMode, rocketModelVisible, sendMessageToMissionControl]);
 
   // Function to log the state of video screen elements for debugging
-  const logVideoScreenState = () => {
+  const logVideoScreenState = useCallback(() => {
     try {
       const iframe = missionControlIframeRef.current;
       if (iframe && iframe.contentDocument) {
@@ -162,7 +191,7 @@ const MobileSidePanel = ({
     } catch (error) {
       console.error("Error logging video screen state:", error);
     }
-  };
+  }, []);
 
   // Add function to update video position
   const updateVideoPosition = useCallback(() => {
@@ -191,7 +220,7 @@ const MobileSidePanel = ({
   }, []);
 
   // Function to properly expand the video screen by adding the 'active' class
-  const expandVideoScreen = () => {
+  const expandVideoScreen = useCallback(() => {
     try {
       const iframe = missionControlIframeRef.current;
       if (!iframe || !iframe.contentDocument) return;
@@ -278,9 +307,9 @@ const MobileSidePanel = ({
     } catch (error) {
       console.error("Error in expandVideoScreen:", error);
     }
-  };
+  }, []);
   // Function to collapse the video screen when 80s mode is disabled
-  const collapseVideoScreen = () => {
+  const collapseVideoScreen = useCallback(() => {
     try {
       const iframe = missionControlIframeRef.current;
       if (!iframe || !iframe.contentDocument) return;
@@ -318,7 +347,7 @@ const MobileSidePanel = ({
     } catch (error) {
       console.error("Error in collapseVideoScreen:", error);
     }
-  };
+  }, []);
 
 
   const updateSignalButtonState = useCallback(() => {
@@ -332,7 +361,7 @@ const MobileSidePanel = ({
     const currentState = signalButton.getAttribute("data-state") || "";
     const buttonLabel = signalButton.querySelector(".button-label")?.textContent || "";
     
-    console.log("Updating UI based on iframe button state:", currentState, buttonLabel);
+
     
     // Update our component state based on the HTML button state
     switch (currentState) {
@@ -364,29 +393,6 @@ const MobileSidePanel = ({
         break;
     }
   }, []);
-  // Function to send messages to the Mission Control iframe or queue them
-  const sendMessageToMissionControl = message => {
-    const iframe = missionControlIframeRef.current;
-    if (iframe && iframe.contentWindow && iframeReady) {
-      try {
-        // Send any queued messages first
-        while (messageQueueRef.current.length > 0) {
-          const queuedMessage = messageQueueRef.current.shift();
-          iframe.contentWindow.postMessage(queuedMessage, "*");
-          console.log("Sent queued message:", queuedMessage);
-        }
-        // Send the current message
-        iframe.contentWindow.postMessage(message, "*");
-        console.log("Sent message directly:", message);
-      } catch (error) {
-        console.error("Error sending message to iframe:", error);
-      }
-    } else {
-      // Queue the message if iframe is not ready
-      console.warn("Iframe not ready, queuing message:", message);
-      messageQueueRef.current.push(message);
-    }
-  };
 
   // Effect to send SYNC messages TO iframe when props change
   useEffect(() => {
@@ -394,7 +400,7 @@ const MobileSidePanel = ({
       type: "SYNC_MUSIC_STATE",
       enabled: showSpotify,
     });
-  }, [showSpotify]); // Re-run when showSpotify changes
+  }, [showSpotify, sendMessageToMissionControl]); // Re-run when showSpotify changes
 
   useEffect(() => {
     sendMessageToMissionControl({
@@ -413,7 +419,7 @@ const MobileSidePanel = ({
         "*"
       );
     }
-  }, [is80sMode, showSpotify]); // Re-run when is80sMode changes
+  }, [is80sMode, showSpotify, sendMessageToMissionControl]); // Re-run when is80sMode changes
 
   // Effect to sync rocket model state with iframe
   useEffect(() => {
@@ -421,7 +427,7 @@ const MobileSidePanel = ({
       type: "SET_ROCKET_MODEL_VISIBLE",
       isVisible: rocketModelVisible,
     });
-  }, [rocketModelVisible]); // Re-run when rocketModelVisible changes
+  }, [rocketModelVisible, sendMessageToMissionControl]); // Re-run when rocketModelVisible changes
 
   // Update the message handler for events FROM iframe
   useEffect(() => {
@@ -432,11 +438,11 @@ const MobileSidePanel = ({
       // if (event.origin !== 'YOUR_EXPECTED_PARENT_ORIGIN') return;
 
       if (event.data && event.data.type === "REQUEST_AVATAR") {
-        console.log("[Parent MobileSidePanel] Received REQUEST_AVATAR from iframe.");
+
 
         if (missionControlIframeRef.current && missionControlIframeRef.current.contentWindow) {
           const avatarUrl = isSignedIn ? getUserImageUrl(user) : null; // Get the best URL or null if signed out
-          console.log("[Parent MobileSidePanel] Sending AVATAR_RESPONSE with URL:", avatarUrl);
+      
           missionControlIframeRef.current.contentWindow.postMessage(
             {
               type: "AVATAR_RESPONSE",
@@ -448,7 +454,7 @@ const MobileSidePanel = ({
           console.warn("[Parent MobileSidePanel] Iframe ref or contentWindow not available.");
         }
       } else if (event.data && event.data.type === "SIGNAL_BUTTON_STATE") {
-        console.log("[Parent MobileSidePanel] Received SIGNAL_BUTTON_STATE:", event.data);
+
         // Update our component state based on the iframe signal button state
         if (event.data.state) {
           switch (event.data.state) {
@@ -480,7 +486,7 @@ const MobileSidePanel = ({
         // Handle other message types (IFRAME_READY, REQUEST_STATE, etc.)
         switch (event.data.type) {
           case "IFRAME_READY":
-            console.log("Mobile: Received IFRAME_READY message");
+   
             setIframeReady(true);
             // Sync initial state
             setTimeout(updateSignalButtonState, 500);
@@ -488,7 +494,7 @@ const MobileSidePanel = ({
 
           case "REQUEST_STATE":
             if (missionControlIframeRef.current) {
-              console.log("Mobile: Received REQUEST_STATE, sending current state");
+   
               missionControlIframeRef.current.contentWindow.postMessage(
                 {
                   type: "SYNC_STATE",
@@ -515,7 +521,7 @@ const MobileSidePanel = ({
           
           // Add new case for rocket model toggle
           case "TOGGLE_ROCKET_MODEL":
-            console.log("🚀 MobileSidePanel: Received TOGGLE_ROCKET_MODEL message");
+
             handleRocketModelToggle();
             break;
 
@@ -530,7 +536,7 @@ const MobileSidePanel = ({
 
           // Handle rocket launch action
           case "ROCKET_LAUNCH":
-            console.log("🚀 Rocket launch triggered from cyberpunk mission control (mobile)");
+       
             // Send launch message to the rocket model component
             if (window.parent) {
               window.parent.postMessage({
@@ -542,7 +548,7 @@ const MobileSidePanel = ({
 
           // Handle 80s mode sync for PostProcessingEffects
           case "SYNC_80S_STATE":
-            console.log("[MobileSidePanel] Received SYNC_80S_STATE:", event.data.enabled);
+      
             // Update the 80s mode state to match the iframe state
             if (event.data.enabled !== is80sMode) {
               toggle80sMode();
@@ -550,7 +556,7 @@ const MobileSidePanel = ({
             break;
 
           case "SITEPAL_SCENE_LOADED":
-            console.log("Mobile: Received SITEPAL_SCENE_LOADED");
+
             setSitepalSceneLoaded(true);
             // If we're in the right phase, update UI
             if (connectionPhase === 2) {
@@ -585,22 +591,18 @@ const MobileSidePanel = ({
               // Show unmute overlay on mobile devices
               // Use window.innerWidth as a more reliable check for mobile
               const isMobile = window.innerWidth <= 768 || /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-              console.log("Device check:", { 
-                width: window.innerWidth, 
-                userAgent: navigator.userAgent,
-                isMobile 
-              });
+             
               
               if (isMobile) {
-                console.log("Mobile device detected - will show unmute overlay after transition");
+               
                 // Add a delay to show overlay after transition video fades
                 setTimeout(() => {
-                  console.log("Now showing unmute overlay");
+          
                   setShowUnmuteOverlay(true);
                 }, 600); // Show after transition video has faded
               } else {
                 // For testing: show overlay on desktop too
-                console.log("Desktop mode - showing unmute overlay for testing");
+
                 setTimeout(() => {
                   setShowUnmuteOverlay(true);
                 }, 600);
@@ -615,12 +617,12 @@ const MobileSidePanel = ({
             }
             break;
           case "MICROPHONE_ACTIVATED":
-            console.log("Mobile: Received MICROPHONE_ACTIVATED");
+      
             setIsMuted(false);
             setConnectionPhase(4);
             break;
           case "SITEPAL_DISCONNECTED":
-            console.log("Mobile: Received SITEPAL_DISCONNECTED");
+
             setActiveCall(false);
             setConnectionPhase(0);
             setSitepalSceneLoaded(false);
@@ -667,6 +669,8 @@ const MobileSidePanel = ({
     isMuted,
     sitepalSceneLoaded,
     updateSignalButtonState,
+    handleRocketModelToggle,
+    sendMessageToMissionControl,
   ]);
 
   // Update the effect for video screen opens
@@ -790,7 +794,7 @@ const MobileSidePanel = ({
       const safetyTimeout = setTimeout(() => {
         // Check if we're still in the connecting phase
         if (connectionPhase === 2) {
-          console.log("SitePal safety timeout triggered - forcing progress to TEXT CHAT state");
+         
           // Force progress to the TEXT CHAT state
           setSitepalSceneLoaded(true);
           
@@ -886,7 +890,7 @@ const MobileSidePanel = ({
 
   // Direct SitePal initialization function (adapted from cyberpunk_mission_control.html)
   const initSitePalDirect = () => {
-    console.log("Starting direct SitePal initialization...");
+
     
     // Create or find container for SitePal
     let sitepalContainer = document.getElementById("sitepal-container");
@@ -951,13 +955,13 @@ const MobileSidePanel = ({
     
     // Define handleSceneLoaded function to handle SitePal ready state
     const handleSceneLoaded = () => {
-      console.log("✅ SitePal scene loaded callback triggered");
+
       
       // Disable speech recognition to prevent errors in text-only mode
       if (window.ai_speechRecognition) {
         try {
           window.ai_speechRecognition = null;
-          console.log("🔇 Speech recognition disabled for text-only mode");
+  
         } catch (e) {
           console.warn("Could not disable speech recognition:", e);
         }
@@ -967,7 +971,7 @@ const MobileSidePanel = ({
       if (window.ai_audioEnded) {
         const originalAudioEnded = window.ai_audioEnded;
         window.ai_audioEnded = function() {
-          console.log("🔇 Audio ended - speech recognition disabled");
+    
           // Call original function but catch any errors
           try {
             if (originalAudioEnded && typeof originalAudioEnded === 'function') {
@@ -1005,21 +1009,17 @@ const MobileSidePanel = ({
       
       // Show unmute overlay on mobile devices
       const isMobile = window.innerWidth <= 768 || /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-      console.log("SitePal loaded - Device check:", { 
-        width: window.innerWidth, 
-        userAgent: navigator.userAgent,
-        isMobile 
-      });
+    
       
       if (isMobile) {
-        console.log("Mobile device detected - showing unmute overlay from scene loaded callback");
+       
         setTimeout(() => {
-          console.log("Now showing unmute overlay");
+         
           setShowUnmuteOverlay(true);
         }, 600); // Show after transition video has faded
       } else {
         // For testing: show overlay on desktop too
-        console.log("Desktop mode - showing unmute overlay for testing from scene loaded callback");
+      
         setTimeout(() => {
           setShowUnmuteOverlay(true);
         }, 600);
@@ -1027,7 +1027,7 @@ const MobileSidePanel = ({
       
       // Disable music when SitePal is active
       if (showMobileMusicPlayer) {
-        console.log("🎵 Disabling music for SitePal session");
+       
         setShowMobileMusicPlayer(false);
         setMusicPlayerVisible(false);
       }
@@ -1042,7 +1042,7 @@ const MobileSidePanel = ({
             if (window.sayText && typeof window.sayText === 'function') {
               // Use the exact same parameters as the working version
               window.sayText("Welcome to cyberpunk mission control. I am ready to assist you.", 9, 1, 7);
-              console.log("✅ SitePal greeting spoken automatically (desktop only)");
+            
               window.greetingPlayed = true;
             } else {
               console.log("⚠️ sayText not available for greeting");
@@ -1082,13 +1082,13 @@ const MobileSidePanel = ({
     
     // Function to request microphone permissions ahead of time
     const requestMicrophonePermission = () => {
-      console.log("🎤 Requesting microphone permission during CONNECT phase...");
+
       try {
         if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
           navigator.mediaDevices
             .getUserMedia({ audio: true })
             .then(stream => {
-              console.log("✅ Microphone permission granted");
+   
               // Store the stream to be used later
               microphoneStreamRef.current = stream;
               // We don't stop tracks here since we want to keep the permission granted
@@ -1106,14 +1106,14 @@ const MobileSidePanel = ({
     
     // Load SitePal script and set up scene loaded callback
     const loadSitePalScript = () => {
-      console.log("Loading SitePal scripts...");
+
       
       // First, check if there's an existing script for AI embed
       const existingAIScript = document.querySelector('script[src*="ai_embed_functions_v1.php"]');
       const existingVHostScript = document.querySelector('script[src*="vhost_embed_functions_v4.php"]');
       
       if (existingAIScript && typeof AI_vhost_embed === "function") {
-        console.log("SitePal AI script already loaded, initializing");
+   
         embedSitePal();
         return;
       }
@@ -1124,14 +1124,14 @@ const MobileSidePanel = ({
       aiScript.src = "//vhss-d.oddcast.com/ai_embed_functions_v1.php";
       
       aiScript.onload = () => {
-        console.log("✅ SitePal AI script loaded successfully");
+
         
         // Now load the vhost embed script
         if (!existingVHostScript) {
           const vhostScript = document.createElement("script");
           vhostScript.src = "//vhss-d.oddcast.com/vhost_embed_functions_v4.php?acc=9157686&js=1";
           vhostScript.onload = () => {
-            console.log("✅ SitePal vhost script loaded successfully");
+      
             // Small delay to ensure scripts are fully initialized
             setTimeout(embedSitePal, 100);
           };
@@ -1141,7 +1141,7 @@ const MobileSidePanel = ({
           document.head.appendChild(vhostScript);
         } else {
           // If vhost script already exists, just proceed
-          console.log("SitePal vhost script already loaded");
+     
           setTimeout(embedSitePal, 100);
         }
       };
@@ -1155,7 +1155,7 @@ const MobileSidePanel = ({
     
     // Embed SitePal character
     const embedSitePal = () => {
-      console.log("Attempting to embed SitePal character...");
+
       
       // Set the callback functions on window for SitePal to call when ready
       window.vh_sceneLoaded = handleSceneLoaded;
@@ -1163,28 +1163,28 @@ const MobileSidePanel = ({
       
       // Add a backup timeout in case callbacks don't fire
       setTimeout(() => {
-        console.log("⏱️ Checking if SitePal character is visible...");
+  
         if (sitepalContainer && !sitepalContainer.classList.contains("active")) {
-          console.log("⚠️ Character not visible, forcing handleSceneLoaded");
+
           handleSceneLoaded();
           
           // Check if vhss_aiPlayer is actually visible
           const playerDiv = document.getElementById("vhss_aiPlayer");
           if (playerDiv && playerDiv.innerHTML === "") {
-            console.log("⚠️ SitePal player appears empty, trying to reload...");
+
             
             // Try embedding again
             try {
               playerDiv.innerHTML = "";
               if (typeof AI_vhost_embed === "function") {
                 AI_vhost_embed(280, 180, 9157686, 255, 0, 1);
-                console.log("🔄 Attempted to reload SitePal character");
+         
               } else {
                 console.warn("⚠️ AI_vhost_embed still not available after reload attempt");
                 
                 // Try fallback to iframe method as a last resort
                 if (missionControlIframeRef.current && missionControlIframeRef.current.contentWindow) {
-                  console.log("📢 Falling back to iframe message for SitePal initialization");
+                
                   missionControlIframeRef.current.contentWindow.postMessage({
                     type: "INIT_SITEPAL",
                     width: 280, 
@@ -1204,14 +1204,14 @@ const MobileSidePanel = ({
       // Embed the SitePal character
       try {
         if (typeof AI_vhost_embed === "function") {
-          console.log("📱 Calling AI_vhost_embed to load SitePal...");
+   
           AI_vhost_embed(280, 180, 9157686, 255, 0, 1);
         } else {
           console.error("❌ AI_vhost_embed function not available");
           
           // Try fallback to iframe method
           if (missionControlIframeRef.current && missionControlIframeRef.current.contentWindow) {
-            console.log("📢 Falling back to iframe message for SitePal initialization");
+  
             missionControlIframeRef.current.contentWindow.postMessage({
               type: "INIT_SITEPAL",
               width: 280, 
@@ -1225,7 +1225,7 @@ const MobileSidePanel = ({
           try {
             if (missionControlIframeRef.current && missionControlIframeRef.current.contentWindow) {
               if (typeof missionControlIframeRef.current.contentWindow.AI_vhost_embed === "function") {
-                console.log("Found AI_vhost_embed in iframe, attempting to use it");
+              
                 window.AI_vhost_embed = missionControlIframeRef.current.contentWindow.AI_vhost_embed;
                 setTimeout(() => {
                   if (typeof window.AI_vhost_embed === "function") {
@@ -1249,7 +1249,7 @@ const MobileSidePanel = ({
   
   // Direct SitePal microphone activation function
   const activateSitepalMicDirect = () => {
-    console.log("🎤 Activating SitePal microphone directly");
+ 
     
     // First prime audio context to handle iOS/Safari restrictions
     const primeAudio = () => {
@@ -1257,14 +1257,14 @@ const MobileSidePanel = ({
         // Create or get the audio context
         if (!window.myAudioContext) {
           window.myAudioContext = new (window.AudioContext || window.webkitAudioContext)();
-          console.log("Created new AudioContext");
+      
         }
         
         // Resume the audio context if it's suspended
         if (window.myAudioContext.state === "suspended") {
           window.myAudioContext.resume()
             .then(() => {
-              console.log("🔊 AudioContext resumed successfully");
+     
             })
             .catch(e => console.warn("AudioContext resume failed:", e));
         }
@@ -1276,7 +1276,7 @@ const MobileSidePanel = ({
         // Optional: play a silent sound
         if (typeof window.saySilent === "function") {
           try {
-            console.log("🔇 Calling saySilent(0) to prime audio");
+ 
             window.saySilent(0);
           } catch (e) {
             console.warn("Error calling saySilent:", e);
@@ -1294,7 +1294,7 @@ const MobileSidePanel = ({
     const playGreeting = () => {
       if (typeof window.sayText === "function") {
         try {
-          console.log("🗣️ Playing greeting...");
+     
           window.sayText("Greetings, how can I help you today?", 9, 1, 7);
           
           // Notify parent about the greeting being played
@@ -1312,7 +1312,7 @@ const MobileSidePanel = ({
         if (missionControlIframeRef.current && missionControlIframeRef.current.contentWindow) {
           try {
             if (typeof missionControlIframeRef.current.contentWindow.sayText === "function") {
-              console.log("Found sayText in iframe, attempting to use it");
+       
               window.sayText = missionControlIframeRef.current.contentWindow.sayText;
               setTimeout(() => {
                 if (typeof window.sayText === "function") {
@@ -1321,7 +1321,7 @@ const MobileSidePanel = ({
               }, 100);
             } else {
               // If we can't find sayText, send a message to the iframe to play the greeting
-              console.log("Sending greeting message to iframe");
+       
               missionControlIframeRef.current.contentWindow.postMessage({
                 type: "PLAY_GREETING"
               }, "*");
@@ -1343,13 +1343,13 @@ const MobileSidePanel = ({
     
     // Start listening after the greeting (or immediately for some browsers)
     const startListening = () => {
-      console.log("Starting listening process...");
+
       
       // Try multiple methods to start listening (cover all bases)
       
       // Method 1: Use window.AI_vhost_api if available
       if (typeof window.AI_vhost_api === "function") {
-        console.log("Using AI_vhost_api to start listening");
+
         try {
           // Prime again with saySilent right before listening
           if (typeof window.saySilent === "function") {
@@ -1357,7 +1357,7 @@ const MobileSidePanel = ({
           }
           
           window.AI_vhost_api("startListening");
-          console.log("✅ Started listening using AI_vhost_api");
+ 
         } catch (e) {
           console.error("Error calling AI_vhost_api:", e);
         }
@@ -1368,7 +1368,7 @@ const MobileSidePanel = ({
         if (missionControlIframeRef.current && missionControlIframeRef.current.contentWindow) {
           try {
             if (typeof missionControlIframeRef.current.contentWindow.AI_vhost_api === "function") {
-              console.log("Found AI_vhost_api in iframe, attempting to use it");
+
               window.AI_vhost_api = missionControlIframeRef.current.contentWindow.AI_vhost_api;
               setTimeout(() => {
                 if (typeof window.AI_vhost_api === "function") {
@@ -1385,7 +1385,7 @@ const MobileSidePanel = ({
         }
         
         // Method 2: Use iframe to send message
-        console.log("Sending startListening message to iframe");
+ 
         if (missionControlIframeRef.current && missionControlIframeRef.current.contentWindow) {
           missionControlIframeRef.current.contentWindow.postMessage({
             type: "SITEPAL_API_CALL",
@@ -1397,12 +1397,12 @@ const MobileSidePanel = ({
     
     // Main flow based on browser detection
     if (isChromeMobile || isIOS || isSafari || isChromeiOS) {
-      console.log("📱 Mobile browser detected - specialized audio handling");
+
       
       // For mobile, we need to get microphone permission explicitly first
       navigator.mediaDevices.getUserMedia({ audio: true })
         .then(stream => {
-          console.log("✅ Mic access granted on mobile");
+   
           
           // Store the stream for later cleanup
           microphoneStreamRef.current = stream;
@@ -1432,7 +1432,7 @@ const MobileSidePanel = ({
         });
     } else {
       // For desktop browsers, the flow is simpler
-      console.log("🖥️ Desktop browser detected - standard audio handling");
+  
       
       // Play greeting first
       playGreeting();
@@ -1442,10 +1442,10 @@ const MobileSidePanel = ({
       
       // Fallback attempt if other methods fail
       setTimeout(() => {
-        console.log("🔄 Fallback microphone activation attempt");
+    
         if (window.myAudioContext && window.myAudioContext.state === "suspended") {
           window.myAudioContext.resume().then(() => {
-            console.log("🔊 Fallback AudioContext resume successful");
+   
           });
         }
         if (typeof window.saySilent === "function") {
@@ -1467,7 +1467,7 @@ const MobileSidePanel = ({
   
   // Direct SitePal disconnection function
   const disconnectSitepalDirect = () => {
-    console.log("🔌 Disconnecting SitePal character directly");
+
     
     // 1. Hide the character visually
     const container = document.getElementById("sitepal-container");
@@ -1484,7 +1484,7 @@ const MobileSidePanel = ({
     if (typeof window.stopListening === "function") {
       try {
         window.stopListening();
-        console.log("🛑 Stopped listening using window.stopListening");
+    
       } catch (e) {
         console.error("Error calling stopListening:", e);
       }
@@ -1494,7 +1494,7 @@ const MobileSidePanel = ({
     if (typeof window.AI_vhost_api === "function") {
       try {
         window.AI_vhost_api("stopListening");
-        console.log("🛑 Stopped listening using AI_vhost_api");
+
       } catch (e) {
         console.error("Error calling AI_vhost_api(stopListening):", e);
       }
@@ -1506,14 +1506,14 @@ const MobileSidePanel = ({
         type: "SITEPAL_API_CALL",
         function: "stopListening"
       }, "*");
-      console.log("Sent stopListening message to iframe");
+
     }
     
     // 3. Stop any ongoing speech
     if (typeof window.stopSpeaking === "function") {
       try {
         window.stopSpeaking();
-        console.log("🔇 Stopped speaking");
+
       } catch (e) {
         console.error("Error calling stopSpeaking:", e);
       }
@@ -1521,10 +1521,10 @@ const MobileSidePanel = ({
     
     // 4. Explicitly stop all active audio tracks to fully release the mic
     if (microphoneStreamRef.current) {
-      console.log("🎤 Stopping stored microphone stream");
+
       microphoneStreamRef.current.getTracks().forEach(track => {
         track.stop();
-        console.log("🎤 Microphone track stopped from stored stream");
+  
       });
       microphoneStreamRef.current = null;
     }
@@ -1536,7 +1536,7 @@ const MobileSidePanel = ({
           stream.getTracks().forEach(track => {
             if (track.kind === "audio") {
               track.stop();
-              console.log("🎤 Additional microphone track stopped");
+         
             }
           });
         })
@@ -1663,7 +1663,7 @@ const MobileSidePanel = ({
   
   // Update the iframe onLoad handler to focus on video elements
   const handleIframeLoad = e => {
-    console.log("Mobile: Iframe loaded");
+
     const iframe = e.target;
 
     // Pass Firebase config to iframe
@@ -1680,7 +1680,7 @@ const MobileSidePanel = ({
 
     // Send initial state sync
     if (missionControlIframeRef.current) {
-      console.log("Mobile: Sending initial state sync");
+
       missionControlIframeRef.current.contentWindow.postMessage(
         {
           type: "SYNC_STATE",
@@ -1853,12 +1853,12 @@ const MobileSidePanel = ({
 
   // Modify openVideoScreenAndInitialize to properly handle the orientation video completion
   const openVideoScreenAndInitialize = () => {
-    console.log('Signal button clicked, musicPlayerControls:', musicPlayerControls);
+ 
     
     // Stop music if it's playing (to avoid interference with video audio)
     if (musicPlayerControls && musicPlayerControls.pause) {
       musicPlayerControls.pause();
-      console.log('🎵 Stopping music for video playback');
+
     } else {
       console.log('⚠️ Music player controls not available or pause method missing');
     }
@@ -1866,7 +1866,7 @@ const MobileSidePanel = ({
     // Also close the music player UI completely
     if (showMobileMusicPlayer) {
       handleMusicPlayerClose();
-      console.log('🎵 Closing music player UI');
+
     }
     
     // First open the video screen
@@ -1937,7 +1937,7 @@ const MobileSidePanel = ({
         
         // Disable music when orientation video starts
         if (showMobileMusicPlayer) {
-          console.log("🎵 Disabling music for orientation video");
+       
           setShowMobileMusicPlayer(false);
           setMusicPlayerVisible(false);
         }
@@ -1952,7 +1952,7 @@ const MobileSidePanel = ({
         
         // Listen for video end to show CONNECT button
         orientationVideo.addEventListener("ended", () => {
-          console.log("Orientation video ended");
+      
           
           // Hide the orientation video properly
           orientationVideo.pause();
@@ -2060,9 +2060,9 @@ const MobileSidePanel = ({
 
   // Add this new function
   const handleIgnitionClick = useCallback(() => {
-    console.log('Ignition button clicked in MobileSidePanel');
+
     if (handleIgnition) {
-      console.log('Calling handleIgnition prop');
+
       handleIgnition();
       // Also send message to iframe to update its state
       if (missionControlIframeRef.current && missionControlIframeRef.current.contentWindow) {
@@ -2080,7 +2080,7 @@ const MobileSidePanel = ({
   useEffect(() => {
     const handleMessage = (event) => {
       if (event.data && event.data.type === 'PRE_TRANSITION_CAMERA_ZOOM') {
-        console.log('Mobile: PRE_TRANSITION_CAMERA_ZOOM received, calling onRequestZoomAndSwitch');
+     
         if (onRequestZoomAndSwitch) {
           onRequestZoomAndSwitch();
         } else {
@@ -2089,7 +2089,7 @@ const MobileSidePanel = ({
         }
       }
       else if (event.data && event.data.type === 'START_SYNTHWAVE_TRANSITION') { // Keep existing for now
-        console.log('Mobile: Legacy START_SYNTHWAVE_TRANSITION received. Prefer PRE_TRANSITION_CAMERA_ZOOM.');
+      
         if (onRequestZoomAndSwitch) {
           onRequestZoomAndSwitch();
         } else {
@@ -2098,7 +2098,7 @@ const MobileSidePanel = ({
       }
       else if (event.data && event.data.type === 'SITEPAL_TEXT_MESSAGE') {
         // Handle text message to SitePal
-        console.log('Received text message for SitePal:', event.data.message);
+     
         
         // Validate message before sending to SitePal
         const messageText = event.data.message;
@@ -2111,7 +2111,7 @@ const MobileSidePanel = ({
         if (window.vhss_ai_sayPreAI && typeof window.vhss_ai_sayPreAI === 'function') {
           try {
             window.vhss_ai_sayPreAI(messageText.trim());
-            console.log("✅ Message forwarded to SitePal via vhss_ai_sayPreAI");
+     
           } catch (e) {
             console.warn("⚠️ Error forwarding via vhss_ai_sayPreAI:", e);
           }
@@ -2123,7 +2123,7 @@ const MobileSidePanel = ({
               type: 'SITEPAL_TEXT_MESSAGE',
               message: messageText.trim()
             }, '*');
-            console.log("📤 Message forwarded to iframe");
+       
           } else {
             console.warn("⚠️ No SitePal function or iframe available");
           }
@@ -2279,7 +2279,7 @@ const MobileSidePanel = ({
           cursor="pointer"
           transition="all 0.3s ease"
           onClick={() => {
-            console.log('80s mode toggle clicked, current state:', is80sMode);
+   
             toggle80sMode();
           }}
           _hover={{
@@ -2440,7 +2440,7 @@ const MobileSidePanel = ({
           border={rocketModelVisible ? "#39ff14" : (is80sMode ? "1px solid #00ffff" : "1px solid #0e7490")}
           onClick={() => {
             // Simple toggle
-            console.log("🚀 Mobile: Toggling rocket visibility");
+         
             handleRocketModelToggle();
           }}
           _hover={{
@@ -2594,8 +2594,8 @@ const MobileSidePanel = ({
           </Box>
         </Button>
         
-        {/* Launch Confirmation (When rocket is visible) */}
-        {rocketModelVisible && (
+        {/* Launch Confirmation (When launch dialog is shown) */}
+        {showLaunchDialog && rocketModelVisible && (
           <Box
             position="absolute"
             bottom="75px"
@@ -2627,10 +2627,17 @@ const MobileSidePanel = ({
                 transform: "scale(1.05)"
               }}
               onClick={() => {
-                console.log("🚀 Mobile: Launch confirmed!");
+          
                 
-                // Send launch message to parent window
+                // Send the correct launch execute message that RocketModel expects
                 if (window.parent) {
+                  window.parent.postMessage({
+                    type: 'ROCKET_LAUNCH_EXECUTE',
+                    action: 'launch_rocket',
+                    timestamp: Date.now()
+                  }, '*');
+                  
+                  // Also send the standard ROCKET_LAUNCH message for compatibility
                   window.parent.postMessage({
                     type: 'ROCKET_LAUNCH',
                     timestamp: Date.now()
@@ -2644,10 +2651,8 @@ const MobileSidePanel = ({
                   }, '*');
                 }
                 
-                // Call the ignition handler
-                if (handleIgnition) {
-                  handleIgnition();
-                }
+                // Hide only the dialog, not the rocket
+                setShowLaunchDialog(false);
               }}
             >
               OK
@@ -2663,8 +2668,10 @@ const MobileSidePanel = ({
                 transform: "scale(1.05)"
               }}
               onClick={() => {
-                console.log("🚀 Mobile: Launch cancelled");
-                // Just hide the launch dialog by toggling the rocket back
+           
+                // Hide the dialog
+                setShowLaunchDialog(false);
+                // Toggle the rocket off
                 handleRocketModelToggle();
               }}
             >
@@ -2704,11 +2711,11 @@ const MobileSidePanel = ({
                 borderRadius="full"
                 border="2px solid rgba(255,255,255,0.8)"
                 onClick={() => {
-                  console.log('Left arrow clicked, paginationState:', paginationState);
+            
                   
                   // Check if candle viewer is open and can handle navigation
                   if (window.isCandleViewerOpen && window.candleViewerNavigate) {
-                    console.log('Candle viewer is open, navigating in viewer');
+         
                     window.candleViewerNavigate('prev');
                     return;
                   }
@@ -2804,11 +2811,11 @@ const MobileSidePanel = ({
                 borderRadius="full"
                 border="2px solid rgba(255,255,255,0.8)"
                 onClick={() => {
-                  console.log('Right arrow clicked, paginationState:', paginationState);
+            
                   
                   // Check if candle viewer is open and can handle navigation
                   if (window.isCandleViewerOpen && window.candleViewerNavigate) {
-                    console.log('Candle viewer is open, navigating in viewer');
+               
                     window.candleViewerNavigate('next');
                     return;
                   }
@@ -2816,7 +2823,7 @@ const MobileSidePanel = ({
                   if (paginationState) {
                     const { currentPage, totalPages, setCurrentPage } = paginationState;
                     const newPage = (currentPage + 1) % totalPages;
-                    console.log('Calculating new page:', currentPage, '+1 %', totalPages, '=', newPage);
+                
                     setCurrentPage(newPage);
                   }
                 }}
@@ -3071,7 +3078,7 @@ const MobileSidePanel = ({
                 </Box>
                 
                 {/* Touch to Unmute Overlay - Mobile Only */}
-                {console.log('Unmute overlay render check:', { showUnmuteOverlay, isVideoScreenOpen })}
+             
                 {showUnmuteOverlay && (
                   <Box
                     position="absolute"
@@ -3088,7 +3095,7 @@ const MobileSidePanel = ({
                     cursor="pointer"
                     style={{ zIndex: 10000, pointerEvents: 'auto' }} // Ensure z-index is applied and blocking interactions
                     onClick={() => {
-                      console.log("Unmute overlay clicked - triggering greeting");
+
                       setShowUnmuteOverlay(false);
                       
                       // Trigger SitePal greeting with proper parameters
@@ -3096,13 +3103,11 @@ const MobileSidePanel = ({
                         try {
                           if (window.sayText && typeof window.sayText === 'function') {
                             // Use the exact same parameters as the working version
-                            window.sayText("Welcome to cyberpunk mission control. I am ready to assist you.", 9, 1, 7);
-                            console.log("✅ SitePal greeting spoken via unmute overlay");
-                            window.greetingPlayed = true;
+                            window.sayText("Welcome to cyberpunk mission control. I am ready to assist you.", 9, 1, 7);  window.greetingPlayed = true;
                           } else if (window.sayHi && typeof window.sayHi === 'function') {
                             // Fallback to sayHi if sayText not available
                             window.sayHi();
-                            console.log("✅ Greeting triggered via sayHi() fallback");
+
                             window.greetingPlayed = true;
                           } else {
                             console.warn("⚠️ No greeting function available");
@@ -3338,7 +3343,7 @@ const MobileSidePanel = ({
                     if (e.key === 'Enter') {
                       // Prevent interaction if unmute overlay is visible
                       if (showUnmuteOverlay) {
-                        console.log("⚠️ Ignoring input - unmute overlay is visible");
+              
                         return;
                       }
                       
@@ -3346,13 +3351,13 @@ const MobileSidePanel = ({
                       const message = textInput.value.trim();
                       
                       if (message) {
-                        console.log('Sending message to SitePal:', message);
+                
                         
                         // Try to send directly to SitePal AI functions (similar to desktop version)
                         if (window.vhss_ai_sayPreAI && typeof window.vhss_ai_sayPreAI === 'function') {
                           try {
                             window.vhss_ai_sayPreAI(message);
-                            console.log("✅ Message sent to SitePal via vhss_ai_sayPreAI");
+                    
                           } catch (e) {
                             console.warn("⚠️ Error sending via vhss_ai_sayPreAI:", e);
                           }
@@ -3362,10 +3367,10 @@ const MobileSidePanel = ({
                             type: 'SITEPAL_TEXT_MESSAGE',
                             message: message
                           }, '*');
-                          console.log("📤 Message sent to parent window");
+              
                         } else {
                           console.warn("⚠️ No SitePal AI function available");
-                          console.log("Available window functions:", Object.keys(window).filter(key => key.includes('vhss') || key.includes('ai')));
+                      
                         }
                         
                         // Clear input
@@ -3390,7 +3395,7 @@ const MobileSidePanel = ({
                   onClick={() => {
                     // Prevent interaction if unmute overlay is visible
                     if (showUnmuteOverlay) {
-                      console.log("⚠️ Ignoring click - unmute overlay is visible");
+
                       return;
                     }
                     
@@ -3398,13 +3403,13 @@ const MobileSidePanel = ({
                     const message = textInput.value.trim();
                     
                     if (message) {
-                      console.log('Sending message to SitePal:', message);
+    
                       
                       // Try to send directly to SitePal AI functions (similar to desktop version)
                       if (window.vhss_ai_sayPreAI && typeof window.vhss_ai_sayPreAI === 'function') {
                         try {
                           window.vhss_ai_sayPreAI(message);
-                          console.log("✅ Message sent to SitePal via vhss_ai_sayPreAI");
+             
                         } catch (e) {
                           console.warn("⚠️ Error sending via vhss_ai_sayPreAI:", e);
                         }
@@ -3417,7 +3422,7 @@ const MobileSidePanel = ({
                         console.log("📤 Message sent to parent window");
                       } else {
                         console.warn("⚠️ No SitePal AI function available");
-                        console.log("Available window functions:", Object.keys(window).filter(key => key.includes('vhss') || key.includes('ai')));
+                      
                       }
                       
                       // Clear input

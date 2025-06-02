@@ -10,7 +10,7 @@ const TickerDisplay = ({ modelRef, ...props }) => {
   const scrollPos = useRef(0);
   const [isInitialized, setIsInitialized] = useState(false);
   const fetchTimeRef = useRef(Date.now());
-  const gltf = useGLTF("/alligatorStroll.glb");
+  const gltf = useGLTF("/alligatorStroll3.glb");
   const scene = gltf.scene;
   const baseRadius = 2.8; // Store the base radius as a constant
   const lastModelScale = useRef(1); // Track the last known model scale
@@ -181,7 +181,7 @@ const TickerDisplay = ({ modelRef, ...props }) => {
   const fetchFearGreedIndex = async () => {
     try {
       // Try to fetch from Firebase Cloud Function that proxies CoinMarketCap
-      console.log("Fetching Fear & Greed index from CoinMarketCap via Firebase...");
+
       const cmcResponse = await fetch(
         // Using the actual Firebase project ID
         "https://us-central1-hailmary-3ff6c.cloudfunctions.net/getFearAndGreed"
@@ -197,14 +197,14 @@ const TickerDisplay = ({ modelRef, ...props }) => {
           isSentiment: true
         });
         
-        console.log("Successfully fetched Fear & Greed index from CoinMarketCap");
+
         return;
       } else {
         console.warn("Failed to fetch from CoinMarketCap Fear & Greed API via Firebase, trying alternative.me...");
       }
 
       // Fallback to alternative.me API
-      console.log("Fetching Fear & Greed index from alternative.me...");
+
       const altResponse = await fetch("https://api.alternative.me/fng/");
       
       if (!altResponse.ok) {
@@ -221,7 +221,7 @@ const TickerDisplay = ({ modelRef, ...props }) => {
         isSentiment: true
       });
       
-      console.log("Successfully fetched Fear & Greed index from alternative.me");
+
     } catch (error) {
       console.error("Error fetching Fear & Greed index:", error);
       
@@ -252,7 +252,7 @@ const TickerDisplay = ({ modelRef, ...props }) => {
         isSentiment: true
       });
       
-      console.log(`Using mock Fear & Greed index data: ${mockValue} (${mockClassification})`);
+
     }
   };
 
@@ -859,7 +859,7 @@ const TickerDisplay = ({ modelRef, ...props }) => {
       const fmpURL = "https://us-central1-hailmary-3ff6c.cloudfunctions.net/getFMPData";
       
       // Fetch oil data from dedicated Oil endpoint
-      console.log("Fetching Oil data from dedicated endpoint");
+
       try {
         const oilResponse = await fetch(oilURL);
         const oilData = await oilResponse.json();
@@ -871,7 +871,7 @@ const TickerDisplay = ({ modelRef, ...props }) => {
             price: oilData.price,
             changePercent: oilData.changePercent,
           });
-          console.log(`Successfully fetched Oil data: $${oilData.price} (${oilData.changePercent}%)`);
+
         } else {
           console.error("Invalid oil data:", oilData);
         }
@@ -880,7 +880,7 @@ const TickerDisplay = ({ modelRef, ...props }) => {
       }
       
       // Fetch dollar index data from FMP
-      console.log("Fetching Dollar Index data from FMP");
+
       try {
         const dollarResponse = await fetch(`${fmpURL}/DOLLAR`);
         const dollarData = await dollarResponse.json();
@@ -900,7 +900,7 @@ const TickerDisplay = ({ modelRef, ...props }) => {
       }
       
       // Fetch 10Y Treasury Yield data
-      console.log("Fetching 10Y Treasury Yield data from FMP");
+
       try {
         const treasuryResponse = await fetch(`${fmpURL}/TREASURY`, {
           // Add a cache-busting parameter to avoid getting cached responses
@@ -914,8 +914,7 @@ const TickerDisplay = ({ modelRef, ...props }) => {
           const treasuryData = await treasuryResponse.json();
           
           if (treasuryData && treasuryData.price !== undefined && !isNaN(treasuryData.price)) {
-            console.log("Successfully fetched 10Y Treasury Yield data:", treasuryData);
-            
+
             results.push({
               name: "10Y Treasury Yield",
               symbol: "^TNX",
@@ -938,7 +937,7 @@ const TickerDisplay = ({ modelRef, ...props }) => {
       
       // If we don't have Treasury data yet, use mock data
       if (!results.some(item => item.symbol === "^TNX")) {
-        console.log("Using mock data for 10Y Treasury Yield");
+
         // Use getMockPrice to get a consistent base yield number
         const baseYield = getMockPrice("^TNX");
         // Create a small daily variation

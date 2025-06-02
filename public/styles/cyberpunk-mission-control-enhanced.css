@@ -1533,7 +1533,7 @@
     rgba(255, 0, 128, 0.2) 50%,
     rgba(217, 70, 239, 0.2) 100%
   );
-  border-bottom-color: #d946ef;
+  border-bottom-color: #67e8f9;
 }
 
 /* 80s mode specific title colors - override to use cyan per CLAUDE.md */

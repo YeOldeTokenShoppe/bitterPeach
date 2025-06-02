@@ -1111,7 +1111,7 @@
         font-family: "Press Start 2P", cursive;
         font-size: 0.6rem !important; /* Ensure override */
         line-height: 1.5 !important; /* Ensure override */
-        text-shadow: 0 0 3px #d946ef !important;
+        text-shadow: 0 0 3px #67e8f9 !important;
       }
 
       /* Keep button-prefix smaller in 80s mode */
@@ -1120,17 +1120,17 @@
         font-size: 0.5rem !important;
         line-height: 1.3 !important;
         opacity: 0.8;
-        text-shadow: 0 0 3px #d946ef !important;
+        text-shadow: 0 0 3px #67e8f9 !important;
       }
 
       .eighties-active .control-button {
-        border: 1px solid #d946ef !important; /* Consistent 1px border */
+        border: 1px solid #67e8f9 !important; /* Consistent 1px border */
         padding: 12px !important; /* Use same padding as base */
         min-height: 62px !important; /* Ensure override for consistency */
         box-shadow: 0 0 3px rgba(217, 70, 239, 0.3) !important;
         background-image: linear-gradient(to bottom, #0f172a, #2a1786) !important;
-        border-left: 1px solid #d946ef !important;
-        border-right: 1px solid #d946ef !important;
+        border-left: 1px solid #67e8f9 !important;
+        border-right: 1px solid #67e8f9 !important;
         transition: all 0.3s;
       }
 
@@ -1141,8 +1141,8 @@
       }
 
       .eighties-active .button-indicator {
-        background-color: #d946ef;
-        box-shadow: 0 0 3px #d946ef;
+        background-color: #67e8f9;
+        box-shadow: 0 0 3px #67e8f9;
       }
 
       .eighties-active .toggle-section,
@@ -1440,7 +1440,7 @@
         font-size: 0.5rem !important;
         line-height: 1.3 !important;
         opacity: 0.8 !important;
-        text-shadow: 0 0 3px #d946ef !important;
+        text-shadow: 0 0 3px #67e8f9 !important;
         letter-spacing: 0 !important;
       }
 
@@ -1547,6 +1547,40 @@
         border-color: var(--primary-color);
       }
       
+      /* Style for green "80" numbers in 80s mode and version info */
+      .panel-subtitle,
+      .version-info {
+        position: relative;
+      }
+      
+      /* Target specific "80" text in both modes */
+      .panel-subtitle::after {
+        content: attr(data-text);
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        color: inherit;
+      }
+      
+      /* Color the "80" in green in 80s mode */
+      .eighties-active .panel-subtitle,
+      .eighties-active .version-info {
+        color: #67e8f9 !important;
+      }
+      
+      /* Special styling for the "80" numbers - always green */
+      .green-80 {
+        color: #00ff41 !important;
+      }
+      
+      /* Enhanced glow in 80s mode */
+      .eighties-active .green-80 {
+        color: #00ff41 !important;
+        text-shadow: 0 0 3px #00ff41 !important;
+      }
+      
       .moon-scene .control-button {
         background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
         border-color: var(--primary-color);
@@ -1606,7 +1640,7 @@
       <div class="threedy-shadow-blue" id="threedy-shadow-blue"></div>
       <div class="panel-header">
         <h1 class="panel-title">INFIN8O-LUNAR</h1>
-        <div class="panel-subtitle">MISSION CONTROL v2.0.80</div>
+        <div class="panel-subtitle">MISSION CONTROL v2.0.<span class="green-80">80</span></div>
       </div>
 
       <!-- Video Call Section -->
@@ -2290,7 +2324,7 @@ function startCharacterInteraction() {
             </div>
           </div>
           <div class="toggle-group">
-            <span class="toggle-label">80s <br />MODE</span>
+            <span class="toggle-label"><span class="green-80">80</span>s <br />MODE</span>
             <div id="eighties-toggle" class="toggle-switch eighties">
               <div class="toggle-handle"></div>
             </div>
@@ -2357,7 +2391,7 @@ function startCharacterInteraction() {
           <span class="status-label">STATUS//OK</span>
           <span class="blinking-cursor" id="blinking-cursor" style="display: none"></span>
         </div>
-        <div class="version-info">CYBERCORE_80</div>
+        <div class="version-info">CYBERCORE_<span class="green-80">80</span></div>
       </div>
     </div>
 

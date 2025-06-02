@@ -273,7 +273,9 @@ const RocketSimulator = () => {
 
     // Clone the outline material and adjust it specifically for the portal
     const portalOutlineMat = rocketOutlineMat.clone();
-    portalOutlineMat.uniforms.offset.value = 0.03; // Adjust as needed
+    if (portalOutlineMat.uniforms && portalOutlineMat.uniforms.offset) {
+      portalOutlineMat.uniforms.offset.value = 0.03; // Adjust as needed
+    }
     // portalOutlineMat.side = THREE.BackSide;
 
     const portalOutlineMesh = new THREE.Mesh(portalGeo, portalOutlineMat);

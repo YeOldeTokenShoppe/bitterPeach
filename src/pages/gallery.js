@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import dynamic from "next/dynamic";
 // import Loader from "../components/Loader";
 import Magic8BallLoader from "../components/Magic8BallLoader";
@@ -39,18 +39,18 @@ export default function GalleryPage() {
   const [threeDSceneLoaded, setThreeDSceneLoaded] = useState(false);
 
   // Handle music toggle - control both visibility and playback
-  const handleMusicToggle = (enabled) => {
-    console.log("🎵 Music toggle requested:", enabled, "Current showSpotify:", showSpotify);
+  const handleMusicToggle = useCallback((enabled) => {
+
     
     // Prevent rapid toggling
     if (isTogglingRef.current) {
-      console.log("🎵 Toggle in progress, ignoring");
+
       return;
     }
     
     // If already in the desired state, do nothing
     if (enabled === showSpotify) {
-      console.log("🎵 Already in desired state:", enabled);
+
       // But if enabled and music isn't playing, try to play it
       if (enabled && musicPlayerRef.current && typeof musicPlayerRef.current.play === 'function') {
         musicPlayerRef.current.play();
@@ -66,7 +66,7 @@ export default function GalleryPage() {
       // Then play music after a delay to ensure component is mounted
       setTimeout(() => {
         if (musicPlayerRef.current && typeof musicPlayerRef.current.play === 'function') {
-          console.log("🎵 Playing music");
+  
           musicPlayerRef.current.play();
         }
         isTogglingRef.current = false;
@@ -74,7 +74,7 @@ export default function GalleryPage() {
     } else {
       // Pause first, then hide
       if (musicPlayerRef.current && typeof musicPlayerRef.current.pause === 'function') {
-        console.log("🎵 Pausing music");
+
         musicPlayerRef.current.pause();
       }
       // Hide after pausing
@@ -83,10 +83,10 @@ export default function GalleryPage() {
         isTogglingRef.current = false;
       }, 100);
     }
-  };
+  }, [showSpotify, setShowSpotify]);
 
   // Detect if device is actually a phone (not tablet or desktop)
-  const detectMobileDevice = () => {
+  const detectMobileDevice = useCallback(() => {
     // Get all the info for debugging
     const userAgent = navigator.userAgent || window.opera;
     const lowerUA = userAgent.toLowerCase();
@@ -124,25 +124,25 @@ export default function GalleryPage() {
     const isMobile = isPhoneUA && hasTouch && hasPhoneSize;
     
     // Enhanced logging
-    console.log('📱 Enhanced Mobile Detection:', {
-      userAgent: userAgent,
-      isIPhone,
-      isIPad,
-      isAndroid,
-      hasMobileKeyword,
-      hasTouch,
-      screen: { width: screenWidth, height: screenHeight },
-      viewport: { width: innerWidth, height: innerHeight },
-      physical: { width: physicalWidth, height: physicalHeight },
-      pixelRatio,
-      hasPhoneSize,
-      isPhoneUA,
-      RESULT: isMobile
-    });
+    // console.log('📱 Enhanced Mobile Detection:', {
+    //   userAgent: userAgent,
+    //   isIPhone,
+    //   isIPad,
+    //   isAndroid,
+    //   hasMobileKeyword,
+    //   hasTouch,
+    //   screen: { width: screenWidth, height: screenHeight },
+    //   viewport: { width: innerWidth, height: innerHeight },
+    //   physical: { width: physicalWidth, height: physicalHeight },
+    //   pixelRatio,
+    //   hasPhoneSize,
+    //   isPhoneUA,
+    //   RESULT: isMobile
+    // });
     
     
     return isMobile;
-  };
+  }, []);
 
   // Initial detection - run once on mount
   useEffect(() => {
@@ -151,7 +151,7 @@ export default function GalleryPage() {
     const forceMobile = urlParams.get('mobile') === 'true';
     
     if (forceMobile) {
-      console.log('🔧 Force mobile mode via URL parameter');
+
       setIsDefinitelyPhone(true);
       setIsMobileView(true);
       return;
@@ -161,11 +161,11 @@ export default function GalleryPage() {
     const isMobile = detectMobileDevice();
     
     if (isMobile) {
-      console.log('📱 Definitely a phone - locking mobile view');
+
       setIsDefinitelyPhone(true);
       setIsMobileView(true);
     } else {
-      console.log('💻 Not a phone - using desktop view');
+
       setIsDefinitelyPhone(false);
       setIsMobileView(false);
     }
@@ -196,7 +196,7 @@ export default function GalleryPage() {
   }, [isDefinitelyPhone]);
 
   // Add helper function to get the mission control iframe
-  const getMissionControlIframe = () => {
+  const getMissionControlIframe = useCallback(() => {
     // Try to find the mission control iframe
     const iframes = document.querySelectorAll("iframe");
     for (const iframe of iframes) {
@@ -205,21 +205,20 @@ export default function GalleryPage() {
       }
     }
     return null;
-  };
+  }, []);
 
   // Modify toggle80sMode to respect mobile view
-  const toggle80sMode = () => {
+  const toggle80sMode = useCallback(() => {
     const newMode = !is80sMode;
     setIs80sMode(newMode);
 
     // When turning ON 80s mode, automatically show and play music ONLY for desktop
     if (newMode && !showSpotify && !isMobileView) {
-      console.log("🎵 Gallery: Turning ON 80s mode - automatically showing and playing music (desktop only)");
-      handleMusicToggle(true);
+   
     }
     // When turning OFF 80s mode, preserve the existing music state
     // (showSpotify state is maintained separately)
-  };
+  }, [is80sMode, showSpotify, isMobileView, handleMusicToggle]);
 
   // // Handle close for music player
   // const handleClose = () => {
@@ -265,9 +264,7 @@ export default function GalleryPage() {
 
   // Add debugging
   useEffect(() => {
-    console.log("Gallery page showSpotify state:", showSpotify);
-    console.log("Gallery page is80sMode state:", is80sMode);
-    console.log("Gallery page isMobileView state:", isMobileView);
+
 
     // Get iframe reference
     const iframe = getMissionControlIframe();
@@ -295,11 +292,11 @@ export default function GalleryPage() {
         "Mission control iframe not found for showSpotify state sync"
       );
     }
-  }, [showSpotify]);
+  }, [showSpotify, getMissionControlIframe]);
 
   // Handle mission control ignition command
-  const handleIgnition = () => {
-    console.log("Ignition triggered - entering synthwave mode");
+  const handleIgnition = useCallback(() => {
+
     setSynthwaveMode(true);
     
     // Notify mission control about the mode change
@@ -310,11 +307,11 @@ export default function GalleryPage() {
         "*"
       );
     }
-  };
+  }, [getMissionControlIframe]);
   
   // Handle returning from synthwave mode
-  const handleReturnFromSynthwave = () => {
-    console.log("Returning from synthwave mode");
+  const handleReturnFromSynthwave = useCallback(() => {
+
     setSynthwaveMode(false);
     
     // Notify mission control about the mode change
@@ -325,7 +322,7 @@ export default function GalleryPage() {
         "*"
       );
     }
-  };
+  }, [getMissionControlIframe]);
 
   // Listen for messages from the mission control panel iframe - extend to handle ignition
   useEffect(() => {
@@ -342,7 +339,7 @@ export default function GalleryPage() {
 
         // Handle music toggle
         if (event.data.type === "MUSIC_TOGGLE") {
-          console.log("Music toggle message received:", event.data.enabled);
+      
           handleMusicToggle(event.data.enabled);
         }
 
@@ -385,7 +382,7 @@ export default function GalleryPage() {
     return () => {
       window.removeEventListener("message", handleMessage);
     };
-  }, [toggle80sMode, showSpotify, synthwaveMode]); // Add synthwaveMode to dependencies
+  }, [toggle80sMode, showSpotify, synthwaveMode, handleMusicToggle, handleIgnition]); // Add synthwaveMode to dependencies
 
   // Add an effect to ensure mission control is synced once available
   useEffect(() => {

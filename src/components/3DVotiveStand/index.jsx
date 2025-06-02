@@ -49,6 +49,10 @@ import StarField from "./StarField";
 import ScrollDetailViewer from "./ScrollDetailViewer";
 import MobileCandleMarquee from "./MobileCandleMarquee";
 import { useMusic } from "../../contexts/MusicContext";
+// import NeonLines from "./NeonLines";
+// import NeonLines from "./NeonLinesSimple"; // Temporary test
+// import NeonLines from "./NeonLinesFixed"; // Fixed version using Line component
+import NeonLines from "./NeonLinesFinal"; // Final optimized version
 
 // Scene is created internally by React Three Fiber
 
@@ -1636,6 +1640,14 @@ const ThreeDVotiveStand = forwardRef(({
             groupPosition={[0, 0, -300]} // Original position for 3DVotiveStand
           />
         </Suspense>
+
+        {/* Add NeonLines effect for 80s mode */}
+        {/* <Suspense fallback={null}>
+          <NeonLines 
+            enabled={is80sMode && !monsterMode && !rocketModelVisible} 
+            linesAmount={is80sMode ? 12 : 0}
+          />
+        </Suspense> */}
 
         {/* Render the stars last */}
         <Suspense fallback={null}>

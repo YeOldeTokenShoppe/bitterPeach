@@ -139,7 +139,7 @@ const lastMousePos = useRef({ xPx: null, yPx: null });
 
   // Uniforms for gradient background shader
   const bgUniforms = useRef({
-    uTime: { value: 0 }
+    uTime: { value: 0.0 }
   });
 
   function initializeParticles(width, height) {

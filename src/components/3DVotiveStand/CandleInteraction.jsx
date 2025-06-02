@@ -36,10 +36,10 @@
         {/* Canvas container */}
         <div
           style={{
-            width: window.innerWidth <= 768 ? "90vw" : "60vw",
-            height: window.innerWidth <= 768 ? "70vh" : "80vh",
-            borderRadius: "10px",
-            position: "relative",
+            width: window.innerWidth <= 768 ? '70vw' : '30vw',
+            height: window.innerWidth <= 768 ? '70vh' : '80vh',
+            borderRadius: '10px',
+            position: 'relative',
           }}
           onClick={(e) => e.stopPropagation()}
         >

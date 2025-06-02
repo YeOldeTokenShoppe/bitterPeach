@@ -424,7 +424,7 @@ if (!window.myAudioContext) {
     window.myAudioContext = new (window.AudioContext || window.webkitAudioContext)({
       sampleRate: 44100,
     });
-    console.log("🎧 High-quality AudioContext initialized");
+
   } catch (e) {
     console.warn("⚠️ Failed to initialize AudioContext:", e);
   }
@@ -440,9 +440,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const buttonLabel = signalButton.querySelector(".button-label");
     // Keep button as SIGNAL always - don't change to CONNECT
     // if (buttonLabel) buttonLabel.textContent = "CONNECT";
-    console.log("✅ Orientation previously viewed - button remains SIGNAL");
+
   } else {
-    console.log("🎬 Orientation not viewed yet - button shows SIGNAL");
+
   }
   
   // Initialize leaderboard based on screen size
@@ -484,16 +484,14 @@ function initializeVideoDisplay() {
 // Control Button Functions
 function initializeControlButtons() {
   const controlButtons = document.querySelectorAll('.control-button');
-  console.log(`🔧 Initializing ${controlButtons.length} control buttons`);
-  
+
   controlButtons.forEach((button, index) => {
     const action = button.getAttribute('data-action');
-    console.log(`🔲 Button ${index}: action="${action}"`);
-    
+
     button.addEventListener('click', function(e) {
       e.stopPropagation(); // Prevent event bubbling
       const action = this.getAttribute('data-action');
-      console.log(`🔴 Button click intercepted: action="${action}" at ${new Date().toISOString()}`);
+
       console.log(`🔴 Event details:`, {
         eventPhase: e.eventPhase,
         bubbles: e.bubbles,
@@ -507,11 +505,10 @@ function initializeControlButtons() {
 }
 
 function handleControlButtonClick(action, button) {
-  console.log(`🎮 Control button clicked with action: ${action}`);
-  
+
   switch(action) {
     case 'signal':
-      console.log("🎯 Routing to signal handler...");
+
       handleSignalButton(button);
       break;
     case 'navigation':
@@ -525,17 +522,16 @@ function handleControlButtonClick(action, button) {
       handleCommunicationsButton(button);
       break;
     default:
-      console.log(`Unknown action: ${action}`);
+
   }
 }
 
 function handleSignalButton(button) {
-  console.log("🚀 Signal button clicked! Starting handleSignalButton...");
-  
+
   // Check if 80s mode is active and turn it off to prevent video conflicts
   const eightiesToggle = document.getElementById('eighties-toggle');
   if (eightiesToggle && eightiesToggle.classList.contains('active')) {
-    console.log("📺 80s mode is active - turning off to prevent video conflict");
+
     // Programmatically trigger the eighties mode toggle
     eightiesToggle.click();
   }
@@ -543,7 +539,7 @@ function handleSignalButton(button) {
   // Check if music mode is active and turn it off to prevent audio conflicts
   const musicToggle = document.getElementById('music-toggle');
   if (musicToggle && musicToggle.classList.contains('active')) {
-    console.log("🎵 Music mode is active - turning off to prevent audio conflict during communication");
+
     // Programmatically trigger the music mode toggle
     musicToggle.click();
   }
@@ -562,8 +558,7 @@ function handleSignalButton(button) {
 
   // Check if orientation video is already playing
   const orientationVideo = document.getElementById("orientation-video");
-  console.log("🎥 Orientation video element:", orientationVideo);
-  
+
   // Check if the video has been viewed
   const dataVideoViewed = button.getAttribute("data-video-viewed") === "true";
   const localStorageViewed = localStorage.getItem("orientationViewed") === "true";
@@ -578,15 +573,13 @@ function handleSignalButton(button) {
   // Check current button state
   const buttonLabel = button.querySelector(".button-label");
   const currentButtonState = buttonLabel ? buttonLabel.textContent : "";
-  console.log("🏷️ Current button state:", currentButtonState);
 
   // Handle button based on current state
   if (currentButtonState === "CONNECT") {
-    console.log("🔗 CONNECT button clicked - initiating SitePal connection...");
-    
+
     // If video is still playing, stop it first (skip functionality)
     if (orientationVideo && !orientationVideo.paused) {
-      console.log("⏭️ Skipping orientation video to connect...");
+
       stopOrientationVideo();
       // Mark as viewed since user chose to skip
       button.setAttribute("data-video-viewed", "true");
@@ -601,21 +594,20 @@ function handleSignalButton(button) {
       handleSitePalConnection(button);
     }
   } else if (currentButtonState === "DISCONNECT") {
-    console.log("🔌 Disconnecting SitePal...");
+
     handleSitePalDisconnection(button);
   } else if (currentButtonState === "SIGNAL") {
     // SIGNAL button always plays orientation video first
-    console.log("📡 SIGNAL button clicked - playing orientation video...");
-    
+
     // If orientation video exists and is currently playing, stop it
     if (orientationVideo && !orientationVideo.paused && orientationVideo.style.display !== "none") {
-      console.log("🛑 Stopping currently playing orientation video...");
+
       stopOrientationVideo();
       button.classList.add("active");
       setTimeout(() => button.classList.remove("active"), 500);
     } else {
       // Play orientation video
-      console.log("▶️ Playing orientation video...");
+
       playOrientationVideo();
     }
   }
@@ -625,18 +617,15 @@ function handleSignalButton(button) {
 let rocketToggleInProgress = false;
 
 function handleNavigationButton(button) {
-  console.log('🚀 Navigation button clicked');
-  
+
   const currentState = button.getAttribute('data-state') || 'navigate';
   const buttonLabel = button.querySelector('.button-label');
   const buttonPrefix = button.querySelector('.button-prefix');
   
-  console.log('🚀 handleNavigationButton called with state:', currentState, 'at', new Date().toISOString());
-  
+
   if (currentState === 'navigate') {
     // State 1: NAVIGATE -> IGNITION -> Show rocket model
-    console.log('🚀 Triggering ignition - switching to rocket model');
-    
+
     // Check if we're already processing a toggle
     if (rocketToggleInProgress) {
       console.warn('🚀 Rocket toggle already in progress, skipping duplicate');
@@ -654,7 +643,7 @@ function handleNavigationButton(button) {
     
     // Send ignition message to parent to show rocket model
     if (window.parent) {
-      console.log('🚀 Sending ROCKET_IGNITION_REQUEST message at', new Date().toISOString());
+
       window.parent.postMessage({
         type: 'ROCKET_IGNITION_REQUEST',
         action: 'show_rocket'
@@ -663,7 +652,7 @@ function handleNavigationButton(button) {
       // Reset flag after a delay
       setTimeout(() => {
         rocketToggleInProgress = false;
-        console.log('🚀 Rocket toggle flag reset');
+
       }, 1000);
     }
     
@@ -691,8 +680,7 @@ function handleNavigationButton(button) {
     
   } else if (currentState === 'launch') {
     // State 2: LAUNCH -> Execute launch action
-    console.log('🌕 Executing launch sequence');
-    
+
     // Reset button to NAVIGATE state
     button.setAttribute('data-state', 'navigate');
     button.setAttribute('data-action', 'navigation');
@@ -701,7 +689,7 @@ function handleNavigationButton(button) {
     
     // Send launch message to parent
     if (window.parent) {
-      console.log('🚀 Sending ROCKET_LAUNCH_EXECUTE message');
+
       window.parent.postMessage({
         type: 'ROCKET_LAUNCH_EXECUTE',
         action: 'launch_rocket'
@@ -734,12 +722,11 @@ function handleNavigationButton(button) {
 
 function handleSystemsButton(button) {
   // Systems button logic
-  console.log('Systems button clicked');
+
 }
 
 function handleCommunicationsButton(button) {
-  console.log('🌍 Return to Earth button clicked - navigating to /home');
-  
+
   // Play a gentle farewell sound
   try {
     const audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -831,8 +818,7 @@ function handleToggleSwitch(type, toggle) {
 }
 
 function handleEightiesMode(isActive) {
-  console.log(`🎛️ Eighties mode: ${isActive ? 'ON' : 'OFF'}`);
-  
+
   const missionControl = document.getElementById('mission-control');
   const scanLines = document.getElementById('scan-lines');
   const colorShiftRed = document.getElementById('color-shift-red');
@@ -863,13 +849,13 @@ function handleEightiesMode(isActive) {
         type: 'SYNC_80S_STATE',
         enabled: true
       }, '*');
-      console.log('📡 Sent SYNC_80S_STATE: enabled=true to parent for PostProcessingEffects');
+
     }
     
     // Auto-enable MUSIC toggle when 80s mode is activated
     const musicToggle = document.getElementById('music-toggle');
     if (musicToggle && !musicToggle.classList.contains('active')) {
-      console.log('🎵 Auto-enabling MUSIC toggle for 80s mode');
+
       // Programmatically click the toggle to ensure proper state management
       musicToggle.click();
     }
@@ -882,19 +868,19 @@ function handleEightiesMode(isActive) {
     }
     if (scanLines) {
       scanLines.classList.add('active');
-      console.log('✨ Scan lines activated');
+
     } else {
       console.warn('⚠️ Scan lines element not found');
     }
     if (colorShiftRed) {
       colorShiftRed.classList.add('active');
-      console.log('🔴 Red color shift activated');
+
     } else {
       console.warn('⚠️ Red color shift element not found');
     }
     if (colorShiftBlue) {
       colorShiftBlue.classList.add('active');
-      console.log('🔵 Blue color shift activated');
+
     } else {
       console.warn('⚠️ Blue color shift element not found');
     }
@@ -914,20 +900,19 @@ function handleEightiesMode(isActive) {
     // Remove 3D text shadows from all elements in 80s mode
     document.querySelectorAll('.control-button, .toggle-label, .status-label, .leaderboard-header')
       .forEach(element => {
-        element.style.textShadow = '0 0 3px #d946ef';
+        element.style.textShadow = '0 0 3px #67e8f9';
       });
 
     // 80s mode vaporwave video effect
     if (videoFeed) {
       let vaporVideo = videoFeed.querySelector('video[data-vaporwave]');
       if (!vaporVideo) {
-        console.log('🌊 Creating vaporwave video element...');
-        
+
         // Hide deadAir
         if (deadAir) {
           deadAir.style.display = 'none';
           deadAir.pause && deadAir.pause();
-          console.log('📺 DeadAir video hidden for vaporwave effect');
+
         }
         
         // Also ensure orientation video is removed if it exists
@@ -935,7 +920,7 @@ function handleEightiesMode(isActive) {
         if (orientationVideo) {
           orientationVideo.pause();
           orientationVideo.remove();
-          console.log('📺 Orientation video removed for vaporwave effect');
+
         }
         
         // Add vaporwave video
@@ -963,12 +948,12 @@ function handleEightiesMode(isActive) {
         videoFeed.insertBefore(vaporVideo, videoFeed.firstChild);
         
         // Add event listeners for debugging
-        vaporVideo.addEventListener('loadstart', () => console.log('🌊 Vaporwave video loading started'));
-        vaporVideo.addEventListener('canplay', () => console.log('🌊 Vaporwave video can play'));
+
+
         vaporVideo.addEventListener('error', (e) => console.error('❌ Vaporwave video error:', e));
         
         vaporVideo.play().then(() => {
-          console.log('✅ Vaporwave video playing successfully');
+
           console.log('🔍 Video details:', {
             currentTime: vaporVideo.currentTime,
             duration: vaporVideo.duration,
@@ -991,7 +976,7 @@ function handleEightiesMode(isActive) {
           console.error('❌ Failed to play vaporwave video:', error);
         });
       } else {
-        console.log('🌊 Vaporwave video already exists, showing and playing...');
+
         vaporVideo.style.display = '';
         vaporVideo.play().catch((error) => {
           console.error('❌ Failed to resume vaporwave video:', error);
@@ -1048,13 +1033,13 @@ function handleEightiesMode(isActive) {
         type: 'SYNC_80S_STATE',
         enabled: false
       }, '*');
-      console.log('📡 Sent SYNC_80S_STATE: enabled=false to parent for PostProcessingEffects');
+
     }
     
     // Keep MUSIC toggle active but switch to non-80s tracks
     const musicToggle = document.querySelector('.toggle-switch.music');
     if (musicToggle && musicToggle.classList.contains('active')) {
-      console.log('🎵 Keeping MUSIC active, switching to non-80s tracks');
+
       // Send MUSIC_TOGGLE message with 80s mode disabled
       if (window.parent) {
         window.parent.postMessage({
@@ -1073,15 +1058,15 @@ function handleEightiesMode(isActive) {
     }
     if (scanLines) {
       scanLines.classList.remove('active');
-      console.log('✨ Scan lines deactivated');
+
     }
     if (colorShiftRed) {
       colorShiftRed.classList.remove('active');
-      console.log('🔴 Red color shift deactivated');
+
     }
     if (colorShiftBlue) {
       colorShiftBlue.classList.remove('active');
-      console.log('🔵 Blue color shift deactivated');
+
     }
     if (blinkingCursor) blinkingCursor.style.display = 'none';
 
@@ -1174,7 +1159,7 @@ function handleEightiesMode(isActive) {
     oscillator.start(audioContext.currentTime);
     oscillator.stop(audioContext.currentTime + 0.1);
   } catch (e) {
-    console.log('Audio context not supported');
+
   }
 
   // PostProcessing messages are now sent at the beginning of each branch above
@@ -1183,9 +1168,8 @@ function handleEightiesMode(isActive) {
 // 3D Mode functionality removed - replaced with MUSIC mode
 
 function handleMusicMode(isActive) {
-  console.log('🎵 Music mode:', isActive ? 'ON' : 'OFF');
-  console.log('🎵 Music toggle current state:', document.getElementById('music-toggle')?.classList.contains('active'));
-  
+
+
   // Play toggle sound
   try {
     const audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -1211,7 +1195,7 @@ function handleMusicMode(isActive) {
     oscillator.start();
     oscillator.stop(audioContext.currentTime + 0.1);
   } catch (e) {
-    console.log('Audio context not supported');
+
   }
 
   // Check if 80s mode is currently active to determine track type
@@ -1226,14 +1210,13 @@ function handleMusicMode(isActive) {
         enabled: isActive,
         eightiesMode: is80sModeActive // Use current 80s mode state
       }, '*');
-      console.log('📡 Sent MUSIC_TOGGLE:', isActive, `(${is80sModeActive ? '80s' : 'non-80s'} tracks) to parent`);
+
     }
   }, 100);
 }
 
 function handleConstellationsMode(isActive) {
-  console.log('🌟 Constellations mode:', isActive ? 'ON' : 'OFF');
-  
+
   // Play toggle sound
   try {
     const audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -1259,7 +1242,7 @@ function handleConstellationsMode(isActive) {
     oscillator.start(audioContext.currentTime);
     oscillator.stop(audioContext.currentTime + 0.1);
   } catch (e) {
-    console.log('Audio context not supported');
+
   }
 
   // Notify parent of the constellation toggle
@@ -1268,13 +1251,13 @@ function handleConstellationsMode(isActive) {
       type: 'CONSTELLATION_TOGGLE',
       enabled: isActive
     }, '*');
-    console.log('📡 Sent CONSTELLATION_TOGGLE:', isActive, 'to parent');
+
   }
 }
 
 function handleEmergencyMode(isActive) {
   // Emergency mode logic
-  console.log('Emergency mode:', isActive ? 'ON' : 'OFF');
+
 }
 
 // Leaderboard Functions
@@ -1304,7 +1287,7 @@ function initializeTranscript() {
     expandIcon.addEventListener('click', function(e) {
       e.preventDefault(); // Prevent default behavior
       e.stopPropagation(); // Prevent event bubbling
-      console.log('🔽 Expand icon clicked - toggling transcript');
+
       toggleTranscript();
     });
   }
@@ -1335,8 +1318,7 @@ function setupLanguageSelection() {
     
     const newLanguage = this.value;
     transcriptState.currentLanguage = newLanguage;
-    console.log(`🌐 Language changed to: ${newLanguage}`);
-    
+
     // Always update transcript content, regardless of visibility
     updateTranscriptContent();
     
@@ -1354,7 +1336,7 @@ function setupLanguageSelection() {
     }
   });
   
-  console.log('✅ Language selection setup complete');
+
 }
 
 // Update transcript content based on current language
@@ -1398,7 +1380,7 @@ function updateTranscriptContent() {
     }
   }
   
-  console.log(`📄 Transcript updated for language: ${transcriptState.currentLanguage}`);
+
 }
 
 function toggleTranscript() {
@@ -1438,7 +1420,7 @@ function toggleTranscript() {
 function initializeSitePal() {
   // Call the HTML implementation of initSitePal
   if (typeof initSitePal === "function") {
-    console.log('🔗 Calling HTML initSitePal implementation...');
+
     initSitePal();
   } else {
     console.warn('⚠️ initSitePal function not found in HTML');
@@ -1529,7 +1511,7 @@ window.addEventListener('resize', handleResize);
 // Message handling for iframe communication
 window.addEventListener('message', function(event) {
   if (event.data.type === 'SIGNAL_BUTTON_STATE') {
-    console.log('Signal button state:', event.data.state);
+
   }
 });
 
@@ -1540,7 +1522,7 @@ document.addEventListener('DOMContentLoaded', initializeVideoCall);
 function resumeAudioContext() {
   if (window.myAudioContext && window.myAudioContext.state === 'suspended') {
     window.myAudioContext.resume().then(() => {
-      console.log('AudioContext resumed');
+
     });
   }
 }
@@ -1551,8 +1533,7 @@ document.addEventListener('touchstart', resumeAudioContext, { once: true });
 
 // Video playback function for orientation video
 function playOrientationVideo() {
-  console.log("🎬 Starting playOrientationVideo function...");
-  
+
   const videoFeed = document.getElementById("video-feed");
   const deadAir = document.getElementById("deadAir");
   const signalButton = document.querySelector('.control-button[data-action="signal"]');
@@ -1626,8 +1607,7 @@ function playOrientationVideo() {
 
   // Handle video ready to play
   orientationVideo.addEventListener("canplay", () => {
-    console.log("✅ Video canplay event fired");
-    
+
     disableToggles();
     
     setTimeout(() => {
@@ -1639,7 +1619,7 @@ function playOrientationVideo() {
       
       orientationVideo.play()
         .then(() => {
-          console.log("✅ Orientation video playing");
+
           showTranscriptForOrientationVideo();
           
           // 🆕 Show CONNECT button immediately when video starts (skip option)
@@ -1653,8 +1633,7 @@ function playOrientationVideo() {
               // if (buttonPrefix) {
               //   buttonPrefix.textContent = "SKIP// 🚀";
               // }
-              console.log("🔄 CONNECT button available (video can be skipped)");
-              
+
               // Add a subtle pulse animation to draw attention
               signalButton?.classList.add("can-skip");
               
@@ -1690,8 +1669,7 @@ function playOrientationVideo() {
 
   // Handle video end
   orientationVideo.addEventListener("ended", () => {
-    console.log("🏁 Video ended");
-    
+
     // Clean up video
     orientationVideo.pause();
     orientationVideo.currentTime = 0;
@@ -1778,7 +1756,7 @@ function showTranscriptForOrientationVideo() {
   // Show the transcript container during orientation video
   if (transcriptContainer) {
     transcriptContainer.style.display = 'block';
-    console.log("📄 Transcript container shown for orientation video");
+
   }
 
   // Keep transcript content collapsed by default
@@ -1814,7 +1792,7 @@ function showTranscriptForOrientationVideo() {
       const transcriptContainer = document.querySelector('.transcript-container');
       if (transcriptContainer) {
         transcriptContainer.style.display = 'none';
-        console.log("📄 Transcript container hidden - video ended");
+
       }
 
       if (transcriptToggleBtn) {
@@ -1934,8 +1912,7 @@ function hideTranscript() {
 
 // SitePal functions
 function handleSitePalConnection(button) {
-  console.log("🔗 Starting SitePal connection sequence...");
-  
+
   isCallActive = true;
   window.sceneAlreadyLoaded = false;
   window.allowButtonTransition = true;
@@ -1948,12 +1925,11 @@ function handleSitePalConnection(button) {
   const sitepalContainer = document.getElementById("sitepal-container");
   const offlineDisplay = document.getElementById("offline-display");
 
-  console.log("📺 Setting up video transition...");
-  
+
   // Hide offline display
   if (offlineDisplay) {
     offlineDisplay.style.display = "none";
-    console.log("🚫 Offline display hidden");
+
   }
 
   // Set up deadAir video for transmission effect with high z-index to cover SitePal loader
@@ -1974,7 +1950,7 @@ function handleSitePalConnection(button) {
     
     // Actually play the deadAir video for the transmission effect
     deadAir.play().then(() => {
-      console.log("📡 Transmission effect (1.mp4) playing at high z-index to cover loader...");
+
     }).catch(e => {
       console.warn("⚠️ Could not play transmission video:", e);
     });
@@ -1984,10 +1960,9 @@ function handleSitePalConnection(button) {
   if (sitepalContainer) {
     sitepalContainer.style.display = "block";
     sitepalContainer.style.zIndex = "5";
-    console.log("📦 SitePal container prepared");
-    
+
     if (sitepalContainer.dataset.initialized === "true") {
-      console.log("🧹 Cleaning up existing SitePal instance...");
+
       cleanupSitePal();
     }
   }
@@ -1996,20 +1971,20 @@ function handleSitePalConnection(button) {
   const callStatus = document.getElementById("call-status");
   if (callStatus) {
     callStatus.classList.add("active");
-    console.log("📞 Call status activated");
+
   }
 
   // Initialize SitePal with a delay to allow video transition
   setTimeout(() => {
-    console.log("⏰ Triggering SitePal initialization via HTML implementation...");
+
     // The original HTML implementation handles SitePal initialization
     // We just need to trigger the existing initSitePal function
     if (typeof initSitePal === "function") {
-      console.log("🎯 Found initSitePal function, calling it...");
+
       initSitePal();
     } else {
       console.warn("⚠️ initSitePal function not found in HTML implementation");
-      console.log("Available functions:", Object.keys(window).filter(key => key.includes('SitePal') || key.includes('initSitePal')));
+
     }
     
     if (sitepalContainer) {
@@ -2018,14 +1993,13 @@ function handleSitePalConnection(button) {
   }, 1500);
 
   // Don't auto-trigger unmute - wait for user to click UN-MUTE
-  console.log("⏸️ SitePal loaded, waiting for user to click UN-MUTE...");
 
   // Update button state to DISCONNECT for text-only mode (skip UN-MUTE)
   setTimeout(() => {
     const buttonLabel = button.querySelector(".button-label");
     if (buttonLabel) {
       buttonLabel.textContent = "DISCONNECT";
-      console.log("🏷️ Button label updated to DISCONNECT (text-only mode)");
+
     }
     button.classList.remove("signal-pulse");
     button.classList.add("disconnect");
@@ -2040,13 +2014,12 @@ function handleSitePalConnection(button) {
       }, "*");
     }
     
-    console.log("✅ Text-only communication ready - no UN-MUTE required");
+
   }, 3000); // Faster activation for text mode
 }
 
 function handleUnmuteClick(button) {
-  console.log("🎤 Handling UN-MUTE click...");
-  
+
   const buttonLabel = button.querySelector(".button-label");
   if (buttonLabel) {
     buttonLabel.textContent = "DISCONNECT";
@@ -2066,7 +2039,7 @@ function handleUnmuteClick(button) {
   
   // Call the SitePal greeting function from HTML
   if (typeof window.sitePalGreeting === "function") {
-    console.log("🗣️ Calling SitePal greeting function...");
+
     window.sitePalGreeting();
   } else {
     console.warn("⚠️ SitePal greeting function not available");
@@ -2074,8 +2047,7 @@ function handleUnmuteClick(button) {
 }
 
 function handleSitePalDisconnection(button) {
-  console.log("🔌 Starting SitePal disconnection...");
-  
+
   isCallActive = false;
   button.classList.remove("signal-pulse", "disconnect");
   
@@ -2091,12 +2063,12 @@ function handleSitePalDisconnection(button) {
   const textCommContainer = document.getElementById("text-comm-container");
   if (textCommContainer) {
     textCommContainer.style.display = "none";
-    console.log("📝 Text communication interface hidden");
+
   }
 
   // Call the HTML disconnection function if available
   if (typeof disconnectSitePal === "function") {
-    console.log("🧹 Calling HTML SitePal disconnect function...");
+
     disconnectSitePal();
   }
 
@@ -2117,7 +2089,7 @@ function handleSitePalDisconnection(button) {
   }
   if (offlineDisplay) {
     offlineDisplay.style.display = "flex";
-    console.log("📺 Offline display restored");
+
   }
 
   // Notify parent about disconnection
@@ -2130,12 +2102,11 @@ function handleSitePalDisconnection(button) {
   }
 
   enableToggles();
-  console.log("✅ SitePal disconnection complete");
+
 }
 
 function cleanupSitePal() {
-  console.log("🧹 Cleaning up SitePal...");
-  
+
   const sitepalContainer = document.getElementById("sitepal-container");
   if (sitepalContainer) {
     sitepalContainer.innerHTML = `
@@ -2153,7 +2124,7 @@ function cleanupSitePal() {
     try {
       window.AI_vhost_api("stopListening");
     } catch (e) {
-      console.log("Could not stop listening:", e);
+
     }
   }
   
@@ -2171,8 +2142,7 @@ function cleanupSitePal() {
 
 // Text Communication Functions
 function initializeTextCommunication() {
-  console.log('📝 Text communication will be handled by SitePal auto-generated AI form');
-  
+
   // SitePal should auto-generate the AI form when AI=1 is set in the embed call
   // The form will appear in the #vhss-aiplayer-aiform div
   
@@ -2185,16 +2155,16 @@ function initializeTextCommunication() {
     const aiFormDiv = document.getElementById('vhss-aiplayer-aiform');
     
     if (aiFormDiv && aiFormDiv.innerHTML.trim() !== '') {
-      console.log('✅ SitePal AI form has been generated!');
+
       updateTextCommStatus('READY');
       return;
     }
     
     if (checkCount < maxChecks) {
-      console.log(`⏳ Waiting for SitePal AI form... (${checkCount}/${maxChecks})`);
+
       setTimeout(checkForAIForm, 1000);
     } else {
-      console.log('📝 Using custom AI input interface instead of auto-generated form');
+
       updateTextCommStatus('READY');
     }
   };
@@ -2212,7 +2182,7 @@ function triggerSitePalTextSend() {
     return;
   }
   
-  console.log('📤 Triggering SitePal text send:', message);
+
   updateTextCommStatus('TRANSMITTING...');
   
   // Create and dispatch an Enter key event to trigger SitePal's native handling
@@ -2277,36 +2247,35 @@ function handleVideoPlayError(video, offlineDisplay) {
 
 // Function to trigger the unmute sequence for full SitePal activation
 function triggerUnmuteSequence(button) {
-  console.log("🎤 Starting unmute sequence for SitePal...");
-  
+
   try {
     // First, ensure audio context is ready
     if (window.myAudioContext && window.myAudioContext.state === 'suspended') {
       window.myAudioContext.resume().then(() => {
-        console.log("🔊 AudioContext resumed for SitePal");
+
       });
     }
     
     // Try to activate SitePal's listening mode
     if (typeof window.AI_vhost_api === "function") {
-      console.log("🎤 Activating AI_vhost_api startListening...");
+
       window.AI_vhost_api("startListening");
     }
     
     // Also try the global functions if available
     if (typeof startListening === "function") {
-      console.log("🎤 Calling global startListening function...");
+
       startListening();
     }
     
     // Play a greeting message with proper TTS to activate mouth movement
     if (typeof window.sayText === "function") {
-      console.log("👋 Playing TTS greeting to activate mouth movement...");
+
       setTimeout(() => {
         window.sayText("Hello, Earthling. I am now ready to listen and respond to your voice.");
       }, 1000);
     } else if (typeof sayText === "function") {
-      console.log("👋 Playing TTS greeting using global sayText...");
+
       setTimeout(() => {
         sayText("Hello, Earthling. I am now ready to listen and respond to your voice.");
       }, 1000);
@@ -2316,7 +2285,7 @@ function triggerUnmuteSequence(button) {
     if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
       navigator.mediaDevices.getUserMedia({ audio: true })
         .then(stream => {
-          console.log("✅ Microphone access confirmed for SitePal");
+
           // Don't stop the stream immediately - let SitePal use it
           window.sitepalMicStream = stream;
         })
@@ -2325,8 +2294,7 @@ function triggerUnmuteSequence(button) {
         });
     }
     
-    console.log("✅ Unmute sequence completed");
-    
+
   } catch (error) {
     console.error("❌ Error in unmute sequence:", error);
   }

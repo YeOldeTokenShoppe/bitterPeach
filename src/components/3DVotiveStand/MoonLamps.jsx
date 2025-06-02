@@ -107,32 +107,20 @@ const MoonScene = forwardRef(
             camera.fov = 60; // Smaller FOV for mobile
             if (rocketModelVisible) {
               camera.position.set(0, 0, 60); // Much further back position for mobile when rocket is visible
-              console.log("Applying MOBILE camera settings with ROCKET:", {
-                fov: camera.fov,
-                pos: camera.position,
-              });
+     
             } else {
               camera.position.set(0, 0, 20); // Original mobile position
-              console.log("Applying MOBILE camera settings:", {
-                fov: camera.fov,
-                pos: camera.position,
-              });
+    
             }
           } 
           else {
             camera.fov = 35; // Original desktop FOV
             if (rocketModelVisible) {
               camera.position.set(0, 0, 100); // Further back position for desktop when rocket is visible
-              console.log("Applying DESKTOP camera settings with ROCKET:", {
-                fov: camera.fov,
-                pos: camera.position,
-              });
+      
             } else {
               camera.position.set(0, 0, 80); // Original desktop position
-              console.log("Applying DESKTOP camera settings:", {
-                fov: camera.fov,
-                pos: camera.position,
-              });
+
             }
           }
           // --- End changes ---
@@ -194,11 +182,11 @@ const MoonScene = forwardRef(
     useEffect(() => {
       // Skip if controls already exist
       if (controlsRef.current) {
-        console.log('OrbitControls already exist, skipping creation');
+
         return;
       }
 
-      console.log('Creating OrbitControls...');
+
       const controls = new OrbitControls(camera, gl.domElement);
       
       // Ensure controls are enabled
@@ -224,15 +212,7 @@ const MoonScene = forwardRef(
       };
       
       // Add a console log to verify controls settings
-      console.log("MoonScene: OrbitControls initialized with settings:", {
-        enabled: controls.enabled,
-        enableZoom: controls.enableZoom,
-        zoomSpeed: controls.zoomSpeed,
-        minDistance: controls.minDistance,
-        maxDistance: controls.maxDistance,
-        enableRotate: controls.enableRotate,
-        enablePan: controls.enablePan
-      });
+
 
       // Add vertical panning limits
       controls.maxPanUp = 10; // Limit upward panning to 10 units
@@ -249,36 +229,30 @@ const MoonScene = forwardRef(
 
       // If we have an onControlsCreated callback, call it
       if (initialPropsRef.current.onControlsCreated) {
-        console.log('MoonScene: Calling onControlsCreated with controls');
+
         initialPropsRef.current.onControlsCreated(controls);
       }
       
       // Force enable controls if rocket is visible
       if (rocketModelVisible) {
-        console.log('MoonScene: Rocket is visible, ensuring controls are enabled');
+
         controls.enabled = true;
       }
       
       // Add debugging for controls
-      console.log('OrbitControls object:', controls);
-      console.log('Controls DOM element:', controls.domElement);
-      console.log('Controls enabled state:', {
-        enabled: controls.enabled,
-        enableRotate: controls.enableRotate,
-        enableZoom: controls.enableZoom,
-        enablePan: controls.enablePan
-      });
+
+
       
       // Test if controls are responding
       setTimeout(() => {
-        console.log('Testing controls after setup - current target:', controls.target);
-        console.log('Testing controls after setup - camera position:', camera.position);
+
+
       }, 1000);
 
       // Cleanup function
       return () => {
         if (controlsRef.current) {
-          console.log('Disposing OrbitControls');
+
           controlsRef.current.dispose();
           controlsRef.current = null;
         }
@@ -325,7 +299,7 @@ const MoonScene = forwardRef(
             moonTextureRef.current = texture;
             setTextureLoaded(true);
             setTextureError(false);
-            console.log("Moon texture loaded successfully");
+
             return;
           } catch (error) {
             console.warn(
@@ -359,7 +333,7 @@ const MoonScene = forwardRef(
       try {
         // Only proceed if not already initialized
         if (ammoRef.current) {
-          console.log('Ammo.js already initialized, skipping initialization');
+
           return ammoRef.current;
         }
 
@@ -604,14 +578,14 @@ const MoonScene = forwardRef(
       modelRef.current.traverse(child => {
         // Use the exact name from Blender - child is defined inside this traverse function
         if (child.isMesh && child.name === "Floor2.002") {
-          console.log("Found Floor2.002, setting up physics");
+
           setupPhysicsForFloor2(child);
         }
       });
     }, [modelRef.current, physicsRef.current.world]);
 
     const setupPhysicsForFloor2 = floor2Mesh => {
-      console.log("setupPhysicsForFloor2 was called with:", floor2Mesh.name);
+
       const AmmoLib = ammoRef.current;
       if (!AmmoLib || !physicsRef.current.world) {
         console.error("AmmoLib or physics world not initialized");
@@ -625,7 +599,6 @@ const MoonScene = forwardRef(
       const worldScale = new THREE.Vector3();
       floor2Mesh.matrixWorld.decompose(worldPosition, worldQuaternion, worldScale);
 
-      console.log("Floor2 world position:", worldPosition);
 
       // Clone geometry and apply world transforms
       const clonedGeometry = floor2Mesh.geometry.clone();
@@ -693,7 +666,7 @@ const MoonScene = forwardRef(
       debugMesh.position.copy(worldPosition);
       scene.add(debugMesh);
 
-      console.log("Adding Floor2 collision body");
+
       physicsRef.current.world.addRigidBody(rigidBody);
     };
     // Improved moon spawning with more accurate physics
@@ -888,11 +861,11 @@ const MoonScene = forwardRef(
                            child.name.toLowerCase().includes("gator");
 
         if (isAlligator) {
-          console.log("Found alligator object for physics:", child.name);
+
           const alligatorMargin = 0.7; // Alligator needs a large margin
           shape = createConvexHullShape(child.geometry, alligatorMargin);
           if (!shape) {
-            console.log("Creating simple shape for alligator as fallback");
+
             // If createSimpleShape also needs a margin, it should be parameterized too.
             // For now, assuming createSimpleShape handles its own margin or uses a fixed small one.
             shape = createSimpleShape(child);
@@ -902,7 +875,7 @@ const MoonScene = forwardRef(
           // ---- START: Visualizations for alligator ----
           if (showDebugShape) {
             // 2. Convex Hull from THREE.js Geometry (Blue)
-            console.log(`Attempting to create ConvexHull from THREE.js geometry for: ${child.name}`);
+
             if (child.geometry && child.geometry.attributes.position) {
               const positions = child.geometry.attributes.position.array;
               const threeJsVertices = [];
@@ -923,7 +896,7 @@ const MoonScene = forwardRef(
                   const threeJsConvexMesh = new THREE.Mesh(threeJsConvexGeom, threeJsConvexMaterial);
                   // This mesh is based on local geometry, so its position should be (0,0,0) relative to the parent (child)
                   child.add(threeJsConvexMesh);
-                  console.log(`SUCCESS: Added ConvexGeometry from THREE.js (blue) for ${child.name} with ${threeJsVertices.length} input vertices.`);
+
                 } catch (e) {
                   console.error(`Error creating ConvexGeometry from THREE.js for ${child.name}:`, e);
                 }
@@ -1010,7 +983,7 @@ const MoonScene = forwardRef(
           body.setFriction(GROUND_FRICTION);
           body.setRestitution(GROUND_RESTITUTION);
           body.setDamping(0, 0);
-          console.log(`${child.name} floor physics applied`);
+
         } else if (child.userData.isAlligator) {
           body.setFriction(0.5);
           body.setRestitution(0.2);
@@ -1028,24 +1001,23 @@ const MoonScene = forwardRef(
             // Specifically find and store the 'skin' mesh for visual effects
             if (child.material && child.material.name === 'skin') {
               alligatorSkinMeshRef.current = child;
-              console.log("IMPORTANT: Alligator SKIN MESH ('" + child.name + "' with material '" + child.material.name + "') assigned to alligatorSkinMeshRef:", alligatorSkinMeshRef.current);
+
             }
           }
           
           // Separate traversal specifically for AlligatorScroll setup, as it might have a different structure
           // and needs to be initialized once.
           if (modelRef.current && !exclamationObjectRef.current) { // Ensure this runs only once
-            console.log("Starting traversal to find AlligatorScroll parent object...");
+
             modelRef.current.traverse((object) => {
-              // console.log(`Traversing for scroll parent: Name: '${object.name}', Parent: '${object.parent ? object.parent.name : "NO_PARENT"}'`);
 
               if (object.name === 'Exclamation') {
                 if (!exclamationObjectRef.current) { // Check again to ensure single assignment
                     exclamationObjectRef.current = object;
                     // Store the original rotation
                     exclamationOriginalRotationRef.current = object.rotation.clone();
-                    console.log("SUCCESS: Found AlligatorScroll main object (parent/group):", object);
-                    console.log("Original rotation stored:", exclamationOriginalRotationRef.current);
+
+
                     setScrollObjectFound(true); // Set state when found
 
                     // Initially hide all visible mesh parts of the scroll group
@@ -1054,7 +1026,7 @@ const MoonScene = forwardRef(
                         //     // This was for animation target, will be handled in useEffect
                         // }
                         if (child.isMesh && child.name.startsWith('Exclamation')) {
-                            console.log("Initially hiding scroll part:", child.name);
+
                             child.visible = false;
                         }
                     });
@@ -1067,7 +1039,7 @@ const MoonScene = forwardRef(
             }
           }
           
-          console.log(`${child.name} (part of alligator model) physics applied as KINEMATIC in ALLIGATOR group`);
+
         } else if (isWallMesh) {
             body.setFriction(MODEL_FRICTION); 
             body.setRestitution(MODEL_RESTITUTION);
@@ -1394,14 +1366,14 @@ const MoonScene = forwardRef(
     useImperativeHandle(ref, () => ({
       triggerInitialSpawn: () => {
         if (isMobileView) {
-          console.log("MoonScene: Skipping moon spawning on mobile for performance");
+
           if (onSpawnReady) {
             onSpawnReady();
           }
           return;
         }
         if (isPhysicsInitialized.current && ammoRef.current) {
-          console.log("MoonScene: triggerInitialSpawn called, spawning moons...");
+
           for (let i = 0; i < 8; i++) {
             spawnMoon();
           }
@@ -1414,7 +1386,7 @@ const MoonScene = forwardRef(
       },
       closeInSceneScroll: () => {
         // This function is no longer needed since Exclamation is not interactive
-        console.log("MoonScene: closeInSceneScroll called but no longer used.");
+
       }
     }));
 
@@ -1474,7 +1446,7 @@ const MoonScene = forwardRef(
       if (controlsRef.current) {
         // Force enable controls if rocket is visible
         if (rocketModelVisible && !controlsRef.current.enabled) {
-          console.log('MoonScene useFrame: Re-enabling controls for rocket view');
+
           controlsRef.current.enabled = true;
         }
         // Force update controls every frame
@@ -1535,7 +1507,7 @@ const MoonScene = forwardRef(
 
           if ((b0IsAlligator && b1IsProjectile) || (b1IsAlligator && b0IsProjectile)) {
             if (!isAlligatorHit) {
-              console.log("Alligator hit! Don't bother Saint Gr80, he's meditating");
+
               setIsAlligatorHit(true);
 
               // Reset text state when alligator is hit
@@ -1543,7 +1515,7 @@ const MoonScene = forwardRef(
 
               // Visual cue: Flash alligator color (on skin mesh)
               if (alligatorSkinMeshRef.current && alligatorSkinMeshRef.current.material) {
-                console.log("Attempting to flash alligator. Target SKIN Object:", alligatorSkinMeshRef.current, "Material(s):", alligatorSkinMeshRef.current.material);
+
                 originalMaterialStatesRef.current = []; // Clear previous states
                 // The skin mesh should have a single material based on logs
                 const material = alligatorSkinMeshRef.current.material; 
@@ -1574,7 +1546,7 @@ const MoonScene = forwardRef(
               alligatorHitTimeoutRef.current = setTimeout(() => {
                 setIsAlligatorHit(false);
                 // Revert alligator color
-                console.log("Reverting alligator SKIN material. Stored states:", originalMaterialStatesRef.current);
+
                 originalMaterialStatesRef.current.forEach(state => {
                   if (state.material.color && state.originalColor !== undefined) {
                     state.material.color.setHex(state.originalColor);
@@ -1691,17 +1663,16 @@ const MoonScene = forwardRef(
           exclamationObjectRef.current.rotation.z = angleZ;
         }
         
-        console.log("Billboard rotation applied - angleZ:", angleZ, "Original Z:", exclamationOriginalRotationRef.current?.z);
+
       }
     });
 
     // Add handleAlligatorHit function
     const handleAlligatorHit = () => {
-      console.log("Alligator hit - Exclamation will appear with red glow for 3 seconds");
-      
+
       // Show the Exclamation object with red glow
       if (exclamationObjectRef.current) {
-        console.log("Showing Exclamation object with red glow");
+
         originalScrollMaterialStatesRef.current = []; // Clear previous states
         glowingScrollMaterialsRef.current = []; // Clear previous tracked materials
 
@@ -1770,7 +1741,7 @@ const MoonScene = forwardRef(
             originalScrollMaterialStatesRef.current = [];
           }
           
-          console.log("Exclamation hidden after 3 seconds");
+
         }, 3000); // 3 seconds
       }
     };
@@ -1778,14 +1749,14 @@ const MoonScene = forwardRef(
     // Add this new useEffect for logging scroll message
     // useEffect(() => {
     //   // Log scroll message when component mounts
-    //   console.log("MoonScene mounted with scrollMessage:", scrollMessage);
+
     // }, [scrollMessage]);
 
     useEffect(() => {
       const handleWheel = (event) => {
         // Don't prevent default - let OrbitControls handle the wheel event
         if (controlsRef.current && controlsRef.current.enableZoom) {
-          console.log("Wheel event detected - letting OrbitControls handle it");
+
         }
       };
 
@@ -1801,8 +1772,7 @@ const MoonScene = forwardRef(
     // Add useEffect to debug text positioning
     useEffect(() => {
       if (scrollMessage) {
-        console.log("Scroll has message:", scrollMessage);
-        
+
         // We can add a debug box to show where the scroll appears if needed
         /*
         const debugBox = new THREE.Mesh(
@@ -1841,7 +1811,7 @@ const MoonScene = forwardRef(
     // Add useEffect for setting up scroll animations with focus on static closed state
     // useEffect(() => {
     //   if (scrollObjectFound && exclamationObjectRef.current && modelAnimations?.length > 0 && !animationsReadyRef.current) {
-    //     console.log("SCROLL_ANIM_SETUP: Setting up scroll closed state animation.");
+
     //     animationsReadyRef.current = true; // Mark as attempted/done to prevent re-running needlessly
 
     //     let animationTarget = null;
@@ -1850,7 +1820,7 @@ const MoonScene = forwardRef(
     //       if (child.name === 'Armature' || child.name === 'Exclamation.003') { 
     //         if (!animationTarget) { // Take the first one found
     //           animationTarget = child;
-    //           console.log(`SCROLL_ANIM_SETUP: Found animation target ('${child.name}') for scroll:`, animationTarget);
+
     //         }
     //       }
     //     });
@@ -1861,7 +1831,6 @@ const MoonScene = forwardRef(
     //     }
 
     //     scrollAnimationMixerRef.current = new THREE.AnimationMixer(animationTarget);
-    //     console.log("SCROLL_ANIM_SETUP: Available animations:", modelAnimations.map(a => a.name));
 
     //     // Look specifically for the static closed state animation
     //     const STATIC_CLOSED_CLIP_NAME = 'Armature|2_Close Static_Armature';
@@ -1871,7 +1840,7 @@ const MoonScene = forwardRef(
     //     const closeClip = THREE.AnimationClip.findByName(modelAnimations, CLOSE_CLIP_NAME);
 
     //     if (staticClosedClip) {
-    //         console.log(`SCROLL_ANIM_SETUP: Found STATIC CLOSED clip: '${STATIC_CLOSED_CLIP_NAME}'`, staticClosedClip);
+
     //         closeScrollActionRef.current = scrollAnimationMixerRef.current.clipAction(staticClosedClip);
     //         closeScrollActionRef.current.setLoop(THREE.LoopOnce);
     //         closeScrollActionRef.current.clampWhenFinished = true;
@@ -1882,7 +1851,7 @@ const MoonScene = forwardRef(
     //         // Initially set to the end of the animation to show closed state without animation
     //         closeScrollActionRef.current.time = staticClosedClip.duration;
     //         closeScrollActionRef.current.play();
-    //         console.log("SCROLL_ANIM_SETUP: Static closed state set");
+
     //     } else if (closeClip) {
     //         console.warn(`SCROLL_ANIM_SETUP: Static closed animation not found, using close animation instead.`);
     //         closeScrollActionRef.current = scrollAnimationMixerRef.current.clipAction(closeClip);

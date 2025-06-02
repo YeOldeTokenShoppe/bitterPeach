@@ -189,9 +189,24 @@ export const MusicProvider = ({ children }) => {
     console.log("🎵 MusicContext showSpotify state:", showSpotify);
   }, [showSpotify]);
   
+  // Create a stable reference for setShowSpotify
+  const stableSetShowSpotify = useCallback((value) => {
+    if (typeof value === 'function') {
+      // Handle function form of setState
+      setShowSpotify(prevValue => {
+        const newValue = value(prevValue);
+        syncWithMissionControl(newValue);
+        return newValue;
+      });
+    } else {
+      setShowSpotify(value);
+      syncWithMissionControl(value);
+    }
+  }, [syncWithMissionControl]);
+
   const value = {
     showSpotify,
-    setShowSpotify: toggleMusic,
+    setShowSpotify: stableSetShowSpotify,
     currentTrack,
     setCurrentTrack,
     isPlaying,

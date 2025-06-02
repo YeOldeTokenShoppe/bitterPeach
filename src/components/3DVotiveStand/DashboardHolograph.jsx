@@ -34,7 +34,7 @@ function DashboardHolograph({
       new THREE.ShaderMaterial({
         precision: "lowp",
         uniforms: {
-          uTime: { value: 0 },
+          uTime: { value: 0.0 },
           uColor: { value: new THREE.Color(0x00ffff) },
         },
         vertexShader: `
@@ -205,7 +205,14 @@ function DashboardHolograph({
               depthTest: true,
             });
           } else {
-            child.material = holographicMaterial;
+            // Clone the material for each mesh to prevent shared state conflicts
+            const clonedMaterial = holographicMaterial.clone();
+            // Properly clone uniforms to avoid shared references
+            clonedMaterial.uniforms = {
+              uTime: { value: 0 },
+              uColor: { value: new THREE.Color(0x00ffff) }
+            };
+            child.material = clonedMaterial;
           }
         }
       });

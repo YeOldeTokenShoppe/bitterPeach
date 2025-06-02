@@ -116,16 +116,7 @@ function OrbitalCandle({ angle, radius, candleObject, userData, index, onClick, 
         
         // Debug log transition in candle
         if (index === 0 && Math.random() < 0.05) {
-          console.log('🕯️ Candle transition:', {
-            index,
-            progress: progress.toFixed(2),
-            isFadingOut,
-            currentPos: {
-              x: groupRef.current.position.x.toFixed(2),
-              y: groupRef.current.position.y.toFixed(2),
-              z: groupRef.current.position.z.toFixed(2)
-            }
-          });
+         
         }
         
         if (isFadingOut) {
@@ -257,7 +248,7 @@ export default function MobileCandleOrbital({ candleData = [], onCandleClick, mo
   
   // Debug log
   useEffect(() => {
-    console.log('MobileCandleOrbital isViewerOpen prop changed:', isViewerOpen);
+
   }, [isViewerOpen]);
   const [transitionStartTime, setTransitionStartTime] = useState(0);
   const [nextPage, setNextPage] = useState(0); // Store the page we're transitioning to
@@ -312,17 +303,11 @@ export default function MobileCandleOrbital({ candleData = [], onCandleClick, mo
       return numA - numB;
     });
     
-    console.log(`Extracted ${extractedCandles.length} VCANDLE objects for mobile display`);
+
     
     // Debug: Log details about extracted candles
     extractedCandles.forEach((candle, index) => {
-      console.log(`VCANDLE ${index}:`, {
-        name: candle.name,
-        visible: candle.object.visible,
-        childrenCount: candle.object.children.length,
-        hasUserData: !!candle.userData,
-        userData: candle.userData
-      });
+     
     });
     
     setVcandleObjects(extractedCandles);
@@ -362,7 +347,7 @@ export default function MobileCandleOrbital({ candleData = [], onCandleClick, mo
   const currentPageData = React.useMemo(() => {
     const startIdx = currentPage * VISIBLE_CANDLES;
     const endIdx = startIdx + VISIBLE_CANDLES;
-    console.log('MobileCandleOrbital: Getting page data for page:', currentPage, 'indices:', startIdx, '-', endIdx);
+  
     return allSortedData.slice(startIdx, endIdx);
   }, [allSortedData, currentPage]);
 
@@ -406,11 +391,11 @@ export default function MobileCandleOrbital({ candleData = [], onCandleClick, mo
   
   // Create a stable setCurrentPage function (moved here to avoid circular dependency)
   const handleSetCurrentPage = useCallback((page) => {
-    console.log('MobileCandleOrbital: setCurrentPage called with page:', page, 'isViewerOpen:', isViewerOpen);
+   
     
     // If viewer is open, just change page without transition animation
     if (isViewerOpen) {
-      console.log('Viewer is open - changing page without transition animation');
+  
       setCurrentPage(page);
       return;
     }
@@ -428,17 +413,12 @@ export default function MobileCandleOrbital({ candleData = [], onCandleClick, mo
       isFadingOut: true
     });
     
-    console.log('🚀 Starting transition:', {
-      isTransitioning: true,
-      transitionStartTime: startTime,
-      currentPage,
-      nextPage: page
-    });
+
     
     // Wait for candles to spiral out before changing
     setTimeout(() => {
       setCurrentPage(page);
-      console.log('MobileCandleOrbital: currentPage updated to:', page);
+    
       
       // Continue transition for fade-in
       setTimeout(() => {
@@ -459,7 +439,7 @@ export default function MobileCandleOrbital({ candleData = [], onCandleClick, mo
     if (!hasInitialSpinCompleted && vcandleObjects.length > 0) {
       // Wait for the initial load time before doing the spin effect
       const timer = setTimeout(() => {
-        console.log('🌀 Starting automatic spin effect (no pagination)');
+
         
         // Start the transition animation
         setIsTransitioning(true);
@@ -487,7 +467,7 @@ export default function MobileCandleOrbital({ candleData = [], onCandleClick, mo
           setIsTransitioning(false);
           setTransitionStartTime(0);
           setHasInitialSpinCompleted(true);
-          console.log('🌀 Automatic spin effect completed');
+    
         }, TRANSITION_DURATION);
       }, ROTATION_INTERVAL); // Use same delay as before
       
@@ -527,14 +507,7 @@ export default function MobileCandleOrbital({ candleData = [], onCandleClick, mo
         
         // Debug logging - only log every 10th frame or so
         if (Math.random() < 0.05) {
-          console.log('🌀 Transition state:', {
-            isTransitioning,
-            elapsed,
-            isFadingOut,
-            phaseProgress: phaseProgress.toFixed(2),
-            transitionStartTime,
-            childrenCount: groupRef.current.children.length
-          });
+         
         }
     } else if (transitionState) {
       // Clear transition state when not transitioning

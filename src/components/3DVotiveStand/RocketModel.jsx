@@ -1069,6 +1069,104 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch,
         // Clean up any existing avatar planes
         cleanupAvatarPlanes();
 
+        // Find and enhance flame objects in the model
+        const flameObjects = [];
+        model.traverse(child => {
+          if (child.name && child.name.toLowerCase().startsWith('flame')) {
+            console.log(`🔥 Found flame object: ${child.name}`);
+            flameObjects.push(child);
+            
+            // Store original properties for animation
+            child.userData.originalScale = child.scale.clone();
+            child.userData.originalPosition = child.position.clone();
+            child.userData.isFlame = true;
+            
+            // Apply initial flame material if it's a mesh
+            if (child.isMesh) {
+              // Store original material
+              child.userData.originalMaterial = child.material;
+              
+              // Create enhanced flame material
+              const flameMaterial = new THREE.ShaderMaterial({
+                uniforms: {
+                  time: { value: 0 },
+                  intensity: { value: 0 }, // Start at 0, will increase during launch
+                  colorA: { value: new THREE.Color(0xff6600) },
+                  colorB: { value: new THREE.Color(0xffaa00) },
+                  colorC: { value: new THREE.Color(0xffff99) },
+                },
+                vertexShader: `
+                  varying vec2 vUv;
+                  varying vec3 vPosition;
+                  uniform float time;
+                  uniform float intensity;
+                  
+                  void main() {
+                    vUv = uv;
+                    vPosition = position;
+                    
+                    // Add some vertex animation based on intensity
+                    vec3 pos = position;
+                    float wave = sin(position.y * 10.0 + time * 5.0) * 0.02 * intensity;
+                    pos.x += wave;
+                    pos.z += wave;
+                    
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+                  }
+                `,
+                fragmentShader: `
+                  uniform float time;
+                  uniform float intensity;
+                  uniform vec3 colorA;
+                  uniform vec3 colorB;
+                  uniform vec3 colorC;
+                  varying vec2 vUv;
+                  varying vec3 vPosition;
+                  
+                  float noise(vec2 p) {
+                    return sin(p.x * 15.0 + time * 4.0) * sin(p.y * 15.0 + time * 3.0) * 0.5 + 0.5;
+                  }
+                  
+                  void main() {
+                    // Create flame gradient
+                    float gradient = smoothstep(0.0, 1.0, vUv.y);
+                    
+                    // Add noise for flickering
+                    float n = noise(vUv + time * 0.5);
+                    float flicker = 0.8 + n * 0.2;
+                    
+                    // Mix colors based on gradient and intensity
+                    vec3 color = mix(colorC, mix(colorB, colorA, gradient), gradient);
+                    color *= flicker * intensity;
+                    
+                    // Add glow effect
+                    color += colorC * intensity * 0.5;
+                    
+                    // Alpha based on intensity and gradient
+                    float alpha = (1.0 - gradient * 0.5) * intensity;
+                    
+                    gl_FragColor = vec4(color, alpha);
+                  }
+                `,
+                transparent: true,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false,
+                side: THREE.DoubleSide,
+              });
+              
+              child.material = flameMaterial;
+              child.userData.flameMaterial = flameMaterial;
+            }
+          }
+        });
+        
+        console.log(`🔥 Found ${flameObjects.length} flame objects in the rocket model`);
+        
+        // Store flame objects reference for animation
+        if (rocketRef.current) {
+          rocketRef.current.userData.flameObjects = flameObjects;
+        }
+
         // Add thruster flame effect
         createThrusterFlame(rotationGroup, box);
 
@@ -1093,7 +1191,7 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch,
             const action = mixerRef.current.clipAction(animation);
 
             // Increase animation speed by setting timeScale (2.0 = twice as fast)
-            action.timeScale = 2.5;
+            action.timeScale = 3.0; // Doubled from 2.5 to 5.0 for even faster flame animation
 
             // Make the animation loop
             action.loop = THREE.LoopRepeat;
@@ -1112,7 +1210,7 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch,
             // Play the first animation if "Animation" is not found
             if (gltf.animations.length > 0) {
               const action = mixerRef.current.clipAction(gltf.animations[0]);
-              action.timeScale = 2.5; // Increase speed
+              action.timeScale = 5.0; // Doubled from 2.5 to 5.0 for faster flame animation
               action.loop = THREE.LoopRepeat;
               action.play();
               console.log(
@@ -1211,6 +1309,25 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch,
         rocketRef.current.traverse(child => {
           if (child.isMesh && child.name === "RIDER" && child.userData.originalMaterial) {
             child.material = child.userData.originalMaterial;
+          }
+          
+          // Clean up flame objects
+          if (child.userData.isFlame) {
+            // Restore original material if available
+            if (child.userData.originalMaterial) {
+              child.material = child.userData.originalMaterial;
+            }
+            
+            // Dispose of flame material
+            if (child.userData.flameMaterial) {
+              child.userData.flameMaterial.dispose();
+              child.userData.flameMaterial = null;
+            }
+            
+            // Restore original scale
+            if (child.userData.originalScale) {
+              child.scale.copy(child.userData.originalScale);
+            }
           }
         });
       }
@@ -1668,7 +1785,7 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch,
     // Create a more complex shader material for the flame
     const flameMaterial = new THREE.ShaderMaterial({
       uniforms: {
-        time: { value: 0 },
+        time: { value: 0.0 },
         colorA: { value: colorA },
         colorB: { value: colorB },
         colorC: { value: new THREE.Color(0xffff80) }, // Bright yellow/white for the core
@@ -1753,7 +1870,7 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch,
     
     const coreMaterial = new THREE.ShaderMaterial({
       uniforms: {
-        time: { value: 0 },
+        time: { value: 0.0 },
         color: { value: new THREE.Color(0xffffff) },
       },
       vertexShader: `
@@ -1892,6 +2009,91 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch,
                   `Sky active: ${skyEffect.active}`);
     }
     
+    // Update flame objects from the model
+    if (rocketRef.current && rocketRef.current.userData.flameObjects) {
+      const flameObjects = rocketRef.current.userData.flameObjects;
+      const elapsedTime = state.clock.elapsedTime;
+      
+      flameObjects.forEach(flameObject => {
+        if (flameObject.userData.flameMaterial) {
+          // Update time uniform
+          if (flameObject.userData.flameMaterial && flameObject.userData.flameMaterial.uniforms && flameObject.userData.flameMaterial.uniforms.time) {
+            flameObject.userData.flameMaterial.uniforms.time.value = elapsedTime;
+          }
+          
+          // Calculate intensity based on launch state
+          let intensity = 0;
+          
+          if (isLaunching) {
+            // During launch, ramp up intensity
+            if (progress < ignitionThreshold) {
+              // Pre-ignition flicker
+              intensity = Math.random() * 0.2;
+            } else if (isIgnitionPhase) {
+              // Ignition phase - rapid increase
+              const ignitionProgress = (progress - ignitionThreshold) / (ignitionPhaseEnd - ignitionThreshold);
+              intensity = 0.2 + ignitionProgress * 0.8 + Math.random() * 0.1;
+            } else {
+              // Full thrust
+              intensity = 1.0 + Math.sin(elapsedTime * 10) * 0.1; // Full intensity with slight flicker
+            }
+          } else if (thrusterProps.enabled) {
+            // Idle thruster effect
+            intensity = 0.3 + Math.sin(elapsedTime * 3) * 0.1;
+          }
+          
+          // Update intensity uniform
+          if (flameObject.userData.flameMaterial && flameObject.userData.flameMaterial.uniforms && flameObject.userData.flameMaterial.uniforms.intensity) {
+            flameObject.userData.flameMaterial.uniforms.intensity.value = intensity;
+          }
+          
+          // Animate scale based on intensity
+          if (flameObject.userData.originalScale) {
+            const scaleFactor = 1.0 + intensity * 0.3;
+            flameObject.scale.copy(flameObject.userData.originalScale).multiplyScalar(scaleFactor);
+            
+            // Add some random jitter during high intensity
+            if (intensity > 0.5) {
+              flameObject.scale.x += (Math.random() - 0.5) * 0.05 * intensity;
+              flameObject.scale.z += (Math.random() - 0.5) * 0.05 * intensity;
+            }
+          }
+          
+          // Update colors based on intensity
+          if (intensity > 0.8) {
+            // Hot blue-white core at high intensity
+            if (flameObject.userData.flameMaterial && flameObject.userData.flameMaterial.uniforms && flameObject.userData.flameMaterial.uniforms.colorC && flameObject.userData.flameMaterial.uniforms.colorC.value) {
+              flameObject.userData.flameMaterial.uniforms.colorC.value.setHex(0xccddff);
+            }
+          } else {
+            // Normal yellow-white
+            if (flameObject.userData.flameMaterial && flameObject.userData.flameMaterial.uniforms && flameObject.userData.flameMaterial.uniforms.colorC && flameObject.userData.flameMaterial.uniforms.colorC.value) {
+              flameObject.userData.flameMaterial.uniforms.colorC.value.setHex(0xffff99);
+            }
+          }
+        }
+      });
+    }
+    
+    // Update thruster flame meshes (the created cone effects)
+    model.traverse(child => {
+      if (child.userData.isThrusterFlame && child.userData.material) {
+        if (child.userData.material && child.userData.material.uniforms && child.userData.material.uniforms.time) {
+          child.userData.material.uniforms.time.value = state.clock.elapsedTime;
+        }
+      }
+      if (child.userData.isThrusterCore && child.userData.material) {
+        if (child.userData.material && child.userData.material.uniforms && child.userData.material.uniforms.time) {
+          child.userData.material.uniforms.time.value = state.clock.elapsedTime;
+        }
+      }
+      if (child.userData.isThrusterParticles && child.userData.material) {
+        if (child.userData.material && child.userData.material.uniforms && child.userData.material.uniforms.time) {
+          child.userData.material.uniforms.time.value = state.clock.elapsedTime;
+        }
+      }
+    });
+    
     // Ignition code for launch - THIS NEEDS TO BE FULLY INCLUDED
     if (isLaunching && progress >= ignitionThreshold && !postProcessingEffects.thrustersIgnited) {
       console.log(`🔥🔥🔥 THRUSTERS IGNITED at progress ${(progress * 100).toFixed(1)}%! Activating effects 🔥🔥🔥`);
@@ -1936,9 +2138,6 @@ function RocketModel({ updateAmbientLightDimming, userData, is80sMode, onLaunch,
         console.log("🌈🌈🌈 SKY GRADIENT EFFECT ACTIVATED 🌈🌈🌈");
       }, 200 + fadeInDuration + 50);  // Start sky effect shortly after scanlines complete
     }
-    
-    // Rest of your new code for RocketFlame objects
-    // ...
   }
 
   // Function to emit smoke particles during launch

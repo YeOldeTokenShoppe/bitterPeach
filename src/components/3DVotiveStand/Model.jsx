@@ -17,7 +17,7 @@ import { db } from "../../utilities/firebaseClient";
 import { gsap } from "gsap";
 
 // Configure draco loader for useGLTF
-useGLTF.preload("/alligatorStroll2.glb");
+useGLTF.preload("/alligatorStroll3.glb");
 const dracoLoader = new DRACOLoader();
 dracoLoader.setDecoderPath("/draco/");
 // Set up GLTFLoader to use Draco compression
@@ -55,7 +55,7 @@ function Model({
   isMobileView,
 }) {
   // STATE VARIABLES - consolidated in one place
-  const [modelUrl, setModelUrl] = useState("/alligatorStroll2.glb");
+  const [modelUrl, setModelUrl] = useState("/alligatorStroll3.glb");
   const { progress } = useProgress();
   const gltf = useGLTF(modelUrl, true);
   const { camera, scene } = useThree();
@@ -195,8 +195,7 @@ function Model({
   }, []);
   useEffect(() => {
     if (gltf.animations?.length > 0) {
-      console.log("All animations in model:", gltf.animations.map(anim => anim.name));
-      
+
       // Check for the new animation names
       const walkSequenceAnim = gltf.animations.find(anim => 
         anim.name === "WALK_SEQUENCE" || anim.name.includes("WALK"));
@@ -205,24 +204,23 @@ function Model({
         anim.name === "CircleWalk" || anim.name.includes("Circle"));
       
       if (walkSequenceAnim) {
-        console.log("Found Walk Sequence animation:", walkSequenceAnim.name);
+
       }
       
       if (circleWalkAnim) {
-        console.log("Found Circle Walk animation:", circleWalkAnim.name);
+
       }
     }
     
     if (actions) {
-      console.log("Available actions by key:", Object.keys(actions));
-      
+
       // Updated animation names
       const animationsToPlay = ["WALK_SEQUENCE", "CircleWalk"];
       
       animationsToPlay.forEach(animName => {
         // Try direct access first
         if (actions[animName]) {
-          console.log(`Playing animation by direct access: ${animName}`);
+
           actions[animName].reset().play();
           actions[animName].loop = THREE.LoopRepeat;
         } else {
@@ -233,11 +231,11 @@ function Model({
           );
           
           if (matchingAnim) {
-            console.log(`Playing animation by match: ${matchingAnim[0]}`);
+
             matchingAnim[1].reset().play();
             matchingAnim[1].loop = THREE.LoopRepeat;
           } else {
-            console.log(`Animation not found: ${animName}`);
+
           }
         }
       });
@@ -245,7 +243,7 @@ function Model({
       // Play all animations if needed (uncomment if you want all animations to play)
       /*
       Object.entries(actions).forEach(([name, action]) => {
-        console.log(`Playing all animations: ${name}`);
+
         action.reset().play();
         action.loop = THREE.LoopRepeat;
       });
@@ -275,7 +273,7 @@ function Model({
 
       if (floorIntersection) {
         // A floor was pressed
-        console.log("[handlePointerDown] Floor pressed");
+
         mouseIsDownRef.current = true;
         mouseDownTime.current = Date.now();
         // Use the point from the actual floor intersection
@@ -289,15 +287,13 @@ function Model({
         };
         candlePlacedRef.current = false;
 
-        console.log("[handlePointerDown] Setting timeout for placement...");
+
         holdTimeoutRef.current = setTimeout(() => {
-          console.log("[Timeout Callback] Fired");
-          console.log("  - mouseIsDownRef.current:", mouseIsDownRef.current);
-          console.log("  - !candlePlacedRef.current:", !candlePlacedRef.current);
-          console.log("  - placeCandleFunc.current:", !!placeCandleFunc.current);
-          console.log("  - mouseDownPosition.current?.point:", !!mouseDownPosition.current?.point);
-          console.log("  - mouseDownPosition.current?.face:", !!mouseDownPosition.current?.face);
-          console.log("  - mouseDownPosition.current?.object:", !!mouseDownPosition.current?.object);
+
+
+
+
+
 
 
           if (
@@ -326,7 +322,7 @@ function Model({
             const angleToUp = worldNormal.angleTo(worldUp);
 
             if (angleToUp < angleThreshold) {
-              console.log(`[Timeout Callback] Surface is suitable (angle: ${THREE.MathUtils.radToDeg(angleToUp).toFixed(1)}°). Placing candle.`);
+
               placeCandleFunc.current(point); 
               candlePlacedRef.current = true;
             } else {
@@ -334,7 +330,7 @@ function Model({
             }
             // --- END NORMAL CHECK ---
           } else {
-            console.log("[Timeout Callback] Conditions NOT met (or missing face/object data), candle not placed.");
+
           }
         }, HOLD_THRESHOLD);
       }
@@ -353,7 +349,7 @@ function Model({
       const distance = Math.sqrt(dx * dx + dy * dy);
 
       if (distance > MOVE_THRESHOLD) {
-        console.log("[handlePointerMove] Movement threshold exceeded, clearing timeout.");
+
         mouseIsDownRef.current = false;
         if (holdTimeoutRef.current) {
           clearTimeout(holdTimeoutRef.current);
@@ -368,10 +364,10 @@ function Model({
   const handlePointerUp = useCallback(event => {
     if (!mouseIsDownRef.current) return; // Only process if mouse was down
     event.stopPropagation();
-    console.log("[handlePointerUp] Pointer up");
+
     mouseIsDownRef.current = false;
     if (holdTimeoutRef.current) {
-      console.log("[handlePointerUp] Clearing timeout on pointer up.");
+
       clearTimeout(holdTimeoutRef.current);
       holdTimeoutRef.current = null;
     }
@@ -580,22 +576,6 @@ function Model({
         }
 
         if (candleParent && candleParent.userData.hasUser) {
-          // Add particle effect at candle position
-          const worldPos = new THREE.Vector3();
-          candleParent.getWorldPosition(worldPos);
-          
-          const particleId = particleIdCounter.current++;
-          setActiveParticles(prev => [...prev, {
-            id: particleId,
-            position: [worldPos.x, worldPos.y + 0.5, worldPos.z], // Slightly above candle
-            startTime: Date.now()
-          }]);
-          
-          // Remove particle after 3 seconds
-          setTimeout(() => {
-            setActiveParticles(prev => prev.filter(p => p.id !== particleId));
-          }, 3000);
-          
           // Call the onCandleClick prop with the candle data
           onCandleClick({
             ...candleParent.userData,
@@ -717,7 +697,7 @@ function Model({
           // Special handling for AlligatorScroll.002 - it should remain in its original state
           if (originalName === 'AlligatorScroll.002') {
             // Don't change visibility - let event handlers control it
-            console.log(`🔧 Skipping AlligatorScroll.002 - maintaining event-controlled visibility`);
+
             return;
           }
           
@@ -741,7 +721,7 @@ function Model({
               object.visible = object.userData.originalVisibility !== undefined ? 
                 object.userData.originalVisibility : true;
             }
-            console.log(`🔧 ${isMobile ? 'Hiding' : 'Restoring'} object: ${object.name} (visible: ${object.visible})`);
+
           }
         }
       });
@@ -768,7 +748,7 @@ function Model({
     gltf.scene.traverse(object => {
       if (object.name === 'Object_3') {
         object.visible = !rocketModelVisible;
-        console.log(`🚀 Object_3 visibility set to: ${!rocketModelVisible} (rocket visible: ${rocketModelVisible})`);
+
       }
     });
   }, [rocketModelVisible, gltf]);
@@ -948,7 +928,7 @@ function Model({
 
   // Toggle floor textures when 80s mode changes
   useEffect(() => {
-    console.log('🎛️ Model.jsx: 80s mode changed to:', is80sMode);
+
     if (!gltf || !gltf.scene) {
       console.warn('⚠️ Model.jsx: gltf or scene not available');
       return;
@@ -983,22 +963,22 @@ function Model({
     };
 
     // Find floor objects in the model
-    console.log('🔍 Model.jsx: Searching for Floor2.002 object...');
+
     let floorFound = false;
     gltf.scene.traverse(child => {
       // Log all mesh names for debugging
       if (child.isMesh) {
-        console.log('🔍 Found mesh:', child.name, 'visible:', child.visible);
+
         // Special logging for floor-like objects
         if (child.name.toLowerCase().includes('floor')) {
-          console.log('🏁 FLOOR-LIKE OBJECT FOUND:', child.name, 'exact match for Floor2.002?', child.name === 'Floor2.002');
+
         }
       }
       
       // Check for any mesh with "Floor" in its name - now also includes partial matches
       if (child.isMesh && (child.name === "Floor" || child.name === "Floor2.002" || child.name.includes("Floor2"))) {
         floorFound = true;
-        console.log('✅ Found floor object for texture application:', child.name, 'visible:', child.visible);
+
         console.log('   Material info:', {
           hasMaterial: !!child.material,
           hasMap: !!(child.material && child.material.map),
@@ -1016,12 +996,12 @@ function Model({
 
         // Toggle between original and 80s texture
         if (is80sMode) {
-          console.log('🌊 Loading 80s carpet texture:', textureConfig.path);
+
           textureLoader.load(
             textureConfig.path, 
             // Success callback
             texture => {
-              console.log('✅ 80s carpet texture loaded successfully!');
+
               // Apply all texture settings
               applyTextureWithSettings(texture, textureConfig);
 
@@ -1052,12 +1032,12 @@ function Model({
                   // Single material
                   applyMaterial(child.material);
                 }
-                console.log('🎨 Applied 80s carpet texture to', child.name);
+
               }
             },
             // Progress callback
             progress => {
-              console.log('📊 Loading 80s carpet texture progress:', progress);
+
             },
             // Error callback
             error => {
@@ -1667,7 +1647,7 @@ function Model({
     if (gltf && gltf.scene) {
       gltf.scene.traverse(object => {
         if (object.name === 'american alligator') {
-          console.log("Found 'american alligator'. Configuring for interaction on layer 1.");
+
           // Enable layer 1 for the main alligator object
           object.layers.enable(1);
 
@@ -1687,7 +1667,7 @@ function Model({
     if (gltf.scene && gltf.animations && setIsModelLoaded && onModelDataLoaded) {
       // modelRef.current is already being set by the <primitive> component using the ref prop.
       // We are just confirming that the data is ready to be passed up.
-      console.log("Model.jsx: GLTF Scene and Animations loaded. Calling onModelDataLoaded.");
+
       onModelDataLoaded({ scene: gltf.scene, animations: gltf.animations });
       setIsModelLoaded(true); // Notify parent that model (scene graph part) is ready
     }
@@ -1730,7 +1710,7 @@ function Model({
 }
 
 // Preload both models
-useGLTF.preload("/alligatorStroll2.glb");
+useGLTF.preload("/alligatorStroll3.glb");
 useGLTF.preload("/XCandle1.glb");
 
 export default Model;

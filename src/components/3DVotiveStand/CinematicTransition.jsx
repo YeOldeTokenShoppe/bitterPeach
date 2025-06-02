@@ -12,8 +12,8 @@ extend({ UnrealBloomPass, ShaderPass });
 const WarpShader = {
   uniforms: {
     tDiffuse: { value: null },
-    time: { value: 0 },
-    intensity: { value: 0 },
+    time: { value: 0.0 },
+    intensity: { value: 0.0 },
     warpSpeed: { value: 1.0 },
     chromaticAberration: { value: 0.0 }
   },
@@ -180,21 +180,27 @@ export const CinematicTransition = ({ active, onComplete, type = 'warp' }) => {
     const elapsed = state.clock.elapsedTime - startTime.current;
     
     // Update shader uniforms
-    if (shaderRef.current) {
-      shaderRef.current.uniforms.time.value = elapsed;
+    if (shaderRef.current && shaderRef.current.uniforms) {
+      if (shaderRef.current.uniforms.time) {
+        shaderRef.current.uniforms.time.value = elapsed;
+      }
       
       // Intensity curve: ease in, peak, then stay at max
-      let intensity = 0;
+      let intensity = 0.0;
       if (elapsed < 2) {
         // Ramp up over 2 seconds
         intensity = Math.pow(elapsed / 2, 2);
       } else {
         // Stay at max intensity
-        intensity = 1;
+        intensity = 1.0;
       }
       
-      shaderRef.current.uniforms.intensity.value = intensity;
-      shaderRef.current.uniforms.chromaticAberration.value = intensity * 0.05; // Much less chromatic aberration
+      if (shaderRef.current.uniforms.intensity) {
+        shaderRef.current.uniforms.intensity.value = intensity;
+      }
+      if (shaderRef.current.uniforms.chromaticAberration) {
+        shaderRef.current.uniforms.chromaticAberration.value = intensity * 0.05; // Much less chromatic aberration
+      }
     }
     
     // Update bloom intensity (reduced from 3 to 1.2 for subtler effect)

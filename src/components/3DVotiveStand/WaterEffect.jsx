@@ -26,8 +26,8 @@ class WaterMaterial extends THREE.MeshStandardMaterial {
     this.defines = {
       'STANDARD': '',
       'USE_UV': '',
-      'WIDTH': WIDTH.toFixed(1),
-      'BOUNDS': BOUNDS.toFixed(1),
+      'WIDTH': parseFloat(WIDTH).toFixed(1),
+      'BOUNDS': parseFloat(BOUNDS).toFixed(1),
     };
 
     this.extra = {};
@@ -322,11 +322,18 @@ const WaterEffect = ({
     // Create an initial small ripple just for visual feedback
     if (gpuCompute.current && gpuCompute.current.variable) {
       const uniforms = gpuCompute.current.variable.material.uniforms;
-      const oldDeep = uniforms['deep'].value;
+      let oldDeep = DEFAULT_WATER_SETTINGS.mouseDeep;
+      if (uniforms && uniforms['deep'] && uniforms['deep'].value !== undefined) {
+        oldDeep = uniforms['deep'].value;
+      }
       
       // Set lighter ripple at the coin drop location
-      uniforms['mousePos'].value.set(point.x, point.z);
-      uniforms['deep'].value = DEFAULT_WATER_SETTINGS.mouseDeep * 20;
+      if (uniforms && uniforms['mousePos'] && uniforms['mousePos'].value) {
+        uniforms['mousePos'].value.set(point.x, point.z);
+      }
+      if (uniforms && uniforms['deep'] && uniforms['deep'].value !== undefined) {
+        uniforms['deep'].value = DEFAULT_WATER_SETTINGS.mouseDeep * 20;
+      }
       
       // Reset shortly after
       setTimeout(() => {
@@ -597,8 +604,8 @@ const WaterEffect = ({
         }
       );
       
-      readWaterLevelShader.defines.WIDTH = WIDTH.toFixed(1);
-      readWaterLevelShader.defines.BOUNDS = BOUNDS.toFixed(1);
+      readWaterLevelShader.defines.WIDTH = parseFloat(WIDTH).toFixed(1);
+      readWaterLevelShader.defines.BOUNDS = parseFloat(BOUNDS).toFixed(1);
       
       // Create a 4x1 pixel image and render target to read water level and orientation
       const readWaterLevelImage = new Uint8Array(4 * 1 * 4);

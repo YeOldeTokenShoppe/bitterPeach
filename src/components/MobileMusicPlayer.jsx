@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Box, Text } from "@chakra-ui/react";
 import { storage } from "../utilities/firebaseClient";
 import { ref as storageRefUtil, getDownloadURL } from "firebase/storage";
@@ -52,8 +52,8 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
     "audio/320k/sweet-dreams-eurythmics.m4a",
   ];
 
-  const trackNames = is80sMode ? eightyTrackNames : non80sTrackNames;
-  const firebasePaths = is80sMode ? eightyFirebasePaths : non80sFirebasePaths;
+  const trackNames = useMemo(() => is80sMode ? eightyTrackNames : non80sTrackNames, [is80sMode]);
+  const firebasePaths = useMemo(() => is80sMode ? eightyFirebasePaths : non80sFirebasePaths, [is80sMode]);
   
 
 
@@ -61,7 +61,7 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
   const failedTracksRef = useRef(new Set());
 
   // Load track from Firebase
-  const loadTrack = async (index, attemptCount = 0) => {
+  const loadTrack = useCallback(async (index, attemptCount = 0) => {
 
     
     try {
@@ -89,7 +89,7 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
         loadTrack(nextIndex, attemptCount + 1);
       }
     }
-  };
+  }, [firebasePaths, trackNames]);
 
   // Initialize with first track
   useEffect(() => {
@@ -98,7 +98,7 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
       failedTracksRef.current.clear();
       loadTrack(0);
     }
-  }, [isVisible, is80sMode]);
+  }, [isVisible, is80sMode, loadTrack, trackNames.length]);
 
   // Auto-play when track loads
   useEffect(() => {
@@ -119,7 +119,7 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
   }, [trackUrl, autoPlay, isVisible]);
 
   // Find next available track index
-  const findNextAvailableTrack = (startIndex, direction = 1) => {
+  const findNextAvailableTrack = useCallback((startIndex, direction = 1) => {
     let attempts = 0;
     let index = startIndex;
     
@@ -138,10 +138,10 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
     return direction > 0 
       ? (startIndex + 1) % trackNames.length 
       : startIndex === 0 ? trackNames.length - 1 : startIndex - 1;
-  };
+  }, [trackNames.length]);
 
   // Skip to next track
-  const skipNext = () => {
+  const skipNext = useCallback(() => {
     if (trackNames.length <= 1) {
 
       return;
@@ -151,10 +151,10 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
   
     setIsPlaying(false); // Stop current track
     loadTrack(nextIndex);
-  };
+  }, [currentTrackIndex, trackNames.length, loadTrack, findNextAvailableTrack]);
 
   // Skip to previous track
-  const skipPrevious = () => {
+  const skipPrevious = useCallback(() => {
     if (trackNames.length <= 1) {
   
       return;
@@ -162,16 +162,16 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
     const prevIndex = findNextAvailableTrack(currentTrackIndex, -1);
    
     loadTrack(prevIndex);
-  };
+  }, [trackNames.length, currentTrackIndex, findNextAvailableTrack, loadTrack]);
 
   // Handle track end
-  const handleTrackEnd = () => {
+  const handleTrackEnd = useCallback(() => {
     const nextIndex = findNextAvailableTrack(currentTrackIndex, 1);
     loadTrack(nextIndex);
-  };
+  }, [currentTrackIndex, findNextAvailableTrack, loadTrack]);
 
   // Toggle play/pause
-  const togglePlayPause = () => {
+  const togglePlayPause = useCallback(() => {
     if (!audioRef.current) return;
 
     if (isPlaying) {
@@ -186,26 +186,26 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
         console.log("🔇 Mobile: Play blocked by browser");
       });
     }
-  };
+  }, [isPlaying, onPlayingStateChange]);
 
   // Long press handlers for genre switching
-  const handleLongPressStart = () => {
+  const handleLongPressStart = useCallback(() => {
     const timer = setTimeout(() => {
    
       setShowModeChoice(true);
     }, 800); // 800ms long press
     setLongPressTimer(timer);
-  };
+  }, []);
 
-  const handleLongPressEnd = () => {
+  const handleLongPressEnd = useCallback(() => {
     if (longPressTimer) {
       clearTimeout(longPressTimer);
       setLongPressTimer(null);
     }
-  };
+  }, [longPressTimer]);
 
   // Handle mode change from popup
-  const handleModeChoice = (enable80s) => {
+  const handleModeChoice = useCallback((enable80s) => {
     setShowModeChoice(false);
     
     if (onModeChange) {
@@ -221,10 +221,10 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
         }, 200);
       }
     }
-  };
+  }, [isPlaying, onModeChange, loadTrack]);
   
   // Add a dedicated pause method
-  const pause = () => {
+  const pause = useCallback(() => {
     if (audioRef.current) {
       audioRef.current.pause();
       setIsPlaying(false);
@@ -233,20 +233,20 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
     } else {
       console.log('⚠️ Mobile: No audio ref available to pause');
     }
-  };
+  }, [onPlayingStateChange]);
 
-  // Pass control methods to parent via callback
+  // Pass control methods to parent via callback - only once when functions are ready
   useEffect(() => {
-    if (onControlsReady) {
+    if (onControlsReady && togglePlayPause && skipNext && pause) {
     
       onControlsReady({
         togglePlayPause,
         skipTrack: skipNext,
         pause,
-        isPlaying: () => isPlaying // Make this a function to get current state
+        isPlaying: () => audioRef.current && !audioRef.current.paused
       });
     }
-  }, [onControlsReady, skipNext, togglePlayPause, pause, is80sMode]); // Update when key functions or mode changes
+  }, [onControlsReady, skipNext, togglePlayPause, pause]); // Remove isPlaying from dependencies
 
   // Even if not visible, we need to render the audio element for the ref methods to work
   if (!isVisible) {
