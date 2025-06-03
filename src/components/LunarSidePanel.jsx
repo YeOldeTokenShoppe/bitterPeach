@@ -33,10 +33,6 @@ import * as THREE from "three";
 import dynamic from "next/dynamic";
 
 // Dynamically import the simplified music player
-const SimplifiedMusicPlayer = dynamic(() => import("./SimplifiedMusicPlayer"), {
-  ssr: false,
-  loading: () => null
-});
 const MobileMusicPlayer = dynamic(() => import("./MobileMusicPlayer"), {
   ssr: false,
   loading: () => null
@@ -134,12 +130,23 @@ const LunarSidePanel = ({
   isConstellationsVisible,
 }) => {
   // Use context for music state
-  const { showSpotify, setShowSpotify } = useMusic();
+  const { 
+    showSpotify, 
+    setShowSpotify, 
+    audioRef, 
+    setIsPlaying,
+  } = useMusic();
   const [isTextBoxVisible, setIsTextBoxVisible] = useState(true);
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const [isTouchDevice, setIsTouchDevice] = useState(false);
   const panelRef = useRef(null);
+  const [musicPlayerControls, setMusicPlayerControls] = useState(null);
   const hotzoneSize = 25;
+  
+  // Callback to receive controls from MobileMusicPlayer
+  const handleMusicControlsReady = useCallback((controls) => {
+    setMusicPlayerControls(controls);
+  }, []);
   const [debounceTimer, setDebounceTimer] = useState(null);
   const [panelWidth, setPanelWidth] = useState("320px");
   const [mounted, setMounted] = useState(false);
@@ -1249,9 +1256,10 @@ const LunarSidePanel = ({
                   border="1px solid #6366f1"
                   borderRadius="50%"
                   onClick={() => {
-                    // Trigger skip on the hidden SimplifiedMusicPlayer
-                    const skipButton = document.querySelector('.simplified-music-player button[aria-label*="Next"]');
-                    if (skipButton) skipButton.click();
+                    // Skip to next track using music player controls
+                    if (musicPlayerControls && musicPlayerControls.skipTrack) {
+                      musicPlayerControls.skipTrack();
+                    }
                   }}
                   _hover={{
                     bg: "rgba(99,102,241,0.4)",
@@ -1276,7 +1284,14 @@ const LunarSidePanel = ({
                   color="#f87171"
                   border="1px solid rgba(239,68,68,0.5)"
                   borderRadius="50%"
-                  onClick={() => setShowSpotify(false)}
+                  onClick={() => {
+                    // Stop the music and hide the player
+                    if (audioRef.current && !audioRef.current.paused) {
+                      audioRef.current.pause();
+                      setIsPlaying(false);
+                    }
+                    setShowSpotify(false);
+                  }}
                   _hover={{
                     bg: "rgba(239,68,68,0.4)",
                     transform: "scale(1.1)"
@@ -1292,18 +1307,28 @@ const LunarSidePanel = ({
           </HStack>
         </Box>
         
-        {/* Hidden SimplifiedMusicPlayer for audio functionality */}
+        {/* Removed SimplifiedMusicPlayer to prevent track changes on scene transition */}
+        
+        {/* Hidden MobileMusicPlayer for consistent music handling */}
         <Box display="none">
-          <SimplifiedMusicPlayer
+          <MobileMusicPlayer
             isVisible={showSpotify}
-            onClose={() => setShowSpotify(false)}
+            onClose={() => {
+              if (audioRef.current && !audioRef.current.paused) {
+                audioRef.current.pause();
+                setIsPlaying(false);
+              }
+              setShowSpotify(false);
+            }}
             is80sMode={is80sMode}
             onModeChange={(enable80s) => {
               if (enable80s !== is80sMode) {
                 toggle80sMode();
               }
             }}
-            autoPlay={true}
+            autoPlay={false}
+            hideUI={true}
+            onControlsReady={handleMusicControlsReady}
           />
         </Box>
       </Box>

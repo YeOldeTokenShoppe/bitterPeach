@@ -155,6 +155,12 @@ function BurnGallery({
   const [paginationState, setPaginationState] = useState(null);
   const votiveStandRef = useRef(null);
   const [isCandleViewerVisible, setIsCandleViewerVisible] = useState(false);
+  const [activeScene, setActiveScene] = useState('gallery'); // Track current scene
+
+  // Debug log scene changes
+  useEffect(() => {
+    console.log('🎬 BurnGallery: activeScene changed to:', activeScene);
+  }, [activeScene]);
 
   const toggleConstellationVisibility = useCallback(() => {
     setIsConstellationsVisible((prev) => {
@@ -407,6 +413,25 @@ function BurnGallery({
 
     return () => clearTimeout(fallbackTimer);
   }, [setThreeDSceneLoaded]);
+  
+  // Listen for reset rocket state message
+  useEffect(() => {
+    const handleMessage = (event) => {
+      if (event.data.type === 'RESET_ROCKET_STATE') {
+        console.log('🚀 BurnGallery: Received RESET_ROCKET_STATE message');
+        // Reset rocket and monster mode to fresh gallery state
+        setRocketModelVisible(false);
+        setMonsterMode(false);
+        console.log('✅ BurnGallery: Reset rocket state - gallery is now fresh');
+      }
+    };
+    
+    window.addEventListener('message', handleMessage);
+    
+    return () => {
+      window.removeEventListener('message', handleMessage);
+    };
+  }, []);
 
   return (
     <>
@@ -445,6 +470,7 @@ function BurnGallery({
                 onPaginationChange={setPaginationState}
                 onCandleViewerStateChange={setIsCandleViewerVisible}
                 onUIVisibilityChange={setShowUI}
+                onSceneChange={setActiveScene}
               />
             ) : null}
           </GridItem>
@@ -473,6 +499,7 @@ function BurnGallery({
               toggleConstellationVisibility={toggleConstellationVisibility}
               isConstellationsVisible={isConstellationsVisible}
               paginationState={paginationState}
+              activeScene={activeScene}
             />
           </Box>
         ) : (

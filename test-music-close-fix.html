@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Music Close Fix</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #1a1a1a;
+            color: white;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #333;
+            border-radius: 8px;
+        }
+        .log {
+            background: #222;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            background: #00ff41;
+            color: black;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            opacity: 0.8;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            background: #333;
+        }
+    </style>
+</head>
+<body>
+    <h1>Music Close Button Fix Test</h1>
+    
+    <div class="test-section">
+        <h2>Test Scenario</h2>
+        <p>This test verifies that the music player close button in the lunar scene properly stops playback and prevents auto-restart.</p>
+        
+        <div class="status">
+            <h3>Expected Behavior:</h3>
+            <ol>
+                <li>When music is playing in the lunar scene and user clicks close button:</li>
+                <li>Music should stop playing immediately</li>
+                <li>Music player UI should close</li>
+                <li>Music should NOT auto-restart</li>
+                <li>The player should stay closed until user manually opens it again</li>
+            </ol>
+        </div>
+        
+        <div class="status">
+            <h3>Fix Implementation:</h3>
+            <ul>
+                <li>Added <code>userClosedMusic</code> state to track when user explicitly closes music</li>
+                <li>Modified all auto-show useEffect hooks to check <code>!userClosedMusic</code></li>
+                <li>Set <code>userClosedMusic = true</code> in handleMusicPlayerClose</li>
+                <li>Reset <code>userClosedMusic = false</code> when user manually opens music or leaves lunar scene</li>
+            </ul>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test Steps</h2>
+        <ol>
+            <li>Navigate to the lunar landing scene</li>
+            <li>Start playing music using the music button</li>
+            <li>Click the close button on the music player</li>
+            <li>Verify music stops and player stays closed</li>
+            <li>Wait 5 seconds to ensure it doesn't auto-restart</li>
+            <li>Click music button again to verify manual open still works</li>
+        </ol>
+        
+        <div class="log" id="log">
+            <div>Test log will appear here...</div>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Code Changes Summary</h2>
+        <pre style="background: #222; padding: 10px; overflow-x: auto;">
+// Added new state
+const [userClosedMusic, setUserClosedMusic] = useState(false);
+
+// Modified useEffect hooks to check userClosedMusic
+if (!userClosedMusic && (contextIsPlaying || (audioRef.current && !audioRef.current.paused))) {
+    // Auto-show logic
+}
+
+// In handleMusicPlayerClose
+setUserClosedMusic(true);
+
+// In manual open handlers
+setUserClosedMusic(false);
+        </pre>
+    </div>
+    
+    <script>
+        const log = document.getElementById('log');
+        
+        function addLog(message) {
+            const entry = document.createElement('div');
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+        }
+        
+        addLog('Test page loaded. Ready to test music close button fix.');
+        addLog('Navigate to the app and follow the test steps above.');
+    </script>
+</body>
+</html>

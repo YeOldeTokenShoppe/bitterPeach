@@ -2,20 +2,30 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Box,
   Button,
-
   Text,
   VStack,
-
+  HStack,
   IconButton,
-
   Switch,
   FormControl,
   FormLabel,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalCloseButton,
+  Icon,
+  Flex,
 } from "@chakra-ui/react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/router";
 import { getUserImageUrl } from "../utilities/clerkHelpers";
 import dynamic from "next/dynamic";
+import { Canvas } from "@react-three/fiber";
+import { OrbitControls, useGLTF, Center } from "@react-three/drei";
+import * as THREE from "three";
+import { useMusic } from "../contexts/MusicContext";
 
 // Dynamically import the MusicPlayer component
 const MusicPlayer2 = dynamic(() => import("./MusicPlayer2"), {
@@ -26,6 +36,86 @@ const MusicPlayer2 = dynamic(() => import("./MusicPlayer2"), {
 const MobileMusicPlayer = dynamic(() => import("./MobileMusicPlayer"), {
   ssr: false,
 });
+
+// Integrated Astronaut Viewer Component (from LunarSidePanel)
+function AstronautViewer({ modelPath, textureUrl, textureOffset, textureScale }) {
+  // Model component
+  function AstronautModel() {
+    const { scene } = useGLTF(modelPath);
+    const modelRef = useRef();
+    const [texture, setTexture] = useState(null);
+    
+    // Clone the scene to avoid conflicts
+    const clonedScene = React.useMemo(() => scene.clone(), [scene]);
+    
+    // Load and apply texture
+    useEffect(() => {
+      if (!textureUrl) return;
+      
+      const textureLoader = new THREE.TextureLoader();
+      textureLoader.load(textureUrl, (loadedTexture) => {
+        loadedTexture.colorSpace = THREE.SRGBColorSpace;
+        loadedTexture.center = new THREE.Vector2(0.5, 0.5);
+        loadedTexture.rotation = Math.PI;
+        loadedTexture.repeat.set(-textureScale, textureScale);
+        loadedTexture.offset.set(textureOffset.x, textureOffset.y);
+        setTexture(loadedTexture);
+      });
+      
+      return () => {
+        if (texture) {
+          texture.dispose();
+        }
+      };
+    }, [textureUrl, textureOffset, textureScale]);
+    
+    // Apply texture to helmet
+    useEffect(() => {
+      if (!clonedScene || !texture) return;
+      
+      clonedScene.traverse((child) => {
+        if (child.isMesh && child.name.toLowerCase().includes('helmet')) {
+          const newMaterial = new THREE.MeshStandardMaterial({
+            map: texture,
+            emissive: new THREE.Color(0x6366f1), // Lunar purple tint
+            emissiveIntensity: 0.3,
+            emissiveMap: texture,
+            depthWrite: true,
+            depthTest: true,
+            side: THREE.FrontSide,
+            polygonOffset: true,
+            polygonOffsetFactor: -1, // Push texture slightly forward to prevent z-fighting
+            polygonOffsetUnits: -1
+          });
+          child.material = newMaterial;
+          child.renderOrder = 1; // Ensure helmet renders after body
+        }
+      });
+    }, [clonedScene, texture]);
+    
+    return <primitive object={clonedScene} scale={1.2} rotation={[0, -Math.PI / 2, 0]} />;
+  }
+  
+  return (
+    <Canvas camera={{ position: [0, 0, 5], fov: 40 }}>
+      <ambientLight intensity={1.5} />
+      <directionalLight position={[5, 5, 5]} intensity={1} />
+      <color attach="background" args={['#1e1b4b']} />
+      <Center>
+        <AstronautModel />
+      </Center>
+      <OrbitControls 
+        enableZoom={true}
+        enablePan={false}
+        autoRotate={true}
+        autoRotateSpeed={1}
+        minPolarAngle={Math.PI / 3}
+        maxPolarAngle={Math.PI / 2}
+        zoomToCursor={true}
+      />
+    </Canvas>
+  );
+}
 
 const MobileSidePanel = ({
   onButtonClick,
@@ -43,6 +133,7 @@ const MobileSidePanel = ({
   handleIgnition,
   onRequestZoomAndSwitch, // New prop
   paginationState, // New prop for pagination
+  activeScene = 'gallery', // New prop to detect current scene
 }) => {
   const [isVideoScreenOpen, setIsVideoScreenOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -58,7 +149,21 @@ const MobileSidePanel = ({
   const [showMobileMusicPlayer, setShowMobileMusicPlayer] = useState(false);
   const [musicPlayerVisible, setMusicPlayerVisible] = useState(false);
   const [showMusicChoice, setShowMusicChoice] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false); // Local state for UI updates
+  const [userClosedMusic, setUserClosedMusic] = useState(false); // Track if user explicitly closed music
+  
+  // Use music context for shared state
+  const { 
+    showSpotify: contextShowSpotify, 
+    setShowSpotify: setContextShowSpotify,
+    isPlaying: contextIsPlaying,
+    setIsPlaying: setContextIsPlaying,
+    audioRef,
+    currentTrackIndex,
+    setCurrentTrackIndex,
+    currentTrackUrl,
+    setCurrentTrackUrl
+  } = useMusic();
   const [modeIndex, setModeIndex] = useState(0);
   const [recording, setRecording] = useState(false);
   const [processingVisible, setProcessingVisible] = useState(false);
@@ -72,10 +177,99 @@ const MobileSidePanel = ({
   const [musicPlayerControls, setMusicPlayerControls] = useState(null);
   const [showLaunchDialog, setShowLaunchDialog] = useState(false);
   
+  // Lunar scene specific state
+  const [showAstronautDirectory, setShowAstronautDirectory] = useState(false);
+  const [selectedAstronaut, setSelectedAstronaut] = useState(null);
+  const [showLunarVideo, setShowLunarVideo] = useState(true);
+  
+  // Astronaut customizer state
+  const [showAstronautModal, setShowAstronautModal] = useState(false);
+  const [selectedModel, setSelectedModel] = useState('astronaut1');
+  const [customImageUrl, setCustomImageUrl] = useState(null);
+  const [activeTextureUrl, setActiveTextureUrl] = useState(null);
+  const [textureOffset, setTextureOffset] = useState({ x: 0, y: 0 });
+  const [textureScale, setTextureScale] = useState(1);
+  const [showCustomizerControls, setShowCustomizerControls] = useState(false);
+  
+  // Astronaut model options
+  const astronautModels = [
+    { id: 'astronaut1', name: 'Classic Astronaut', path: '/astronaut.glb' },
+    { id: 'astronaut2', name: 'Space Explorer', path: '/Astronaut2.glb' },
+  ];
+  
+  // Update activeTextureUrl when user data is available
+  useEffect(() => {
+    if (user?.imageUrl && !customImageUrl) {
+      setActiveTextureUrl(user.imageUrl);
+    }
+  }, [user, customImageUrl]);
+  
+  // Debug log for activeScene
+  useEffect(() => {
+    console.log('🌙 MobileSidePanel: activeScene changed to:', activeScene);
+    
+    // When entering lunar scene, ensure music player UI is shown if music is playing
+    if (activeScene === 'moon') {
+      // Don't reset controls here - let them persist
+      
+      // Force show music player if music is playing (but only if user hasn't explicitly closed it)
+      if (!userClosedMusic && (contextIsPlaying || (audioRef.current && !audioRef.current.paused))) {
+        console.log('🎵 Entering lunar scene with music playing, forcing player UI to show');
+        setTimeout(() => {
+          setShowMobileMusicPlayer(true);
+          setMusicPlayerVisible(true);
+        }, 100); // Small delay to ensure scene is ready
+      }
+    } else {
+      // Reset the user closed flag when leaving lunar scene
+      if (userClosedMusic) {
+        console.log('🎵 Leaving lunar scene, resetting userClosedMusic flag');
+        setUserClosedMusic(false);
+      }
+    }
+  }, [activeScene, contextIsPlaying, userClosedMusic]);
+  
+  // Sync local music player state with context when component mounts or scene changes
+  useEffect(() => {
+    console.log('🎵 MobileSidePanel: Music sync check:', {
+      activeScene,
+      contextShowSpotify,
+      contextIsPlaying,
+      showMobileMusicPlayer
+    });
+    
+    // If we're in moon scene and music is playing, show the player (unless user closed it)
+    if (activeScene === 'moon' && contextIsPlaying && !userClosedMusic) {
+      console.log('🎵 MobileSidePanel: Music is playing in lunar scene, showing player UI');
+      setShowMobileMusicPlayer(true);
+      setMusicPlayerVisible(true);
+      setContextShowSpotify(true); // Ensure context is synced
+    }
+    
+    // Also sync the local playing state
+    if (contextIsPlaying !== isPlaying) {
+      setIsPlaying(contextIsPlaying);
+    }
+  }, [activeScene, contextShowSpotify, contextIsPlaying, userClosedMusic]);
+  
+  // Initial sync when component mounts
+  useEffect(() => {
+    // Check both if music is set to show or if it's actually playing
+    if ((contextShowSpotify || contextIsPlaying) && activeScene === 'moon' && !userClosedMusic) {
+      console.log('🎵 MobileSidePanel: Initial mount in lunar scene - music is active, showing player');
+      setShowMobileMusicPlayer(true);
+      setMusicPlayerVisible(true);
+    }
+  }, [activeScene, userClosedMusic]); // Add activeScene as dependency to check on scene changes
+  
   // Callback to receive controls from MobileMusicPlayer
   const handleMusicControlsReady = useCallback((controls) => {
-
-    setMusicPlayerControls(controls);
+    // Only set if controls actually changed to prevent infinite loops
+    setMusicPlayerControls(prevControls => {
+      // If we already have controls, don't update (prevents infinite loop)
+      if (prevControls) return prevControls;
+      return controls;
+    });
   }, []);
 
   const router = useRouter();
@@ -107,29 +301,109 @@ const MobileSidePanel = ({
   };
 
   const handleMusicPlayerClose = () => {
-    // Stop the music if it's playing
-    if (musicPlayerControls && musicPlayerControls.pause) {
+    console.log('🎵 handleMusicPlayerClose called', {
+      audioRef: audioRef.current,
+      audioSrc: audioRef.current?.src,
+      paused: audioRef.current?.paused,
+      currentTime: audioRef.current?.currentTime,
+      musicPlayerControls: !!musicPlayerControls,
+      activeScene
+    });
+    
+    // Mark that user explicitly closed the music
+    setUserClosedMusic(true);
+    
+    // Stop the music if it's playing using the audio ref directly
+    if (audioRef.current) {
+      console.log('🎵 Audio ref exists, attempting to pause...');
+      try {
+        audioRef.current.pause();
+        console.log('🎵 Pause successful, audio paused:', audioRef.current.paused);
+        setContextIsPlaying(false);
+        
+        // Also try to reset current time to ensure it's really stopped
+        audioRef.current.currentTime = 0;
+      } catch (error) {
+        console.error('🎵 Error pausing audio:', error);
+      }
+    } else if (musicPlayerControls && musicPlayerControls.pause) {
+      // Fallback to controls if available
+      console.log('🎵 No audio ref, trying controls');
       musicPlayerControls.pause();
+    } else {
+      console.log('⚠️ Could not stop music - no audio ref or controls available');
     }
     
+    // Hide UI immediately
     setShowMobileMusicPlayer(false);
     setMusicPlayerVisible(false);
     setShowMusicChoice(false);
+    
+    // Update context to reflect music is closed
+    // Use a small delay to ensure the pause has taken effect
+    setTimeout(() => {
+      setContextShowSpotify(false);
+      // Double-check that music is really stopped
+      if (audioRef.current && !audioRef.current.paused) {
+        console.warn('🎵 Music still playing after close! Force stopping...');
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+        setContextIsPlaying(false);
+      }
+    }, 100);
+    
+    // Send a message to ensure all components know music should stop
+    window.postMessage({ type: 'FORCE_STOP_MUSIC' }, '*');
   };
 
   // Auto-show music player when 80s mode is activated
   useEffect(() => {
     if (is80sMode) {
+      setUserClosedMusic(false); // Reset the closed flag when 80s mode is activated
       setShowMobileMusicPlayer(true);
       setMusicPlayerVisible(true);
+      setShowMusicChoice(false); // Ensure autoPlay will be true
       if (setShowSpotify && typeof setShowSpotify === 'function') {
         setShowSpotify(false); // Ensure MusicPlayer2 is off
       }
+      // Update context to show music is active
+      setContextShowSpotify(true);
     } else {
       setShowMobileMusicPlayer(false);
       setMusicPlayerVisible(false);
     }
   }, [is80sMode]);
+
+  // Handler for returning to Earth from lunar scene
+  const handleReturnToEarth = useCallback(() => {
+    // Send message to return to gallery
+    window.postMessage({ type: 'NAVIGATE_TO_GALLERY' }, '*');
+    
+    // Reset lunar-specific states
+    setShowAstronautDirectory(false);
+    setSelectedAstronaut(null);
+    setShowLunarVideo(true);
+    
+    // After a short delay to ensure scene has switched, reset the rocket state
+    setTimeout(() => {
+      // Send a message to reset rocket state in the gallery
+      window.postMessage({ type: 'RESET_ROCKET_STATE' }, '*');
+      
+      // Also try to click the rocket button if it exists and is visible
+      const rocketButton = document.querySelector('[aria-label="Rocket Mode"]');
+      if (rocketButton && rocketModelVisible) {
+        console.log('🚀 Clicking rocket button to reset state');
+        rocketButton.click();
+      }
+    }, 500); // Half second delay to ensure scene switch completes
+  }, [rocketModelVisible]);
+
+  // Mock astronaut data for lunar scene
+  const astronautDirectory = [
+    { id: 1, name: "Armstrong", status: "Active", location: "Mare Tranquillitatis" },
+    { id: 2, name: "Aldrin", status: "Active", location: "Tycho Crater" },
+    { id: 3, name: "Collins", status: "Orbital", location: "Command Module" },
+  ];
 
   // Function to send messages to the Mission Control iframe or queue them
   const sendMessageToMissionControl = useCallback((message) => {
@@ -510,6 +784,11 @@ const MobileSidePanel = ({
             toggle80sMode(); // Call the function from gallery.js
             break;
           case "MUSIC_TOGGLE":
+            // Ignore music toggle messages when in lunar scene to prevent interference
+            if (activeScene === 'moon') {
+              console.log("🎵 Ignoring MUSIC_TOGGLE in lunar scene");
+              break;
+            }
             if (typeof event.data.enabled === "boolean") {
               if (setShowSpotify && typeof setShowSpotify === 'function') {
                 setShowSpotify(event.data.enabled); // Call the function from gallery.js
@@ -2138,6 +2417,41 @@ const MobileSidePanel = ({
     };
   }, [handleIgnitionClick, isConstellationsVisible, toggleConstellationVisibility, router, user, isSignedIn, updateVideoPosition, connectionPhase, isMuted, sitepalSceneLoaded, updateSignalButtonState, onRequestZoomAndSwitch, handleIgnition]); // Added onRequestZoomAndSwitch and handleIgnition
 
+  // Handle image file selection for astronaut customizer
+  const handleImageChange = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      
+      reader.onload = (event) => {
+        const result = event.target.result;
+        setCustomImageUrl(result);
+        setActiveTextureUrl(result);
+        setTextureOffset({ x: 0, y: 0 });
+        setTextureScale(1);
+        setShowCustomizerControls(true); // Show controls when image is selected
+      };
+      
+      reader.readAsDataURL(file);
+    }
+  };
+  
+  // Handle astronaut customization save
+  const handleAstronautSave = (customization) => {
+    console.log("🚀 Astronaut customization saved:", customization);
+    
+    // Send customization to parent or other components as needed
+    if (window.parent) {
+      window.parent.postMessage({
+        type: 'ASTRONAUT_CUSTOMIZED',
+        data: customization
+      }, '*');
+    }
+    
+    // Close the modal
+    setShowAstronautModal(false);
+  };
+
   return (
     <>
       {/* Top Corner Buttons */}
@@ -2161,25 +2475,76 @@ const MobileSidePanel = ({
           bg="transparent"
           size="md"
           onClick={() => {
-            setShowMusicChoice(false); // Don't show choice, just start playing
-            setShowMobileMusicPlayer(true);
-            setMusicPlayerVisible(true);
+            console.log('🎵 Music icon clicked in lunar scene');
+            // Reset the user closed flag since they're manually opening it
+            setUserClosedMusic(false);
+            
+            // In lunar scene, always just show the player UI if music is playing
+            if (activeScene === 'moon' && audioRef.current && !audioRef.current.paused) {
+              console.log('🎵 Music is playing in lunar scene, showing player UI');
+              setShowMobileMusicPlayer(true);
+              setMusicPlayerVisible(true);
+            } else if (contextShowSpotify && contextIsPlaying) {
+              // Music is already playing, just show the UI
+              console.log('🎵 Music already playing, showing UI');
+              setShowMobileMusicPlayer(true);
+              setMusicPlayerVisible(true);
+            } else {
+              // Start fresh music playback
+              setShowMusicChoice(false);
+              setShowMobileMusicPlayer(true);
+              setMusicPlayerVisible(true);
+              setContextShowSpotify(true);
+            }
           }}
           _hover={{
             bg: "rgba(255, 255, 255, 0.1)",
           }}
         />
       ) : (
-        // Minimal Music Player
-        <Box
-          position="fixed"
-          top="20px"
-          right="20px"
-          zIndex="1100"
-          display="flex"
-          alignItems="center"
-          gap="8px"
-        >
+        // Minimal Music Player with overlay to block 3D interactions
+        <>
+          {/* Invisible overlay to prevent 3D scene interactions */}
+          <Box
+            position="fixed"
+            top="0"
+            right="0"
+            width="200px"
+            height="100px"
+            zIndex="9998"
+            pointerEvents="auto"
+            bg="transparent"
+            cursor="default"
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+            }}
+            onTouchStart={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+            }}
+            onTouchEnd={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+            }}
+            onTouchMove={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+            }}
+          />
+          
+          {/* Music Player Controls */}
+          <Box
+            position="fixed"
+            top="20px"
+            right="20px"
+            zIndex="9999"
+            display="flex"
+            alignItems="center"
+            gap="8px"
+            pointerEvents="auto"
+            isolation="isolate"
+          >
           {/* Spinning Album Art */}
           <Box
             width="40px"
@@ -2212,9 +2577,23 @@ const MobileSidePanel = ({
             size="sm"
             minW="32px"
             height="32px"
-            onClick={() => {
+            position="relative"
+            zIndex="10000"
+            pointerEvents="auto"
+            onClick={(e) => {
+              console.log('🎵 Skip button clicked', { 
+                hasControls: !!musicPlayerControls,
+                activeScene
+              });
+              
+              // Try to use controls if available
               if (musicPlayerControls && musicPlayerControls.skipTrack) {
+                console.log('🎵 Using music player controls to skip');
                 musicPlayerControls.skipTrack();
+              } else {
+                console.log('⚠️ No skip controls available in lunar scene');
+                // As a last resort, send a message to trigger skip
+                window.postMessage({ type: 'SKIP_TRACK' }, '*');
               }
             }}
             _hover={{
@@ -2223,41 +2602,63 @@ const MobileSidePanel = ({
           />
           
           {/* Close Button */}
-          <IconButton
+          <Box
+            as="button"
             aria-label="Close Music Player"
-            icon={
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18"/>
-                <line x1="6" y1="6" x2="18" y2="18"/>
-              </svg>
-            }
-            color="white"
-            bg="rgba(255, 255, 255, 0.1)"
-            size="sm"
-            minW="28px"
+            width="28px"
             height="28px"
-            onClick={() => {
-              setShowMobileMusicPlayer(false);
-              setMusicPlayerVisible(false);
+            display="flex"
+            alignItems="center"
+            justifyContent="center"
+            bg="rgba(255, 0, 0, 0.3)"
+            borderRadius="4px"
+            color="white"
+            position="relative"
+            zIndex="10000"
+            cursor="pointer"
+            pointerEvents="auto"
+            border="1px solid rgba(255, 255, 255, 0.3)"
+            _hover={{
+              bg: "rgba(255, 0, 0, 0.5)",
+              transform: "scale(1.1)",
+            }}
+            onClick={(e) => {
+              console.log('🎵 Close button clicked!');
+              e.stopPropagation();
+              e.preventDefault();
+              
+              // Call the proper close handler which sets userClosedMusic
               handleMusicPlayerClose();
             }}
-            _hover={{
-              bg: "rgba(255, 255, 255, 0.2)",
+            onTouchEnd={(e) => {
+              console.log('🎵 Close button touch end!');
+              e.stopPropagation();
+              e.preventDefault();
+              
+              // Call the proper close handler which sets userClosedMusic
+              handleMusicPlayerClose();
             }}
-          />
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </Box>
         </Box>
+        </>
       )}
       
-      {/* 80s Mode Toggle - Top Right Below Music Icon */}
-      <Box
-        position="fixed"
-        top="70px"
-        right="20px"
-        zIndex="1100"
-        display="flex"
-        alignItems="center"
-        gap="8px"
-      >
+      {/* 80s Mode Toggle - Top Right Below Music Icon - Hidden in lunar scene */}
+      {activeScene !== 'moon' && (
+        <Box
+          position="fixed"
+          top="70px"
+          right="20px"
+          zIndex="1100"
+          display="flex"
+          alignItems="center"
+          gap="8px"
+        >
         <Text
           color="white"
           fontSize="12px"
@@ -2299,6 +2700,7 @@ const MobileSidePanel = ({
           />
         </Box>
       </Box>
+      )}
       
       {/* Bottom Navigation Bar */}
       <Box
@@ -2308,18 +2710,22 @@ const MobileSidePanel = ({
         width="100%"
         height="70px"
         paddingBottom="env(safe-area-inset-bottom, 10px)"
-        background={is80sMode ? 
-          "linear-gradient(180deg, rgba(139, 0, 139, 0.95) 0%, rgba(75, 0, 130, 0.98) 100%)" :
-          "linear-gradient(180deg, rgba(13, 25, 42, 0.95) 0%, rgba(3, 10, 25, 0.98) 100%)"
+        background={activeScene === 'moon' ? 
+          "linear-gradient(180deg, rgba(99, 102, 241, 0.95) 0%, rgba(67, 56, 202, 0.98) 100%)" :
+          (is80sMode ? 
+            "linear-gradient(180deg, rgba(139, 0, 139, 0.95) 0%, rgba(75, 0, 130, 0.98) 100%)" :
+            "linear-gradient(180deg, rgba(13, 25, 42, 0.95) 0%, rgba(3, 10, 25, 0.98) 100%)")
         }
         backdropFilter="none"
         display="flex"
         justifyContent="space-around"
         alignItems="center"
-        borderTop={is80sMode ? "2px solid #ff00ff" : "2px solid #0e7490"}
-        boxShadow={is80sMode ? 
-          "0 -5px 15px rgba(255, 0, 255, 0.3), 0 -10px 30px rgba(0, 255, 255, 0.2)" :
-          "0 -5px 15px rgba(6, 182, 212, 0.2)"
+        borderTop={activeScene === 'moon' ? "2px solid #8b5cf6" : (is80sMode ? "2px solid #ff00ff" : "2px solid #0e7490")}
+        boxShadow={activeScene === 'moon' ?
+          "0 -5px 15px rgba(139, 92, 246, 0.3), 0 -10px 30px rgba(99, 102, 241, 0.2)" :
+          (is80sMode ? 
+            "0 -5px 15px rgba(255, 0, 255, 0.3), 0 -10px 30px rgba(0, 255, 255, 0.2)" :
+            "0 -5px 15px rgba(6, 182, 212, 0.2)")
         }
         zIndex="1000"
         _after={{
@@ -2329,10 +2735,12 @@ const MobileSidePanel = ({
           left: 0,
           right: 0,
           bottom: 0,
-          background: is80sMode ? 
-            "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255, 0, 255, 0.1) 2px, rgba(255, 0, 255, 0.1) 4px)" :
-            "#0f172a",
-          opacity: is80sMode ? 0.3 : 0.85,
+          background: activeScene === 'moon' ?
+            "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(139, 92, 246, 0.1) 2px, rgba(139, 92, 246, 0.1) 4px)" :
+            (is80sMode ? 
+              "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255, 0, 255, 0.1) 2px, rgba(255, 0, 255, 0.1) 4px)" :
+              "#0f172a"),
+          opacity: activeScene === 'moon' ? 0.3 : (is80sMode ? 0.3 : 0.85),
           zIndex: -1
         }}
         sx={{
@@ -2379,9 +2787,13 @@ const MobileSidePanel = ({
           }
         }}
       >
-        
-        {/* SPARKLES Button (Left Side) - Placeholder */}
-        <IconButton
+        {(() => {
+          // Removed excessive logging
+          return activeScene === 'gallery' ? (
+          <>
+            {/* Gallery Scene Buttons */}
+            {/* SPARKLES Button (Left Side) - Placeholder */}
+            <IconButton
           aria-label="Sparkles"
           icon={
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-sparkles-icon lucide-sparkles">
@@ -2872,9 +3284,16 @@ const MobileSidePanel = ({
         <IconButton
           aria-label="Flame (Inactive)"
           icon={
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>
-            </svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24
+            24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round">
+             <path d="M9 5v4"/>
+             <rect width="4" height="6" x="7" y="9" rx="1"/>
+             <path d="M9 15v2"/>
+             <path d="M17 3v2"/>
+             <rect width="4" height="8" x="15" y="5" rx="1"/>
+             <path d="M17 13v3"/>
+           </svg>
           }
           color={is80sMode ? "#ff66ff" : "#64748b"}
           bg={is80sMode ? "rgba(139, 0, 139, 0.2)" : "rgba(13, 25, 42, 0.5)"}
@@ -2925,6 +3344,156 @@ const MobileSidePanel = ({
           }}
           size="lg"
         />
+          </>
+        ) : (
+          <>
+            {/* Lunar Scene Buttons */}
+            {/* Astronaut Directory Button */}
+            <IconButton
+              aria-label="Astronaut Directory"
+              icon={
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                  <circle cx="9" cy="7" r="4"/>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+              }
+              color="#a78bfa"
+              bg="rgba(139, 92, 246, 0.2)"
+              borderRadius="full"
+              boxShadow="0 0 10px rgba(139, 92, 246, 0.4), inset 0 0 6px rgba(167, 139, 250, 0.2)"
+              border="1px solid #8b5cf6"
+              onClick={() => setShowAstronautDirectory(!showAstronautDirectory)}
+              _hover={{
+                bg: "rgba(139, 92, 246, 0.3)",
+                transform: "scale(1.08)",
+                boxShadow: "0 0 15px rgba(139, 92, 246, 0.6)",
+              }}
+              size="lg"
+            />
+            
+            {/* Lunar Video Button */}
+            <IconButton
+              aria-label="Lunar Transmission"
+              icon={
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  {/* Astronaut Helmet */}
+                  <path d="M12 2C7 2 3 6 3 11v7c0 2.2 1.8 4 4 4h10c2.2 0 4-1.8 4-4v-7c0-5-4-9-9-9z"/>
+                  <path d="M7 10h10c1.1 0 2 0.9 2 2v4c0 2.2-1.8 4-4 4H9c-2.2 0-4-1.8-4-4v-4c0-1.1 0.9-2 2-2z"/>
+                  <rect x="2" y="11" width="3" height="4" rx="1"/>
+                  <rect x="19" y="11" width="3" height="4" rx="1"/>
+                  <line x1="20" y1="3" x2="20" y2="10"/>
+                  <circle cx="20" cy="2" r="1" fill="currentColor"/>
+                </svg>
+              }
+              color={showLunarVideo ? "#39ff14" : "#a78bfa"}
+              bg={showLunarVideo ? "rgba(57, 255, 20, 0.25)" : "rgba(139, 92, 246, 0.2)"}
+              borderRadius="full"
+              boxShadow={showLunarVideo ? 
+                "0 0 15px rgba(57, 255, 20, 0.4), inset 0 0 8px rgba(57, 255, 20, 0.2)" :
+                "0 0 10px rgba(139, 92, 246, 0.4), inset 0 0 6px rgba(167, 139, 250, 0.2)"
+              }
+              border={showLunarVideo ? "1px solid #39ff14" : "1px solid #8b5cf6"}
+              onClick={() => setShowAstronautModal(true)}
+              _hover={{
+                bg: showLunarVideo ? "rgba(57, 255, 20, 0.35)" : "rgba(139, 92, 246, 0.3)",
+                transform: "scale(1.08)",
+                boxShadow: showLunarVideo ? "0 0 20px rgba(57, 255, 20, 0.6)" : "0 0 15px rgba(139, 92, 246, 0.6)",
+              }}
+              size="lg"
+            />
+            
+            {/* CONNECT Button (Center) */}
+            <Button
+              borderRadius="full"
+              height="60px"
+              width="60px"
+              marginBottom="20px"
+              background="linear-gradient(135deg, rgba(139, 92, 246, 0.3), rgba(167, 139, 250, 0.3))"
+              color="#a78bfa"
+              border="2px solid #8b5cf6"
+              boxShadow="0 0 15px rgba(139, 92, 246, 0.4), inset 0 0 8px rgba(167, 139, 250, 0.2)"
+              onClick={() => {
+                // Placeholder for lunar AI connection
+                console.log("Connecting to lunar AI...");
+              }}
+              _hover={{
+                background: "linear-gradient(135deg, rgba(139, 92, 246, 0.4), rgba(167, 139, 250, 0.4))",
+                borderColor: "#a78bfa",
+                transform: "scale(1.08)",
+                boxShadow: "0 0 20px rgba(139, 92, 246, 0.6), 0 0 30px rgba(167, 139, 250, 0.4)",
+              }}
+              display="flex"
+              alignItems="center"
+              justifyContent="center"
+            >
+              <Box
+                as="span"
+                animation="pulse 2s ease-in-out infinite"
+                sx={{
+                  filter: "drop-shadow(0 0 2px #a78bfa) drop-shadow(0 0 4px rgba(167, 139, 250, 0.3))"
+                }}
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4.9 16.1C1 12.2 1 5.8 4.9 1.9"/>
+                  <path d="M7.8 4.7a6.14 6.14 0 0 0-.8 7.5"/>
+                  <circle cx="12" cy="9" r="2"/>
+                  <path d="M16.2 4.8c2 2 2.26 5.11.8 7.47"/>
+                  <path d="M19.1 1.9a9.96 9.96 0 0 1 0 14.1"/>
+                  <path d="M9.5 18h5"/>
+                  <path d="m8 22 4-11 4 11"/>
+                </svg>
+              </Box>
+            </Button>
+            
+            {/* Placeholder Button */}
+            <IconButton
+              aria-label="Placeholder"
+              icon={
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"/>
+                  <path d="M8 12h8"/>
+                  <path d="M12 8v8"/>
+                </svg>
+              }
+              color="#a78bfa"
+              bg="rgba(139, 92, 246, 0.2)"
+              borderRadius="full"
+              boxShadow="0 0 10px rgba(139, 92, 246, 0.4), inset 0 0 6px rgba(167, 139, 250, 0.2)"
+              border="1px solid #8b5cf6"
+              isDisabled={true}
+              opacity={0.6}
+              cursor="not-allowed"
+              size="lg"
+            />
+            
+            {/* Return to Earth Button */}
+            <IconButton
+              aria-label="Return to Earth"
+              icon={
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"/>
+                  <path d="M2 12h20"/>
+                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                </svg>
+              }
+              color="#67e8f9"
+              bg="rgba(99, 102, 241, 0.2)"
+              borderRadius="full"
+              boxShadow="0 0 10px rgba(99, 102, 241, 0.4), inset 0 0 6px rgba(139, 92, 246, 0.2)"
+              border="1px solid #6366f1"
+              onClick={handleReturnToEarth}
+              _hover={{
+                bg: "rgba(99, 102, 241, 0.3)",
+                transform: "scale(1.08)",
+                boxShadow: "0 0 15px rgba(99, 102, 241, 0.6)",
+              }}
+              size="lg"
+            />
+          </>
+        );
+        })()}
         
       </Box>
 
@@ -3732,13 +4301,411 @@ const MobileSidePanel = ({
             setShowMusicChoice(false);
           }}
           showInitialChoice={showMusicChoice}
-          onPlayingStateChange={setIsPlaying}
+          onPlayingStateChange={(playing) => {
+            setIsPlaying(playing);
+            setContextIsPlaying(playing);
+          }}
           hideUI={true}
           onControlsReady={handleMusicControlsReady}
         />
       </Box>
+
+      {/* Astronaut Directory Modal (Lunar Scene) */}
+      {showAstronautDirectory && activeScene === 'moon' && (
+        <>
+          {/* Overlay */}
+          <Box
+            position="fixed"
+            top="0"
+            left="0"
+            width="100%"
+            height="100%"
+            bg="rgba(0, 0, 0, 0.7)"
+            backdropFilter="blur(5px)"
+            zIndex="1500"
+            onClick={() => setShowAstronautDirectory(false)}
+          />
+          
+          {/* Directory Container */}
+          <Box
+            position="fixed"
+            top="50%"
+            left="50%"
+            transform="translate(-50%, -50%)"
+            width="90%"
+            maxWidth="350px"
+            bg="rgba(99, 102, 241, 0.95)"
+            zIndex="1600"
+            borderRadius="16px"
+            boxShadow="0 0 25px rgba(139, 92, 246, 0.3)"
+            border="2px solid #8b5cf6"
+            p={4}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Text fontSize="xl" fontWeight="bold" color="#e9d5ff" mb={4}>
+              Astronaut Directory
+            </Text>
+            
+            <VStack spacing={3} align="stretch">
+              {astronautDirectory.map((astronaut) => (
+                <Box
+                  key={astronaut.id}
+                  p={3}
+                  bg="rgba(167, 139, 250, 0.2)"
+                  borderRadius="8px"
+                  border="1px solid #a78bfa"
+                  cursor="pointer"
+                  onClick={() => setSelectedAstronaut(astronaut)}
+                  _hover={{
+                    bg: "rgba(167, 139, 250, 0.3)",
+                    transform: "translateX(4px)",
+                  }}
+                  transition="all 0.2s"
+                >
+                  <Text fontWeight="bold" color="#e9d5ff">
+                    {astronaut.name}
+                  </Text>
+                  <Text fontSize="sm" color="#c4b5fd">
+                    Status: {astronaut.status}
+                  </Text>
+                  <Text fontSize="xs" color="#ddd6fe">
+                    Location: {astronaut.location}
+                  </Text>
+                </Box>
+              ))}
+            </VStack>
+            
+            <Button
+              mt={4}
+              size="sm"
+              bg="rgba(139, 92, 246, 0.3)"
+              color="#e9d5ff"
+              border="1px solid #8b5cf6"
+              borderRadius="full"
+              onClick={() => setShowAstronautDirectory(false)}
+              _hover={{
+                bg: "rgba(139, 92, 246, 0.4)",
+              }}
+            >
+              Close
+            </Button>
+          </Box>
+        </>
+      )}
+      
+      {/* Astronaut Customizer Modal */}
+      <Modal isOpen={showAstronautModal} onClose={() => setShowAstronautModal(false)} size="xl">
+        <ModalOverlay bg="rgba(30,27,75,0.8)" backdropFilter="blur(5px)" />
+        <ModalContent
+          bg="linear-gradient(to bottom right, #1e1b4b, #312e81)"
+          color="#e0e7ff"
+          borderRadius="xl"
+          border="2px solid #6366f1"
+          maxW="90vw"
+          w="500px"
+          h="600px"
+          mx="auto"
+        >
+          <ModalHeader
+            fontSize="xl"
+            fontWeight="bold"
+            fontFamily="monospace"
+            textAlign="center"
+            borderBottom="2px solid rgba(99,102,241,0.5)"
+            pb={3}
+          >
+            ASTRONAUT CUSTOMIZER
+          </ModalHeader>
+          <ModalCloseButton color="#a78bfa" />
+          
+          <ModalBody p={4} display="flex" flexDirection="column" h="calc(100% - 60px)">
+            {/* 3D Viewer */}
+            <Box 
+              bg="linear-gradient(135deg, rgba(30,27,75,0.8), rgba(49,46,129,0.6))"
+              borderRadius="md"
+              border="2px solid rgba(99,102,241,0.3)"
+              position="relative"
+              overflow="hidden"
+              boxShadow="inset 0 0 20px rgba(0,0,0,0.5), 0 0 15px rgba(99,102,241,0.2)"
+              height={showCustomizerControls ? "55%" : "70%"}
+              mb={3}
+            >
+              <AstronautViewer
+                modelPath={astronautModels.find(m => m.id === selectedModel)?.path || '/astronaut.glb'}
+                textureUrl={activeTextureUrl}
+                textureOffset={textureOffset}
+                textureScale={textureScale}
+              />
+              
+              {/* Model Selector */}
+              <HStack 
+                position="absolute" 
+                bottom="8px" 
+                left="50%" 
+                transform="translateX(-50%)"
+                spacing={2}
+                bg="rgba(30,27,75,0.8)"
+                borderRadius="md"
+                border="1px solid rgba(99,102,241,0.4)"
+                p={1}
+                backdropFilter="blur(5px)"
+              >
+                <Button
+                  size="xs"
+                  onClick={() => {
+                    const currentIndex = astronautModels.findIndex(m => m.id === selectedModel);
+                    const prevIndex = (currentIndex - 1 + astronautModels.length) % astronautModels.length;
+                    setSelectedModel(astronautModels[prevIndex].id);
+                  }}
+                  bg="rgba(99,102,241,0.3)"
+                  _hover={{ bg: "rgba(99,102,241,0.5)" }}
+                  color="#e0e7ff"
+                  minW="28px"
+                  h="20px"
+                >
+                  ←
+                </Button>
+                <Text fontSize="xs" color="#e0e7ff" minW="30px" textAlign="center">
+                  {astronautModels.findIndex(m => m.id === selectedModel) + 1}/{astronautModels.length}
+                </Text>
+                <Button
+                  size="xs"
+                  onClick={() => {
+                    const currentIndex = astronautModels.findIndex(m => m.id === selectedModel);
+                    const nextIndex = (currentIndex + 1) % astronautModels.length;
+                    setSelectedModel(astronautModels[nextIndex].id);
+                  }}
+                  bg="rgba(99,102,241,0.3)"
+                  _hover={{ bg: "rgba(99,102,241,0.5)" }}
+                  color="#e0e7ff"
+                  minW="28px"
+                  h="20px"
+                >
+                  →
+                </Button>
+              </HStack>
+            </Box>
+            
+            {/* Controls */}
+            <Box 
+              bg="linear-gradient(135deg, rgba(49,46,129,0.4), rgba(30,27,75,0.6))"
+              borderRadius="md"
+              border="1px solid rgba(167,139,250,0.3)"
+              p={3}
+              flex={1}
+              display="flex"
+              flexDirection="column"
+              justifyContent={showCustomizerControls ? "space-between" : "center"}
+            >
+              {/* Image Upload Button */}
+              <Button
+                as="label"
+                size="sm"
+                bg="linear-gradient(135deg, rgba(99,102,241,0.3) 0%, rgba(139,92,246,0.3) 100%)"
+                color="#e0e7ff"
+                border="1px solid #6366f1"
+                cursor="pointer"
+                w="100%"
+                _hover={{
+                  bg: "linear-gradient(135deg, rgba(99,102,241,0.5) 0%, rgba(139,92,246,0.5) 100%)"
+                }}
+                leftIcon={<Text fontSize="lg">📁</Text>}
+                onClick={() => setShowCustomizerControls(!showCustomizerControls)}
+              >
+                CHANGE IMAGE
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  style={{ display: 'none' }}
+                />
+              </Button>
+
+              {/* Texture Adjustment Controls */}
+              {showCustomizerControls && activeTextureUrl && (
+                <VStack spacing={2} flex={1} justify="center" mt={3}>
+                  <Text fontSize="xs" color="#a78bfa" fontFamily="monospace" alignSelf="flex-start">
+                    TEXTURE ADJUSTMENT
+                  </Text>
+                  
+                  {/* Scale Control */}
+                  <HStack spacing={3} w="100%">
+                    <Text color="#a78bfa" fontSize="sm" minW="50px">Scale:</Text>
+                    <input
+                      type="range"
+                      min="0.5"
+                      max="3"
+                      step="0.1"
+                      value={textureScale}
+                      onChange={(e) => setTextureScale(parseFloat(e.target.value))}
+                      style={{
+                        flex: 1,
+                        height: '4px',
+                        background: '#4c1d95',
+                        borderRadius: '2px',
+                        outline: 'none'
+                      }}
+                    />
+                    <Text color="#e0e7ff" fontSize="sm" minW="30px" textAlign="right">
+                      {textureScale.toFixed(1)}
+                    </Text>
+                  </HStack>
+                  
+                  {/* X Offset Control */}
+                  <HStack spacing={3} w="100%">
+                    <Text color="#a78bfa" fontSize="sm" minW="50px">X Pos:</Text>
+                    <input
+                      type="range"
+                      min="-1"
+                      max="1"
+                      step="0.01"
+                      value={textureOffset.x}
+                      onChange={(e) => setTextureOffset(prev => ({ ...prev, x: parseFloat(e.target.value) }))}
+                      style={{
+                        flex: 1,
+                        height: '4px',
+                        background: '#4c1d95',
+                        borderRadius: '2px',
+                        outline: 'none'
+                      }}
+                    />
+                    <Text color="#e0e7ff" fontSize="sm" minW="30px" textAlign="right">
+                      {textureOffset.x.toFixed(2)}
+                    </Text>
+                  </HStack>
+                  
+                  {/* Y Offset Control */}
+                  <HStack spacing={3} w="100%">
+                    <Text color="#a78bfa" fontSize="sm" minW="50px">Y Pos:</Text>
+                    <input
+                      type="range"
+                      min="-1"
+                      max="1"
+                      step="0.01"
+                      value={textureOffset.y}
+                      onChange={(e) => setTextureOffset(prev => ({ ...prev, y: parseFloat(e.target.value) }))}
+                      style={{
+                        flex: 1,
+                        height: '4px',
+                        background: '#4c1d95',
+                        borderRadius: '2px',
+                        outline: 'none'
+                      }}
+                    />
+                    <Text color="#e0e7ff" fontSize="sm" minW="30px" textAlign="right">
+                      {textureOffset.y.toFixed(2)}
+                    </Text>
+                  </HStack>
+                </VStack>
+              )}
+              
+              {/* Action Buttons */}
+              {showCustomizerControls && (
+                <HStack spacing={2} mt={3}>
+                  <Button
+                    size="sm"
+                    bg="rgba(99,102,241,0.2)"
+                    color="#e0e7ff"
+                    border="1px solid #6366f1"
+                    flex={1}
+                    _hover={{
+                      bg: "rgba(99,102,241,0.3)"
+                    }}
+                    onClick={() => {
+                      // Reset to defaults
+                      setTextureOffset({ x: 0, y: 0 });
+                      setTextureScale(1);
+                      setCustomImageUrl(null);
+                      setActiveTextureUrl(user?.imageUrl || null);
+                      setShowCustomizerControls(false);
+                    }}
+                  >
+                    RESET
+                  </Button>
+                  <Button
+                    size="sm"
+                    bg="linear-gradient(135deg, rgba(34,197,94,0.3) 0%, rgba(34,197,94,0.5) 100%)"
+                    color="#22c55e"
+                    border="1px solid #22c55e"
+                    flex={2}
+                    onClick={() => {
+                      const customization = {
+                        modelPath: astronautModels.find(m => m.id === selectedModel)?.path,
+                        customImage: customImageUrl || activeTextureUrl,
+                        textureOffset,
+                        textureScale,
+                      };
+                      handleAstronautSave(customization);
+                      setShowCustomizerControls(false);
+                    }}
+                    _hover={{
+                      bg: "linear-gradient(135deg, rgba(34,197,94,0.5) 0%, rgba(34,197,94,0.7) 100%)"
+                    }}
+                  >
+                    ✓ APPLY
+                  </Button>
+                </HStack>
+              )}
+            </Box>
+          </ModalBody>
+        </ModalContent>
+      </Modal>
+      
+      {/* Custom range input styles for modal */}
+      <style jsx global>{`
+        .chakra-modal__content-container input[type="range"] {
+          -webkit-appearance: none;
+          appearance: none;
+          background: transparent;
+          cursor: pointer;
+        }
+        
+        .chakra-modal__content-container input[type="range"]::-webkit-slider-track {
+          background: #4c1d95;
+          height: 4px;
+          border-radius: 2px;
+        }
+        
+        .chakra-modal__content-container input[type="range"]::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          appearance: none;
+          background: #a78bfa;
+          height: 12px;
+          width: 12px;
+          border-radius: 50%;
+          border: 1px solid #6366f1;
+          box-shadow: 0 0 6px rgba(167,139,250,0.6);
+          transition: all 0.2s;
+        }
+        
+        .chakra-modal__content-container input[type="range"]::-webkit-slider-thumb:hover {
+          background: #c4b5fd;
+          box-shadow: 0 0 10px rgba(196,181,253,0.8);
+          transform: scale(1.2);
+        }
+        
+        .chakra-modal__content-container input[type="range"]::-moz-range-track {
+          background: #4c1d95;
+          height: 4px;
+          border-radius: 2px;
+        }
+        
+        .chakra-modal__content-container input[type="range"]::-moz-range-thumb {
+          background: #a78bfa;
+          height: 12px;
+          width: 12px;
+          border-radius: 50%;
+          border: 1px solid #6366f1;
+          box-shadow: 0 0 6px rgba(167,139,250,0.6);
+          transition: all 0.2s;
+        }
+      `}</style>
     </>
   );
 };
+
+// Preload astronaut models
+useGLTF.preload('/astronaut.glb');
+useGLTF.preload('/Astronaut2.glb');
 
 export default MobileSidePanel;

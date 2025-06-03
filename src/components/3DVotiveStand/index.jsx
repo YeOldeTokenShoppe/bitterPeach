@@ -130,6 +130,7 @@ const ThreeDVotiveStand = forwardRef(({
   onPaginationChange,
   onCandleViewerStateChange,
   onUIVisibilityChange,
+  onSceneChange,
 }, ref) => {
   // Track instance creation
   const [instanceId] = useState(() => {
@@ -821,6 +822,13 @@ const ThreeDVotiveStand = forwardRef(({
       onUIVisibilityChange(showUI);
     }
   }, [showUI, onUIVisibilityChange]);
+  
+  // Notify parent when scene changes
+  useEffect(() => {
+    if (onSceneChange) {
+      onSceneChange(activeScene);
+    }
+  }, [activeScene, onSceneChange]);
   
   // Helper to load texture from URL with quality options
   const loadImageAsTexture = useCallback((url, options = {}) => {

@@ -97,8 +97,15 @@ function Moon(props) {
     if (!scene) return;
     
     const rockets = [];
+    let moonObjectFound = false;
 
     scene.traverse((child) => {
+      // Log moon object specifically
+      if (child.name && child.name.toLowerCase() === 'moon') {
+        console.log('🌙 Found moon object in GLB:', child.name, 'type:', child.type);
+        moonObjectFound = true;
+      }
+      
       if (child.name && child.name.toLowerCase().includes('mary')) {
        
       }
@@ -116,6 +123,16 @@ function Moon(props) {
         console.log('Found telescope object:', child.name);
       }
     });
+    
+    if (!moonObjectFound) {
+      console.log('⚠️ No object named "moon" found in GLB. All object names:');
+      scene.traverse((child) => {
+        if (child.name) {
+          console.log('  -', child.name);
+        }
+      });
+    }
+    
     setRocketObjects(rockets);
   }, [scene]);
 
@@ -811,7 +828,18 @@ function AstronautInfoDisplay({ userData, astronautIndex, parentObject }) {
       }}
       {...{ parent: parentObject }}
     >
-      <div style={{
+      <div 
+        onClick={(e) => {
+          // Prevent any clicks within the info display from bubbling to canvas
+          e.stopPropagation();
+        }}
+        onPointerDown={(e) => {
+          e.stopPropagation();
+        }}
+        onPointerUp={(e) => {
+          e.stopPropagation();
+        }}
+        style={{
         // Conditional styling - glass panel only when expanded
         background: isExpanded 
           ? 'linear-gradient(135deg, rgba(0,100,255,0.15) 0%, rgba(100,200,255,0.25) 50%, rgba(0,150,255,0.15) 100%)'
@@ -952,7 +980,16 @@ function AstronautInfoDisplay({ userData, astronautIndex, parentObject }) {
             <button
               onClick={(e) => {
                 e.stopPropagation();
+                e.preventDefault();
+                // Prevent event from bubbling to R3F canvas
+                e.nativeEvent.stopImmediatePropagation();
                 setIsExpanded(false);
+              }}
+              onPointerDown={(e) => {
+                e.stopPropagation();
+              }}
+              onPointerUp={(e) => {
+                e.stopPropagation();
               }}
               style={{
                 position: 'absolute',
@@ -1962,7 +1999,7 @@ function SceneSetup({ isMobileView, isTelescopeView }) {
 
 // Simple orbit controls for rotating around the moon
 function SimpleOrbitCamera({ focusedTarget, isMobileView, onAnimationComplete, isTelescopeView, forceCompleteAnimation, setForceCompleteAnimation }) {
-  const { camera, gl } = useThree();
+  const { camera, gl, scene } = useThree();
   const controlsRef = useRef();
   const followModeRef = useRef(false);
   const neutralPositionRef = useRef(new THREE.Vector3(0, 0, isMobileView ? 9 : 8));
@@ -2131,15 +2168,66 @@ function SimpleOrbitCamera({ focusedTarget, isMobileView, onAnimationComplete, i
   
   // Add event listeners for user interaction detection
   useEffect(() => {
-    if (!gl || !gl.domElement) return;
+    if (!gl || !gl.domElement || !scene) return;
     
     const handleUserInteraction = (e) => {
       // Only handle clicks during the orbit phase, not during zoom
       if (initialAnimationRef.current && animationPhaseRef.current === 'orbit' && !forceCompleteAnimation) {
-        console.log('🎮 User clicked during orbit animation - initiating smooth transition');
-        // Set forceCompleteAnimation to trigger smooth transition in useFrame
-        setForceCompleteAnimation(true);
-        // Don't mark as complete yet - let the smooth transition handle that
+        // Use the scene from useThree hook
+        if (scene) {
+          // Use raycaster to determine what was clicked
+          const raycaster = new THREE.Raycaster();
+          const mouse = new THREE.Vector2();
+          
+          // Calculate mouse position in normalized device coordinates
+          const rect = gl.domElement.getBoundingClientRect();
+          mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+          mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+          
+          // Set up raycaster
+          raycaster.setFromCamera(mouse, camera);
+          
+          // Get all objects in the scene
+          const intersects = raycaster.intersectObjects(scene.children, true);
+          
+          // Check if the clicked object is the moon
+          let isMoonClick = false;
+          if (intersects.length > 0) {
+            const firstObject = intersects[0].object;
+            // Check the object and its parents for moon
+            let currentObj = firstObject;
+            while (currentObj) {
+              if (currentObj.name && currentObj.name.toLowerCase() === 'moon') {
+                isMoonClick = true;
+                console.log('✅ Found moon object in raycaster hit');
+                break;
+              }
+              currentObj = currentObj.parent;
+            }
+            
+            // Debug logging if moon wasn't found
+            if (!isMoonClick && firstObject.name) {
+              console.log('❌ Clicked object name:', firstObject.name, 'parent names:', 
+                firstObject.parent?.name, 
+                firstObject.parent?.parent?.name);
+            }
+          }
+          
+          // Only break the orbit if the moon itself was clicked
+          if (isMoonClick) {
+            console.log('🌙 Moon clicked during orbit animation - initiating smooth transition');
+            setForceCompleteAnimation(true);
+          } else if (intersects.length > 0) {
+            // Something else was clicked (telescope, astronaut, rocket, etc.)
+            console.log('✨ Non-moon object clicked during orbit - allowing click through');
+          } else {
+            // Clicked on empty space/sky - don't break the orbit
+            console.log('🌌 Sky/empty space clicked during orbit - continuing animation');
+          }
+        } else {
+          // If we can't access the scene, don't break the orbit
+          console.log('⚠️ Cannot access scene during orbit - continuing animation');
+        }
       }
     };
     
@@ -2151,7 +2239,7 @@ function SimpleOrbitCamera({ focusedTarget, isMobileView, onAnimationComplete, i
       gl.domElement.removeEventListener('click', handleUserInteraction);
       gl.domElement.removeEventListener('touchend', handleUserInteraction);
     };
-  }, [gl, forceCompleteAnimation, setForceCompleteAnimation]);
+  }, [gl, forceCompleteAnimation, setForceCompleteAnimation, camera, scene]);
 
   // Handle telescope view camera setup
   useEffect(() => {
@@ -2160,6 +2248,17 @@ function SimpleOrbitCamera({ focusedTarget, isMobileView, onAnimationComplete, i
       preTelesopeStateRef.current.position.copy(camera.position);
       preTelesopeStateRef.current.target.copy(controlsRef.current.target);
       preTelesopeStateRef.current.fov = camera.fov;
+      
+      // If we're in the middle of the orbit animation, pause it
+      if (initialAnimationRef.current && animationPhaseRef.current === 'orbit') {
+        // Store the animation state and pause time
+        preTelesopeStateRef.current.wasAnimating = true;
+        preTelesopeStateRef.current.animationPauseTime = Date.now();
+        preTelesopeStateRef.current.animationPhase = animationPhaseRef.current;
+        console.log('🔭 Pausing orbit animation for telescope view');
+      } else {
+        preTelesopeStateRef.current.wasAnimating = false;
+      }
       
       // Animate to telescope view
       const startFov = camera.fov;
@@ -2181,14 +2280,18 @@ function SimpleOrbitCamera({ focusedTarget, isMobileView, onAnimationComplete, i
         } else {
           // Final telescope setup
           if (controlsRef.current) {
-            controlsRef.current.enabled = true;
+            controlsRef.current.enabled = false;        // Ensure controls are fully disabled
             controlsRef.current.enablePan = false;
-            controlsRef.current.enableZoom = true;
+            controlsRef.current.enableZoom = false;       // Crucial: disable zoom interaction too
             controlsRef.current.minDistance = 50;
             controlsRef.current.maxDistance = 200;
             controlsRef.current.autoRotate = false;
-            controlsRef.current.target.set(0, 0, 0);
-            controlsRef.current.update();
+            controlsRef.current.target.set(0, 0, 0);  // Set OrbitControls target to origin
+            // controlsRef.current.update();          // REMOVED: Let manual camera settings take precedence
+
+            // Explicitly set camera position and orientation for telescope view
+            camera.position.set(0, 0, 75);          // Position camera at a good Z distance
+            camera.lookAt(0, 0, 0);                 // Orient camera towards the origin
           }
         }
       };
@@ -2232,6 +2335,23 @@ function SimpleOrbitCamera({ focusedTarget, isMobileView, onAnimationComplete, i
             controlsRef.current.maxDistance = 18;
             controlsRef.current.autoRotate = !focusedTarget;
             controlsRef.current.autoRotateSpeed = 0.1;
+          }
+          
+          // Resume orbit animation if it was paused
+          if (preTelesopeStateRef.current.wasAnimating) {
+            console.log('🔭 Resuming orbit animation after telescope view');
+            // Calculate how much time was spent in telescope view
+            const pauseDuration = Date.now() - preTelesopeStateRef.current.animationPauseTime;
+            
+            // Adjust the animation start time to account for the pause
+            if (initialAnimationStartRef.current) {
+              initialAnimationStartRef.current += pauseDuration;
+            }
+            
+            // Restore animation state
+            initialAnimationRef.current = true;
+            animationPhaseRef.current = preTelesopeStateRef.current.animationPhase;
+            userInterruptedRef.current = false;
           }
         }
       };
@@ -2320,18 +2440,21 @@ function SimpleOrbitCamera({ focusedTarget, isMobileView, onAnimationComplete, i
     
       // Handle telescope view mouse tracking
     if (isTelescopeView && controlsRef.current) {
+      controlsRef.current.enabled = false; // Disable OrbitControls to prevent interference
+
       // Parallax effect based on mouse position
       const mouseX = (window.__mouseTrail?.xPx || 0) - window.innerWidth / 2;
       const mouseY = (window.__mouseTrail?.yPx || 0) - window.innerHeight / 2;
       
-      // Smooth parallax movement
+      // Direct parallax movement
       const targetX = mouseX * 0.15;
-      const targetY = -mouseY * 0.15;
+      const targetY = -mouseY * 0.15; // Y is inverted for typical screen coordinates
       
-      camera.position.x += (targetX - camera.position.x) * 0.1;
-      camera.position.y += (targetY - camera.position.y) * 0.1;
+      camera.position.x = targetX;  // Directly set X position
+      camera.position.y = targetY;  // Directly set Y position
+      // camera.position.z remains as set when entering telescope view (e.g., 75)
       camera.lookAt(0, 0, 0);
-      controlsRef.current.update();
+      // controlsRef.current.update(); // Removed: Not needed if controls are disabled and could cause conflicts
       return; // Skip other camera animations when in telescope view
     }
     
@@ -2341,15 +2464,15 @@ function SimpleOrbitCamera({ focusedTarget, isMobileView, onAnimationComplete, i
     // Log animation state once per second
     if (Math.floor(state.clock.elapsedTime) % 1 === 0 && 
         Math.floor(state.clock.elapsedTime * 10) % 10 === 0) {
-      console.log('🎬 Animation state:', {
-        initialAnimation: initialAnimationRef.current,
-        animationPhase: animationPhaseRef.current,
-        forceComplete: forceCompleteAnimation
-      });
+      // console.log('🎬 Animation state:', {
+      //   initialAnimation: initialAnimationRef.current,
+      //   animationPhase: animationPhaseRef.current,
+      //   forceComplete: forceCompleteAnimation
+      // });
     }
     
-    // Handle initial animation sequence
-    if (initialAnimationRef.current && initialPositionSetRef.current && initialAnimationStartRef.current && controlsRef.current && !userInterruptedRef.current && animationPhaseRef.current !== 'complete') {
+    // Handle initial animation sequence (skip if in telescope view)
+    if (initialAnimationRef.current && initialPositionSetRef.current && initialAnimationStartRef.current && controlsRef.current && !userInterruptedRef.current && animationPhaseRef.current !== 'complete' && !isTelescopeView) {
       const elapsed = Date.now() - initialAnimationStartRef.current;
       const landingAreaPosition = ROCKET_LANDING_POSITION.clone();
       
@@ -2409,10 +2532,10 @@ function SimpleOrbitCamera({ focusedTarget, isMobileView, onAnimationComplete, i
             // Calculate direction away from moon center
             const awayFromMoon = orbitPosition.clone().normalize();
             
-            // Intermediate position: back away and slightly up
+            // Intermediate position: arc backward and slightly down
             intermediatePosition.copy(orbitPosition);
             intermediatePosition.add(awayFromMoon.multiplyScalar(3 * easedFirstHalf)); // Move 3 units away
-            intermediatePosition.y += 2 * easedFirstHalf; // Move 2 units up
+            intermediatePosition.y -= 0.7 * easedFirstHalf; // Move slightly down instead of up
             
             camera.position.copy(intermediatePosition);
             // Keep looking at landing area during first half
@@ -2426,7 +2549,7 @@ function SimpleOrbitCamera({ focusedTarget, isMobileView, onAnimationComplete, i
             const awayFromMoon = orbitPosition.clone().normalize();
             intermediatePosition.copy(orbitPosition);
             intermediatePosition.add(awayFromMoon.multiplyScalar(3));
-            intermediatePosition.y += 2;
+            intermediatePosition.y -= 0.5; // Maintain the slight downward arc
             
             // Interpolate from intermediate to final
             camera.position.lerpVectors(intermediatePosition, finalPosition, easedSecondHalf);
@@ -2479,6 +2602,15 @@ function SimpleOrbitCamera({ focusedTarget, isMobileView, onAnimationComplete, i
 
   // Main effect for handling focus changes
   useEffect(() => {
+    // If in telescope view, let the dedicated telescope logic in useFrame and the
+    // telescope-specific useEffect handle camera. Don't run focus/unfocus animations.
+    if (isTelescopeView) {
+      // The useEffect hook that listens to `isTelescopeView` (around line 2236)
+      // already configures the OrbitControls correctly for telescope mode when entering it.
+      // So, simply returning here is enough to prevent this hook's logic from interfering.
+      return;
+    }
+
     if (camera && originalFovRef.current === null) {
       originalFovRef.current = camera.fov;
     }
@@ -2669,7 +2801,7 @@ function SimpleOrbitCamera({ focusedTarget, isMobileView, onAnimationComplete, i
         animationFrameIdRef.current = requestAnimationFrame(animateBackToNeutral);
       }
     }
-  }, [focusedTarget, camera, gl]);
+  }, [focusedTarget, camera, gl, isTelescopeView]); // Added isTelescopeView to dependencies
 
   return <OrbitControls ref={controlsRef} args={[camera, gl.domElement]} />;
 }
@@ -2958,15 +3090,8 @@ export default function LunarLanding({userHelmetTextures, currentUser, onSceneRe
       targetInfo
     });
     
-    // If camera animation is not complete and user clicks anywhere, complete the animation first
-    if (!isCameraAnimationComplete) {
-      console.log('📸 User clicked during intro animation - completing animation', { isMobileView });
-      // Force complete the camera animation
-      console.log('🎯 Setting forceCompleteAnimation to true');
-      setForceCompleteAnimation(true);
-      // Don't process the click further - let them click again after animation completes
-      return;
-    }
+    // Don't break animation for scene object clicks - this is now handled by the orbit click handler
+    // which only breaks on moon clicks. Just process the object click normally.
     
     // Track that user has interacted after animation
     if (isCameraAnimationComplete && isMobileView && !hasInteractedPostAnimation) {
@@ -3032,11 +3157,10 @@ export default function LunarLanding({userHelmetTextures, currentUser, onSceneRe
       eventCurrentTarget: event.currentTarget
     });
     
-    // During intro animation, any click should complete it
+    // Don't handle canvas clicks during animation - let the orbit handler deal with it
     if (!isCameraAnimationComplete) {
-      console.log('📸 Canvas clicked during intro animation - completing animation', { isMobileView });
-      console.log('🎯 Setting forceCompleteAnimation to true from canvas click');
-      setForceCompleteAnimation(true);
+      // Animation breaking is now handled by the orbit click detection
+      // which only breaks on moon clicks
       return;
     }
     
@@ -3057,6 +3181,9 @@ export default function LunarLanding({userHelmetTextures, currentUser, onSceneRe
   return (
  
       <div style={{ position: 'fixed', inset: 0, width: '100vw', height: '100vh',     zIndex: 2, overflow: 'hidden', pointerEvents:'auto' }}   onMouseMove={e => {
+        if (isTelescopeView) {
+          console.log('Mouse move in telescope view:', e.clientX, e.clientY);
+        }
         // Convert event.clientX/clientY to NDC
         const { innerWidth, innerHeight } = window;
         const xNDC = (e.clientX / innerWidth) * 2 - 1;
@@ -3088,7 +3215,7 @@ export default function LunarLanding({userHelmetTextures, currentUser, onSceneRe
       <Canvas 
         shadows 
         dpr={isMobileView ? [1, 1] : [1, 1.5]} // Further reduce pixel ratio to prevent context loss
-        camera={{ fov: 50, position: [0, 0, isMobileView ? 3 : 8], near: 0.1, far: 1000 }}
+        camera={{ fov: 50, position: [0, 2 , isMobileView ? 3 : 8], near: 0.1, far: 1000 }}
         onClick={handleCanvasClick}
         gl={{ 
           antialias: false, // Disable antialiasing to reduce GPU load
@@ -3206,8 +3333,9 @@ export default function LunarLanding({userHelmetTextures, currentUser, onSceneRe
               height: '100%',
               pointerEvents: 'none',
               opacity: 1,
-              background: 'radial-gradient(circle at center, transparent 0%, transparent 38%, transparent 38.5%, black 39%, black 100%)',
+              background: 'radial-gradient(circle at center, transparent 0%, transparent 38%, transparent 38.5%, black 39%, black 100%)', // Reverted background
               zIndex: 10,
+              // boxShadow: 'inset 0 0 100px rgba(0, 0, 0, 0.8)', // Removed boxShadow
             }}
           />
           <button
@@ -3259,6 +3387,7 @@ export default function LunarLanding({userHelmetTextures, currentUser, onSceneRe
             toggleRocketModel={toggleRocketModel}
             toggleConstellationVisibility={toggleConstellationVisibility}
             isConstellationsVisible={isConstellationsVisible}
+            activeScene="moon"
           />
         ) : (
           <LunarSidePanel // Changed to use lunar-specific panel
@@ -3327,7 +3456,7 @@ export default function LunarLanding({userHelmetTextures, currentUser, onSceneRe
       />
        */}
       {/* Mobile hint overlay - only show after camera animation */}
-      {isMobileView && showMobileHint && isCameraAnimationComplete && (
+      {/* {isMobileView && showMobileHint && isCameraAnimationComplete && (
         <div
           style={{
             position: 'fixed',
@@ -3379,7 +3508,7 @@ export default function LunarLanding({userHelmetTextures, currentUser, onSceneRe
           <div style={{ marginBottom: '4px' }}>👆 Tap astronaut or rocket to select</div>
           <div>👆👆 Tap again to zoom</div>
         </div>
-      )}
+      )} */}
       
       <style jsx>{`
         @keyframes fadeInUp {
