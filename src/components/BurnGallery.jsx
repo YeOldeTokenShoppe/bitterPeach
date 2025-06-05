@@ -92,6 +92,7 @@ const MemoizedThreeDVotiveStand = memo(ThreeDVotiveStand, (prevProps, nextProps)
     prevProps.monsterMode === nextProps.monsterMode &&
     prevProps.rocketModelVisible === nextProps.rocketModelVisible &&
     prevProps.isConstellationsVisible === nextProps.isConstellationsVisible &&
+    prevProps.isMoonShotsEnabled === nextProps.isMoonShotsEnabled &&
     prevProps.userData === nextProps.userData
   );
 });
@@ -152,6 +153,13 @@ function BurnGallery({
   const [rocketModelVisible, setRocketModelVisible] = useState(false);
   const [showUI, setShowUI] = useState(true); // Control UI visibility during transitions
   const [isConstellationsVisible, setIsConstellationsVisible] = useState(false);
+  const [isMoonShotsEnabled, setIsMoonShotsEnabled] = useState(false);
+  
+  // Reset moon spawn state on component mount
+  useEffect(() => {
+    window._moonsAlreadySpawned = false;
+    console.log('🌙 BurnGallery: Reset moon spawn state on mount');
+  }, []);
   const [paginationState, setPaginationState] = useState(null);
   const votiveStandRef = useRef(null);
   const [isCandleViewerVisible, setIsCandleViewerVisible] = useState(false);
@@ -163,6 +171,8 @@ function BurnGallery({
   }, [activeScene]);
 
   const toggleConstellationVisibility = useCallback(() => {
+    console.log("🌟 BurnGallery: toggleConstellationVisibility called");
+    console.log("🌟 Current moonsSpawnedRef state (if accessible):", window.moonsSpawnedRef?.current);
     setIsConstellationsVisible((prev) => {
       const newState = !prev;
       console.log("BurnGallery: Toggled constellation visibility to:", newState);
@@ -182,6 +192,34 @@ function BurnGallery({
       return newState;
     });
   }, []);
+
+  const toggleMoonShots = useCallback(() => {
+    console.log("🌙 BurnGallery: toggleMoonShots called");
+    console.log("🌙 Current is80sMode:", is80sMode);
+    console.log("🌙 Current isMoonShotsEnabled:", isMoonShotsEnabled);
+    
+    setIsMoonShotsEnabled((prev) => {
+      console.log("🌙 BurnGallery: Inside setState, prev value:", prev);
+      // Always toggle
+      const newState = !prev;
+      console.log("🌙 BurnGallery: Setting MoonShots to:", newState, "(was:", prev, ")");
+      
+      // Send sync message to iframe
+      const iframe = document.querySelector('iframe[title="Mission Control Panel"]');
+      if (iframe && iframe.contentWindow) {
+        console.log("🌙 BurnGallery: Sending SYNC_STATE with isMoonshotsEnabled:", newState);
+        iframe.contentWindow.postMessage(
+          {
+            type: "SYNC_STATE",
+            isMoonshotsEnabled: newState
+          },
+          "*"
+        );
+      }
+      
+      return newState;
+    });
+  }, [is80sMode, isMoonShotsEnabled]);
 
   const setSpawnFunction = useCallback((func) => {
     spawnMonsterFunctionRef.current = func;
@@ -248,17 +286,26 @@ function BurnGallery({
 
   // Add effect to sync initial state with iframe
   useEffect(() => {
-    const iframe = document.querySelector('iframe[src*="cyberpunk_mission_control.html"]');
-    if (iframe && iframe.contentWindow) {
-      iframe.contentWindow.postMessage(
-        {
-          type: "SYNC_STATE",
-          isConstellationsEnabled: isConstellationsVisible
-        },
-        "*"
-      );
-    }
-  }, [isConstellationsVisible]);
+    // Add a small delay to ensure iframe is loaded
+    const syncTimer = setTimeout(() => {
+      const iframe = document.querySelector('iframe[title="Mission Control Panel"]');
+      if (iframe && iframe.contentWindow) {
+        console.log('🌙 BurnGallery: Syncing state to iframe');
+        console.log('🌙   - isMoonShotsEnabled:', isMoonShotsEnabled);
+        console.log('🌙   - isConstellationsVisible:', isConstellationsVisible);
+        iframe.contentWindow.postMessage(
+          {
+            type: "SYNC_STATE",
+            isConstellationsEnabled: isConstellationsVisible,
+            isMoonshotsEnabled: isMoonShotsEnabled
+          },
+          "*"
+        );
+      }
+    }, 500);
+    
+    return () => clearTimeout(syncTimer);
+  }, [isConstellationsVisible, isMoonShotsEnabled]);
 
   // useEffect(() => {
   //   if (isChandelierVisible) {
@@ -471,6 +518,7 @@ function BurnGallery({
                 onCandleViewerStateChange={setIsCandleViewerVisible}
                 onUIVisibilityChange={setShowUI}
                 onSceneChange={setActiveScene}
+                isMoonShotsEnabled={isMoonShotsEnabled}
               />
             ) : null}
           </GridItem>
@@ -499,6 +547,7 @@ function BurnGallery({
               toggleConstellationVisibility={toggleConstellationVisibility}
               isConstellationsVisible={isConstellationsVisible}
               paginationState={paginationState}
+              toggleMoonShots={toggleMoonShots}
               activeScene={activeScene}
             />
           </Box>
@@ -520,6 +569,8 @@ function BurnGallery({
               toggleRocketModel={toggleRocketModel}
               toggleConstellationVisibility={toggleConstellationVisibility}
               isConstellationsVisible={isConstellationsVisible}
+              toggleMoonShots={toggleMoonShots}
+              isMoonShotsEnabled={isMoonShotsEnabled}
             />
           </Box>
         )}

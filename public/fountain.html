@@ -56,7 +56,7 @@
 				font-size: 4rem;
 				color: #ffffff;
 			">
-				RL80
+				<a href="/home" style="text-decoration: none; color: inherit;">RL80</a>
 				<!-- The text copies will be created by JavaScript -->
 			</div>
 		</div>
@@ -1799,9 +1799,9 @@
 		<script>
 			document.addEventListener('DOMContentLoaded', function() {
 				const text = document.getElementById('text');
-				const mainText = text.textContent.trim();
+				const mainText = '<a href="/home" style="text-decoration: none; color: inherit;">RL80</a>';
 				
-				// Clear the existing content but keep the main text
+				// Clear the existing content and set the main text with link
 				text.innerHTML = mainText;
 				
 				// Create 100 copies with varying styles exactly like the React version
@@ -1809,7 +1809,7 @@
 					const index = i + 1;
 					const textCopy = document.createElement('div');
 					textCopy.className = 'text__copy';
-					textCopy.textContent = mainText;
+					textCopy.innerHTML = mainText; // Use innerHTML to preserve the link
 					
 					// Apply the exact same styles as in the React component
 					Object.assign(textCopy.style, {

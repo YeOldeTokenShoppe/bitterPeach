@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 // import Loader from "../components/Loader";
 import Magic8BallLoader from "../components/Magic8BallLoader";
 import { useUser } from "@clerk/nextjs";
@@ -200,7 +201,7 @@ export default function GalleryPage() {
     // Try to find the mission control iframe
     const iframes = document.querySelectorAll("iframe");
     for (const iframe of iframes) {
-      if (iframe.src && iframe.src.includes("cyberpunk_mission_control_clean.html")) {
+      if (iframe.src && iframe.src.includes("cyberpunk_mission_control_enhanced.html")) {
         return iframe;
       }
     }
@@ -209,6 +210,7 @@ export default function GalleryPage() {
 
   // Modify toggle80sMode to respect mobile view
   const toggle80sMode = useCallback(() => {
+    console.log("🎨 Gallery: toggle80sMode called, current:", is80sMode);
     const newMode = !is80sMode;
     setIs80sMode(newMode);
 
@@ -457,7 +459,7 @@ export default function GalleryPage() {
           zIndex: 100, // Ensure it's above the scene if opaque
           borderRadius: "8px",
           padding: "10px",
-          pointerEvents: "none"
+          pointerEvents: "auto"
         }}>
           <div 
             id="text"
@@ -466,9 +468,12 @@ export default function GalleryPage() {
               fontFamily: "'UnifrakturMaguntia', cursive",
               fontSize: isMobileView ? "3rem" : "4rem",
               color: "#ffffff",
+              cursor: "pointer"
             }}
           >
-            RL80
+            <Link href="/home" style={{ textDecoration: 'none', color: 'inherit', display: 'inline-block' }}>
+              RL80
+            </Link>
             {Array.from({length: 100}).map((_, i) => {
               const index = i + 1;
               return (

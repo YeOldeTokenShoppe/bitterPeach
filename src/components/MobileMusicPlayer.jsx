@@ -53,11 +53,12 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
   const non80sTrackNames = [
     "Rocket Man - Steven Drozd",
     "Magnetic - Tunde Adebimpe",
+    "Intergalactic - Beastie Boys",  // Space themed, fits alternative mode
   ];
   const non80sFirebasePaths = [
     "audio/320k/rocket-man---steven-drozd.m4a",
     "audio/320k/01-magnetic.m4a",
-
+    "audio/320k/intergalactic-beastie-boys.m4a",
   ];
 
   const eightyTrackNames = [
@@ -102,6 +103,8 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
       failedTracksRef.current.clear();
     } catch (error) {
       console.error(`❌ Mobile: Error loading track ${index} (${trackNames[index]}):`, error);
+      console.error('Firebase path attempted:', firebasePaths[index]);
+      console.error('Error details:', error.code, error.message);
       failedTracksRef.current.add(index);
       
       // If all tracks have failed, stop trying
@@ -122,6 +125,12 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
   useEffect(() => {
     if (isVisible && trackNames.length > 0) {
       // Initialization check
+      
+      // Clear failed tracks when component becomes visible (scene change)
+      if (isVisible) {
+        console.log('🎵 MobileMusicPlayer: Clearing failed tracks on visibility change');
+        failedTracksRef.current.clear();
+      }
 
       // Handle first mount when 80s mode is already active
       if (isFirstMount.current) {

@@ -134,6 +134,7 @@ const MobileSidePanel = ({
   onRequestZoomAndSwitch, // New prop
   paginationState, // New prop for pagination
   activeScene = 'gallery', // New prop to detect current scene
+  toggleMoonShots,
 }) => {
   const [isVideoScreenOpen, setIsVideoScreenOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -810,6 +811,15 @@ const MobileSidePanel = ({
               toggleConstellationVisibility();
             } else {
               console.error("MobileSidePanel: toggleConstellationVisibility function not received as prop");
+            }
+            break;
+          
+          // Handle moonshots toggle
+          case "MOONSHOTS_TOGGLE":
+            if (toggleMoonShots) {
+              toggleMoonShots();
+            } else {
+              console.error("MobileSidePanel: toggleMoonShots function not received as prop");
             }
             break;
 
@@ -2610,7 +2620,7 @@ const MobileSidePanel = ({
             display="flex"
             alignItems="center"
             justifyContent="center"
-            bg="rgba(255, 0, 0, 0.3)"
+            bg="rgba(255, 255, 255, 0.1)"
             borderRadius="4px"
             color="white"
             position="relative"

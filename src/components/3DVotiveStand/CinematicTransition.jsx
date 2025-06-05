@@ -225,7 +225,7 @@ export const CinematicTransition = ({ active, onComplete, type = 'warp' }) => {
     }
     
     // Trigger navigation after peak effect
-    if (elapsed > 2.5 && phase === 'starting') {
+    if (elapsed > 1.5 && phase === 'starting') {
       console.log('🎬 CinematicTransition: Peak reached, triggering onComplete');
       console.log('🎬 onComplete function:', onComplete);
       console.log('🎬 typeof onComplete:', typeof onComplete);

@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telescope Controls Test</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background-color: #000;
+            color: #fff;
+        }
+        .controls-info {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid #333;
+            z-index: 1000;
+        }
+        .controls-info h2 {
+            margin-top: 0;
+            color: #00ff41;
+        }
+        .control-item {
+            margin: 10px 0;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+        }
+        .control-item strong {
+            color: #67e8f9;
+        }
+        .status {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #333;
+        }
+        .status-item {
+            margin: 5px 0;
+        }
+        .value {
+            color: #00ff41;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="controls-info">
+        <h2>TelescopeView Controls Test</h2>
+        <div class="control-item">
+            <strong>Mouse Drag:</strong> Rotate view (click and drag)
+        </div>
+        <div class="control-item">
+            <strong>Mouse Wheel:</strong> Zoom in/out
+        </div>
+        <div class="control-item">
+            <strong>Touch Drag:</strong> Rotate view (single finger)
+        </div>
+        <div class="control-item">
+            <strong>Pinch:</strong> Zoom in/out (two fingers)
+        </div>
+    </div>
+
+    <div class="status">
+        <h3>Current State:</h3>
+        <div class="status-item">
+            Rotation X: <span class="value" id="rotX">0.00</span>
+        </div>
+        <div class="status-item">
+            Rotation Y: <span class="value" id="rotY">0.00</span>
+        </div>
+        <div class="status-item">
+            Zoom (FOV): <span class="value" id="zoom">50</span>°
+        </div>
+        <div class="status-item">
+            Mouse Down: <span class="value" id="mouseDown">false</span>
+        </div>
+    </div>
+
+    <script>
+        // This is a test file to verify the telescope controls logic
+        console.log('Telescope Controls Test Page');
+        
+        // Simulated values
+        const rotation = { x: 0, y: 0 };
+        let zoom = 50;
+        let isMouseDown = false;
+        
+        // Update display
+        function updateDisplay() {
+            document.getElementById('rotX').textContent = rotation.x.toFixed(2);
+            document.getElementById('rotY').textContent = rotation.y.toFixed(2);
+            document.getElementById('zoom').textContent = zoom.toFixed(0);
+            document.getElementById('mouseDown').textContent = isMouseDown;
+        }
+        
+        // Mouse controls
+        let mouseX = 0;
+        let mouseY = 0;
+        
+        document.addEventListener('mousedown', (e) => {
+            isMouseDown = true;
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+            updateDisplay();
+        });
+        
+        document.addEventListener('mousemove', (e) => {
+            if (!isMouseDown) return;
+            
+            const deltaX = e.clientX - mouseX;
+            const deltaY = e.clientY - mouseY;
+            
+            rotation.y += deltaX * 0.01;
+            rotation.x += deltaY * 0.01;
+            rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, rotation.x));
+            
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+            updateDisplay();
+        });
+        
+        document.addEventListener('mouseup', () => {
+            isMouseDown = false;
+            updateDisplay();
+        });
+        
+        document.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            zoom += e.deltaY * 0.01 * 2;
+            zoom = Math.max(10, Math.min(90, zoom));
+            updateDisplay();
+        });
+        
+        // Initial update
+        updateDisplay();
+        
+        console.log('Controls test initialized. The actual TelescopeView implementation in React uses these same principles.');
+    </script>
+</body>
+</html>

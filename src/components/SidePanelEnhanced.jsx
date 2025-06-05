@@ -57,6 +57,9 @@ const SidePanelEnhanced = ({
   rocketModelVisible,
   toggleRocketModel,
   toggleConstellationVisibility,
+  toggleMoonShots,
+  isConstellationsVisible,
+  isMoonShotsEnabled,
 }) => {
   
   // Use context for music state
@@ -693,6 +696,21 @@ const SidePanelEnhanced = ({
             );
           }
           break;
+          
+        case "MOONSHOTS_TOGGLE":
+          console.log("🌙 SidePanelEnhanced: Received MOONSHOTS_TOGGLE message");
+          console.log("🌙 Message data:", event.data);
+          console.log("🌙 toggleMoonShots function exists:", !!toggleMoonShots);
+          console.log("🌙 Current isMoonShotsEnabled prop:", isMoonShotsEnabled);
+          if (toggleMoonShots) {
+            console.log("🌙 SidePanelEnhanced: Calling toggleMoonShots()");
+            toggleMoonShots(); // Call without parameter to toggle
+          } else {
+            console.error(
+              "SidePanel: toggleMoonShots function not received as prop"
+            );
+          }
+          break;
 
         // Handle rocket launch action
         // Handle new rocket launch execute message
@@ -778,6 +796,7 @@ const SidePanelEnhanced = ({
     rocketModelVisible,
     toggleRocketModel,
     toggleConstellationVisibility,
+    toggleMoonShots,
     updateVideoPosition,
     router,
     user,
@@ -799,6 +818,12 @@ const SidePanelEnhanced = ({
       isActive: showSpotify,
     });
     
+    // Force sync moonshots state to ensure it matches parent
+    sendMessageToIframe({
+      type: "SET_MOONSHOTS_MODE",
+      isActive: isMoonShotsEnabled,
+    });
+    
     // Also send a direct update for the signal button state
     const iframe = document.querySelector('iframe[title="Mission Control Panel"]');
     if (iframe && iframe.contentWindow) {
@@ -808,7 +833,7 @@ const SidePanelEnhanced = ({
         isMusicActive: showSpotify
       }, "*");
     }
-  }, [is80sMode, monsterMode, showSpotify]);
+  }, [is80sMode, monsterMode, showSpotify, isMoonShotsEnabled]);
 
   // Update the useEffect cleanup to be simpler
   useEffect(() => {
@@ -880,11 +905,13 @@ const SidePanelEnhanced = ({
           isMusicEnabled: showSpotify,
           isLaunchMode: monsterMode,
           isRocketModelVisible: rocketModelVisible,
+          isConstellationsEnabled: isConstellationsVisible,
+          isMoonshotsEnabled: isMoonShotsEnabled,
         },
         "*"
       );
     }
-  }, [is80sMode, showSpotify, monsterMode, rocketModelVisible]);
+  }, [is80sMode, showSpotify, monsterMode, rocketModelVisible, isConstellationsVisible, isMoonShotsEnabled]);
 
   // Sync state when iframe loads
   const handleIframeLoad = useCallback(() => {
@@ -1313,6 +1340,7 @@ export default React.memo(SidePanelEnhanced, (prevProps, nextProps) => {
     prevProps.is80sMode === nextProps.is80sMode &&
     prevProps.monsterMode === nextProps.monsterMode &&
     prevProps.rocketModelVisible === nextProps.rocketModelVisible &&
-    prevProps.isConstellationsVisible === nextProps.isConstellationsVisible
+    prevProps.isConstellationsVisible === nextProps.isConstellationsVisible &&
+    prevProps.isMoonShotsEnabled === nextProps.isMoonShotsEnabled
   );
 });

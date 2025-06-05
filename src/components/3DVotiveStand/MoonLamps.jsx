@@ -671,6 +671,7 @@ const MoonScene = forwardRef(
     };
     // Improved moon spawning with more accurate physics
     const spawnMoon = () => {
+      console.log('🌙 spawnMoon called! Stack trace:', new Error().stack);
       if (!ammoRef.current || !physicsRef.current.world || !moonTextureRef.current) return;
       const AmmoLib = ammoRef.current;
 
@@ -1365,15 +1366,16 @@ const MoonScene = forwardRef(
     // Expose the spawn function via useImperativeHandle
     useImperativeHandle(ref, () => ({
       triggerInitialSpawn: () => {
+        console.log('🌙 MoonLamps: triggerInitialSpawn called');
         if (isMobileView) {
-
+          console.log('🌙 MoonLamps: Skipping spawn for mobile view');
           if (onSpawnReady) {
             onSpawnReady();
           }
           return;
         }
         if (isPhysicsInitialized.current && ammoRef.current) {
-
+          console.log('🌙 MoonLamps: Physics initialized, spawning 8 moons');
           for (let i = 0; i < 8; i++) {
             spawnMoon();
           }

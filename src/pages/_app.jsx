@@ -1,4 +1,4 @@
-import "../../styles/globals.css";
+import '../../styles/globals.css';
 import "../../styles/RotatingText.css";
 import "../../styles/Carousel.css";
 import "../../styles/candle.css";
@@ -40,6 +40,7 @@ function MyApp({ Component, pageProps }) {
   const isScenePage = router.pathname === "/scene";
   const isRocketPage = router.pathname === "/rocket";
   const isMoonScenePage = router.pathname === "/moon-scene";
+  const isSamplePage = router.pathname === "/sample";
 
 
   useEffect(() => {
@@ -110,7 +111,7 @@ function MyApp({ Component, pageProps }) {
   let HeaderComponent = null;
   if (isGalleryPage) {
     HeaderComponent = Header3;
-  } else if (!(isIndexPage || isScenePage || isRocketPage || isCommunionPage || isMoonScenePage)) {
+  } else if (!(isIndexPage || isScenePage || isRocketPage || isCommunionPage || isMoonScenePage || isSamplePage)) {
     HeaderComponent = Header;
   }
 

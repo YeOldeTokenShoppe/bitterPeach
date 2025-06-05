@@ -131,6 +131,7 @@ const ThreeDVotiveStand = forwardRef(({
   onCandleViewerStateChange,
   onUIVisibilityChange,
   onSceneChange,
+  isMoonShotsEnabled,
 }, ref) => {
   // Track instance creation
   const [instanceId] = useState(() => {
@@ -185,6 +186,54 @@ const ThreeDVotiveStand = forwardRef(({
 
   // Add ref for LunarLanding
   const moonSceneRef = useRef();
+  const moonsSpawnedRef = useRef(false);
+  
+  // Store moon spawn state in window to persist across any potential re-renders
+  useEffect(() => {
+    // Reset moon spawn state when MoonShots is disabled
+    if (!isMoonShotsEnabled) {
+      moonsSpawnedRef.current = false;
+      window._moonsAlreadySpawned = false;
+      console.log('🌙 MoonShots disabled, resetting spawn state');
+    } else if (window._moonsAlreadySpawned) {
+      // Check if moons were already spawned in this session
+      moonsSpawnedRef.current = true;
+      console.log('🌙 Moons were already spawned in this session, setting ref to true');
+    }
+    
+    console.log('🌙 Component mounted/re-mounted, moonsSpawnedRef initialized to:', moonsSpawnedRef.current, 'isMoonShotsEnabled:', isMoonShotsEnabled);
+    return () => {
+      console.log('🌙 Component unmounting, moonsSpawnedRef was:', moonsSpawnedRef.current);
+      // Store the state globally when unmounting
+      if (moonsSpawnedRef.current) {
+        window._moonsAlreadySpawned = true;
+      }
+    };
+  }, [isMoonShotsEnabled]);
+  
+  // Debug log when component re-renders
+  useEffect(() => {
+    console.log('🌙 Component re-rendered, moonsSpawnedRef.current:', moonsSpawnedRef.current);
+    console.log('🌙 is80sMode:', is80sMode);
+    console.log('🌙 isMoonShotsEnabled:', isMoonShotsEnabled);
+  });
+
+  // Apply crosshair cursor to body when moonshots mode is active
+  useEffect(() => {
+    if (isMoonShotsEnabled) {
+      document.body.classList.add('moonshots-crosshair');
+      console.log('🎯 Added moonshots-crosshair class to body');
+    } else {
+      document.body.classList.remove('moonshots-crosshair');
+      console.log('🎯 Removed moonshots-crosshair class from body');
+    }
+    
+    // Cleanup on unmount
+    return () => {
+      document.body.classList.remove('moonshots-crosshair');
+    };
+  }, [isMoonShotsEnabled]);
+
   const [showLunarLanding, setShowLunarLanding] = useState(false);
   const results = useFirestoreResults();
   // const [userData, setUserData] = useState([]);
@@ -433,33 +482,26 @@ const ThreeDVotiveStand = forwardRef(({
   // Update the parent component when model is loaded (only once)
   useEffect(() => {
     if (isModelLoaded && isChildStatueLoaded && !hasNotifiedParentRef.current) { // Ensure statue is also loaded
-    
+      console.log('🚀 Model and statue loaded, preparing to notify parent');
+      console.log('🚀 Current is80sMode:', is80sMode);
+      console.log('🚀 Current isMoonShotsEnabled:', isMoonShotsEnabled);
+      
       // Wait slightly longer than the MoonScene spawn delay before notifying the parent
       const notificationTimer = setTimeout(() => {
-      
+        console.log('🚀 Notification timer fired, notifying parent');
         setIsLoading(true); // Notify parent (e.g., BurnGallery)
 
-        // --- UPDATED: Delay triggering moon spawn ---
-        // Add a short delay after hiding the preloader before spawning moons
-        const spawnDelayTimer = setTimeout(() => {
-          if (moonSceneRef.current) {
-           
-            moonSceneRef.current.triggerInitialSpawn();
-          }
-        }, 3000); // 2-second delay AFTER preloader is hidden
+        // --- UPDATED: Remove automatic moon spawn ---
+        // Moons will now be spawned via the MoonShots toggle instead
         // --- End UPDATED ---
 
         hasNotifiedParentRef.current = true;
-
-        // Clean up inner timer if outer timer's cleanup is called before inner fires
-        // (Though unlikely with these timings, it's good practice)
-        return () => clearTimeout(spawnDelayTimer);
       }, 5700); // Keep existing delay for hiding preloader
 
       // Ensure outer timer is cleared if component unmounts before firing
       return () => clearTimeout(notificationTimer);
     }
-  }, [isModelLoaded, isChildStatueLoaded, setIsLoading]); // Keep dependencies, added isChildStatueLoaded
+  }, [isModelLoaded, isChildStatueLoaded, setIsLoading, is80sMode, isMoonShotsEnabled]); // Keep dependencies, added isChildStatueLoaded
 
   // Add a fallback timer to ensure loading completes even if there's an issue
   useEffect(() => {
@@ -473,6 +515,51 @@ const ThreeDVotiveStand = forwardRef(({
 
     return () => clearTimeout(fallbackTimer);
   }, [setIsLoading]);
+
+  // Track previous MoonShots state to detect changes
+  const prevMoonShotsEnabledRef = useRef(isMoonShotsEnabled);
+  
+  // Handle MoonShots toggle - spawn moons when enabled
+  useEffect(() => {
+    const prevEnabled = prevMoonShotsEnabledRef.current;
+    const stateChanged = prevEnabled !== isMoonShotsEnabled;
+    
+    console.log('🌙 MoonShots useEffect check:', {
+      isMoonShotsEnabled,
+      prevEnabled,
+      stateChanged,
+      hasMoonSceneRef: !!moonSceneRef.current,
+      moonsSpawned: moonsSpawnedRef.current,
+      isModelLoaded,
+      is80sMode,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Update the previous state ref
+    prevMoonShotsEnabledRef.current = isMoonShotsEnabled;
+    
+    // Only spawn moons if MoonShots changed from false to true
+    if (stateChanged && isMoonShotsEnabled === true && moonSceneRef.current && !moonsSpawnedRef.current && isModelLoaded) {
+      console.log('🌙 MoonShots changed from OFF to ON - triggering moon spawn');
+      console.log('🌙 Current is80sMode:', is80sMode);
+      console.log('🌙 Stack trace:', new Error().stack);
+      
+      moonSceneRef.current.triggerInitialSpawn();
+      moonsSpawnedRef.current = true; // Mark as spawned to prevent duplicate spawns
+      window._moonsAlreadySpawned = true; // Also set global flag
+    } else if (stateChanged && isMoonShotsEnabled === false) {
+      console.log('🌙 MoonShots changed from ON to OFF - resetting spawn state');
+      moonsSpawnedRef.current = false;
+      window._moonsAlreadySpawned = false;
+    } else if (stateChanged) {
+      console.log('🌙 MoonShots state changed but conditions not met for spawning:');
+      console.log('🌙   - stateChanged:', stateChanged);
+      console.log('🌙   - isMoonShotsEnabled:', isMoonShotsEnabled);
+      console.log('🌙   - has moonSceneRef:', !!moonSceneRef.current);
+      console.log('🌙   - moonsSpawnedRef.current:', moonsSpawnedRef.current);
+      console.log('🌙   - isModelLoaded:', isModelLoaded);
+    }
+  }, [isMoonShotsEnabled, isModelLoaded, is80sMode]);
 
   // Modify the resize handler to ensure scale doesn't go below minimum
   useEffect(() => {
@@ -1498,7 +1585,8 @@ const ThreeDVotiveStand = forwardRef(({
   }), [sceneCameraRef, controlsRef, modelCenter, rocketModelVisible]); // Added modelCenter and rocketModelVisible to dependencies
 
   return (
-    <div style={{ width: "100%", height: "100vh", position: "relative" }}>
+    <div 
+      style={{ width: "100%", height: "100vh", position: "relative" }}>
       <Canvas
         style={{
           position: 'absolute',
@@ -1679,7 +1767,7 @@ const ThreeDVotiveStand = forwardRef(({
 
       {/* Moon Scene - rendered when rocket launch completes */}
       {showLunarLanding && (
-        <Suspense fallback={<div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', color: 'white', zIndex: 11 }}>Loading Moon Scene...</div>}>
+        <Suspense fallback={<div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', color: 'white', zIndex: 11 }}></div>}>
           <div style={{ 
             position: 'absolute', 
             top: 0, 

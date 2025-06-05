@@ -7,6 +7,12 @@ document.addEventListener('DOMContentLoaded', function() {
   setTimeout(() => {
     console.log('🚀 Initializing enhanced controls...');
     
+    // Debug: Check initial state of moonshots toggle
+    const moonshotsToggleCheck = document.getElementById('moonshots-toggle');
+    if (moonshotsToggleCheck) {
+      console.log('🌙 Early check - MoonShots toggle classes:', moonshotsToggleCheck.className);
+    }
+    
     // Ensure offline-display is visible by default
     const offlineDisplay = document.getElementById('offline-display');
     if (offlineDisplay) {
@@ -36,8 +42,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize gauge animations
     initializeGauges();
     
-    // Initialize enhanced toggle controls
-    initializeEnhancedToggles();
+    // Initialize enhanced toggle controls with a delay to ensure proper state
+    setTimeout(() => {
+      initializeEnhancedToggles();
+    }, 200); // Add delay to ensure sync messages are processed first
     
     // Add enhanced button effects
     initializeEnhancedButtons();
@@ -182,7 +190,7 @@ function initializeEnhancedToggles() {
         // Also activate music toggle when turning on 80s mode
         if (musicToggle && !musicToggle.classList.contains('active')) {
           console.log('🎵 Auto-activating music toggle for 80s mode');
-          musicToggle.classList.add('active');
+          musicToggle.click(); // Trigger the click event to properly notify parent
         }
       } else {
         videoDisplay?.classList.remove('video-active');
@@ -232,6 +240,128 @@ function initializeEnhancedToggles() {
     console.log('🌟 Constellation toggle button found (handled by base script)');
   } else {
     console.error('🌟 Constellation toggle button not found');
+  }
+  
+  // Vertical Toggle (MoonShots)
+  const moonshotsToggle = document.getElementById('moonshots-toggle');
+  
+  if (moonshotsToggle) {
+    console.log('🌙 MoonShots toggle element found');
+    console.log('🌙 Initial classes:', moonshotsToggle.className);
+    
+    // Clone the element to remove all existing event handlers
+    const newToggle = moonshotsToggle.cloneNode(true);
+    moonshotsToggle.parentNode.replaceChild(newToggle, moonshotsToggle);
+    
+    // Get the new reference
+    const freshToggle = document.getElementById('moonshots-toggle');
+    
+    // Force remove active class and reset handle position
+    freshToggle.classList.remove('active');
+    const handle = freshToggle.querySelector('.toggle-handle');
+    if (handle) {
+      handle.style.top = '28px'; // OFF position
+      handle.style.transition = 'none';
+      // Force a reflow to ensure styles are applied
+      void handle.offsetHeight;
+      handle.style.transition = ''; // Re-enable transition
+    }
+    
+    console.log('🌙 MoonShots toggle initialized to OFF state');
+    console.log('🌙 Classes after init:', freshToggle.className);
+    
+    // Clear any persisted moon spawn state
+    if (window.parent && window.parent._moonsAlreadySpawned) {
+      window.parent._moonsAlreadySpawned = false;
+    }
+    
+    // Wait for parent state sync before setting up the click handler
+    // This ensures the toggle state matches the parent state before first interaction
+    window.moonShotsSyncTimeout = setTimeout(() => {
+      console.log('🌙 Warning: No sync state received from parent after 2 seconds');
+    }, 2000);
+    
+    // Add a MutationObserver to track class changes on the FRESH toggle
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+          console.log('🌙 MoonShots toggle class changed!');
+          console.log('🌙   Old classes:', mutation.oldValue);
+          console.log('🌙   New classes:', mutation.target.className);
+          console.log('🌙   Stack trace:', new Error().stack);
+        }
+      });
+    });
+    
+    observer.observe(freshToggle, {
+      attributes: true,
+      attributeOldValue: true,
+      attributeFilter: ['class']
+    });
+    
+    // Mark the fresh toggle as having handlers
+    freshToggle.setAttribute('data-handlers-added', 'true');
+    
+    // Add click handler to the FRESH toggle element
+    freshToggle.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log('🌙 MoonShots toggle clicked');
+      console.log('🌙 Classes before toggle:', this.className);
+      
+      // Toggle the active class
+      if (this.classList.contains('active')) {
+        this.classList.remove('active');
+        // Debug: Force visual update
+        const handle = this.querySelector('.toggle-handle');
+        console.log('🌙 Toggle handle element:', handle);
+        if (handle) {
+          handle.style.transition = 'top 0.3s ease'; // Re-enable transition for animation
+          handle.style.top = '28px';
+          console.log('🌙 Manually set handle to OFF position');
+          console.log('🌙 Handle computed style top:', window.getComputedStyle(handle).top);
+        } else {
+          console.error('🌙 ERROR: Toggle handle not found!');
+        }
+      } else {
+        this.classList.add('active');
+        // Debug: Force visual update
+        const handle = this.querySelector('.toggle-handle');
+        console.log('🌙 Toggle handle element:', handle);
+        if (handle) {
+          handle.style.transition = 'top 0.3s ease'; // Re-enable transition for animation
+          handle.style.top = '4px';
+          console.log('🌙 Manually set handle to ON position');
+          console.log('🌙 Handle computed style top:', window.getComputedStyle(handle).top);
+        } else {
+          console.error('🌙 ERROR: Toggle handle not found!');
+        }
+      }
+      
+      console.log('🌙 Classes after toggle:', this.className);
+      const isActive = this.classList.contains('active');
+      
+      // Send message to parent
+      if (window.parent) {
+        console.log('🌙 MoonShots toggle isActive:', isActive);
+        console.log('🌙 MoonShots toggle classList:', this.className);
+        
+        // Small delay to ensure DOM updates are complete
+        setTimeout(() => {
+          window.parent.postMessage({ 
+            type: 'MOONSHOTS_TOGGLE'
+            // Don't send enabled state - let parent toggle its own state
+          }, '*');
+          console.log('🌙 MoonShots toggle message sent');
+        }, 10);
+      }
+    });
+    
+    // Make sure it's not disabled
+    freshToggle.style.pointerEvents = 'auto';
+    freshToggle.style.cursor = 'pointer';
+  } else {
+    console.error('🌙 MoonShots toggle element NOT found');
   }
 }
 
@@ -469,6 +599,39 @@ window.addEventListener('message', function(event) {
     }
   }
   
+  // Handle moonshots mode sync from parent
+  if (event.data.type === 'SET_MOONSHOTS_MODE') {
+    const moonshotsToggle = document.getElementById('moonshots-toggle');
+    if (moonshotsToggle) {
+      console.log('🌙 SET_MOONSHOTS_MODE received, isActive:', event.data.isActive);
+      console.log('🌙 Toggle classes before sync:', moonshotsToggle.className);
+      
+      // Clear any sync timeout since we received the sync
+      if (window.moonShotsSyncTimeout) {
+        clearTimeout(window.moonShotsSyncTimeout);
+        window.moonShotsSyncTimeout = null;
+      }
+      
+      if (event.data.isActive) {
+        moonshotsToggle.classList.add('active');
+        // Update handle position for ON state
+        const handle = moonshotsToggle.querySelector('.toggle-handle');
+        if (handle) {
+          handle.style.top = '4px';
+        }
+      } else {
+        moonshotsToggle.classList.remove('active');
+        // Update handle position for OFF state
+        const handle = moonshotsToggle.querySelector('.toggle-handle');
+        if (handle) {
+          handle.style.top = '28px';
+        }
+      }
+      console.log('🌙 Toggle classes after sync:', moonshotsToggle.className);
+      console.log('🌙 MoonShots mode synced:', event.data.isActive);
+    }
+  }
+  
   // Handle eighties mode sync from parent
   if (event.data.type === 'SET_EIGHTIES_MODE') {
     const eightiesToggle = document.getElementById('eighties-toggle');
@@ -640,35 +803,86 @@ window.addEventListener('message', function(event) {
   
   // Handle complete state sync from parent
   if (event.data.type === 'SYNC_STATE') {
-    // Sync eighties mode
-    const eightiesToggle = document.getElementById('eighties-toggle');
-    if (eightiesToggle) {
-      if (event.data.isEightiesMode) {
-        eightiesToggle.classList.add('active');
-      } else {
-        eightiesToggle.classList.remove('active');
+    // Only update toggles for properties that are explicitly provided in the message
+    
+    // Sync eighties mode only if provided
+    if (event.data.isEightiesMode !== undefined) {
+      const eightiesToggle = document.getElementById('eighties-toggle');
+      if (eightiesToggle) {
+        if (event.data.isEightiesMode) {
+          eightiesToggle.classList.add('active');
+        } else {
+          eightiesToggle.classList.remove('active');
+        }
       }
     }
     
-    // Sync music mode
-    const musicToggle = document.getElementById('music-toggle');
-    if (musicToggle) {
-      if (event.data.isMusicEnabled) {
-        musicToggle.classList.add('active');
-      } else {
-        musicToggle.classList.remove('active');
+    // Sync music mode only if provided
+    if (event.data.isMusicEnabled !== undefined) {
+      const musicToggle = document.getElementById('music-toggle');
+      if (musicToggle) {
+        if (event.data.isMusicEnabled) {
+          musicToggle.classList.add('active');
+        } else {
+          musicToggle.classList.remove('active');
+        }
       }
     }
     
-    // Sync constellation mode
-    const constellationToggle = document.getElementById('constellation-toggle');
-    if (constellationToggle && event.data.isConstellationsEnabled !== undefined) {
-      if (event.data.isConstellationsEnabled) {
-        constellationToggle.classList.add('active');
-      } else {
-        constellationToggle.classList.remove('active');
+    // Sync constellation mode only if provided
+    if (event.data.isConstellationsEnabled !== undefined) {
+      const constellationToggle = document.getElementById('constellation-toggle');
+      if (constellationToggle) {
+        if (event.data.isConstellationsEnabled) {
+          constellationToggle.classList.add('active');
+        } else {
+          constellationToggle.classList.remove('active');
+        }
+        console.log('🌟 Synced constellation toggle state:', event.data.isConstellationsEnabled);
       }
-      console.log('🌟 Synced constellation toggle state:', event.data.isConstellationsEnabled);
+    }
+    
+    // Sync moonshots mode only if provided
+    if (event.data.isMoonshotsEnabled !== undefined) {
+      const moonshotsToggle = document.getElementById('moonshots-toggle');
+      if (moonshotsToggle) {
+        console.log('🌙 SYNC_STATE moonshots - isMoonshotsEnabled:', event.data.isMoonshotsEnabled);
+        console.log('🌙 Toggle classes before SYNC_STATE:', moonshotsToggle.className);
+        const wasActive = moonshotsToggle.classList.contains('active');
+        
+        // Clear any sync timeout since we received the sync
+        if (window.moonShotsSyncTimeout) {
+          clearTimeout(window.moonShotsSyncTimeout);
+          window.moonShotsSyncTimeout = null;
+        }
+        
+        // Force sync to the parent's state
+        if (event.data.isMoonshotsEnabled === true) {
+          moonshotsToggle.classList.add('active');
+          // Update handle position for ON state
+          const handle = moonshotsToggle.querySelector('.toggle-handle');
+          if (handle) {
+            handle.style.top = '4px';
+          }
+        } else {
+          moonshotsToggle.classList.remove('active');
+          // Update handle position for OFF state
+          const handle = moonshotsToggle.querySelector('.toggle-handle');
+          if (handle) {
+            handle.style.top = '28px';
+          }
+        }
+        console.log('🌙 Toggle classes after SYNC_STATE:', moonshotsToggle.className);
+        console.log('🌙 Synced moonshots toggle state:', event.data.isMoonshotsEnabled, 'was:', wasActive);
+        
+        // If state changed from true to false, ensure moon spawn state is reset
+        if (wasActive && !event.data.isMoonshotsEnabled) {
+          if (window.parent && window.parent._moonsAlreadySpawned) {
+            window.parent._moonsAlreadySpawned = false;
+            console.log('🌙 Reset moon spawn state due to toggle being turned OFF');
+          }
+        }
+      }
     }
   }
 });

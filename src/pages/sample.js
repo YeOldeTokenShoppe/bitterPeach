@@ -1,14 +1,14 @@
 import React, { useState } from "react";
 import SkullMirrorViewer from "../components/3DVotiveStand/MirrorView";
 import SynthRoad from "../components/3DVotiveStand/SynthRoad";
-import Magic8BallLoader from "../components/Magic8BallLoader";
+import PalmTreeDrive from "../components/PalmTreeDrive";
 
 export default function SamplePage() {
 
   const [isLoading, setIsLoading] = useState(true);
   return (
-    <div>
-      <Magic8BallLoader isLoading={isLoading} />
+    <div style={{ width: '100vw', height: '100vh', overflow: 'hidden' }}>
+      <PalmTreeDrive />
     </div>
   );
 }
