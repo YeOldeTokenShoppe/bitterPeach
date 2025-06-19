@@ -35,25 +35,49 @@ function SimpleAstronautViewer({ modelPath, textureUrl, textureOffset = { x: 0, 
       console.log("Loading texture from URL:", textureUrl);
       if (!textureUrl) return;
       
-      // Dispose previous texture if it exists to prevent memory leaks
-      if (texture) {
-        console.log("Disposing previous texture:", texture.uuid);
-        texture.dispose();
-      }
+      // Set loading manager to track progress
+      const loadingManager = new THREE.LoadingManager();
+      loadingManager.onStart = () => console.log('Started loading texture:', textureUrl);
+      loadingManager.onProgress = (url, loaded, total) => console.log('Loading progress:', url, loaded, '/', total);
+      loadingManager.onError = (errorUrl) => console.error('Error loading:', errorUrl);
       
-      const textureLoader = new THREE.TextureLoader();
-      textureLoader.load(textureUrl, (loadedTexture) => {
-        console.log("Texture loaded successfully:", loadedTexture.uuid);
-        loadedTexture.colorSpace = THREE.SRGBColorSpace;
-        loadedTexture.center = new THREE.Vector2(0.5, 0.5);
-        loadedTexture.rotation = Math.PI; // 180 degrees in radians
-        
-        // Apply scale and offset
-        loadedTexture.repeat.set(-textureScale, textureScale);
-        loadedTexture.offset.set(textureOffset.x, textureOffset.y);
-        
-        setTexture(loadedTexture);
-      });
+      const loader = new THREE.TextureLoader(loadingManager);
+      
+      loader.load(
+        textureUrl, 
+        (loadedTexture) => {
+          console.log("Texture loaded successfully:", loadedTexture.uuid, {
+            image: loadedTexture.image,
+            width: loadedTexture.image?.width,
+            height: loadedTexture.image?.height
+          });
+          
+          // Configure texture
+          loadedTexture.colorSpace = THREE.SRGBColorSpace;
+          loadedTexture.wrapS = THREE.RepeatWrapping;
+          loadedTexture.wrapT = THREE.RepeatWrapping;
+          loadedTexture.center = new THREE.Vector2(0.5, 0.5);
+          loadedTexture.rotation = Math.PI; // 180 degrees in radians
+          
+          // Apply scale and offset
+          loadedTexture.repeat.set(-textureScale, textureScale);
+          loadedTexture.offset.set(textureOffset.x, textureOffset.y);
+          
+          // Ensure texture updates
+          loadedTexture.needsUpdate = true;
+          
+          setTexture(loadedTexture);
+        },
+        // Progress callback
+        (xhr) => {
+          console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+        },
+        // Error callback
+        (error) => {
+          console.error('Error loading texture:', error);
+          console.error('Failed URL:', textureUrl);
+        }
+      );
       
       // Cleanup function to dispose texture when component unmounts or texture changes
       return () => {
@@ -62,7 +86,7 @@ function SimpleAstronautViewer({ modelPath, textureUrl, textureOffset = { x: 0, 
           texture.dispose();
         }
       };
-    }, [textureUrl, texture, textureOffset, textureScale]);
+    }, [textureUrl]); // Removed texture from dependencies to avoid infinite loop
     
     // Update texture offset and scale when they change
     useEffect(() => {
@@ -78,46 +102,72 @@ function SimpleAstronautViewer({ modelPath, textureUrl, textureOffset = { x: 0, 
       if (!clonedScene || !texture) return;
       
       console.log("Applying new texture to model:", texture.uuid);
+      let textureApplied = false;
+      
       clonedScene.traverse((child) => {
         if (child.isMesh) {
           const nameLower = child.name.toLowerCase();
+          console.log("Found mesh:", child.name, {
+            hasUV: child.geometry.attributes.uv ? 'Yes' : 'No',
+            materialType: child.material.type,
+            currentMap: child.material.map ? 'Has map' : 'No map'
+          });
           
-          // Only apply texture to the helmet, not the glass
-          if (nameLower.includes('helmet')) {
-            console.log("Applying texture to:", child.name);
+          // Apply texture to main body parts (suit, body, or if no specific naming)
+          if (nameLower.includes('suit') || nameLower.includes('body') || 
+              (!nameLower.includes('glass') && !nameLower.includes('visor') && !nameLower.includes('helmet'))) {
             
-            // Complete material replacement instead of just changing properties
-            const oldMaterial = child.material;
-            const newMaterial = new THREE.MeshStandardMaterial({
-              map: texture,
-              emissive: new THREE.Color(0x3333ff),
-              emissiveIntensity: 0.3,
-              emissiveMap: texture
-            });
-            
-            // Replace the material entirely
-            child.material = newMaterial;
-            oldMaterial.dispose(); // Clean up the old material
+            // Check if this mesh should receive the texture
+            if (child.geometry.attributes.uv) {
+              console.log("Applying texture to:", child.name);
+              
+              // Complete material replacement instead of just changing properties
+              const oldMaterial = child.material;
+              const newMaterial = new THREE.MeshStandardMaterial({
+                map: texture,
+                color: new THREE.Color(1, 1, 1), // White to show texture colors
+                metalness: 0.1,
+                roughness: 0.6,
+                envMapIntensity: 0.5,
+                side: THREE.FrontSide
+              });
+              
+              // Replace the material entirely
+              child.material = newMaterial;
+              child.material.needsUpdate = true;
+              textureApplied = true;
+              
+              // Dispose old material after a frame to ensure it's not in use
+              setTimeout(() => {
+                if (oldMaterial && oldMaterial.dispose) {
+                  oldMaterial.dispose();
+                }
+              }, 0);
+            } else {
+              console.warn("Mesh has no UV coordinates:", child.name);
+            }
           }
           
-          // Handle glass differently - make it transparent but don't apply the texture
+          // Keep glass transparent (don't apply texture)
           else if (nameLower.includes('glass') || nameLower.includes('visor')) {
-            console.log("Setting up glass properties for:", child.name);
-            
-            const oldMaterial = child.material;
-            const newMaterial = new THREE.MeshStandardMaterial({
-              color: 0x8888ff,
-              transparent: true,
-              opacity: 0.3,
-              emissive: new THREE.Color(0x3333ff),
-              emissiveIntensity: 0.2
-            });
-            
-            child.material = newMaterial;
-            oldMaterial.dispose();
+            console.log("Keeping glass transparent for:", child.name);
+            // Ensure glass stays transparent
+            if (child.material) {
+              child.material.transparent = true;
+              child.material.opacity = child.material.opacity || 0.3;
+            }
+          }
+          
+          // Keep helmet as is (don't apply texture)
+          else if (nameLower.includes('helmet')) {
+            console.log("Keeping helmet material for:", child.name);
           }
         }
       });
+      
+      if (!textureApplied) {
+        console.warn("No suitable mesh found for texture application!");
+      }
     }, [clonedScene, texture]);
     
     return <primitive 
@@ -166,6 +216,7 @@ export default function AstronautCustomizerModal({ isOpen, onClose, onSave, defa
   const [textureOffset, setTextureOffset] = useState({ x: 0, y: 0 });
   const [textureScale, setTextureScale] = useState(1);
   const [viewerKey, setViewerKey] = useState(0);
+  const [showTextureGrid, setShowTextureGrid] = useState(false);
   
   // Debug logging
   console.log('AstronautCustomizerModal: Rendering with isOpen:', isOpen);
@@ -177,6 +228,22 @@ export default function AstronautCustomizerModal({ isOpen, onClose, onSave, defa
     // Temporarily comment out models that don't exist yet
     { id: 'astronaut2', name: 'Space Explorer', path: '/Astronaut2.glb' },
     // { id: 'astronaut3', name: 'Cosmic Voyager', path: '/astronaut_voyager.glb' }
+  ];
+  
+  // Predefined texture options from astronaut_colors folder
+  const textureOptions = [
+    { id: 'galactic', name: 'Galactic', path: '/astronaut_colors/Studio_Ochi_Astronauts_Gallactic.png' },
+    { id: 'origin', name: 'Origin', path: '/astronaut_colors/Studio_Ochi_Astronauts_Origin.png' },
+    { id: 'spaxe', name: 'Spaxe', path: '/astronaut_colors/Studio_Ochi_Astronauts_Spaxe.png' },
+    { id: 'generic1', name: 'Generic 1', path: '/astronaut_colors/Studio_Ochi_Astronauts_Generic_01.png' },
+    { id: 'generic2', name: 'Generic 2', path: '/astronaut_colors/Studio_Ochi_Astronauts_Generic_02.png' },
+    { id: 'generic3', name: 'Generic 3', path: '/astronaut_colors/Studio_Ochi_Astronauts_Generic_03.png' },
+    { id: 'people1', name: 'Pro People 1', path: '/astronaut_colors/Studio Ochi Professional People 01.png' },
+    { id: 'people2', name: 'Pro People 2', path: '/astronaut_colors/Studio Ochi Professional People 02.png' },
+    { id: 'people3', name: 'Pro People 3', path: '/astronaut_colors/Studio Ochi Professional People 03.png' },
+    { id: 'people4', name: 'Pro People 4', path: '/astronaut_colors/Studio Ochi Professional People 04.png' },
+    { id: 'people5', name: 'Pro People 5', path: '/astronaut_colors/Studio Ochi Professional People 05.png' },
+    { id: 'people6', name: 'Pro People 6', path: '/astronaut_colors/Studio Ochi Professional People 06.png' },
   ];
   
   // Handle image file selection
@@ -204,6 +271,16 @@ export default function AstronautCustomizerModal({ isOpen, onClose, onSave, defa
       
       reader.readAsDataURL(file);
     }
+  };
+  
+  // Handle texture selection from predefined options
+  const handleTextureSelect = (texturePath) => {
+    console.log("Selected predefined texture:", texturePath);
+    setActiveTextureUrl(texturePath);
+    setCustomImageUrl(texturePath);
+    setTextureOffset({ x: 0, y: 0 });
+    setTextureScale(1);
+    setShowTextureGrid(false);
   };
   
   // Save customization and close modal
@@ -364,29 +441,94 @@ export default function AstronautCustomizerModal({ isOpen, onClose, onSave, defa
         
         {/* Image selection */}
         <div style={{ marginBottom: '1rem' }}>
-          <label
-            style={{
-              display: 'block',
-              width: '100%',
-              padding: '0.75rem',
-              backgroundColor: '#3b82f6',
-              color: 'white',
-              border: 'none',
-              borderRadius: '0.25rem',
-              cursor: 'pointer',
-              textAlign: 'center',
-              fontWeight: '500',
-              marginBottom: '1rem'
-            }}
-          >
-            Select Image
-            <input 
-              type="file" 
-              accept="image/*" 
-              onChange={handleImageChange} 
-              style={{ display: 'none' }}
-            />
-          </label>
+          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+            <label
+              style={{
+                display: 'block',
+                flex: 1,
+                padding: '0.75rem',
+                backgroundColor: '#3b82f6',
+                color: 'white',
+                border: 'none',
+                borderRadius: '0.25rem',
+                cursor: 'pointer',
+                textAlign: 'center',
+                fontWeight: '500'
+              }}
+            >
+              Upload Image
+              <input 
+                type="file" 
+                accept="image/*" 
+                onChange={handleImageChange} 
+                style={{ display: 'none' }}
+              />
+            </label>
+            
+            <button
+              onClick={() => setShowTextureGrid(!showTextureGrid)}
+              style={{
+                flex: 1,
+                padding: '0.75rem',
+                backgroundColor: showTextureGrid ? '#059669' : '#10b981',
+                color: 'white',
+                border: 'none',
+                borderRadius: '0.25rem',
+                cursor: 'pointer',
+                fontWeight: '500'
+              }}
+            >
+              {showTextureGrid ? 'Hide' : 'Show'} Textures
+            </button>
+          </div>
+          
+          {/* Texture selection grid */}
+          {showTextureGrid && (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: '0.5rem',
+              marginBottom: '1rem',
+              padding: '1rem',
+              backgroundColor: '#374151',
+              borderRadius: '0.5rem',
+              maxHeight: '200px',
+              overflowY: 'auto'
+            }}>
+              {textureOptions.map((texture) => (
+                <button
+                  key={texture.id}
+                  onClick={() => handleTextureSelect(texture.path)}
+                  style={{
+                    padding: '0.5rem',
+                    backgroundColor: activeTextureUrl === texture.path ? '#3b82f6' : '#4b5563',
+                    color: 'white',
+                    border: activeTextureUrl === texture.path ? '2px solid #60a5fa' : '2px solid transparent',
+                    borderRadius: '0.25rem',
+                    cursor: 'pointer',
+                    fontSize: '0.75rem',
+                    transition: 'all 0.2s',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis'
+                  }}
+                  onMouseOver={(e) => {
+                    if (activeTextureUrl !== texture.path) {
+                      e.currentTarget.style.backgroundColor = '#6b7280';
+                    }
+                  }}
+                  onMouseOut={(e) => {
+                    if (activeTextureUrl !== texture.path) {
+                      e.currentTarget.style.backgroundColor = '#4b5563';
+                    }
+                  }}
+                  title={texture.name}
+                >
+                  {texture.name}
+                </button>
+              ))}
+            </div>
+          )}
           
           {/* Image transformation controls */}
           {activeTextureUrl && (
@@ -532,3 +674,24 @@ export default function AstronautCustomizerModal({ isOpen, onClose, onSave, defa
 // Preload models
 useGLTF.preload('/astronaut.glb');
 useGLTF.preload('/Astronaut2.glb');
+
+// Optionally preload textures for better performance
+if (typeof window !== 'undefined') {
+  const textureLoader = new THREE.TextureLoader();
+  const texturePaths = [
+    '/astronaut_colors/Studio_Ochi_Astronauts_Gallactic.png',
+    '/astronaut_colors/Studio_Ochi_Astronauts_Origin.png',
+    '/astronaut_colors/Studio_Ochi_Astronauts_Spaxe.png',
+    '/astronaut_colors/Studio_Ochi_Astronauts_Generic_01.png',
+    '/astronaut_colors/Studio_Ochi_Astronauts_Generic_02.png',
+    '/astronaut_colors/Studio_Ochi_Astronauts_Generic_03.png',
+  ];
+  
+  // Load the first 6 textures in the background
+  texturePaths.forEach(path => {
+    textureLoader.load(path, (texture) => {
+      texture.colorSpace = THREE.SRGBColorSpace;
+      // Textures are now cached by the browser
+    });
+  });
+}

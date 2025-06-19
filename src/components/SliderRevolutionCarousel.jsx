@@ -14,17 +14,21 @@ function SliderRevolutionCarousel() {
         position: "relative",
         width: "100%",
         paddingBottom: isLargerThan768 ? "60%" : "100%",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center"
       }}
     >
       <iframe
         src={iframeSrc}
         style={{
           position: "absolute",
-          top: 0,
-          left: 0,
-          width: "100%",
-          height: "100%",
-          border: "none",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          width: "90%",
+          height: "90%",
+          border: "none"
         }}
         scrolling="no"
       />

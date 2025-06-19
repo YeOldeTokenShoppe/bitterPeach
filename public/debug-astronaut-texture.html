@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Astronaut Texture</title>
+    <script type="module">
+        import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.156.0/build/three.module.js';
+        import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.156.0/examples/jsm/loaders/GLTFLoader.js';
+        import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.156.0/examples/jsm/controls/OrbitControls.js';
+
+        const debugInfo = document.getElementById('debug-info');
+        function log(message) {
+            console.log(message);
+            debugInfo.innerHTML += message + '<br>';
+        }
+
+        // Scene setup
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x2a3644);
+        
+        const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 0, 8);
+        
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth - 300, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+        
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
+        scene.add(ambientLight);
+        
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+        directionalLight.position.set(5, 5, 5);
+        scene.add(directionalLight);
+        
+        // Controls
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        
+        // Model loading
+        const loader = new GLTFLoader();
+        let astronautModel = null;
+        let suitMeshes = [];
+        
+        async function loadModel(modelPath) {
+            log(`Loading model: ${modelPath}`);
+            
+            try {
+                const gltf = await loader.loadAsync(modelPath);
+                
+                if (astronautModel) {
+                    scene.remove(astronautModel);
+                }
+                
+                astronautModel = gltf.scene;
+                astronautModel.scale.set(2, 2, 2);
+                astronautModel.position.y = -1;
+                scene.add(astronautModel);
+                
+                log('Model loaded successfully');
+                
+                // Analyze model structure
+                suitMeshes = [];
+                astronautModel.traverse((child) => {
+                    if (child.isMesh) {
+                        const info = {
+                            name: child.name,
+                            hasUV: !!child.geometry.attributes.uv,
+                            materialType: child.material.type,
+                            vertices: child.geometry.attributes.position.count
+                        };
+                        log(`Mesh: ${child.name} - UV: ${info.hasUV} - Type: ${info.materialType}`);
+                        
+                        // Collect potential suit meshes
+                        const nameLower = child.name.toLowerCase();
+                        if (!nameLower.includes('glass') && !nameLower.includes('visor')) {
+                            suitMeshes.push(child);
+                        }
+                    }
+                });
+                
+                log(`Found ${suitMeshes.length} potential suit meshes`);
+                
+            } catch (error) {
+                log(`Error loading model: ${error.message}`);
+            }
+        }
+        
+        // Texture loading
+        const textureLoader = new THREE.TextureLoader();
+        
+        async function loadAndApplyTexture(texturePath) {
+            log(`Loading texture: ${texturePath}`);
+            
+            try {
+                const texture = await textureLoader.loadAsync(texturePath);
+                log(`Texture loaded: ${texture.image.width}x${texture.image.height}`);
+                
+                texture.colorSpace = THREE.SRGBColorSpace;
+                texture.wrapS = THREE.RepeatWrapping;
+                texture.wrapT = THREE.RepeatWrapping;
+                texture.flipY = true;
+                
+                let appliedCount = 0;
+                suitMeshes.forEach((mesh) => {
+                    if (mesh.geometry.attributes.uv) {
+                        const newMaterial = new THREE.MeshStandardMaterial({
+                            map: texture,
+                            metalness: 0.1,
+                            roughness: 0.6,
+                            side: THREE.DoubleSide
+                        });
+                        mesh.material = newMaterial;
+                        appliedCount++;
+                        log(`Applied texture to: ${mesh.name}`);
+                    } else {
+                        log(`Skipped (no UV): ${mesh.name}`);
+                    }
+                });
+                
+                log(`Texture applied to ${appliedCount} meshes`);
+                
+            } catch (error) {
+                log(`Error loading texture: ${error.message}`);
+            }
+        }
+        
+        // Create test UI
+        const models = [
+            { name: 'Astronaut 1', path: '/astronaut.glb' },
+            { name: 'Astronaut 2', path: '/Astronaut2.glb' }
+        ];
+        
+        const textures = [
+            { name: 'Galactic', path: '/astronaut_colors/Studio_Ochi_Astronauts_Gallactic.png' },
+            { name: 'Origin', path: '/astronaut_colors/Studio_Ochi_Astronauts_Origin.png' },
+            { name: 'Spaxe', path: '/astronaut_colors/Studio_Ochi_Astronauts_Spaxe.png' },
+            { name: 'Generic 1', path: '/astronaut_colors/Studio_Ochi_Astronauts_Generic_01.png' },
+            { name: 'People 1', path: '/astronaut_colors/Studio Ochi Professional People 01.png' }
+        ];
+        
+        // Model buttons
+        const modelContainer = document.getElementById('model-buttons');
+        models.forEach(model => {
+            const button = document.createElement('button');
+            button.textContent = model.name;
+            button.onclick = () => loadModel(model.path);
+            modelContainer.appendChild(button);
+        });
+        
+        // Texture buttons
+        const textureContainer = document.getElementById('texture-buttons');
+        textures.forEach(texture => {
+            const button = document.createElement('button');
+            button.textContent = texture.name;
+            button.onclick = () => loadAndApplyTexture(texture.path);
+            textureContainer.appendChild(button);
+        });
+        
+        // Load first model by default
+        loadModel(models[0].path);
+        
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+        
+        // Handle resize
+        window.addEventListener('resize', () => {
+            camera.aspect = (window.innerWidth - 300) / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth - 300, window.innerHeight);
+        });
+    </script>
+    <style>
+        body { 
+            margin: 0; 
+            font-family: Arial, sans-serif;
+            display: flex;
+        }
+        #canvas-container {
+            flex: 1;
+        }
+        #controls {
+            width: 300px;
+            background: #1a1a1a;
+            color: white;
+            padding: 20px;
+            height: 100vh;
+            overflow-y: auto;
+        }
+        button {
+            display: block;
+            width: 100%;
+            margin: 5px 0;
+            padding: 10px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #2563eb;
+        }
+        h3 {
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+        #debug-info {
+            font-size: 12px;
+            background: #2a2a2a;
+            padding: 10px;
+            border-radius: 4px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+    <div id="controls">
+        <h2>Astronaut Texture Debug</h2>
+        
+        <h3>Models</h3>
+        <div id="model-buttons"></div>
+        
+        <h3>Textures</h3>
+        <div id="texture-buttons"></div>
+        
+        <h3>Debug Info</h3>
+        <div id="debug-info"></div>
+    </div>
+</body>
+</html>

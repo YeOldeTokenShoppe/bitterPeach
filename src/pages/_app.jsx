@@ -13,6 +13,7 @@ import "../../styles/fireButton.css";
 import "../../styles/sparkle.css";
 import "../../styles/MusicPlayer.module.css";
 import "../../styles/coin.css";
+import "../../styles/coinLoader.css";
 import "../../styles/NeonSign.css";
 import "../../styles/ScenePage.css";
 import { ThirdwebProvider } from "thirdweb/react";
@@ -41,7 +42,9 @@ function MyApp({ Component, pageProps }) {
   const isRocketPage = router.pathname === "/rocket";
   const isMoonScenePage = router.pathname === "/moon-scene";
   const isSamplePage = router.pathname === "/sample";
-
+  const isSample1Page = router.pathname === "/sample1";
+  const isJunkyardPage = router.pathname === "/junkyard";
+  const isModelViewerPage = router.pathname === "/model-viewer";
 
   useEffect(() => {
     // Ensure theme is forced to "dark"
@@ -111,7 +114,7 @@ function MyApp({ Component, pageProps }) {
   let HeaderComponent = null;
   if (isGalleryPage) {
     HeaderComponent = Header3;
-  } else if (!(isIndexPage || isScenePage || isRocketPage || isCommunionPage || isMoonScenePage || isSamplePage)) {
+  } else if (!(isIndexPage || isScenePage || isRocketPage || isCommunionPage || isMoonScenePage || isSamplePage || isSample1Page || isJunkyardPage || isModelViewerPage)) {
     HeaderComponent = Header;
   }
 

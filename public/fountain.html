@@ -28,6 +28,20 @@
 				opacity: 0;
 				pointer-events: none;
 			}
+
+			/* Mobile styles */
+			@media (max-width: 768px) {
+				#info {
+					right: auto;
+					left: 50%;
+					top: auto;
+					bottom: 100px;
+					transform: translateX(-50%);
+					width: 90%;
+					max-width: 300px;
+					text-align: center;
+				}
+			}
 		</style>
 	</head>
 	<body>
@@ -36,9 +50,57 @@
 			<div id="magic8BallLoader"></div>
 		</div>
 
-		<div id="info">
+		<div id="info" style="
+			position: absolute;
+			right: 30px;
+			top: 50%;
+			transform: translateY(-50%);
+			background: rgba(20, 20, 30, 0.8);
+			border: 2px solid #30cfd0;
+			border-radius: 8px;
+			padding: 15px;
+			color: white;
+			font-family: Arial, sans-serif;
+			font-size: 14px;
+			line-height: 1.4;
+			box-shadow: 0 0 15px rgba(48, 207, 208, 0.5);
+			z-index: 1000;
+			max-width: 200px;
+		">
 			Click and Move mouse to disturb water. Click water and press button or 'c' to throw coin.
 		</div> 
+
+		<script>
+			// Add mobile detection and positioning
+			function updateInfoPosition() {
+				const info = document.getElementById('info');
+				if (window.innerWidth <= 768) {
+					// Mobile layout
+					info.style.right = 'auto';
+					info.style.left = '50%';
+					info.style.top = 'auto';
+					info.style.bottom = '50px';
+					info.style.transform = 'translateX(-50%)';
+					info.style.width = '90%';
+					info.style.maxWidth = '300px';
+					info.style.textAlign = 'center';
+				} else {
+					// Desktop layout
+					info.style.right = '30px';
+					info.style.left = 'auto';
+					info.style.top = '50%';
+					info.style.bottom = 'auto';
+					info.style.transform = 'translateY(-50%)';
+					info.style.width = 'auto';
+					info.style.maxWidth = '200px';
+					info.style.textAlign = 'left';
+				}
+			}
+
+			// Run on load and resize
+			window.addEventListener('load', updateInfoPosition);
+			window.addEventListener('resize', updateInfoPosition);
+		</script>
 
 		<!-- Glowing text effect -->
 		<div class="textLight" id="textLight" style="
@@ -62,7 +124,7 @@
 		</div>
 
 		<!-- Launch Button div from cyberpunk_mission_control.html -->
-		<div style="
+		<!-- <div style="
 			position: absolute;
 			bottom: 30px;
 			right: 30px;
@@ -85,7 +147,7 @@
 			">
 				<span class="button-label">🚀</span>
 			</button>
-		</div>
+		</div> -->
 
 		<!-- This is just a smoothing 'compute shader' for using manually: -->
 		<script id="smoothFragmentShader" type="x-shader/x-fragment">
@@ -717,7 +779,8 @@
 				
 				// Create gradient - TOP to BOTTOM
 				const gradient = context.createLinearGradient(0, 0, 0, 512);
-				gradient.addColorStop(0.0, '#030c4d'); // Deep blue at top
+				gradient.addColorStop(0.0, '#0000ff'); // Blue at top
+				gradient.addColorStop(0.3, '#030c4d'); // Deep blue
 				gradient.addColorStop(0.5, '#f25c54'); // Bright orange-red in middle
 				gradient.addColorStop(1.0, '#ffeadb'); // Light peach at bottom
 				

@@ -2,7 +2,7 @@
 "use client";
 import React, { useEffect, useRef } from "react";
 
-const RotatingBadge2 = () => {
+const RotatingBadge2 = ({ scale = 1, size, style }) => {
   const badgeRef = useRef(null);
 
   useEffect(() => {
@@ -14,8 +14,24 @@ const RotatingBadge2 = () => {
     });
   }, []);
 
+  // Build the badge style object
+  const badgeStyle = {
+    ...style,
+    // Apply scale via CSS custom property which will be safer
+    '--scale': scale,
+    transform: style?.transform || `scale(${scale})`,
+    transformOrigin: style?.transformOrigin || 'center',
+    // Make it inline-block to ensure proper scaling
+    display: 'inline-block',
+  };
+
+  // If size is provided, override the CSS variable
+  if (size) {
+    badgeStyle['--badge-size'] = size;
+  }
+
   return (
-    <div className="badge" translate="no"  ref={badgeRef}>
+    <div className="badge" translate="no" ref={badgeRef} style={badgeStyle}>
       <span className="badge__char2" style={{ color: "#e1b67e" }}>
         {" "}
       </span>

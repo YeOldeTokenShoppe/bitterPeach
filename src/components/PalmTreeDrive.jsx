@@ -1,8 +1,21 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import GUI from 'lil-gui';
+import NoiseParticleEffect from './NoiseParticleEffect';
+import { gsap } from 'gsap';
+import CoinLoader from './CoinLoader';
+import dynamic from 'next/dynamic';
+import { useMusic } from '../contexts/MusicContext';
+import { IconButton, Box } from '@chakra-ui/react';
+import { useRouter } from 'next/router';
+
+// Dynamically import the Mobile Music Player component
+const MobileMusicPlayer = dynamic(() => import('./MobileMusicPlayer'), {
+  ssr: false,
+});
 
 const PalmsScene = () => {
   const mountRef = useRef(null);
@@ -10,7 +23,29 @@ const PalmsScene = () => {
   const rendererRef = useRef(null);
   const materialShadersRef = useRef([]);
   const clockRef = useRef(new THREE.Clock());
-  const [isInfoExpanded, setIsInfoExpanded] = useState(false);
+  const [cinematicProgress, setCinematicProgress] = useState(0); // 0-1 for intro animation
+  const [isCinematicComplete, setIsCinematicComplete] = useState(false);
+  const [cinematicMode, setCinematicMode] = useState('playback'); // 'playback' or 'design'
+  const [recordedKeyframes, setRecordedKeyframes] = useState([]);
+  const cinematicModeRef = useRef('playback'); // Add ref to track mode in useEffect
+  const recordedKeyframesRef = useRef([]); // Add ref for keyframes
+  const [isSceneLoading, setIsSceneLoading] = useState(true); // Loading state
+  // Music player states
+  const [showMobileMusicPlayer, setShowMobileMusicPlayer] = useState(false);
+  const [musicPlayerVisible, setMusicPlayerVisible] = useState(false);
+  const [userClosedMusic, setUserClosedMusic] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [musicPlayerControls, setMusicPlayerControls] = useState(null);
+  const [isMobile, setIsMobile] = useState(false);
+  const audioRef = useRef(null);
+  
+  // Get music context
+  const { 
+    showSpotify: contextShowSpotify, 
+    setShowSpotify: setContextShowSpotify,
+    isPlaying: contextIsPlaying,
+    setIsPlaying: setContextIsPlaying,
+  } = useMusic();
   
   // Add refs for lights
   const carSpotlightRef = useRef(null);
@@ -18,13 +53,143 @@ const PalmsScene = () => {
   const underglowLightRef = useRef(null);
   const headlightLeftRef = useRef(null);
   const headlightRightRef = useRef(null);
-  
+
   // Add ref for new light
   const carAccentLightRef = useRef(null);
   
   // Add state for GUI
   const [showGUI, setShowGUI] = useState(false);
   const guiRef = useRef(null);
+  
+  // Add ref for controls
+  const controlsRef = useRef(null);
+  
+  // Add ref for GSAP timeline
+  const cinematicTimelineRef = useRef(null);
+  
+  // Add refs for 3D card effect
+  const cameraRef = useRef(null);
+
+  
+  // Check if mobile on mount and resize
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+  
+  // Callback to receive controls from MobileMusicPlayer
+  const handleMusicControlsReady = useCallback((controls) => {
+    setMusicPlayerControls(prevControls => {
+      if (prevControls) return prevControls;
+      return controls;
+    });
+    
+    // Auto-play when controls are ready and music player is visible
+    if (controls && controls.play && !contextIsPlaying && showMobileMusicPlayer) {
+      console.log('🎵 Auto-playing music when controls ready');
+      setTimeout(() => {
+        controls.play();
+      }, 500); // Increased delay to ensure track is loaded
+    }
+  }, [contextIsPlaying, showMobileMusicPlayer]);
+  
+  // Music player close handler
+  const handleMusicPlayerClose = useCallback(() => {
+    console.log('🎵 Closing music player');
+    
+    // Stop the music first
+    if (musicPlayerControls && musicPlayerControls.pause) {
+      console.log('🎵 Pausing music');
+      musicPlayerControls.pause();
+    }
+    
+    // Update context
+    setContextIsPlaying(false);
+    setContextShowSpotify(false);
+    
+    // Then hide the player
+    setUserClosedMusic(true);
+    setShowMobileMusicPlayer(false);
+    setMusicPlayerVisible(false);
+  }, [musicPlayerControls, setContextIsPlaying, setContextShowSpotify]);
+
+  const carModelRef = useRef(null);
+  const intersectionRef = useRef(null);
+  const maryMeshRef = useRef(null);
+  const maryLightRef = useRef(null);
+  const [maryGlowing, setMaryGlowing] = useState(false);
+  const maryGlowingRef = useRef(false);
+  const router = useRouter();
+  const routerRef = useRef(router);
+  const raycaster = useRef(new THREE.Raycaster());
+  const mouse = useRef(new THREE.Vector2());
+
+  
+
+  
+  // Cinematic intro keyframes - camera circles around the car
+  // Car is positioned at (2.5, 0, 15.6)
+  const carPosition = new THREE.Vector3(2.5, 1, 15.6); // Y=1 to focus on car body, not ground
+  const maryPosition = new THREE.Vector3(2.5, 1.2, 15.9); // Mary's approximate position on dashboard
+  
+  const defaultCinematicKeyframes = [
+    {
+      time: 0,
+      position: new THREE.Vector3(15.664018701589722, 11.199232805306618, 44.76142774532574),
+      target: new THREE.Vector3(10.537753325848097, 1, 15.842466000937105),
+      fov: 75
+    },
+    {
+      time: 0.45,
+      position: new THREE.Vector3(-3.1514565395357756, 4.644438330195376, 29.05372551560463),
+      target: new THREE.Vector3(1.792307049713763, 0.9999999999999956, 20.485462933629613),
+      fov: 75
+    },
+    {
+      time: 0.6,
+      position: new THREE.Vector3(-3.773833780743905, 3.578412779942443, 5.187135710137969),
+      target: new THREE.Vector3(1.792307049713763, 0.9999999999999956, 20.485462933629613),
+      fov: 75
+    },
+    {
+      time: 0.7,
+      position: new THREE.Vector3(8.209833359353707, 3.356904696298511, 7.452053415504825),
+      target: new THREE.Vector3(1.792307049713763, 0.9999999999999956, 20.485462933629613),
+      fov: 75
+    },
+    // {
+    //   time: 0.814285714285714,
+    //   position: new THREE.Vector3(5.61044309086077, 0.9329600504143526, 11.303976504418838),
+    //   target: new THREE.Vector3(1.792307049713763, 0.9999999999999956, 20.485462933629613),
+    //   fov: 75
+    // },
+    {
+      time: 0.842857142857143,
+      position: new THREE.Vector3(7.879961038787648, 1.4593835467216665, 16.90305971927228),
+      target: new THREE.Vector3(5.450298986515486, 0.9999999999999898, 15.760547904615681),
+      fov: 75
+    },
+    // {
+    //   time: 0.8571428571428571,
+    //   position: new THREE.Vector3(4.9724071540410995, 1.3987652980980871, 20.29527900870111),
+    //   target: new THREE.Vector3(5.450298986515486, 0.9999999999999898, 15.760547904615681),
+    //   fov: 75
+    // },
+    {
+      time: 1,
+      position: new THREE.Vector3(2.494637977454283, 1.1850405090485119, 14.291298141694943),
+      target: new THREE.Vector3(1.1811263369229998, 0.9999999999999805, 12.355272021071679),
+      fov: 75
+    }
+  ];
+  
+  // Remove this line - we'll define cinematicKeyframes inside useEffect
   
   // Light settings
   const lightSettings = {
@@ -159,9 +324,12 @@ const PalmsScene = () => {
     const scene = new THREE.Scene();
     sceneRef.current = scene;
     
-    const camera = new THREE.PerspectiveCamera(60, mountRef.current.clientWidth / mountRef.current.clientHeight, 0.1, 1000);
-    camera.position.set(0, 1.1, 7);
-    camera.lookAt(scene.position);
+    const camera = new THREE.PerspectiveCamera(75, mountRef.current.clientWidth / mountRef.current.clientHeight, 0.1, 1000);
+    // Start at the first cinematic keyframe
+    const initialKeyframes = recordedKeyframesRef.current.length > 0 ? recordedKeyframesRef.current : defaultCinematicKeyframes;
+    camera.position.copy(initialKeyframes[0].position);
+    camera.lookAt(initialKeyframes[0].target);
+    cameraRef.current = camera;
     
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(window.devicePixelRatio);
@@ -169,99 +337,76 @@ const PalmsScene = () => {
     rendererRef.current = renderer;
     mountRef.current.appendChild(renderer.domElement);
 
-    scene.background = new THREE.Color(0xffaa44);
-    scene.fog = new THREE.Fog(scene.background, 42.5, 50);
+
+    // Create sunset gradient background
+    const gradientCanvas = document.createElement('canvas');
+    gradientCanvas.width = 512;
+    gradientCanvas.height = 512;
+    const gradientCtx = gradientCanvas.getContext('2d');
     
-    // Add a light to help see the scene better during debugging
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    // Create sunset gradient - traditional orange sunset
+    const gradient = gradientCtx.createLinearGradient(0, 0, 0, 512);
+    gradient.addColorStop(0, '#001a33');      // Dark blue at top
+    gradient.addColorStop(0.3, '#ff6b35');    // Orange
+    gradient.addColorStop(0.6, '#ff8c42');    // Bright orange
+    gradient.addColorStop(1, '#ffa500');      // Golden orange at bottom
+    
+    gradientCtx.fillStyle = gradient;
+    gradientCtx.fillRect(0, 0, 512, 512);
+    
+    const gradientTexture = new THREE.CanvasTexture(gradientCanvas);
+    scene.background = gradientTexture;
+    scene.fog = new THREE.Fog(0xff7f50, 35, 60); // Coral fog for sunset atmosphere
+    
+    // Sunset environment lighting
+    // Warm ambient light with orange/pink tones
+    const ambientLight = new THREE.AmbientLight(0xffa07a, 0.6); // Light salmon color - increased for more even lighting
     scene.add(ambientLight);
+    
+    // Main sun light - strong directional light from the horizon
+    const sunLight = new THREE.DirectionalLight(0xff6b35, 1.2); // Warm orange
+    sunLight.position.set(0, 5, -50); // Low on horizon, behind the scene
+    sunLight.castShadow = true;
+    scene.add(sunLight);
+    
+    // Secondary fill light - purple/pink from opposite side
+    const fillLight = new THREE.DirectionalLight(0x9370db, 0.5); // Medium purple
+    fillLight.position.set(20, 10, 20); // Moved to right side to balance lighting
+    scene.add(fillLight);
+    
+    // Add a balancing light from the left
+    const balanceLight = new THREE.DirectionalLight(0xffa500, 0.4); // Orange
+    balanceLight.position.set(-20, 8, 10);
+    scene.add(balanceLight);
+    
+    // Hemisphere light for sky/ground color variation
+    const hemiLight = new THREE.HemisphereLight(
+      0xff7f50, // Sky color - coral
+      0x4b0082, // Ground color - indigo
+      0.6
+    );
+    scene.add(hemiLight);
+    
+    // Rim lighting effect - cyan accent from behind
+    const rimLight = new THREE.DirectionalLight(0x00ffff, 0.2);
+    rimLight.position.set(0, 15, -30);
+    scene.add(rimLight);
 
-    // OrbitControls setup (manual implementation since we can't import from examples)
-    const controls = {
-      enabled: true,
-      target: new THREE.Vector3(0, 1.8, 0),
-      minDistance: 5,
-      maxDistance: 7,
-      maxPolarAngle: Math.PI * 0.55,
-      minPolarAngle: Math.PI * 0.25,
-      spherical: new THREE.Spherical(),
-      sphericalDelta: new THREE.Spherical(),
-      scale: 1,
-      panOffset: new THREE.Vector3(),
-      rotateSpeed: 1.0,
-      zoomSpeed: 1.2,
-      mouseButtons: { LEFT: 0, MIDDLE: 1, RIGHT: 2 },
-      touches: { ONE: 0, TWO: 1 }
-    };
-
-    // Simple orbit controls implementation
-    let rotateStart = new THREE.Vector2();
-    let rotateEnd = new THREE.Vector2();
-    let rotateDelta = new THREE.Vector2();
-    let isMouseDown = false;
-
-    const handleMouseDown = (event) => {
-      isMouseDown = true;
-      rotateStart.set(event.clientX, event.clientY);
-    };
-
-    const handleMouseMove = (event) => {
-      if (!isMouseDown) return;
-      
-      rotateEnd.set(event.clientX, event.clientY);
-      rotateDelta.subVectors(rotateEnd, rotateStart).multiplyScalar(controls.rotateSpeed);
-      
-      const element = renderer.domElement;
-      controls.sphericalDelta.theta -= 2 * Math.PI * rotateDelta.x / element.clientHeight;
-      controls.sphericalDelta.phi -= 2 * Math.PI * rotateDelta.y / element.clientHeight;
-      
-      rotateStart.copy(rotateEnd);
-    };
-
-    const handleMouseUp = () => {
-      isMouseDown = false;
-    };
-
-    const handleWheel = (event) => {
-      if (event.deltaY < 0) {
-        controls.scale /= Math.pow(0.95, controls.zoomSpeed);
-      } else if (event.deltaY > 0) {
-        controls.scale *= Math.pow(0.95, controls.zoomSpeed);
-      }
-    };
-
-    renderer.domElement.addEventListener('mousedown', handleMouseDown);
-    renderer.domElement.addEventListener('mousemove', handleMouseMove);
-    renderer.domElement.addEventListener('mouseup', handleMouseUp);
-    renderer.domElement.addEventListener('wheel', handleWheel);
-
-    // Update controls
-    const updateControls = () => {
-      const offset = new THREE.Vector3();
-      const quat = new THREE.Quaternion().setFromUnitVectors(camera.up, new THREE.Vector3(0, 1, 0));
-      const quatInverse = quat.clone().invert();
-      
-      offset.copy(camera.position).sub(controls.target);
-      offset.applyQuaternion(quat);
-      
-      controls.spherical.setFromVector3(offset);
-      controls.spherical.theta += controls.sphericalDelta.theta;
-      controls.spherical.phi += controls.sphericalDelta.phi;
-      controls.spherical.phi = Math.max(controls.minPolarAngle, Math.min(controls.maxPolarAngle, controls.spherical.phi));
-      controls.spherical.makeSafe();
-      controls.spherical.radius *= controls.scale;
-      controls.spherical.radius = Math.max(controls.minDistance, Math.min(controls.maxDistance, controls.spherical.radius));
-      
-      controls.target.add(controls.panOffset);
-      offset.setFromSpherical(controls.spherical);
-      offset.applyQuaternion(quatInverse);
-      camera.position.copy(controls.target).add(offset);
-      camera.lookAt(controls.target);
-      
-      controls.sphericalDelta.set(0, 0, 0);
-      controls.panOffset.set(0, 0, 0);
-      controls.scale = 1;
-    };
+    // Add OrbitControls
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.screenSpacePanning = false;
+    controls.minDistance = 0.1;
+    controls.maxDistance = 50;
+    controls.maxPolarAngle = Math.PI * 0.5; // Initial limit - will be dynamic
+    controls.minPolarAngle = 0; // Prevent camera from flipping
+    controls.target.copy(initialKeyframes[0].target);
+    controls.zoomToCursor = true;
+    controls.enabled = false; // Disable during cinematic intro
+    controls.update();
+    controlsRef.current = controls; // Store ref for access in event handlers
+    
 
     // Ground and road
     const planeGeom = new THREE.PlaneGeometry(100, 100, 200, 200);
@@ -312,11 +457,33 @@ const PalmsScene = () => {
           return min(line, 1.0);
         }
         
+        float dashLine(vec3 position) {
+          // Create dashed center line
+          float centerDist = abs(position.x); // Distance from road center (x=0)
+          float lineWidth = 0.2;
+          float dashLength = 3.0;
+          float dashGap = 2.0;
+          
+          // Create dashes along Z (with animated motion)
+          float animatedZ = position.z - time * ${speed}. / 2.;
+          float dashPattern = step(0.5, fract(animatedZ / (dashLength + dashGap)));
+          
+          // Line mask
+          float lineMask = 1.0 - smoothstep(0.0, lineWidth, centerDist);
+          
+          return lineMask * dashPattern;
+        }
+        
         void main() {
           float l = line(vPos, 1.0, vec3(2.0));
           vec3 base = mix(vec3(0.0, 0.75, 1.0), vec3(0.0), smoothstep(5., 7.5, abs(vPos.x)));
           vec3 baseColor = vec3(1.0, 0.0, 0.933); // #ff00ee
-          vec3 c = mix(baseColor, base, l);
+          vec3 roadColor = mix(baseColor, base, l);
+          
+          // Add dashed center line
+          float centerLine = dashLine(vPos);
+          vec3 lineColor = vec3(1.0, 1.0, 1.0); // White
+          vec3 c = mix(roadColor, lineColor, centerLine * 0.8);
           
           // Apply fog
           float depth = gl_FragCoord.z / gl_FragCoord.w;
@@ -334,138 +501,586 @@ const PalmsScene = () => {
     const plane = new THREE.Mesh(planeGeom, planeMat);
     scene.add(plane);
 
-    // Palms
-    const palmGeoms = [];
-    // Log
-    const logGeom = new THREE.CylinderGeometry(0.25, 0.125, 10, 5, 4, true);
-    logGeom.translate(0, 5, 0);
-    palmGeoms.push(logGeom);
+    // Create loading manager to track all assets
+    const loadingManager = new THREE.LoadingManager();
+    let modelsToLoad = 0;
+    let modelsLoaded = 0;
     
-    // Leaves
-    for (let i = 0; i < 20; i++) {
-      const leafGeom = new THREE.CircleGeometry(1.25, 4);
-      leafGeom.translate(0, 1.25, 0);
-      leafGeom.rotateX(-Math.PI * 0.5);
-      leafGeom.scale(0.25, 1, Math.random() * 0.5 + 1);
-      leafGeom.attributes.position.setY(0, 0.25);
-      leafGeom.rotateX((Math.random() - 0.5) * Math.PI * 0.5);
-      leafGeom.rotateY(Math.random() * Math.PI * 2);
-      leafGeom.translate(0, 10, 0);
-      palmGeoms.push(leafGeom);
-    }
-    
-    // Merge geometries manually
-    let positions = [];
-    let uvs = [];
-    let indices = [];
-    let indexOffset = 0;
-    
-    palmGeoms.forEach(geom => {
-      const pos = geom.attributes.position.array;
-      const uv = geom.attributes.uv ? geom.attributes.uv.array : new Float32Array(pos.length / 3 * 2);
-      const ind = geom.index ? geom.index.array : null;
-      
-      positions.push(...pos);
-      uvs.push(...uv);
-      
-      if (ind) {
-        for (let i = 0; i < ind.length; i++) {
-          indices.push(ind[i] + indexOffset);
-        }
-      }
-      indexOffset += pos.length / 3;
-    });
-    
-    const palmGeom = new THREE.BufferGeometry();
-    palmGeom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-    palmGeom.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-    if (indices.length > 0) {
-      palmGeom.setIndex(indices);
-    }
-    palmGeom.rotateZ(-1.5 * Math.PI / 180);
-    
-    // Instancing
-    const instPalm = new THREE.InstancedBufferGeometry();
-    instPalm.attributes.position = palmGeom.attributes.position;
-    instPalm.attributes.uv = palmGeom.attributes.uv;
-    instPalm.index = palmGeom.index;
-    
-    const palmPos = [];
-    for (let i = 0; i < 5; i++) {
-      palmPos.push(-5, 0, i * 20 - 10 - 50);
-      palmPos.push(5, 0, i * 20 - 50);
-    }
-    instPalm.setAttribute(
-      "instPosition",
-      new THREE.InstancedBufferAttribute(new Float32Array(palmPos), 3)
-    );
-
-    const palmMat = new THREE.MeshBasicMaterial({ color: 0x00ff88, side: THREE.DoubleSide });
-    palmMat.onBeforeCompile = shader => {
-      shader.uniforms.time = { value: 0 };
-      shader.vertexShader = `
-        uniform float time;
-        attribute vec3 instPosition;
-      ` + shader.vertexShader;
-      shader.vertexShader = shader.vertexShader.replace(
-        `#include <begin_vertex>`,
-        `#include <begin_vertex>
-          
-          transformed.x *= sign(instPosition.x);
-          vec3 ip = instPosition;
-          ip.z = mod(50. + ip.z + time * ${speed}., 100.) - 50.;
-          transformed *= 0.4 + smoothstep(50., 45., abs(ip.z)) * 0.6;
-          transformed += ip;
-        `
-      );
-      materialShaders.push(shader);
+    loadingManager.onStart = () => {
+      console.log('Loading started');
+      modelsToLoad++;
     };
     
-    const palms = new THREE.Mesh(instPalm, palmMat);
-    scene.add(palms);
-
-    // Sun
-    const sunGeom = new THREE.CircleGeometry(200, 64);
-    const sunMat = new THREE.MeshBasicMaterial({ color: 0xff8800, fog: false, transparent: true });
-    sunMat.onBeforeCompile = shader => {
-      shader.uniforms.time = { value: 0 };
-      shader.vertexShader = `
-        varying vec2 vUv;
-      ` + shader.vertexShader;
-      shader.vertexShader = shader.vertexShader.replace(
-        `#include <begin_vertex>`,
-        `#include <begin_vertex>
-          vUv = uv;
-        `
-      );
-      shader.fragmentShader = `
-        varying vec2 vUv;
-      ` + shader.fragmentShader;
-      shader.fragmentShader = shader.fragmentShader.replace(
-        `gl_FragColor = vec4( outgoingLight, diffuseColor.a );`,
-        `gl_FragColor = vec4( outgoingLight, diffuseColor.a * smoothstep(0.5, 0.7, vUv.y));`
-      );
-      materialShaders.push(shader);
+    loadingManager.onLoad = () => {
+      console.log('All assets loaded');
+      // Wait a bit to ensure everything is rendered
+      setTimeout(() => {
+        setIsSceneLoading(false);
+      }, 500);
     };
     
-    const sun = new THREE.Mesh(sunGeom, sunMat);
-    sun.position.set(0, 0, -500);
-    scene.add(sun);
+    loadingManager.onProgress = (url, itemsLoaded, itemsTotal) => {
+      console.log(`Loading: ${url} - ${itemsLoaded}/${itemsTotal}`);
+    };
+    
+    loadingManager.onError = (url) => {
+      console.error(`Error loading: ${url}`);
+    };
     
     // Set up DRACO loader for compressed models
     const dracoLoader = new DRACOLoader();
     dracoLoader.setDecoderPath('/draco/'); // Path to draco decoder files
     
-    const loader = new GLTFLoader();
+    const loader = new GLTFLoader(loadingManager);
     loader.setDRACOLoader(dracoLoader);
+
+    // Helper function for smooth step (used by both palm and sign animations)
+    function smoothstep(edge0, edge1, x) {
+      const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
+      return t * t * (3 - 2 * t);
+    }
+
+    // Load Palm Tree GLB
+    loader.load('/palm2.glb', (gltf) => {
+      const palmModel = gltf.scene;
+      
+      // Debug: Log model structure
+      console.log('=== Palm Tree Model Debug ===');
+      console.log('Model loaded:', palmModel);
+      console.log('Model children:', palmModel.children);
+      
+      // Find all meshes for debugging
+      const allMeshes = [];
+      palmModel.traverse((child) => {
+        console.log('Child:', {
+          name: child.name,
+          type: child.type,
+          isMesh: child.isMesh,
+          visible: child.visible,
+          position: child.position,
+          scale: child.scale,
+          material: child.material,
+          geometry: child.geometry
+        });
+        if (child.isMesh) {
+          allMeshes.push(child);
+        }
+      });
+      
+      console.log('Total meshes found:', allMeshes.length);
+      
+      // Use the first mesh or try to use the whole scene
+      let palmMesh = allMeshes[0];
+      
+      if (!palmMesh) {
+        console.error('No mesh found in palm GLB model');
+        // Try using the entire scene as fallback
+        if (palmModel.children.length > 0) {
+          console.log('Trying to use entire model scene');
+          palmMesh = palmModel;
+        } else {
+          return;
+        }
+      }
+      
+      // Get geometry and material from the loaded model
+      let palmGeometry, palmMaterial;
+      
+      if (palmMesh.isMesh) {
+        palmGeometry = palmMesh.geometry.clone();
+        palmMaterial = palmMesh.material.clone();
+        
+        // Check material properties
+        console.log('Material properties:', {
+          type: palmMaterial.type,
+          transparent: palmMaterial.transparent,
+          opacity: palmMaterial.opacity,
+          side: palmMaterial.side,
+          visible: palmMaterial.visible
+        });
+        
+        // Ensure material is visible
+        palmMaterial.transparent = false;
+        palmMaterial.opacity = 1;
+        palmMaterial.side = THREE.DoubleSide;
+      } else {
+        console.error('Selected object is not a mesh, cannot extract geometry');
+        return;
+      }
+      
+      // Set up instance positions
+      const palmPositions = [];
+      for (let i = 0; i < 5; i++) {
+        palmPositions.push(-6.5, 0, i * 20 - 10 - 50);
+        palmPositions.push(6.5, 0, i * 20 - 50);
+      }
+      
+      // Debug geometry bounds
+      palmGeometry.computeBoundingBox();
+      const bbox = palmGeometry.boundingBox;
+      console.log('Geometry bounds:', {
+        min: bbox.min,
+        max: bbox.max,
+        size: new THREE.Vector3().subVectors(bbox.max, bbox.min),
+        center: new THREE.Vector3().addVectors(bbox.max, bbox.min).multiplyScalar(0.5)
+      });
+      
+      // Create instanced mesh
+      const instanceCount = palmPositions.length / 3;
+      const palms = new THREE.InstancedMesh(palmGeometry, palmMaterial, instanceCount);
+      
+      // Set up transform matrices for each instance
+      const dummy = new THREE.Object3D();
+      const matrix = new THREE.Matrix4();
+      
+      // Calculate appropriate scale based on geometry size
+      const size = new THREE.Vector3().subVectors(bbox.max, bbox.min);
+      const maxDimension = Math.max(size.x, size.y, size.z);
+      const targetHeight = 14; // Desired height for palm trees
+      const scaleFactor = targetHeight / maxDimension;
+      
+      console.log('Scale factor:', scaleFactor);
+      
+      for (let i = 0; i < instanceCount; i++) {
+        const x = palmPositions[i * 3];
+        const y = palmPositions[i * 3 + 1];
+        const z = palmPositions[i * 3 + 2];
+        
+        dummy.position.set(x, y, z);
+        dummy.scale.set(scaleFactor, scaleFactor, scaleFactor); // Auto-scale based on model size
+        
+        // Mirror palm trees on the left side
+        if (x < 0) {
+          dummy.scale.x = -scaleFactor;
+        }
+        
+        // Add slight rotation variation
+        dummy.rotation.y = Math.random() * Math.PI * 2;
+        
+        dummy.updateMatrix();
+        palms.setMatrixAt(i, dummy.matrix);
+      }
+      
+      // Store initial positions for animation
+      const initialPositions = new Float32Array(palmPositions);
+      
+      // Animation function to update palm positions
+      const animatePalms = (time) => {
+        for (let i = 0; i < instanceCount; i++) {
+          const baseX = initialPositions[i * 3];
+          const baseY = initialPositions[i * 3 + 1];
+          const baseZ = initialPositions[i * 3 + 2];
+          
+          // Animate position along Z axis
+          const animatedZ = ((baseZ + time * speed + 50) % 100) - 50;
+          
+          // Scale based on distance with the base scale factor
+          const distanceScale = 0.4 + smoothstep(50, 45, Math.abs(animatedZ)) * 0.6;
+          const finalScale = scaleFactor * distanceScale;
+          
+          dummy.position.set(baseX, baseY, animatedZ);
+          dummy.scale.set(finalScale, finalScale, finalScale);
+          
+          // Mirror palm trees on the left side
+          if (baseX < 0) {
+            dummy.scale.x = -finalScale;
+          }
+          
+          // Keep rotation variation
+          dummy.rotation.y = Math.PI * 2 * ((i * 0.618) % 1); // Golden ratio for varied rotation
+          
+          dummy.updateMatrix();
+          palms.setMatrixAt(i, dummy.matrix);
+        }
+        palms.instanceMatrix.needsUpdate = true;
+      };
+      
+      // Add animation update function to materialShaders
+      materialShaders.push({ update: animatePalms });
+      
+      scene.add(palms);
+    }, 
+    (progress) => {
+      console.log('Loading palm tree:', (progress.loaded / progress.total * 100) + '%');
+    },
+    (error) => {
+      console.error('Error loading palm tree model:', error);
+      
+      // Fallback to procedural palms if GLB fails to load
+      // Original procedural palm code would go here as fallback
+    });
     
-    loader.load('/lamboOnly.glb', (gltf) => {
-      const car = gltf.scene;
+    // Load Road Sign model
+    loader.load('/sign2.glb', (gltf) => {
+      const signModel = gltf.scene;
+      
+      // Find the first mesh in the sign model
+      let signMesh = null;
+      signModel.traverse((child) => {
+        if (child.isMesh && !signMesh) {
+          signMesh = child;
+        }
+      });
+      
+      if (!signMesh) {
+        console.error('No mesh found in road sign GLB model');
+        return;
+      }
+      
+      // Get geometry and material from the loaded model
+      const signGeometry = signMesh.geometry.clone();
+      const signMaterial = signMesh.material.clone();
+      
+      // Set up road sign positions (less frequent than palm trees)
+      const signPositions = [];
+      // Only place signs on the right side, spaced 80 units apart
+      // Starting at -40 to be between palm trees
+      signPositions.push(6, 4, -40);   // First sign
+      signPositions.push(6, 4, 40);    // Second sign, 80 units later
+      
+      // Create instanced mesh for signs
+      const signCount = signPositions.length / 3;
+      const signs = new THREE.InstancedMesh(signGeometry, signMaterial, signCount);
+      
+      // Set up transform matrices for each sign
+      const signDummy = new THREE.Object3D();
+      
+      for (let i = 0; i < signCount; i++) {
+        const x = signPositions[i * 3];
+        const y = signPositions[0];
+        const z = signPositions[i * 3 + 2];
+        
+        signDummy.position.set(x, y, z);
+        signDummy.scale.set(1, 1, 1); // Make signs larger
+        
+        // Set rotation order to prevent unwanted tilting
+        signDummy.rotation.order = 'XYZ';
+        
+        // Try no rotation first to see default orientation
+        signDummy.rotation.x = 0; // No rotation to see original orientation
+        
+        // Then rotate signs to face the road
+        // if (x < 0) {
+        //   signDummy.rotation.y = Math.PI * 0.25; // Face slightly toward road from left
+        // } else {
+        //   signDummy.rotation.y = -Math.PI * 0.25; // Face slightly toward road from right
+        // }
+        
+        // Ensure no Z rotation
+        signDummy.rotation.z = 0;
+        
+        signDummy.updateMatrix();
+        signs.setMatrixAt(i, signDummy.matrix);
+      }
+      
+      // Store initial positions for animation
+      const initialSignPositions = new Float32Array(signPositions);
+      
+      // Animation function for road signs
+      const animateSigns = (time) => {
+        for (let i = 0; i < signCount; i++) {
+          const baseX = initialSignPositions[i * 3];
+          const baseY = initialSignPositions[i * 3 + 1];
+          const baseZ = initialSignPositions[i * 3 + 2];
+          
+          // Animate position along Z axis (same speed as palm trees)
+          // Signs are 80 units apart, so loop every 160 units (2 signs * 80 units)
+          const animatedZ = ((baseZ + time * speed + 80) % 160) - 80;
+          
+          // Scale based on distance (signs visible from further away)
+          const scaleFactor = 0.6 + smoothstep(60, 50, Math.abs(animatedZ)) * 0.8;
+          
+          signDummy.position.set(baseX, 0, animatedZ);
+          signDummy.scale.set(scaleFactor * 1, scaleFactor * 1, scaleFactor * 1);
+          
+          // Set rotation order
+          signDummy.rotation.order = 'XYZ';
+          
+          // Maintain upright rotation
+          signDummy.rotation.x = 0; // No rotation to match initial setup
+          
+          // Maintain rotation based on side
+          // if (baseX < 0) {
+          //   signDummy.rotation.y = Math.PI;
+          // } else {
+          //   signDummy.rotation.y = Math.PI;
+          // }
+          
+          // Set Z rotation to 0 (remove wobble for now to diagnose tilt)
+          signDummy.rotation.z = 0;
+          
+          signDummy.updateMatrix();
+          signs.setMatrixAt(i, signDummy.matrix);
+        }
+        signs.instanceMatrix.needsUpdate = true;
+      };
+      
+      // Add sign animation to material shaders
+      materialShaders.push({ update: animateSigns });
+      
+      scene.add(signs);
+      
+      // Debug info
+      console.log('Road signs loaded successfully:', {
+        count: signCount,
+        positions: signPositions,
+        geometry: signGeometry,
+        material: signMaterial
+      });
+    },
+    (progress) => {
+      console.log('Loading road sign:', (progress.loaded / progress.total * 100) + '%');
+    },
+    (error) => {
+      console.error('Error loading road sign model:', error);
+    });
+
+    // Load Synthwave Sun model
+    loader.load('/synthSunset.glb', (gltf) => {
+      const sun = gltf.scene;
+      
+      // Position and scale the sun
+      sun.position.set(190, -110, 100);
+      sun.scale.set(250, 250, 250);
+      
+      // Preserve original materials but make them emissive and unaffected by fog
+      sun.traverse((child) => {
+        if (child.isMesh) {
+          child.material = child.material.clone();
+          child.material.fog = false;
+          child.material.transparent = true;
+          child.material.side = THREE.DoubleSide;
+        }
+      });
+      
+      scene.add(sun);
+    }, 
+    (progress) => {
+      console.log('Loading sun:', (progress.loaded / progress.total * 100) + '%');
+    },
+    (error) => {
+      console.error('Error loading sun model:', error);
+      
+      // Fallback to simple sun if model fails to load
+      const sunGeom = new THREE.CircleGeometry(200, 64);
+      const sunMat = new THREE.MeshBasicMaterial({ color: 0xff8800, fog: false, transparent: true });
+      sunMat.onBeforeCompile = shader => {
+        shader.uniforms.time = { value: 0 };
+        shader.vertexShader = `
+          varying vec2 vUv;
+        ` + shader.vertexShader;
+        shader.vertexShader = shader.vertexShader.replace(
+          `#include <begin_vertex>`,
+          `#include <begin_vertex>
+            vUv = uv;
+          `
+        );
+        shader.fragmentShader = `
+          varying vec2 vUv;
+        ` + shader.fragmentShader;
+        shader.fragmentShader = shader.fragmentShader.replace(
+          `gl_FragColor = vec4( outgoingLight, diffuseColor.a );`,
+          `gl_FragColor = vec4( outgoingLight, diffuseColor.a * smoothstep(0.5, 0.7, vUv.y));`
+        );
+        materialShaders.push(shader);
+      };
+      
+      const sun = new THREE.Mesh(sunGeom, sunMat);
+      sun.position.set(0, 0, -500);
+      scene.add(sun);
+    });
+    
+    // Load car model (now includes UFO)
+    loader.load('/lambo5k.glb', (gltf) => {
+      const carScene = gltf.scene;
+      
+      // Enhanced logging for model contents
+      console.log('=== Model Loading Debug ===');
+      console.log('Total objects in scene:', carScene.children.length);
+      
+      // Track UFO-related objects
+      const ufoObjects = [];
+      const carParts = [];
+      const unknownObjects = [];
+      
+      // Log all objects in the scene hierarchy
+      carScene.traverse((child) => {
+        console.log('Object:', {
+          name: child.name,
+          type: child.type,
+          visible: child.visible,
+          position: child.position,
+          parent: child.parent?.name,
+          isMesh: child.isMesh,
+          material: child.material ? {
+            type: child.material.type,
+            color: child.material.color?.getHexString(),
+            transparent: child.material.transparent,
+            opacity: child.material.opacity
+          } : 'No material'
+        });
+        
+        // More intelligent object detection
+        const lowerName = child.name.toLowerCase();
+        
+        // Check if object name contains car-related keywords
+        if (lowerName.includes('wheel') || 
+            lowerName.includes('tire') || 
+            lowerName.includes('rim') ||
+            lowerName.includes('brake') ||
+            lowerName.includes('suspension') ||
+            lowerName.includes('axle')) {
+          console.log('Found car part:', child.name);
+          carParts.push(child);
+          // Ensure car parts are visible
+          child.visible = true;
+        }
+        // Check for UFO-related objects by position or other characteristics
+        // else if (child.name === 'Object_10' || 
+        //          child.name === 'Object_11' || 
+        //          child.name === 'Object_12' ||
+        //          child.name === 'Object_13' ||
+        //          child.name === 'Object_14' ||
+        //          child.name === 'Object_15' ||
+        //          child.name === 'Object_16' ||
+        //          child.name === 'Object_17' ||
+        //          child.name === 'Object_18') {
+        //   // Only hide if the object is above the car (Y > 2) or far from center
+        //   if (child.position.y > 2 || Math.abs(child.position.x) > 5 || Math.abs(child.position.z) > 5) {
+        //     console.log('Found UFO object (by position), hiding:', child.name, 'at position:', child.position);
+        //     child.visible = false;
+        //     ufoObjects.push(child);
+        //   } else {
+        //     console.log('Object might be car part, keeping visible:', child.name, 'at position:', child.position);
+        //     unknownObjects.push(child);
+        //   }
+        // }
+        
+        // Look for Mary specifically and ensure she's visible
+        if (child.name.toLowerCase().includes('mary')) {
+          console.log('Found Mary object:', child);
+          // Make sure Mary is visible
+          child.visible = true;
+          // If it's a mesh, ensure material is properly set
+          if (child.isMesh) {
+            // Store reference to Mary mesh
+            maryMeshRef.current = child;
+            
+            // Clone the material to avoid affecting other meshes
+            child.material = child.material.clone();
+            child.material.transparent = true;
+            child.material.opacity = 1;
+            child.material.needsUpdate = true;
+            
+            // Store original emissive properties
+            child.userData.originalEmissive = child.material.emissive ? child.material.emissive.clone() : new THREE.Color(0x000000);
+            child.userData.originalEmissiveIntensity = child.material.emissiveIntensity || 0;
+          }
+        }
+      });
+      
+      console.log('=== Model Loading Summary ===');
+      console.log(`Hidden ${ufoObjects.length} UFO-related objects`);
+      console.log(`Found ${carParts.length} car parts`);
+      console.log(`Found ${unknownObjects.length} unknown objects that might be car parts`);
+      
+      // Log details of unknown objects
+      if (unknownObjects.length > 0) {
+        console.log('Unknown objects that were kept visible:');
+        unknownObjects.forEach(obj => {
+          console.log(`- ${obj.name} at position (${obj.position.x.toFixed(2)}, ${obj.position.y.toFixed(2)}, ${obj.position.z.toFixed(2)})`);
+        });
+      }
       
       // Position the car
-      car.position.set(0, 0.4, 6.6);
-      car.rotation.y = Math.PI;
-      car.scale.set(1.5, 1.5, 1.5);
+      carScene.position.set(2.5, 0, 15.6);
+      // Rotate 180 degrees so car faces away from camera (same direction we're looking)
+      carScene.rotation.y = Math.PI;
+      carScene.scale.set(2.7, 2.7, 2.7);
+      
+      // Set up animations
+      const animationMixers = [];
+      
+      if (gltf.animations && gltf.animations.length > 0) {
+        console.log('Found animations:', gltf.animations.map(a => a.name));
+        console.log('Animation details:');
+        gltf.animations.forEach(anim => {
+          console.log(`- ${anim.name}: duration=${anim.duration}s, tracks=${anim.tracks.length}`);
+        });
+        
+        // Create mixer for the scene
+        const mixer = new THREE.AnimationMixer(carScene);
+        
+        // Play ALL animations on a loop
+        const actions = [];
+        gltf.animations.forEach((clip, index) => {
+          console.log(`Setting up animation ${index}: ${clip.name}`);
+          
+          // Handle Armature/Mixamo character animations
+          if (clip.name.toLowerCase().includes('armature') && 
+              !clip.name.toLowerCase().includes('wheel') &&
+              clip.name !== 'ArmatureAction.001') { // Don't skip UFO animation
+            console.log(`Setting character to rest pose: ${clip.name}`);
+            const action = mixer.clipAction(clip);
+            action.play();
+            action.paused = true; // Play but immediately pause to hold the first frame
+            action.time = 0; // Ensure we're at the first frame (rest pose)
+            actions.push(action);
+            return; // Skip further processing
+          }
+          
+          const action = mixer.clipAction(clip);
+          
+          // Check if this is the halo animation
+          if (clip.name.toLowerCase().includes('halo')) {
+            console.log(`Playing halo animation: ${clip.name}`);
+            action.loop = THREE.LoopRepeat;
+            action.play();
+            actions.push(action);
+            return;
+          }
+          
+          // Check if this is the wheel animation (now 200 frames)
+          if (clip.name.toLowerCase().includes('wheel') || 
+              (clip.tracks.length > 0 && Math.abs(clip.duration - 6.67) < 0.1)) { // 200 frames at 30fps = 6.67 seconds
+            action.loop = THREE.LoopRepeat;
+            action.clampWhenFinished = false;
+            // Play from the beginning
+            action.time = 0;
+            // Adjust speed as needed (1.0 = normal speed, negative = reverse)
+            action.timeScale = -3.0; // Negative value reverses the animation
+            action.play();
+            console.log(`Playing wheel animation: ${clip.name}, duration: ${clip.duration}s, frames: ~${Math.round(clip.duration * 30)}, speed: -2x (reversed)`);
+          } else if (clip.name === 'ArmatureAction.001') {
+            // UFO animation - handle separately for scroll-based trigger
+            action.clampWhenFinished = true;
+            action.loop = THREE.LoopOnce;
+            action.setEffectiveWeight(1);
+
+            console.log('UFO animation ready:', clip.name);
+          } else {
+            // Play any other animations on loop
+            action.loop = THREE.LoopRepeat;
+            action.play();
+            console.log(`Playing animation on loop: ${clip.name}`);
+          }
+          
+          actions.push(action);
+        });
+        
+        // Add mixer to the list for updating
+        animationMixers.push(mixer);
+        
+        // Store reference to mixers for animation updates
+        if (!materialShadersRef.current) {
+          materialShadersRef.current = [];
+        }
+        materialShadersRef.current.push({
+          update: (time, delta) => {
+            mixer.update(delta);
+          }
+        });
+      }
       
       // Create video element and texture
       const video = document.createElement('video');
@@ -481,19 +1096,15 @@ const PalmsScene = () => {
       videoTexture.format = THREE.RGBFormat;
       
       // Keep original car materials and add emissive to halo
-      car.traverse((child) => {
+      carScene.traverse((child) => {
         if (child.isMesh) {
-          console.log('Found mesh:', child.name); // Debug log
+          console.log('Processing mesh:', child.name); // Debug log
           child.castShadow = true;
           child.receiveShadow = true;
           
-          // Add gold emissive to halo objects
-          if (child.name.toLowerCase().includes('halo')) {
-            child.material = child.material.clone();
-            child.material.emissive = new THREE.Color(0xffd700); // Gold color
-            child.material.emissiveIntensity = 5;
-            child.material.needsUpdate = true;
-          }
+          
+          // Add emissive to halo objects
+        
           
           // Add video texture to Display mesh
           if (child.name === 'Display') { // Exact match
@@ -535,7 +1146,7 @@ const PalmsScene = () => {
         lightSettings.carSpotlight.position.y,
         lightSettings.carSpotlight.position.z
       );
-      carSpotlight.target = car;
+      carSpotlight.target = carScene;
       carSpotlightRef.current = carSpotlight;
       scene.add(carSpotlight);
 
@@ -552,7 +1163,6 @@ const PalmsScene = () => {
         lightSettings.carAccentLight.position.y,
         lightSettings.carAccentLight.position.z
       );
-      carAccentLight.target = car;
       carAccentLightRef.current = carAccentLight;
       scene.add(carAccentLight);
       
@@ -581,7 +1191,7 @@ const PalmsScene = () => {
         lightSettings.underglow.position.z
       );
       underglowLightRef.current = underglowLight;
-      car.add(underglowLight);
+      carScene.add(underglowLight);
       
       // Add headlights
       const headlightLeft = new THREE.SpotLight(
@@ -594,8 +1204,8 @@ const PalmsScene = () => {
       headlightLeft.position.set(-0.5, 0.5, 1);
       headlightLeft.target.position.set(-0.5, 0, 10);
       headlightLeftRef.current = headlightLeft;
-      car.add(headlightLeft);
-      car.add(headlightLeft.target);
+      carScene.add(headlightLeft);
+      carScene.add(headlightLeft.target);
       
       const headlightRight = new THREE.SpotLight(
         lightSettings.headlights.color,
@@ -607,14 +1217,16 @@ const PalmsScene = () => {
       headlightRight.position.set(0.5, 0.5, 1);
       headlightRight.target.position.set(0.5, 0, 10);
       headlightRightRef.current = headlightRight;
-      car.add(headlightRight);
-      car.add(headlightRight.target);
+      carScene.add(headlightRight);
+      carScene.add(headlightRight.target);
       
-      scene.add(car);
+      scene.add(carScene);
+      carModelRef.current = carScene; // Save reference for potential scroll-based animations
       
       // Initialize GUI
       if (!guiRef.current) {
         guiRef.current = new GUI();
+        guiRef.current.domElement.style.display = 'none'; // Hide GUI by default
         
         // Car Spotlight Controls
         const carSpotlightFolder = guiRef.current.addFolder('Car Spotlight');
@@ -728,7 +1340,7 @@ const PalmsScene = () => {
           if (e.key.toLowerCase() === 'g') {
             setShowGUI(prev => !prev);
             if (guiRef.current) {
-              guiRef.current.domElement.style.display = showGUI ? 'none' : 'block';
+              guiRef.current.domElement.style.display = showGUI ? 'block' : 'none';
             }
           }
         });
@@ -826,11 +1438,326 @@ const PalmsScene = () => {
 
     materialShadersRef.current = materialShaders;
 
+    
+    
+    // Track if component is in view
+    let isInView = false;
+    
+    // Use intersection observer just to detect if component is in view
+    const observerOptions = {
+      root: null,
+      rootMargin: '-20% 0px -20% 0px', // Only trigger when component is in the middle 60% of viewport
+      threshold: 0.5
+    };
+    
+    const handleIntersection = (entries) => {
+      entries.forEach(entry => {
+        const rect = entry.boundingClientRect;
+        const viewportHeight = window.innerHeight;
+        
+        // Only activate when component is well-centered in viewport
+        const componentCenter = rect.top + rect.height / 2;
+        const viewportCenter = viewportHeight / 2;
+        const distanceFromCenter = Math.abs(componentCenter - viewportCenter);
+        
+        // Activate only when component center is within 30% of viewport center
+        isInView = entry.isIntersecting && (distanceFromCenter < viewportHeight * 0.3);
+      });
+    };
+    
+    const observer = new IntersectionObserver(handleIntersection, observerOptions);
+    
+
+    
+    
+
+    
+    // Start observing after a small delay to ensure DOM is ready
+    // setTimeout(startObserving, 100);
+    
+
+    
+    // Keyboard controls for cinematic design mode
+    const handleKeyPress = (e) => {
+      console.log('Key pressed:', e.key, 'Ctrl:', e.ctrlKey, 'Current mode:', cinematicMode);
+      
+      if (e.key === 'c' && e.ctrlKey) {
+        // Toggle cinematic design mode with Ctrl+C
+        e.preventDefault(); // Prevent default browser behavior
+        const newMode = cinematicMode === 'design' ? 'playback' : 'design';
+        setCinematicMode(newMode);
+        cinematicModeRef.current = newMode; // Update ref for useEffect
+        
+        if (newMode === 'design') {
+          // Entering design mode
+          console.log('Controls ref exists:', !!controlsRef.current);
+          if (controlsRef.current) {
+            controlsRef.current.enabled = true; // Enable controls
+            console.log('Controls enabled:', controlsRef.current.enabled);
+            console.log('Controls object:', controlsRef.current);
+          }
+          setIsCinematicComplete(true); // Skip cinematic
+          console.log('Entered cinematic design mode - controls should be active');
+        } else {
+          // Exiting design mode
+          if (controlsRef.current) {
+            controlsRef.current.enabled = !isCinematicComplete; // Disable if cinematic isn't complete
+          }
+          console.log('Exited cinematic design mode');
+        }
+      } else if (e.key === 'k' && cinematicModeRef.current === 'design') {
+        // Add keyframe at current camera position with 'K'
+        console.log('K pressed in design mode');
+        if (!cameraRef.current || !controlsRef.current) {
+          console.error('Camera or controls not available');
+          return;
+        }
+        
+        const currentKeyframes = recordedKeyframesRef.current;
+        const newKeyframes = [...currentKeyframes];
+        const newKeyframe = {
+          time: 0, // Will be recalculated
+          position: cameraRef.current.position.clone(),
+          target: controlsRef.current.target.clone(),
+          fov: cameraRef.current.fov
+        };
+        
+        console.log('Adding keyframe:', {
+          position: newKeyframe.position.toArray(),
+          target: newKeyframe.target.toArray(),
+          fov: newKeyframe.fov
+        });
+        
+        newKeyframes.push(newKeyframe);
+        
+        // Redistribute times evenly
+        newKeyframes.forEach((kf, i) => {
+          kf.time = i / (newKeyframes.length - 1);
+        });
+        
+        recordedKeyframesRef.current = newKeyframes; // Update ref
+        setRecordedKeyframes(newKeyframes); // Update state for UI
+        console.log('Keyframe added. Total:', newKeyframes.length);
+      } else if (e.key === 'p' && cinematicModeRef.current === 'design') {
+        // Play recorded cinematic with 'P'
+        if (recordedKeyframesRef.current.length < 2) {
+          console.warn('Need at least 2 keyframes to play');
+          return;
+        }
+        setIsCinematicComplete(false);
+        setCinematicProgress(0);
+        setCinematicMode('playback');
+        cinematicModeRef.current = 'playback'; // Update ref
+        if (controlsRef.current) {
+          controlsRef.current.enabled = false;
+        }
+        // Create and play GSAP timeline
+        const timeline = createCinematicTimeline();
+        timeline.restart(); // Use restart to ensure it starts from the beginning
+      } else if (e.key === 'r' && cinematicModeRef.current === 'design') {
+        // Reset keyframes with 'R'
+        recordedKeyframesRef.current = [];
+        setRecordedKeyframes([]);
+        console.log('Keyframes cleared');
+      } else if (e.key === 'l' && cinematicModeRef.current === 'design') {
+        // Log current keyframes with 'L'
+        const keyframesToLog = recordedKeyframesRef.current.length > 0 ? recordedKeyframesRef.current : defaultCinematicKeyframes;
+        console.log('Current keyframes:', JSON.stringify(keyframesToLog, null, 2));
+        console.log('Recorded keyframes count:', recordedKeyframesRef.current.length);
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyPress);
+
+    // Create GSAP timeline for cinematic intro
+    const createCinematicTimeline = () => {
+      const keyframes = recordedKeyframesRef.current.length > 0 ? recordedKeyframesRef.current : defaultCinematicKeyframes;
+      
+      // Kill any existing timeline
+      if (cinematicTimelineRef.current) {
+        cinematicTimelineRef.current.kill();
+      }
+      
+      // Create new timeline
+      const tl = gsap.timeline({
+        onComplete: () => {
+          setIsCinematicComplete(true);
+          controls.enabled = true;
+          controls.update();
+          
+          // Start Mary glowing effect
+          setMaryGlowing(true);
+          maryGlowingRef.current = true;
+          
+          // Create and animate a blue point light for Mary
+          if (maryMeshRef.current) {
+            console.log('Creating Mary glow effect!');
+            // Get Mary's world position
+            const maryWorldPos = new THREE.Vector3();
+            maryMeshRef.current.getWorldPosition(maryWorldPos);
+            console.log('Mary world position:', maryWorldPos);
+            
+            // Create a bright blue point light with larger radius
+            const maryLight = new THREE.PointLight(0x00ffff, 0, 10); // Cyan blue, larger radius
+            maryLight.position.copy(maryWorldPos);
+            maryLight.position.y += 0.2; // Slightly above Mary
+            scene.add(maryLight);
+            maryLightRef.current = maryLight;
+            
+            // Create pulsing light animation with higher intensity
+            gsap.to(maryLight, {
+              intensity: 5,
+              duration: 1,
+              ease: "sine.inOut",
+              yoyo: true,
+              repeat: -1
+            });
+            
+            // Also add a spot light pointing at Mary for more visibility
+            const marySpotlight = new THREE.SpotLight(0x00ffff, 0, 10, Math.PI / 6, 0.5);
+            marySpotlight.position.copy(maryWorldPos);
+            marySpotlight.position.y += 2;
+            marySpotlight.target.position.copy(maryWorldPos);
+            scene.add(marySpotlight);
+            scene.add(marySpotlight.target);
+            
+            // Animate the spotlight too
+            gsap.to(marySpotlight, {
+              intensity: 3,
+              duration: 1,
+              ease: "sine.inOut",
+              yoyo: true,
+              repeat: -1
+            });
+            
+            // Create a "Click Me" sprite above Mary
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            
+            // Draw rounded rectangle background
+            ctx.fillStyle = 'rgba(0, 255, 255, 0.8)';
+            ctx.fillRect(10, 10, 236, 44);
+            
+            // Draw text
+            ctx.fillStyle = '#000000';
+            ctx.font = 'bold 30px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('Click to Enter', 128, 32);
+            
+            // Create sprite
+            const texture = new THREE.CanvasTexture(canvas);
+            const spriteMaterial = new THREE.SpriteMaterial({ 
+              map: texture,
+              transparent: true,
+              opacity: 0
+            });
+            const sprite = new THREE.Sprite(spriteMaterial);
+            sprite.scale.set(2, 0.5, 1);
+            sprite.position.copy(maryWorldPos);
+            sprite.position.y += 1.5;
+            scene.add(sprite);
+            
+            // Fade in the sprite
+            gsap.to(spriteMaterial, {
+              opacity: 1,
+              duration: 1,
+              delay: 0.5
+            });
+            
+            // Make sprite bob up and down
+            gsap.to(sprite.position, {
+              y: sprite.position.y + 0.2,
+              duration: 2,
+              ease: "sine.inOut",
+              yoyo: true,
+              repeat: -1
+            });
+            
+            // Also add a subtle glow to Mary's material if it exists
+            if (maryMeshRef.current.material) {
+              const material = maryMeshRef.current.material;
+              if (!material.emissive) material.emissive = new THREE.Color(0x000000);
+              material.emissive.setHex(0x00ffff);
+              
+              gsap.to(material, {
+                emissiveIntensity: 0.3,
+                duration: 1,
+                ease: "sine.inOut",
+                yoyo: true,
+                repeat: -1
+              });
+            }
+          }
+        }
+      });
+      
+      // Create a proxy object for smooth interpolation
+      const cameraProxy = {
+        x: keyframes[0].position.x,
+        y: keyframes[0].position.y,
+        z: keyframes[0].position.z,
+        targetX: keyframes[0].target.x,
+        targetY: keyframes[0].target.y,
+        targetZ: keyframes[0].target.z,
+        fov: keyframes[0].fov
+      };
+      
+      // Add each keyframe to the timeline
+      keyframes.forEach((keyframe, index) => {
+        if (index === 0) return; // Skip first keyframe as it's the starting position
+        
+        const totalDuration = 25; // Total animation duration in seconds
+        const duration = index === 1 
+          ? keyframe.time * totalDuration // First segment duration
+          : (keyframe.time - keyframes[index - 1].time) * totalDuration; // Subsequent segments
+        
+        tl.to(cameraProxy, {
+          duration: duration,
+          x: keyframe.position.x,
+          y: keyframe.position.y,
+          z: keyframe.position.z,
+          targetX: keyframe.target.x,
+          targetY: keyframe.target.y,
+          targetZ: keyframe.target.z,
+          fov: keyframe.fov,
+          // Use linear easing for continuous motion, except for the last keyframe
+          ease: index === keyframes.length - 1 ? "power2.inOut" : "none",
+          onUpdate: () => {
+            camera.position.set(cameraProxy.x, cameraProxy.y, cameraProxy.z);
+            camera.lookAt(cameraProxy.targetX, cameraProxy.targetY, cameraProxy.targetZ);
+            camera.fov = cameraProxy.fov;
+            camera.updateProjectionMatrix();
+            controls.target.set(cameraProxy.targetX, cameraProxy.targetY, cameraProxy.targetZ);
+          }
+        }, index === 1 ? 0 : `>`); // No overlap for continuous motion
+      });
+      
+      // Update progress for UI
+      tl.eventCallback("onUpdate", () => {
+        setCinematicProgress(tl.progress());
+      });
+      
+      cinematicTimelineRef.current = tl;
+      return tl;
+    };
+    
+    // Start cinematic intro if not in design mode
+    if (cinematicModeRef.current !== 'design') {
+      const timeline = createCinematicTimeline();
+      timeline.play();
+    }
+    
     // Animation loop
     const animate = () => {
       requestAnimationFrame(animate);
       
+      // Get delta time once per frame
+      const delta = clockRef.current.getDelta();
       const time = clockRef.current.getElapsedTime();
+      
       materialShadersRef.current.forEach(m => {
         if (m.uniforms && m.uniforms.time) {
           m.uniforms.time.value = time;
@@ -840,10 +1767,40 @@ const PalmsScene = () => {
         } else if (m.isShaderMaterial && m.uniforms && m.uniforms.time) {
           // Direct ShaderMaterial
           m.uniforms.time.value = time;
+        } else if (m.update) {
+          // Handle custom update functions (like animations)
+          m.update(time, delta);
         }
       });
       
-      updateControls();
+      // Scroll animation disabled - using cinematic intro instead
+      
+      // GSAP handles the cinematic animation now
+      if (cinematicModeRef.current === 'design' || isCinematicComplete) {
+        // In design mode or after cinematic is complete
+        // Dynamic maxPolarAngle based on camera distance
+        // Calculate current distance from camera to target
+        const cameraDistance = camera.position.distanceTo(controls.target);
+        
+        // Adjust maxPolarAngle based on distance
+        // When close (distance < 5), allow lower angles for dashboard view
+        // When far (distance > 20), restrict to prevent seeing below road
+        if (cameraDistance < 5) {
+          // Very close - allow almost horizontal view for dashboard
+          controls.maxPolarAngle = Math.PI * 0.55; // ~153 degrees
+        } else if (cameraDistance < 10) {
+          // Medium distance - moderate restriction
+          controls.maxPolarAngle = Math.PI * 0.55; // ~117 degrees
+        } else {
+          // Far distance - restrict to prevent seeing below road
+          controls.maxPolarAngle = Math.PI * 0.45; // ~81 degrees
+        }
+        
+        // Always use orbit controls
+        controls.update();
+      }
+      
+      // Render the scene
       renderer.render(scene, camera);
     };
 
@@ -860,117 +1817,491 @@ const PalmsScene = () => {
 
     window.addEventListener('resize', handleResize);
     handleResize(); // Call resize initially to ensure proper sizing
+    
+    // Handle mouse move for hover effect
+    const handleMouseMove = (event) => {
+      if (!maryGlowingRef.current || !mountRef.current) return;
+      
+      const rect = mountRef.current.getBoundingClientRect();
+      mouse.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      
+      // Update raycaster
+      raycaster.current.setFromCamera(mouse.current, camera);
+      
+      // Check for intersection with Mary
+      if (maryMeshRef.current) {
+        const intersects = raycaster.current.intersectObject(maryMeshRef.current, true);
+        
+        if (intersects.length > 0) {
+          mountRef.current.style.cursor = 'pointer';
+          // Increase glow intensity on hover
+          if (maryLightRef.current) {
+            gsap.to(maryLightRef.current, {
+              intensity: 3,
+              duration: 0.3
+            });
+          }
+          if (maryMeshRef.current.material) {
+            gsap.to(maryMeshRef.current.material, {
+              emissiveIntensity: 0.5,
+              duration: 0.3
+            });
+          }
+        } else {
+          mountRef.current.style.cursor = 'default';
+          // Return to normal glow
+          if (maryLightRef.current) {
+            gsap.to(maryLightRef.current, {
+              intensity: 2,
+              duration: 0.3
+            });
+          }
+          if (maryMeshRef.current.material) {
+            gsap.to(maryMeshRef.current.material, {
+              emissiveIntensity: 0.3,
+              duration: 0.3
+            });
+          }
+        }
+      }
+    };
+    
+    // Handle click on Mary
+    const handleClick = (event) => {
+      console.log('Click event - maryGlowing:', maryGlowingRef.current);
+      if (!maryGlowingRef.current || !mountRef.current) return;
+      
+      const rect = mountRef.current.getBoundingClientRect();
+      mouse.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      
+      // Update raycaster
+      raycaster.current.setFromCamera(mouse.current, camera);
+      
+      // Check for intersection with Mary or the entire car (as fallback)
+      if (maryMeshRef.current) {
+        console.log('Checking Mary intersection, mesh exists:', !!maryMeshRef.current);
+        const intersects = raycaster.current.intersectObject(maryMeshRef.current, true);
+        console.log('Mary intersects found:', intersects.length);
+        
+        if (intersects.length > 0) {
+          console.log('Mary clicked! Navigating to gallery...');
+          // Navigate to gallery
+          routerRef.current.push('/gallery');
+          return;
+        }
+      }
+      
+      // Fallback: check intersection with entire car model
+      if (carModelRef.current) {
+        const carIntersects = raycaster.current.intersectObject(carModelRef.current, true);
+        console.log('Car intersects found:', carIntersects.length);
+        
+        // Check if any of the intersected objects is near Mary's position
+        if (carIntersects.length > 0) {
+          const maryPos = new THREE.Vector3(1.1811263369229998, 0.9999999999999805, 12.355272021071679);
+          for (const intersect of carIntersects) {
+            const distance = intersect.point.distanceTo(maryPos);
+            console.log('Intersection distance from Mary position:', distance);
+            if (distance < 2) { // Within 2 units of Mary's position
+              console.log('Close to Mary! Navigating to gallery...');
+              routerRef.current.push('/gallery');
+              return;
+            }
+          }
+        }
+      }
+    };
+    
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('click', handleClick);
     animate();
 
     // Cleanup
     return () => {
       window.removeEventListener('resize', handleResize);
-      renderer.domElement.removeEventListener('mousedown', handleMouseDown);
-      renderer.domElement.removeEventListener('mousemove', handleMouseMove);
-      renderer.domElement.removeEventListener('mouseup', handleMouseUp);
-      renderer.domElement.removeEventListener('wheel', handleWheel);
-      mountRef.current?.removeChild(renderer.domElement);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('click', handleClick);
+      // window.removeEventListener('wheel', handleScrollAnimation);
+      window.removeEventListener('keydown', handleKeyPress);
+      
+      // Kill GSAP timeline
+      if (cinematicTimelineRef.current) {
+        cinematicTimelineRef.current.kill();
+      }
+      
+      // Clean up Mary's light
+      if (maryLightRef.current && sceneRef.current) {
+        sceneRef.current.remove(maryLightRef.current);
+        maryLightRef.current.dispose();
+      }
+      
+      if (intersectionRef.current) {
+        observer.unobserve(intersectionRef.current);
+      }
+      observer.disconnect();
+      if (mountRef.current) {
+        if (renderer.domElement && renderer.domElement.parentNode === mountRef.current) {
+          mountRef.current.removeChild(renderer.domElement);
+        }
+      }
+      controls.dispose();
       renderer.dispose();
     };
   }, []);
 
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden', backgroundColor: 'black' }}>
-      <style jsx>{`
-        @import url('https://fonts.googleapis.com/css?family=Pacifico&display=swap');
-        
-        .info-icon {
-          opacity: 0.5;
-        }
-        
-        .retro-text {
-          font-family: "UnifrakturMaguntia", cursive;
-          font-size: 13vh;
-          display: block;
-          transform: rotate(-20deg) skew(-25deg);
-          color: magenta;
-          text-shadow: -0.5vh 0 rgb(64, 255, 128), 0 0.5vh rgb(64, 255, 128), 0.5vh 0 rgb(64, 255, 128), 0 -0.5vh rgb(64, 255, 128);
-          position: absolute;
-          bottom: 4vh;
-          left: 50%;
-          margin: 0;
-          padding: 0;
-        }
-        
-        #circle {
-          position: absolute;
-          width: 60px;
-          height: 60px;
-          border-radius: 50%;
-          background: rgba(255, 165, 0, .5);
-          border: 1px solid darkorange;
-          cursor: pointer;
-          -webkit-touch-callout: none;
-          -webkit-user-select: none;
-          -khtml-user-select: none;
-          -moz-user-select: none;
-          -ms-user-select: none;
-          user-select: none;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: rgba(255, 165, 0, 1);
-          font-size: 3em;
-          font-family: serif;
-          transition: background 0.3s, color 0.3s;
-        }
-        
-        .noselect {
-          -webkit-touch-callout: none;
-          -webkit-user-select: none;
-          -khtml-user-select: none;
-          -moz-user-select: none;
-          -ms-user-select: none;
-          user-select: none;
-        }
-      `}</style>
-      
-      <div ref={mountRef} style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }} />
-      
-      {/* Info panel */}
-      <div 
-        className={`absolute top-[5px] left-[5px] transition-all duration-300 ${
-          isInfoExpanded ? 'w-[640px] h-[214px]' : 'w-[62px] h-[62px]'
-        } overflow-hidden`}
-      >
-        <div 
-          id="circle"
-          onClick={() => setIsInfoExpanded(!isInfoExpanded)}
-          className="noselect"
-        >
-          <img 
-            src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACQAAAAkCAYAAADhAJiYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAI5SURBVFhH7ZjNSxVRGIcnwyQDsUzByjQqM1MiKlKMhCCrRUXriDT7XNfCpRuhNlGLWtS29pmr6g9o0SIIWki06w/p+Z13zuV0G+fY3JG5qA88zHuGO5d3zsd7zr3JJhuRg/gZP+GgblTNEk7jDC7qRpU8xK/YivvxO1bGVfyGz3EbVprQGVzGfXgSt2AsoXs4ZGG5HMKfOOpaSXIDVzNk+swRvO5aJdGNP/C8axl5CbXjAQsdbbgXT7tWg+jLv6ASCMkbsn68hHrW04EXLSzOVtSSnnOtv5nH2KR+ml49SvSRhXHUrW9Qk/ZX6m98hVnojUWYkIa0x8Ia91FD7jmGSizKHXyLu3Fn6i5swSyeYX0PjeAEjruWoe/TXPMMo56JomFRwQu5iacs/IesHhJdqIT2uJaxgGFSL9JrLlkJqavDiRmSN4dOoJa6ZzsOWOjQy6zU8zWyErqM6uIsYoXxZXoVfXjFQsctVF3LJSuh4xh2fUisMJ7DHRa61TploUMvGfZYJmud0AULHUooutLKHrKwXGjIrlno0JHlsIUrU+akVrJHLXRoUoc90omFJnXRZT+Gva5lPEEl79HRJYoK4ztspDBqzp3FsDAqQQ2tR8VzVZVaW8drbGTrmMT6reMBhvc0lHqmEI1urhqqEC31xxYWp+jxQyu0/vihI0kp/O8BTfUnnCelHtA8TXWE9RQ55N/FNTnke5rqZ5BHBbRpfih6PuBtnMX3ulE1+rPhY2p0o9xknZEkfwANi2KKMn3pRwAAAABJRU5ErkJggg=="
-            className="info-icon"
-            alt="info"
-          />
+    <div ref={intersectionRef} style={{ position: 'relative', width: '100%', height: '100%', backgroundColor: 'black' }}>
+      {/* Loading screen */}
+      {isSceneLoading && (
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: 'black',
+          zIndex: 1000
+        }}>
+          <CoinLoader size="large" showText={false} withSparkle={true} />
         </div>
+      )}
+      
+      {/* Three.js scene container */}
+      <div style={{ 
+        position: 'relative', 
+        width: '100%', 
+        height: '100%', 
+        overflow: 'hidden', 
+        backgroundColor: 'black',
+        opacity: isSceneLoading ? 0 : 1,
+        transition: 'opacity 0.5s ease-in-out'
+      }}>
+       
         
-        {isInfoExpanded && (
-          <>
-            <div className="absolute left-[64px] font-bold italic text-orange-600" style={{ fontFamily: 'Arial', fontSize: '52px' }}>
-              Palms <a className="text-[10px] text-orange-600 hover:text-orange-600" href="http://west77.ru" target="_blank" rel="noopener noreferrer">from the warlock&apos;s cave</a>
+        <style jsx>{`
+          @keyframes fadeIn {
+            from {
+              opacity: 0;
+              transform: translate(-50%, -50%) scale(0.9);
+            }
+            to {
+              opacity: 1;
+              transform: translate(-50%, -50%) scale(1);
+            }
+          }
+        `}</style>
+        
+        <div 
+          ref={mountRef} 
+          style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }}
+        />
+        
+        
+        
+        {/* Cinematic design mode UI */}
+        {cinematicMode === 'design' && (
+          <div style={{
+            position: 'absolute',
+            top: '20px',
+            left: '20px',
+            padding: '20px',
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            border: '1px solid rgba(255, 255, 255, 0.3)',
+            color: 'white',
+            fontSize: '14px',
+            fontFamily: 'monospace',
+            borderRadius: '8px',
+            backdropFilter: 'blur(10px)',
+            zIndex: 200,
+            maxWidth: '400px'
+          }}>
+            <h3 style={{ margin: '0 0 10px 0', color: '#00ff41' }}>Cinematic Design Mode</h3>
+            <div style={{ marginBottom: '10px' }}>
+              <strong>Controls:</strong>
+              <ul style={{ margin: '5px 0', paddingLeft: '20px', fontSize: '12px' }}>
+                <li>Use mouse to position camera</li>
+                <li><kbd>K</kbd> - Add keyframe at current position</li>
+                <li><kbd>P</kbd> - Play recorded cinematic</li>
+                <li><kbd>R</kbd> - Reset all keyframes</li>
+                <li><kbd>L</kbd> - Log keyframes to console</li>
+                <li><kbd>Ctrl+C</kbd> - Exit design mode</li>
+              </ul>
             </div>
+            <div style={{ marginTop: '10px', fontSize: '12px', color: '#67e8f9' }}>
+              Keyframes: {recordedKeyframes.length}
+            </div>
+            <button
+              onClick={() => {
+                if (controlsRef.current) {
+                  controlsRef.current.enabled = !controlsRef.current.enabled;
+                  console.log('Toggled controls:', controlsRef.current.enabled);
+                }
+              }}
+              style={{
+                marginTop: '10px',
+                padding: '5px 10px',
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+                color: 'white',
+                fontSize: '12px',
+                cursor: 'pointer',
+                borderRadius: '4px'
+              }}
+            >
+              Toggle Camera Controls
+            </button>
+          </div>
+        )}
+        
+        {/* Cinematic intro UI */}
+        {!isCinematicComplete && cinematicMode === 'playback' && (
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            pointerEvents: 'none',
+            zIndex: 100
+          }}>
+           
             
-            <iframe 
-              width="100%" 
-              height="150" 
-              style={{ scrolling: 'no', border: 'none' }}
-              src="https://w.soundcloud.com/player/?url=https%3A//api.soundcloud.com/tracks/296520859&amp;color=%23FFA500&amp;auto_play=false&amp;hide_related=true&amp;show_comments=false&amp;show_user=true&amp;show_reposts=false&amp;show_teaser=false&amp;visual=true"
-              className="absolute top-[64px]"
-            />
-          </>
+            {/* Progress bar */}
+            <div style={{
+              position: 'absolute',
+              bottom: '20px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              width: '200px',
+              height: '2px',
+              backgroundColor: 'rgba(255, 255, 255, 0.2)',
+              borderRadius: '1px'
+            }}>
+              <div style={{
+                width: `${cinematicProgress * 100}%`,
+                height: '100%',
+                backgroundColor: '#00ff41',
+                borderRadius: '1px',
+                transition: 'width 0.1s ease-out'
+              }} />
+            </div>
+          </div>
         )}
       </div>
       
-      {/* Retro text */}
-      <div style={{ position: 'absolute', bottom: '4vh', left: '65%' }}>
-        <span className="retro-text">RL80</span>
-      </div>
+      {/* Music Player UI - Only show after scene is loaded */}
+      {!isSceneLoading && !showMobileMusicPlayer ? (
+        // Music Icon Button
+        <IconButton
+          position="fixed"
+          // top={isMobile ? "20px" : "auto"}
+          // bottom={isMobile ? "auto" : "2rem"}
+          bottom="2rem"
+          right={isMobile ? "20px" : "2rem"}
+          zIndex="1100"
+          aria-label="Music Player"
+          icon={
+            <svg width={isMobile ? "24" : "2.5rem"} height={isMobile ? "24" : "2.5rem"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 18V5l12-2v13"/>
+              <circle cx="6" cy="18" r="3"/>
+              <circle cx="18" cy="16" r="3"/>
+            </svg>
+          }
+          color="white"
+          bg="transparent"
+          size="md"
+          onClick={() => {
+            console.log('🎵 Music icon clicked');
+            setUserClosedMusic(false);
+            
+            if (contextShowSpotify && contextIsPlaying) {
+              // Music is already playing, just show the UI
+              console.log('🎵 Music already playing, showing UI');
+              setShowMobileMusicPlayer(true);
+              setMusicPlayerVisible(true);
+            } else {
+              // Start fresh music playback
+              setShowMobileMusicPlayer(true);
+              setMusicPlayerVisible(true);
+              setContextShowSpotify(true);
+              
+              // Trigger auto-play after a delay to ensure player and track are ready
+              setTimeout(() => {
+                if (musicPlayerControls && musicPlayerControls.play) {
+                  console.log('🎵 Auto-playing music after icon click');
+                  musicPlayerControls.play();
+                } else {
+                  console.log('🎵 Controls not ready yet, will auto-play when ready');
+                }
+              }, 500); // Increased delay to ensure track is loaded
+            }
+          }}
+          _hover={{
+            bg: "rgba(255, 255, 255, 0.1)",
+          }}
+        />
+      ) : !isSceneLoading ? (
+        // Minimal Music Player with overlay to block 3D interactions
+        <>
+          {/* Invisible overlay to prevent 3D scene interactions */}
+          <Box
+            position="fixed"
+            // top={isMobile ? "0" : "auto"}
+            // bottom={isMobile ? "auto" : "2rem"}
+            bottom="2rem"
+            right="0"
+            width={isMobile ? "200px" : "250px"}
+            height="100px"
+            zIndex="9998"
+            pointerEvents="auto"
+            bg="transparent"
+            cursor="default"
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+            }}
+            onTouchStart={(e) => {
+              e.stopPropagation();
+            }}
+            onTouchEnd={(e) => {
+              e.stopPropagation();
+            }}
+            onTouchMove={(e) => {
+              e.stopPropagation();
+            }}
+          />
+          
+          {/* Music Player Controls */}
+          <Box
+            position="fixed"
+            // top={isMobile ? "20px" : "auto"}
+            // bottom={isMobile ? "auto" : "2rem"}
+            bottom="2rem"
+            right={isMobile ? "20px" : "2rem"}
+            zIndex="9999"
+            display="flex"
+            alignItems="center"
+            gap="8px"
+            pointerEvents="auto"
+            isolation="isolate"
+          >
+            {/* Spinning Album Art */}
+            <Box
+              width="40px"
+              height="40px"
+              borderRadius="50%"
+              backgroundImage="url('/virginRecords.jpg')"
+              backgroundSize="cover"
+              backgroundPosition="center"
+              transition="all 0.3s ease"
+              sx={{
+                animation: musicPlayerVisible && isPlaying ? "spin 3s linear infinite" : "none",
+                "@keyframes spin": {
+                  "0%": { transform: "rotate(0deg)" },
+                  "100%": { transform: "rotate(360deg)" }
+                }
+              }}
+            />
+            
+            {/* Skip Button */}
+            <IconButton
+              aria-label="Next Track"
+              icon={
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="5 4 15 12 5 20 5 4"/>
+                  <line x1="19" y1="5" x2="19" y2="19"/>
+                </svg>
+              }
+              color="white"
+              bg="rgba(255, 255, 255, 0.1)"
+              size="sm"
+              minW="32px"
+              height="32px"
+              position="relative"
+              zIndex="10000"
+              pointerEvents="auto"
+              onClick={() => {
+                console.log('🎵 Skip button clicked');
+                
+                if (musicPlayerControls && musicPlayerControls.skipTrack) {
+                  console.log('🎵 Using music player controls to skip');
+                  musicPlayerControls.skipTrack();
+                } else {
+                  console.log('⚠️ No skip controls available');
+                  window.postMessage({ type: 'SKIP_TRACK' }, '*');
+                }
+              }}
+              _hover={{
+                bg: "rgba(255, 255, 255, 0.2)",
+              }}
+            />
+            
+            {/* Close Button */}
+            <Box
+              as="button"
+              aria-label="Close Music Player"
+              width="28px"
+              height="28px"
+              display="flex"
+              alignItems="center"
+              justifyContent="center"
+              bg="rgba(255, 255, 255, 0.1)"
+              borderRadius="4px"
+              color="white"
+              position="relative"
+              zIndex="10000"
+              cursor="pointer"
+              pointerEvents="auto"
+              border="1px solid rgba(255, 255, 255, 0.3)"
+              _hover={{
+                bg: "rgba(255, 0, 0, 0.5)",
+                transform: "scale(1.1)",
+              }}
+              onClick={(e) => {
+                console.log('🎵 Close button clicked!');
+                e.stopPropagation();
+                e.preventDefault();
+                handleMusicPlayerClose();
+              }}
+              onTouchEnd={(e) => {
+                console.log('🎵 Close button touch end!');
+                e.stopPropagation();
+                e.preventDefault();
+                handleMusicPlayerClose();
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </Box>
+          </Box>
+        </>
+      ) : null}
+      
+      {/* Hidden Music Player Component */}
+      {showMobileMusicPlayer && (
+        <Box display="none">
+          <MobileMusicPlayer
+            isVisible={true}
+            isMobile={true}
+            autoPlay={true}
+            onControlsReady={handleMusicControlsReady}
+            onPlayingStateChange={(playing) => {
+              console.log('🎵 Music state changed:', playing);
+              setIsPlaying(playing);
+              setContextIsPlaying(playing);
+            }}
+            audioRef={audioRef}
+          />
+        </Box>
+      )}
+      
     </div>
   );
 };

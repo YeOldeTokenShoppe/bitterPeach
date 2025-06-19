@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>80s Mode Toggle Debug</title>
+  <style>
+    body {
+      font-family: monospace;
+      background: #0a0a0a;
+      color: #67e8f9;
+      padding: 20px;
+      margin: 0;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    .log-entry {
+      background: rgba(13, 25, 42, 0.95);
+      border: 1px solid #0e7490;
+      padding: 10px;
+      margin: 5px 0;
+      border-radius: 5px;
+      font-size: 12px;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    .log-entry.toggle {
+      border-color: #d946ef;
+      background: rgba(217, 70, 239, 0.1);
+    }
+    .log-entry.message {
+      border-color: #22d3ee;
+      background: rgba(34, 211, 238, 0.1);
+    }
+    .log-entry.state {
+      border-color: #00ff41;
+      background: rgba(0, 255, 65, 0.1);
+    }
+    .clear-btn {
+      background: #0e7490;
+      border: none;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 10px 0;
+    }
+    .clear-btn:hover {
+      background: #0891b2;
+    }
+    .status {
+      background: rgba(13, 25, 42, 0.95);
+      border: 2px solid #0e7490;
+      padding: 15px;
+      margin: 20px 0;
+      border-radius: 8px;
+    }
+    .toggle-button {
+      background: rgba(217, 70, 239, 0.2);
+      border: 2px solid #d946ef;
+      color: #d946ef;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 10px 0;
+      font-size: 16px;
+    }
+    .toggle-button:hover {
+      background: rgba(217, 70, 239, 0.3);
+    }
+    .toggle-button.off {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: #6b7280;
+      color: #6b7280;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>80s Mode Toggle Debug</h1>
+    
+    <div class="status">
+      <h3>Current State</h3>
+      <p>80s Mode: <span id="current-state">false</span></p>
+      <p>Toggle Count: <span id="toggle-count">0</span></p>
+      <p>Last Toggle Source: <span id="last-source">none</span></p>
+      <p>Music Player Visible: <span id="music-player-visible">false</span></p>
+    </div>
+    
+    <button class="toggle-button" id="test-toggle" onclick="testToggle()">
+      Toggle 80s Mode
+    </button>
+    
+    <button class="clear-btn" onclick="clearLogs()">Clear Logs</button>
+    
+    <div id="log-container"></div>
+  </div>
+
+  <script>
+    let is80sMode = false;
+    let toggleCount = 0;
+    let logs = [];
+    
+    // Override console.log to capture logs
+    const originalLog = console.log;
+    console.log = function(...args) {
+      originalLog.apply(console, args);
+      const message = args.map(arg => 
+        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+      ).join(' ');
+      
+      if (message.includes('80s') || message.includes('toggle') || message.includes('music') || message.includes('mode')) {
+        addLog(message, 'log');
+      }
+    };
+    
+    function addLog(message, type = 'log') {
+      const timestamp = new Date().toLocaleTimeString('en-US', { 
+        hour12: false, 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        second: '2-digit',
+        fractionalSecondDigits: 3 
+      });
+      
+      logs.push({ timestamp, message, type });
+      
+      const container = document.getElementById('log-container');
+      const entry = document.createElement('div');
+      entry.className = `log-entry ${type}`;
+      entry.textContent = `[${timestamp}] ${message}`;
+      container.insertBefore(entry, container.firstChild);
+      
+      // Keep only last 50 logs
+      if (container.children.length > 50) {
+        container.removeChild(container.lastChild);
+      }
+    }
+    
+    function updateStatus() {
+      document.getElementById('current-state').textContent = is80sMode;
+      document.getElementById('toggle-count').textContent = toggleCount;
+      document.getElementById('test-toggle').className = `toggle-button ${is80sMode ? '' : 'off'}`;
+      document.getElementById('test-toggle').textContent = is80sMode ? '80s Mode ON' : '80s Mode OFF';
+    }
+    
+    function testToggle() {
+      addLog('Manual toggle button clicked', 'toggle');
+      toggle80sMode('manual-button');
+    }
+    
+    function toggle80sMode(source = 'unknown') {
+      const prevState = is80sMode;
+      is80sMode = !is80sMode;
+      toggleCount++;
+      
+      addLog(`Toggle called from: ${source}`, 'toggle');
+      addLog(`State changed: ${prevState} → ${is80sMode}`, 'state');
+      
+      document.getElementById('last-source').textContent = source;
+      updateStatus();
+      
+      // Simulate parent component behavior
+      if (window.parent !== window) {
+        window.parent.postMessage({
+          type: 'EIGHTIES_MODE_CHANGE',
+          enabled: is80sMode,
+          source: 'test-page'
+        }, '*');
+      }
+    }
+    
+    function clearLogs() {
+      logs = [];
+      document.getElementById('log-container').innerHTML = '';
+      toggleCount = 0;
+      updateStatus();
+    }
+    
+    // Listen for messages
+    window.addEventListener('message', (event) => {
+      if (event.data && event.data.type) {
+        addLog(`Message received: ${event.data.type}`, 'message');
+        
+        switch (event.data.type) {
+          case 'EIGHTIES_MODE_CHANGE':
+            addLog('EIGHTIES_MODE_CHANGE message handler triggered', 'message');
+            // Don't auto-toggle here to avoid loops
+            break;
+            
+          case 'SYNC_80S_STATE':
+            addLog(`SYNC_80S_STATE: enabled=${event.data.enabled}`, 'message');
+            is80sMode = event.data.enabled;
+            updateStatus();
+            break;
+            
+          case 'MUSIC_MODE_CHANGE':
+            addLog(`MUSIC_MODE_CHANGE: enable80s=${event.data.enable80s}`, 'message');
+            if (event.data.enable80s !== is80sMode) {
+              toggle80sMode('music-mode-change');
+            }
+            break;
+        }
+      }
+    });
+    
+    // Simulate the actual toggle button behavior
+    document.addEventListener('DOMContentLoaded', () => {
+      updateStatus();
+      addLog('Debug page loaded', 'state');
+      
+      // Simulate mobile music player visibility
+      setInterval(() => {
+        const musicPlayerVisible = Math.random() > 0.7;
+        document.getElementById('music-player-visible').textContent = musicPlayerVisible;
+      }, 5000);
+    });
+  </script>
+</body>
+</html>

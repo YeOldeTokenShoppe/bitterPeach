@@ -171,6 +171,7 @@ const MobileSidePanel = ({
   const [connectionPhase, setConnectionPhase] = useState(0);
   const [isMuted, setIsMuted] = useState(true);
   const [showVaporwaveVideo, setShowVaporwaveVideo] = useState(false);
+  const [isTogglingMode, setIsTogglingMode] = useState(false);
   const [showUnmuteOverlay, setShowUnmuteOverlay] = useState(false);
   const microphoneStreamRef = useRef(null);
   const messageQueueRef = useRef([]);
@@ -289,14 +290,12 @@ const MobileSidePanel = ({
   const openSettings = () => setIsSettingsOpen(true);
   const closeSettings = () => setIsSettingsOpen(false);
 
-  // Music player handlers
+  // Music player handlers - only called when user selects a mode from music player UI
   const handleMusicModeChange = (enable80s) => {
-
-    if (enable80s && !is80sMode) {
-
-      toggle80sMode();
-    } else if (!enable80s && is80sMode) {
-
+    console.log('🎵 Music player mode selection:', enable80s, 'current is80sMode:', is80sMode);
+    
+    if (enable80s !== is80sMode) {
+      console.log('🎵 User selected different mode from music player');
       toggle80sMode();
     }
   };
@@ -357,22 +356,11 @@ const MobileSidePanel = ({
     window.postMessage({ type: 'FORCE_STOP_MUSIC' }, '*');
   };
 
-  // Auto-show music player when 80s mode is activated
+  // Effect to sync 80s mode state without affecting music player visibility
   useEffect(() => {
-    if (is80sMode) {
-      setUserClosedMusic(false); // Reset the closed flag when 80s mode is activated
-      setShowMobileMusicPlayer(true);
-      setMusicPlayerVisible(true);
-      setShowMusicChoice(false); // Ensure autoPlay will be true
-      if (setShowSpotify && typeof setShowSpotify === 'function') {
-        setShowSpotify(false); // Ensure MusicPlayer2 is off
-      }
-      // Update context to show music is active
-      setContextShowSpotify(true);
-    } else {
-      setShowMobileMusicPlayer(false);
-      setMusicPlayerVisible(false);
-    }
+    console.log('🎵 80s mode changed to:', is80sMode);
+    // Don't automatically show/hide music player
+    // The mode just changes what music plays, not whether music is playing
   }, [is80sMode]);
 
   // Handler for returning to Earth from lunar scene
@@ -782,7 +770,14 @@ const MobileSidePanel = ({
 
           // ... other cases like SITEPAL_*, EIGHTIES_MODE_CHANGE, MUSIC_TOGGLE ...
           case "EIGHTIES_MODE_CHANGE":
-            toggle80sMode(); // Call the function from gallery.js
+            console.log('🎵 EIGHTIES_MODE_CHANGE message received');
+            // Only toggle if the message includes a specific state change
+            if (typeof event.data.enabled === 'boolean' && event.data.enabled !== is80sMode) {
+              console.log('🎵 Message indicates state change needed:', event.data.enabled);
+              toggle80sMode(); // Call the function from gallery.js
+            } else {
+              console.log('🎵 Ignoring EIGHTIES_MODE_CHANGE - no state change needed');
+            }
             break;
           case "MUSIC_TOGGLE":
             // Ignore music toggle messages when in lunar scene to prevent interference
@@ -837,11 +832,9 @@ const MobileSidePanel = ({
 
           // Handle 80s mode sync for PostProcessingEffects
           case "SYNC_80S_STATE":
-      
-            // Update the 80s mode state to match the iframe state
-            if (event.data.enabled !== is80sMode) {
-              toggle80sMode();
-            }
+            // Only log for debugging, don't auto-sync to prevent loops
+            console.log('🎵 Received SYNC_80S_STATE:', event.data.enabled, 'current:', is80sMode);
+            // Don't automatically toggle - let user control the state
             break;
 
           case "SITEPAL_SCENE_LOADED":
@@ -2464,6 +2457,63 @@ const MobileSidePanel = ({
 
   return (
     <>
+      {/* 80s Mode Video Background - Only visible when 80s mode is active */}
+      {is80sMode && activeScene !== 'moon' && (
+        <Box
+          position="fixed"
+          top="0"
+          left="0"
+          width="100%"
+          height="100%"
+          zIndex="-1"
+          overflow="hidden"
+          pointerEvents="none"
+        >
+          <video
+            autoPlay
+            loop
+            muted
+            playsInline
+            preload="auto"
+            style={{
+              position: "absolute",
+              top: "50%",
+              left: "50%",
+              minWidth: "100%",
+              minHeight: "100%",
+              width: "auto",
+              height: "auto",
+              transform: "translate(-50%, -50%)",
+              objectFit: "cover",
+              opacity: 0.25,
+              filter: "saturate(2) hue-rotate(15deg) brightness(0.8)",
+            }}
+            onError={(e) => {
+              console.error("Video failed to load:", e);
+              // Try fallback video if main video fails
+              e.target.src = "/vaporwave-sunset.mp4";
+            }}
+          >
+            <source src="/83.mov" type="video/quicktime" />
+            <source src="/83.mov" type="video/mp4" />
+            {/* Fallback to vaporwave video if .mov doesn't work */}
+            <source src="/vaporwave-sunset.mp4" type="video/mp4" />
+          </video>
+          
+          {/* Overlay gradient to ensure UI visibility */}
+          <Box
+            position="absolute"
+            top="0"
+            left="0"
+            width="100%"
+            height="100%"
+            bg="linear-gradient(180deg, rgba(139, 0, 139, 0.2) 0%, rgba(75, 0, 130, 0.3) 50%, rgba(139, 0, 139, 0.4) 100%)"
+            mixBlendMode="overlay"
+            zIndex="-1"
+          />
+        </Box>
+      )}
+      
       {/* Top Corner Buttons */}
       {/* Music Player - Top Right Above 80s Mode Toggle */}
       {!showMobileMusicPlayer ? (
@@ -2531,15 +2581,12 @@ const MobileSidePanel = ({
             }}
             onTouchStart={(e) => {
               e.stopPropagation();
-              e.preventDefault();
             }}
             onTouchEnd={(e) => {
               e.stopPropagation();
-              e.preventDefault();
             }}
             onTouchMove={(e) => {
               e.stopPropagation();
-              e.preventDefault();
             }}
           />
           
@@ -2664,7 +2711,7 @@ const MobileSidePanel = ({
           position="fixed"
           top="70px"
           right="20px"
-          zIndex="1100"
+          zIndex="10000"
           display="flex"
           alignItems="center"
           gap="8px"
@@ -2689,8 +2736,10 @@ const MobileSidePanel = ({
           border={is80sMode ? "1px solid #d946ef" : "1px solid rgba(255, 255, 255, 0.3)"}
           cursor="pointer"
           transition="all 0.3s ease"
-          onClick={() => {
-   
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('🎵 80s Mode Toggle clicked, current state:', is80sMode);
             toggle80sMode();
           }}
           _hover={{
@@ -2802,16 +2851,16 @@ const MobileSidePanel = ({
           return activeScene === 'gallery' ? (
           <>
             {/* Gallery Scene Buttons */}
-            {/* SPARKLES Button (Left Side) - Placeholder */}
+            {/* HAND COINS Button (Left Side) - Placeholder */}
             <IconButton
-          aria-label="Sparkles"
+          aria-label="Hand Coins"
           icon={
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-sparkles-icon lucide-sparkles">
-              <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/>
-              <path d="M20 3v4"/>
-              <path d="M22 5h-4"/>
-              <path d="M4 17v2"/>
-              <path d="M5 18H3"/>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-hand-coins-icon lucide-hand-coins">
+              <path d="M11 15h2a2 2 0 1 0 0-4h-3c-.6 0-1.1.2-1.4.6L3 17"/>
+              <path d="m7 21 1.6-1.4c.3-.4.8-.6 1.4-.6h4c1.1 0 2.1-.4 2.8-1.2l4.6-4.4a2 2 0 0 0-2.75-2.91l-4.2 3.9"/>
+              <path d="m2 16 6 6"/>
+              <circle cx="16" cy="9" r="2.9"/>
+              <circle cx="6" cy="5" r="3"/>
             </svg>
           }
           color={is80sMode ? "#ff00ff" : "#67e8f9"}
@@ -2831,48 +2880,30 @@ const MobileSidePanel = ({
           size="lg"
         />
         
-        {/* ROCKET MODEL Button (Left-Mid Side) - Simple Toggle */}
+        {/* FLAME Button (Left-Mid Side) - Placeholder */}
         <IconButton
-          aria-label={rocketModelVisible ? "Hide Rocket" : "Show Rocket"}
+          aria-label="Flame"
           icon={
-            // Always show rocket icon
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/>
-              <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/>
-              <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/>
-              <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-flame-icon lucide-flame">
+              <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>
             </svg>
           }
-          color={rocketModelVisible ? "#39ff14" : (is80sMode ? "#00ffff" : "#67e8f9")}
-          bg={rocketModelVisible ? 
-            (is80sMode ? "rgba(57, 255, 20, 0.25)" : "rgba(57, 255, 20, 0.15)") : 
-            (is80sMode ? "rgba(0, 255, 255, 0.2)" : "rgba(13, 25, 42, 0.95)")
-          }
+          color={is80sMode ? "#ff00ff" : "#67e8f9"}
+          bg={is80sMode ? "rgba(139, 0, 139, 0.3)" : "rgba(13, 25, 42, 0.95)"}
           borderRadius="full"
-          boxShadow={rocketModelVisible ? 
-            (is80sMode ? 
-              "0 0 20px rgba(57, 255, 20, 0.6), 0 0 30px rgba(255, 0, 255, 0.3)" :
-              "0 0 15px rgba(57, 255, 20, 0.4), inset 0 0 8px rgba(57, 255, 20, 0.2)"
-            ) :
-            (is80sMode ? 
-              "0 0 15px rgba(0, 255, 255, 0.5), inset 0 0 8px rgba(255, 0, 255, 0.2)" :
-              "0 0 10px rgba(6, 182, 212, 0.3), inset 0 0 6px rgba(6, 182, 212, 0.2)"
-            )
+          boxShadow={is80sMode ? 
+            "0 0 10px rgba(255, 0, 255, 0.4), inset 0 0 6px rgba(0, 255, 255, 0.2)" :
+            "0 0 10px rgba(6, 182, 212, 0.3), inset 0 0 6px rgba(6, 182, 212, 0.2)"
           }
-          border={rocketModelVisible ? "#39ff14" : (is80sMode ? "1px solid #00ffff" : "1px solid #0e7490")}
+          border={is80sMode ? "1px solid #ff00ff" : "1px solid #0e7490"}
+          isDisabled={true}
+          opacity={0.6}
+          cursor="not-allowed"
           onClick={() => {
-            // Simple toggle
-         
-            handleRocketModelToggle();
+            // No action yet - placeholder
           }}
           _hover={{
-            bg: rocketModelVisible ? 
-              (is80sMode ? "rgba(57, 255, 20, 0.35)" : "rgba(57, 255, 20, 0.25)") :
-              (is80sMode ? "rgba(0, 255, 255, 0.3)" : "rgba(19, 36, 63, 0.95)"),
-            transform: "scale(1.08)",
-            boxShadow: rocketModelVisible ?
-              (is80sMode ? "0 0 25px rgba(57, 255, 20, 0.8)" : "0 0 20px rgba(57, 255, 20, 0.6)") :
-              (is80sMode ? "0 0 20px rgba(0, 255, 255, 0.7)" : "0 0 15px rgba(6, 182, 212, 0.5)"),
+            // No hover effect since it's disabled
           }}
           size="lg"
         />
@@ -3290,20 +3321,14 @@ const MobileSidePanel = ({
           </Box>
         )}
         
-        {/* FLAME Button (Right-Mid Side) - Inactive */}
+        {/* DROPLETS Button (Right-Mid Side) - Inactive */}
         <IconButton
-          aria-label="Flame (Inactive)"
+          aria-label="Droplets"
           icon={
-            <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24
-            24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-            stroke-linejoin="round">
-             <path d="M9 5v4"/>
-             <rect width="4" height="6" x="7" y="9" rx="1"/>
-             <path d="M9 15v2"/>
-             <path d="M17 3v2"/>
-             <rect width="4" height="8" x="15" y="5" rx="1"/>
-             <path d="M17 13v3"/>
-           </svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-droplets-icon lucide-droplets">
+              <path d="M7 16.3c2.2 0 4-1.83 4-4.05 0-1.16-.57-2.26-1.71-3.19S7.29 6.75 7 5.3c-.29 1.45-1.14 2.84-2.29 3.76S3 11.1 3 12.25c0 2.22 1.8 4.05 4 4.05z"/>
+              <path d="M12.56 6.6A10.97 10.97 0 0 0 14 3.02c.5 2.5 2 4.9 4 6.5s3 3.5 3 5.5a6.98 6.98 0 0 1-11.91 4.97"/>
+            </svg>
           }
           color={is80sMode ? "#ff66ff" : "#64748b"}
           bg={is80sMode ? "rgba(139, 0, 139, 0.2)" : "rgba(13, 25, 42, 0.5)"}
@@ -3326,14 +3351,13 @@ const MobileSidePanel = ({
           size="lg"
         />
         
-        {/* EXIT Button (Right Side) */}
+        {/* SCROLL Button (Right Side) */}
         <IconButton
-          aria-label="Exit to Home"
+          aria-label="Scroll"
           icon={
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="m16 17 5-5-5-5"/>
-              <path d="M21 12H9"/>
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-scroll-icon lucide-scroll">
+              <path d="M19 17V5a2 2 0 0 0-2-2H4"/>
+              <path d="M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3"/>
             </svg>
           }
           color={is80sMode ? "#ff00ff" : "#67e8f9"}
@@ -4307,6 +4331,7 @@ const MobileSidePanel = ({
           autoPlay={!showMusicChoice}
           is80sMode={is80sMode}
           onModeChange={(newMode) => {
+            console.log('🎵 MobileMusicPlayer onModeChange called with:', newMode);
             handleMusicModeChange(newMode);
             setShowMusicChoice(false);
           }}

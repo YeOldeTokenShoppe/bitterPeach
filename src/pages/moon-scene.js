@@ -4,7 +4,8 @@ import { doc, getDocs, collection, query } from 'firebase/firestore'; // Removed
 import { db } from '../utilities/firebaseClient'; // Your Firebase init
 import Loader from '../components/Loader'; // Import Loader component
 import { TransitionIn } from '../components/TransitionIn'; // Import transition component
-import LunarLanding from '../components/LunarLanding';
+import dynamic from 'next/dynamic';
+import Link from 'next/link';
 // Helper to load texture (can be moved to a utils file later)
 const loadImageAsTexture = (url) => {
   return new Promise((resolve, reject) => {
@@ -32,6 +33,12 @@ const loadImageAsTexture = (url) => {
   });
 };
 
+// Dynamically import LunarLanding with no SSR
+const LunarLanding = dynamic(() => import('../components/LunarLanding'), {
+  ssr: false,
+  loading: () => <div>Loading...</div>
+});
+
 export default function MoonScenePage() {
   console.log("🌙 MoonScenePage: Component rendering");
   
@@ -50,10 +57,12 @@ export default function MoonScenePage() {
   
   // Log any navigation data
   useEffect(() => {
-    console.log("🌙 MoonScenePage: Checking navigation data");
-    const launchData = sessionStorage.getItem('rocketLaunchTransition');
-    if (launchData) {
-      console.log("🌙 MoonScenePage: Found launch data:", JSON.parse(launchData));
+    if (typeof window !== 'undefined') {
+      console.log("🌙 MoonScenePage: Checking navigation data");
+      const launchData = sessionStorage.getItem('rocketLaunchTransition');
+      if (launchData) {
+        console.log("🌙 MoonScenePage: Found launch data:", JSON.parse(launchData));
+      }
     }
   }, []);
 
@@ -321,7 +330,7 @@ export default function MoonScenePage() {
           zIndex: 100, // Ensure it's above the scene if opaque
           borderRadius: "8px",
           padding: "10px",
-          pointerEvents: "none"
+          pointerEvents: "auto"
         }}>
           <div 
             id="text"
@@ -330,11 +339,13 @@ export default function MoonScenePage() {
               fontFamily: "'UnifrakturMaguntia', cursive",
               fontSize: isMobileView ? "3rem" : "4rem",
               color: "#ffffff",
+              cursor: "pointer"
             }}
           >
-            
-            RL80
-            {Array.from({length: 100}).map((_, i) => {
+            <Link href="/home" style={{ textDecoration: 'none', color: 'inherit', display: 'inline-block' }}>
+              RL80
+            </Link>
+            {typeof window !== 'undefined' && Array.from({length: 100}).map((_, i) => {
               const index = i + 1;
               return (
                 <div
@@ -361,7 +372,6 @@ export default function MoonScenePage() {
             })}
           </div>
         </div>
-        
         {/* Conditionally render MoonSceneComponent only when data is fetched to avoid issues with empty textures? 
             Or let MoonSceneComponent handle empty textures gracefully.
             Assuming MoonSceneComponent can handle it or updates when textures arrive.

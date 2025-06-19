@@ -13,41 +13,7 @@ import DashboardHolograph from './3DVotiveStand/DashboardHolograph';
 // Create a context for music control
 const MusicContext = React.createContext(null);
 
-// Specialized post-processing effects for sunset/sunrise visuals
-function SunriseSunsetEffects() {
-  const { scene } = useThree();
-  const composerRef = useRef();
-  const timeRef = useRef(0);
-
-  // Increase time for animated effects
-  useFrame((state, delta) => {
-    timeRef.current += delta;
-  });
-
-  return (
-    <EffectComposer ref={composerRef}>
-      {/* Specialized bloom with settings for sunset segments */}
-      <Bloom 
-        intensity={7}            // Increased intensity for the darker colors to still pop
-        luminanceThreshold={0.05}   // Lower threshold to catch the darker amber tones
-        luminanceSmoothing={0.4}    // Slightly reduced smoothing for more definition between bands
-        height={512}                // Keep high resolution
-        width={512}
-        mipmapBlur={true}
-        blendFunction={BlendFunction.SCREEN}
-        radius={2.5}
-      />
-      
-      {/* Stronger vignette for a moodier atmosphere */}
-      <Vignette 
-        eskil={false} 
-        offset={0.15} 
-        darkness={0.55}
-        blendFunction={BlendFunction.NORMAL}
-      />
-    </EffectComposer>
-  );
-}
+// Specialized post-processing effects for sunset/sunrise visual
 
 // Synthwave Marker Component
 function SynthwaveMarker({ position = [0, 0.7, 0.2], onClick }) {
@@ -233,7 +199,7 @@ function SynthwaveMarker({ position = [0, 0.7, 0.2], onClick }) {
 }
 
 // Preload the model
-useGLTF.preload('/lamboScene.glb');
+useGLTF.preload('/lamboScene4.glb');
 
 // Define the target position as a constant so it's available everywhere
 // const TARGET_POSITION = new THREE.Vector3(0.0216, 0.5077, 0.3390);
@@ -277,7 +243,7 @@ function CameraDataProvider({ children }) {
 // Simple model component without target finding
 function DeLoreanModel() {
   // Force reloading the model when component mounts to reset its state
-  const { scene, animations } = useGLTF('/lamboScene.glb', true); // true enables refresh
+  const { scene, animations } = useGLTF('/lamboScene4.glb', true); // true enables refresh
   const [isStatueLoaded, setIsStatueLoaded] = useState(false);
   const modelRef = useRef();
   const [headTargetInfo, setHeadTargetInfo] = useState(null);
@@ -1053,55 +1019,55 @@ function DeLoreanModel() {
 }
 
 // Camera target helper - visual indicator of where camera is looking
-function CameraTarget() {
-  return (
-    <mesh position={[TARGET_POSITION.x, TARGET_POSITION.y, TARGET_POSITION.z]} visible={true}>
-      <sphereGeometry args={[0.01, 16, 16]} />
-      <meshBasicMaterial color="red" transparent opacity={0.6} />
-    </mesh>
-  );
-}
+// function CameraTarget() {
+//   return (
+//     <mesh position={[TARGET_POSITION.x, TARGET_POSITION.y, TARGET_POSITION.z]} visible={true}>
+//       <sphereGeometry args={[0.01, 16, 16]} />
+//       <meshBasicMaterial color="red" transparent opacity={0.6} />
+//     </mesh>
+//   );
+// }
 
-// Camera position helper - visual indicator of camera position 
-function CameraHelper() {
-  const cameraPos = useRef(new THREE.Vector3());
+// // Camera position helper - visual indicator of camera position 
+// function CameraHelper() {
+//   const cameraPos = useRef(new THREE.Vector3());
   
-  useFrame(() => {
-    if (window.camera) {
-      cameraPos.current.copy(window.camera.position);
-    }
-  });
+//   useFrame(() => {
+//     if (window.camera) {
+//       cameraPos.current.copy(window.camera.position);
+//     }
+//   });
   
-  return null;
-}
+//   return null;
+// }
 
-// Line connecting camera to target - to help visualize where camera is looking
-function LookAtHelper() {
-  const lineRef = useRef();
-  const cameraPos = useRef(new THREE.Vector3());
+// // Line connecting camera to target - to help visualize where camera is looking
+// function LookAtHelper() {
+//   const lineRef = useRef();
+//   const cameraPos = useRef(new THREE.Vector3());
   
-  useFrame(() => {
-    if (window.camera && lineRef.current) {
-      cameraPos.current.copy(window.camera.position);
+//   useFrame(() => {
+//     if (window.camera && lineRef.current) {
+//       cameraPos.current.copy(window.camera.position);
       
-      // Update line geometry to connect camera and target
-      const points = [
-        cameraPos.current,
-        TARGET_POSITION
-      ];
+//       // Update line geometry to connect camera and target
+//       const points = [
+//         cameraPos.current,
+//         TARGET_POSITION
+//       ];
       
-      lineRef.current.geometry.setFromPoints(points);
-      lineRef.current.geometry.verticesNeedUpdate = true;
-    }
-  });
+//       lineRef.current.geometry.setFromPoints(points);
+//       lineRef.current.geometry.verticesNeedUpdate = true;
+//     }
+//   });
   
-  return (
-    <line ref={lineRef}>
-      <bufferGeometry />
-      <lineBasicMaterial color="yellow" opacity={0.5} transparent />
-    </line>
-  );
-}
+//   return (
+//     <line ref={lineRef}>
+//       <bufferGeometry />
+//       <lineBasicMaterial color="yellow" opacity={0.5} transparent />
+//     </line>
+//   );
+// }
 
 // Simplified Point Light Helper
 // function PointLightHelper({ position, color, intensity }) {
@@ -1575,26 +1541,26 @@ function HemisphereLightVisualizer({ position, intensity, skyColor, groundColor 
 }
 
 // Sun glow helper
-function SunGlowVisualizer({ position, rotation, size, color, opacity }) {
-  return (
-    <>
-      <mesh position={position} rotation={rotation}>
-        <planeGeometry args={[size[0], size[1]]} />
-        <meshBasicMaterial 
-          side={THREE.DoubleSide}
-          transparent={true}
-          opacity={opacity}
-          color={color}
-        />
-        {/* Add wireframe outline to help visualize the glow plane */}
-        <lineSegments>
-          <edgesGeometry attach="geometry" args={[new THREE.PlaneGeometry(size[0], size[1])]} />
-          <lineBasicMaterial color="#5485b6" transparent opacity={0.4} />
-        </lineSegments>
-      </mesh>
-    </>
-  );
-}
+// function SunGlowVisualizer({ position, rotation, size, color, opacity }) {
+//   return (
+//     <>
+//       <mesh position={position} rotation={rotation}>
+//         <planeGeometry args={[size[0], size[1]]} />
+//         <meshBasicMaterial 
+//           side={THREE.DoubleSide}
+//           transparent={true}
+//           opacity={opacity}
+//           color={color}
+//         />
+//         {/* Add wireframe outline to help visualize the glow plane */}
+//         <lineSegments>
+//           <edgesGeometry attach="geometry" args={[new THREE.PlaneGeometry(size[0], size[1])]} />
+//           <lineBasicMaterial color="#5485b6" transparent opacity={0.4} />
+//         </lineSegments>
+//       </mesh>
+//     </>
+//   );
+// }
 
 function Synthwave() {
   const [controlsEnabled, setControlsEnabled] = useState(true);
@@ -2220,7 +2186,7 @@ function Synthwave() {
       </button> */}
       
       {/* Camera GUI outside of Canvas - guaranteed to be visible */}
-      {showCameraGUI && (
+      {/* {showCameraGUI && (
         <div style={{
           position: 'absolute',
           top: '180px',
@@ -2239,7 +2205,7 @@ function Synthwave() {
           <div><b>FOV:</b> {externalCamData.fov}</div>
           <div><b>Target:</b> x:{TARGET_POSITION.x.toFixed(4)} y:{TARGET_POSITION.y.toFixed(4)} z:{TARGET_POSITION.z.toFixed(4)}</div>
         </div>
-      )}
+      )} */}
       
       {/* Light position controls */}
       {showLightHelper && (

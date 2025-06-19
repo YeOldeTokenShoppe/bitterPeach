@@ -15,7 +15,7 @@ import { ConvexGeometry } from 'three/examples/jsm/geometries/ConvexGeometry.js'
 import ScrollDetailViewer from './ScrollDetailViewer';
 
 const MoonScene = forwardRef(
-  ({ modelRef, modelAnimations, modelCenter, onControlsCreated, onSpawnReady, rocketModelVisible, onOpenScrollDetail, scrollMessage, isMobileView }, ref) => {
+  ({ modelRef, modelAnimations, modelCenter, onControlsCreated, onSpawnReady, rocketModelVisible, onOpenScrollDetail, scrollMessage, isMobileView, isMoonShotsEnabled }, ref) => {
     const { scene, camera, gl } = useThree();
     const controlsRef = useRef();
     const moonsRef = useRef([]);
@@ -1236,39 +1236,6 @@ const MoonScene = forwardRef(
       }
     };
 
-    const handleClick = event => {
-      const currentTime = performance.now();
-      const timeSinceLastClick = currentTime - lastClickTime.current;
-
-      lastClickTime.current = currentTime;
-
-      if (timeSinceLastClick <= doubleClickDelay) {
-        if (!physicsRef.current.world) return;
-
-        const mouse = new THREE.Vector2(
-          (event.clientX / window.innerWidth) * 2 - 1,
-          -(event.clientY / window.innerHeight) * 2 + 1
-        );
-
-        const raycaster = new THREE.Raycaster();
-        raycaster.setFromCamera(mouse, camera);
-
-        const direction = raycaster.ray.direction.clone().normalize();
-
-        // Compute a horizontal offset towards the screen center
-        // const horizontalCenterBias = mouse.x * -2; // bias inward horizontally
-        // const inwardOffset = new THREE.Vector3(horizontalCenterBias, 0, 0);
-
-        // Create adjusted origin slightly forward and upward, and inward horizontally
-        const adjustedOrigin = camera.position
-          .clone()
-          .add(direction.clone().multiplyScalar(35))
-          .add(new THREE.Vector3(0, -1, -5));
-
-        shootProjectile(adjustedOrigin, direction);
-      }
-    };
-
     const lastClickTime = useRef(0);
     const doubleClickDelay = 300; // milliseconds, adjust as needed (~300ms is typical)
 
@@ -1287,7 +1254,8 @@ const MoonScene = forwardRef(
         // Remove scroll interaction - Exclamation is only visual now, not clickable
 
         // If scroll not clicked, proceed with double-click to shoot logic (skip on mobile)
-        if (!isMobileView) {
+        // Only allow shooting if isMoonShotsEnabled is true
+        if (!isMobileView && isMoonShotsEnabled) {
           const currentTime = performance.now();
           const timeSinceLastClick = currentTime - lastClickTime.current;
 
@@ -1308,8 +1276,8 @@ const MoonScene = forwardRef(
       gl.domElement.addEventListener("pointerdown", handlePointerDown);
       return () => gl.domElement.removeEventListener("pointerdown", handlePointerDown);
       // Dependencies: camera, doubleClickDelay, shootProjectile, and refs used for scroll clicking condition
-      // Also add onOpenScrollDetail and isMobileView to dependencies
-    }, [camera, doubleClickDelay, shootProjectile, exclamationObjectRef, onOpenScrollDetail, isMobileView, gl.domElement]); 
+      // Also add onOpenScrollDetail, isMobileView, and isMoonShotsEnabled to dependencies
+    }, [camera, doubleClickDelay, shootProjectile, exclamationObjectRef, onOpenScrollDetail, isMobileView, isMoonShotsEnabled, gl.domElement]); 
 
     // Initialize scene and physics (but don't spawn moons yet)
     useEffect(() => {

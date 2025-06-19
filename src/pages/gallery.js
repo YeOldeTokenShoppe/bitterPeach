@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 // import Loader from "../components/Loader";
-import Magic8BallLoader from "../components/Magic8BallLoader";
+// import Magic8BallLoader from "../components/Magic8BallLoader";
+import CoinLoader from "../components/CoinLoader";
 import { useUser } from "@clerk/nextjs";
 import { useMusic } from "../contexts/MusicContext";
 
@@ -20,7 +21,7 @@ import { useMusic } from "../contexts/MusicContext";
 
 const BurnGalleryClient = dynamic(() => import("../components/BurnGallery"), {
   ssr: false,
-  loading: () => <Magic8BallLoader />,
+  loading: () => <CoinLoader size="large" showText={false} withSparkle={true} />,
 });
 
 export default function GalleryPage() {
@@ -28,6 +29,7 @@ export default function GalleryPage() {
   const { showSpotify, setShowSpotify } = useMusic(); // Use context for music state
   const musicPlayerRef = useRef(null);
   const isTogglingRef = useRef(false); // Prevent multiple rapid toggles
+  const isToggling80sRef = useRef(false); // Track 80s mode toggle state
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [is80sMode, setIs80sMode] = useState(false);
@@ -210,17 +212,26 @@ export default function GalleryPage() {
 
   // Modify toggle80sMode to respect mobile view
   const toggle80sMode = useCallback(() => {
-    console.log("🎨 Gallery: toggle80sMode called, current:", is80sMode);
-    const newMode = !is80sMode;
-    setIs80sMode(newMode);
-
-    // When turning ON 80s mode, automatically show and play music ONLY for desktop
-    if (newMode && !showSpotify && !isMobileView) {
-   
+    if (isToggling80sRef.current) {
+      console.log("🎨 Gallery: Ignoring toggle - already in progress");
+      return;
     }
-    // When turning OFF 80s mode, preserve the existing music state
-    // (showSpotify state is maintained separately)
-  }, [is80sMode, showSpotify, isMobileView, handleMusicToggle]);
+    
+    isToggling80sRef.current = true;
+    console.log("🎨 Gallery: toggle80sMode called, current:", is80sMode);
+    
+    setIs80sMode(prev => {
+      const newMode = !prev;
+      console.log("🎨 Gallery: Setting 80s mode from", prev, "to", newMode);
+      
+      // Reset toggle flag after state update
+      setTimeout(() => {
+        isToggling80sRef.current = false;
+      }, 100);
+      
+      return newMode;
+    });
+  }, []);
 
   // // Handle close for music player
   // const handleClose = () => {
@@ -336,8 +347,10 @@ export default function GalleryPage() {
           event.data.type === "EIGHTIES_MODE_CHANGE" &&
           !event.data.fromGallery
         ) {
+          console.log("🎨 Gallery: Received EIGHTIES_MODE_CHANGE from mission control");
           toggle80sMode();
         }
+        
 
         // Handle music toggle
         if (event.data.type === "MUSIC_TOGGLE") {
@@ -449,7 +462,7 @@ export default function GalleryPage() {
       }}
     >
       {/* Loader with progress */}
-      {isLoading && <Magic8BallLoader isLoading={isLoading} />}
+      {isLoading && <CoinLoader size="fullscreen" showText={false} withSparkle={true} />}
 
       {/* Main content */}
       <div className="textLight" id="textLight" style={{

@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Astronaut Texture Test</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #1e1b4b;
+            color: #e0e7ff;
+        }
+        #container {
+            display: flex;
+            height: 100vh;
+        }
+        #canvas-container {
+            flex: 1;
+            position: relative;
+        }
+        #controls {
+            width: 300px;
+            padding: 20px;
+            background-color: rgba(49, 46, 129, 0.9);
+            overflow-y: auto;
+        }
+        .control-group {
+            margin-bottom: 20px;
+            padding: 10px;
+            background-color: rgba(99, 102, 241, 0.2);
+            border-radius: 8px;
+            border: 1px solid rgba(99, 102, 241, 0.5);
+        }
+        button {
+            background-color: rgba(99, 102, 241, 0.5);
+            color: #e0e7ff;
+            border: 1px solid #6366f1;
+            padding: 8px 16px;
+            margin: 5px;
+            cursor: pointer;
+            border-radius: 4px;
+            width: 100%;
+        }
+        button:hover {
+            background-color: rgba(99, 102, 241, 0.7);
+        }
+        #status {
+            font-size: 14px;
+            padding: 10px;
+            background-color: rgba(30, 27, 75, 0.8);
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        #mesh-info {
+            font-size: 12px;
+            background-color: rgba(30, 27, 75, 0.8);
+            padding: 10px;
+            border-radius: 4px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="canvas-container"></div>
+        <div id="controls">
+            <h2>Astronaut Texture Test</h2>
+            
+            <div id="status">Loading Three.js...</div>
+            
+            <div class="control-group">
+                <h3>Model Selection</h3>
+                <button onclick="loadModel('/astronaut.glb')">Load Astronaut 1</button>
+                <button onclick="loadModel('/Astronaut2.glb')">Load Astronaut 2</button>
+            </div>
+            
+            <div class="control-group">
+                <h3>Texture Selection</h3>
+                <button onclick="applyTexture('/astronaut_colors/Studio_Ochi_Astronauts_Gallactic.png')">Galactic</button>
+                <button onclick="applyTexture('/astronaut_colors/Studio_Ochi_Astronauts_Origin.png')">Origin</button>
+                <button onclick="applyTexture('/astronaut_colors/Studio_Ochi_Astronauts_Spaxe.png')">Spaxe</button>
+                <button onclick="applyTexture('/astronaut_colors/Studio_Ochi_Astronauts_Generic_01.png')">Generic 1</button>
+                <button onclick="applyTexture('/astronaut_colors/Studio_Ochi_Astronauts_Generic_02.png')">Generic 2</button>
+                <button onclick="applyTexture('/astronaut_colors/Studio_Ochi_Astronauts_Generic_03.png')">Generic 3</button>
+                <button onclick="applyTexture(null)">Remove Texture</button>
+            </div>
+            
+            <div class="control-group">
+                <h3>Mesh Information</h3>
+                <div id="mesh-info">No model loaded</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import maps for ES modules -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+    
+    <script type="module">
+        import * as THREE from 'three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        
+        // Update status
+        document.getElementById('status').textContent = 'Three.js loaded! Ready to test.';
+        
+        // Global variables
+        let scene, camera, renderer, controls;
+        let currentModel = null;
+        let meshInfo = [];
+        
+        // Make functions available globally
+        window.loadModel = loadModel;
+        window.applyTexture = applyTexture;
+        
+        // Initialize scene
+        function init() {
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1e1b4b);
+            
+            // Camera
+            camera = new THREE.PerspectiveCamera(40, (window.innerWidth - 300) / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 0, 5);
+            
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth - 300, window.innerHeight);
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+            
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+            directionalLight.position.set(5, 5, 5);
+            scene.add(directionalLight);
+            
+            // Controls
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.autoRotate = true;
+            controls.autoRotateSpeed = 1;
+            
+            // Start animation loop
+            animate();
+            
+            // Handle window resize
+            window.addEventListener('resize', onWindowResize);
+        }
+        
+        function onWindowResize() {
+            camera.aspect = (window.innerWidth - 300) / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth - 300, window.innerHeight);
+        }
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        
+        // Load model
+        function loadModel(modelPath) {
+            console.log('Loading model:', modelPath);
+            document.getElementById('status').textContent = 'Loading model...';
+            
+            // Remove current model
+            if (currentModel) {
+                scene.remove(currentModel);
+                currentModel = null;
+            }
+            
+            const loader = new GLTFLoader();
+            loader.load(
+                modelPath,
+                (gltf) => {
+                    console.log('Model loaded successfully');
+                    currentModel = gltf.scene;
+                    currentModel.position.set(0, 0, 0);
+                    currentModel.rotation.set(0, -Math.PI / 2, 0);
+                    currentModel.scale.set(1.2, 1.2, 1.2);
+                    
+                    scene.add(currentModel);
+                    
+                    // Analyze meshes
+                    analyzeMeshes();
+                    
+                    document.getElementById('status').textContent = 'Model loaded! Check mesh info below.';
+                },
+                (progress) => {
+                    const percent = (progress.loaded / progress.total * 100).toFixed(0);
+                    document.getElementById('status').textContent = `Loading model... ${percent}%`;
+                },
+                (error) => {
+                    console.error('Error loading model:', error);
+                    document.getElementById('status').textContent = 'Error loading model: ' + error.message;
+                }
+            );
+        }
+        
+        // Analyze meshes in the model
+        function analyzeMeshes() {
+            meshInfo = [];
+            
+            if (!currentModel) return;
+            
+            currentModel.traverse((child) => {
+                if (child.isMesh) {
+                    const info = {
+                        name: child.name || 'Unnamed',
+                        hasUV: !!(child.geometry && child.geometry.attributes.uv),
+                        materialType: child.material ? child.material.type : 'None',
+                        vertexCount: child.geometry ? child.geometry.attributes.position.count : 0,
+                        mesh: child
+                    };
+                    meshInfo.push(info);
+                }
+            });
+            
+            // Update mesh info display
+            const infoDiv = document.getElementById('mesh-info');
+            let infoText = `Found ${meshInfo.length} meshes:\n\n`;
+            
+            meshInfo.forEach((info, index) => {
+                infoText += `${index + 1}. ${info.name}\n`;
+                infoText += `   UV: ${info.hasUV ? '✓ Yes' : '✗ No'}\n`;
+                infoText += `   Material: ${info.materialType}\n`;
+                infoText += `   Vertices: ${info.vertexCount}\n\n`;
+            });
+            
+            infoDiv.textContent = infoText;
+            
+            // Log detailed info
+            console.log('Mesh analysis:', meshInfo);
+        }
+        
+        // Apply texture to model
+        function applyTexture(texturePath) {
+            if (!currentModel) {
+                alert('Please load a model first');
+                return;
+            }
+            
+            if (!texturePath) {
+                // Remove texture
+                document.getElementById('status').textContent = 'Removing textures...';
+                currentModel.traverse((child) => {
+                    if (child.isMesh && child.userData.originalMaterial) {
+                        child.material = child.userData.originalMaterial;
+                        delete child.userData.originalMaterial;
+                    }
+                });
+                document.getElementById('status').textContent = 'Textures removed';
+                return;
+            }
+            
+            console.log('Loading texture:', texturePath);
+            document.getElementById('status').textContent = 'Loading texture...';
+            
+            const textureLoader = new THREE.TextureLoader();
+            textureLoader.load(
+                texturePath,
+                (texture) => {
+                    console.log('Texture loaded successfully');
+                    
+                    // Configure texture
+                    texture.colorSpace = THREE.SRGBColorSpace;
+                    texture.flipY = false; // Try without flipping first
+                    texture.wrapS = THREE.RepeatWrapping;
+                    texture.wrapT = THREE.RepeatWrapping;
+                    texture.needsUpdate = true;
+                    
+                    // Apply to meshes
+                    let appliedCount = 0;
+                    let skippedCount = 0;
+                    
+                    currentModel.traverse((child) => {
+                        if (child.isMesh) {
+                            const nameLower = child.name.toLowerCase();
+                            
+                            // Check if mesh has UV coordinates
+                            if (!child.geometry || !child.geometry.attributes.uv) {
+                                console.log('Skipping (no UV):', child.name);
+                                skippedCount++;
+                                return;
+                            }
+                            
+                            // Skip glass/transparent parts
+                            if (nameLower.includes('glass') || 
+                                nameLower.includes('helmet') || 
+                                nameLower.includes('visor')) {
+                                console.log('Skipping (transparent):', child.name);
+                                skippedCount++;
+                                return;
+                            }
+                            
+                            // Store original material if not already stored
+                            if (!child.userData.originalMaterial) {
+                                child.userData.originalMaterial = child.material.clone();
+                            }
+                            
+                            // Apply texture
+                            console.log('Applying texture to:', child.name);
+                            
+                            const newMaterial = new THREE.MeshStandardMaterial({
+                                map: texture,
+                                color: new THREE.Color(1, 1, 1),
+                                metalness: 0.1,
+                                roughness: 0.6,
+                                side: THREE.DoubleSide // Render both sides
+                            });
+                            
+                            child.material = newMaterial;
+                            child.material.needsUpdate = true;
+                            appliedCount++;
+                        }
+                    });
+                    
+                    const statusMsg = `Texture applied to ${appliedCount} meshes, skipped ${skippedCount}`;
+                    document.getElementById('status').textContent = statusMsg;
+                    console.log(statusMsg);
+                },
+                undefined,
+                (error) => {
+                    console.error('Error loading texture:', error);
+                    document.getElementById('status').textContent = 'Error loading texture: ' + error.message;
+                }
+            );
+        }
+        
+        // Initialize on load
+        init();
+        
+        // Load first model automatically
+        setTimeout(() => {
+            loadModel('/astronaut.glb');
+        }, 500);
+    </script>
+</body>
+</html>

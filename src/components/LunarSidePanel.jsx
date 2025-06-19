@@ -5,32 +5,18 @@ import {
   Button,
   Text,
   Icon,
-  Switch,
-  FormControl,
-  FormLabel,
-  Grid,
-  Select,
   VStack,
   HStack,
-  Divider,
 } from "@chakra-ui/react";
-import AnimatedRadioButtons from "./3DVotiveStand/CyberButtons";
-import { useRouter } from "next/router";
 import {
   useUser,
-  SignedIn,
-  SignedOut,
-  SignInButton,
-  SignOutButton,
-  UserButton,
-  useAuth,
 } from "@clerk/nextjs";
 import { useMusic } from "../contexts/MusicContext";
 // Removed MissionControlIframe import - building video display directly
-import { Canvas } from "@react-three/fiber";
-import { OrbitControls, useGLTF, Center } from "@react-three/drei";
+import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import dynamic from "next/dynamic";
+import EnhancedAstronautViewer from './EnhancedAstronautViewer';
 
 // Dynamically import the simplified music player
 const MobileMusicPlayer = dynamic(() => import("./MobileMusicPlayer"), {
@@ -38,96 +24,12 @@ const MobileMusicPlayer = dynamic(() => import("./MobileMusicPlayer"), {
   loading: () => null
 });
 
-// Integrated Astronaut Viewer Component
-function AstronautViewer({ modelPath, textureUrl, textureOffset, textureScale }) {
-  // Model component
-  function AstronautModel() {
-    const { scene } = useGLTF(modelPath);
-    const modelRef = useRef();
-    const [texture, setTexture] = useState(null);
-    
-    // Clone the scene to avoid conflicts
-    const clonedScene = React.useMemo(() => scene.clone(), [scene]);
-    
-    // Load and apply texture
-    useEffect(() => {
-      if (!textureUrl) return;
-      
-      const textureLoader = new THREE.TextureLoader();
-      textureLoader.load(textureUrl, (loadedTexture) => {
-        loadedTexture.colorSpace = THREE.SRGBColorSpace;
-        loadedTexture.center = new THREE.Vector2(0.5, 0.5);
-        loadedTexture.rotation = Math.PI;
-        loadedTexture.repeat.set(-textureScale, textureScale);
-        loadedTexture.offset.set(textureOffset.x, textureOffset.y);
-        setTexture(loadedTexture);
-      });
-      
-      return () => {
-        if (texture) {
-          texture.dispose();
-        }
-      };
-    }, [textureUrl, textureOffset, textureScale]);
-    
-    // Apply texture to helmet
-    useEffect(() => {
-      if (!clonedScene || !texture) return;
-      
-      clonedScene.traverse((child) => {
-        if (child.isMesh && child.name.toLowerCase().includes('helmet')) {
-          const newMaterial = new THREE.MeshStandardMaterial({
-            map: texture,
-            emissive: new THREE.Color(0x6366f1), // Lunar purple tint
-            emissiveIntensity: 0.3,
-            emissiveMap: texture,
-            depthWrite: true,
-            depthTest: true,
-            side: THREE.FrontSide,
-            polygonOffset: true,
-            polygonOffsetFactor: -1, // Push texture slightly forward to prevent z-fighting
-            polygonOffsetUnits: -1
-          });
-          child.material = newMaterial;
-          child.renderOrder = 1; // Ensure helmet renders after body
-        }
-      });
-    }, [clonedScene, texture]);
-    
-    return <primitive object={clonedScene} scale={1.2} rotation={[0, -Math.PI / 2, 0]} />;
-  }
-  
-  return (
-    <Canvas camera={{ position: [0, 0, 5], fov: 40 }}>
-      <ambientLight intensity={1.5} />
-      <directionalLight position={[5, 5, 5]} intensity={1} />
-      <color attach="background" args={['#1e1b4b']} />
-      <Center>
-        <AstronautModel />
-      </Center>
-      <OrbitControls 
-        enableZoom={true}
-        enablePan={false}
-        autoRotate={true}
-        autoRotateSpeed={1}
-        minPolarAngle={Math.PI / 3}
-        maxPolarAngle={Math.PI / 2}
-        zoomToCursor={true}
-      />
-    </Canvas>
-  );
-}
+// Removed inline AstronautViewer component - now using modal viewer only
 
 const LunarSidePanel = ({
-  onButtonClick,
   is80sMode,
   toggle80sMode,
-  monsterMode,
-  toggleMonsterMode,
   rocketModelVisible,
-  toggleRocketModel,
-  toggleConstellationVisibility,
-  isConstellationsVisible,
 }) => {
   // Use context for music state
   const { 
@@ -148,36 +50,31 @@ const LunarSidePanel = ({
     setMusicPlayerControls(controls);
   }, []);
   const [debounceTimer, setDebounceTimer] = useState(null);
-  const [panelWidth, setPanelWidth] = useState("320px");
-  const [mounted, setMounted] = useState(false);
-  const sitepalIframeRef = useRef(null);
-  const { isLoaded, isSignedIn, user } = useUser();
-  const router = useRouter();
+  const { user } = useUser();
 
   // Lunar-specific state
   const [selectedAstronaut, setSelectedAstronaut] = useState(null);
-  const [showCustomizer, setShowCustomizer] = useState(false);
-  const [showAstronautModal, setShowAstronautModal] = useState(false);
   const [customizedAstronaut, setCustomizedAstronaut] = useState(null);
   
   // Astronaut customization state
   const [selectedModel, setSelectedModel] = useState('astronaut1');
   const [customImageUrl, setCustomImageUrl] = useState(null);
-  const [activeTextureUrl, setActiveTextureUrl] = useState(null);
+  const [helmetTextureUrl, setHelmetTextureUrl] = useState(null); // Separate helmet texture
+  const [suitTextureUrl, setSuitTextureUrl] = useState(null); // Separate suit texture
   const [textureOffset, setTextureOffset] = useState({ x: 0, y: 0 });
   const [textureScale, setTextureScale] = useState(1);
+  const [currentTextureIndex, setCurrentTextureIndex] = useState(0);
   
   // Section expansion states - only one can be expanded at a time
   const [expandedSection, setExpandedSection] = useState('video'); // 'video', 'directory', or 'none'
-  const [isCustomizing, setIsCustomizing] = useState(false); // Track when user is actively customizing
-  const [showCustomizerControls, setShowCustomizerControls] = useState(false); // Track if customizer controls are expanded
+  const [showEnhancedViewer, setShowEnhancedViewer] = useState(false); // Track enhanced viewer modal
   
-  // Update activeTextureUrl when user data is available
+  // Update helmet texture when user data is available - only on initial load
   useEffect(() => {
-    if (user?.imageUrl && !customImageUrl) {
-      setActiveTextureUrl(user.imageUrl);
+    if (user?.imageUrl && !helmetTextureUrl) {
+      setHelmetTextureUrl(user.imageUrl);
     }
-  }, [user, customImageUrl]);
+  }, [user]); // Only depend on user to prevent resets
   
   // Mock astronaut directory data
   const astronautDirectory = [
@@ -190,11 +87,27 @@ const LunarSidePanel = ({
   
   // Astronaut model options
   const astronautModels = [
-    { id: 'astronaut1', name: 'Classic Astronaut', path: '/astronaut.glb' },
+    // { id: 'astronaut1', name: 'Classic Astronaut', path: '/astronaut.glb' },
     { id: 'astronaut2', name: 'Space Explorer', path: '/Astronaut2.glb' },
   ];
   
-  // Handle image file selection
+  // Predefined texture options from astronaut_colors folder
+  const textureOptions = [
+    { id: 'galactic', name: 'Galactic', path: '/astronaut_colors/Studio_Ochi_Astronauts_Gallactic.png' },
+    { id: 'origin', name: 'Origin', path: '/astronaut_colors/Studio_Ochi_Astronauts_Origin.png' },
+    { id: 'spaxe', name: 'Spaxe', path: '/astronaut_colors/Studio_Ochi_Astronauts_Spaxe.png' },
+    { id: 'generic1', name: 'Generic 1', path: '/astronaut_colors/Studio_Ochi_Astronauts_Generic_01.png' },
+    { id: 'generic2', name: 'Generic 2', path: '/astronaut_colors/Studio_Ochi_Astronauts_Generic_02.png' },
+    { id: 'generic3', name: 'Generic 3', path: '/astronaut_colors/Studio_Ochi_Astronauts_Generic_03.png' },
+    { id: 'people1', name: 'Pro People 1', path: '/astronaut_colors/Studio Ochi Professional People 01.png' },
+    { id: 'people2', name: 'Pro People 2', path: '/astronaut_colors/Studio Ochi Professional People 02.png' },
+    { id: 'people3', name: 'Pro People 3', path: '/astronaut_colors/Studio Ochi Professional People 03.png' },
+    { id: 'people4', name: 'Pro People 4', path: '/astronaut_colors/Studio Ochi Professional People 04.png' },
+    { id: 'people5', name: 'Pro People 5', path: '/astronaut_colors/Studio Ochi Professional People 05.png' },
+    { id: 'people6', name: 'Pro People 6', path: '/astronaut_colors/Studio Ochi Professional People 06.png' },
+  ];
+  
+  // Handle image file selection (for helmet)
   const handleImageChange = (e) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
@@ -203,15 +116,15 @@ const LunarSidePanel = ({
       reader.onload = (event) => {
         const result = event.target.result;
         setCustomImageUrl(result);
-        setActiveTextureUrl(result);
+        setHelmetTextureUrl(result); // Set helmet texture specifically
         setTextureOffset({ x: 0, y: 0 });
         setTextureScale(1);
-        setShowCustomizerControls(true); // Show controls when image is selected
       };
       
       reader.readAsDataURL(file);
     }
   };
+  
 
   // Detect touch devices
   useEffect(() => {
@@ -280,37 +193,6 @@ const LunarSidePanel = ({
     setHasUserInteracted(true);
   };
 
-  // Update panel width based on screen size
-  useEffect(() => {
-    const handleResize = () => {
-      if (typeof window !== "undefined") {
-        const isPortrait = window.innerHeight > window.innerWidth;
-
-        if (window.innerWidth <= 768) {
-          setPanelWidth("85%");
-        } else if (window.innerWidth <= 1024) {
-          setPanelWidth(isPortrait ? "50%" : "40%");
-        } else {
-          setPanelWidth(isPortrait ? "35%" : "25%");
-        }
-      }
-    };
-
-    if (typeof window !== "undefined") {
-      window.addEventListener("resize", handleResize);
-      handleResize(); // Initial call
-    }
-
-    return () => {
-      if (typeof window !== "undefined") {
-        window.removeEventListener("resize", handleResize);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   // State for video display
   const [currentVideo, setCurrentVideo] = useState(null);
@@ -402,8 +284,8 @@ const LunarSidePanel = ({
 
   return (
     <>
-      {/* Toggle button for touch devices */}
-      {isTouchDevice && !isTextBoxVisible && (
+      {/* Toggle button - always visible when panel is hidden */}
+      {!isTextBoxVisible && (
         <Button
           position="fixed"
           right="0"
@@ -775,7 +657,7 @@ const LunarSidePanel = ({
                     {astronautDirectory.filter(a => a.status === "Active").length} ACTIVE
                   </Text>
                   <HStack justify="center" spacing={1} mt={1}>
-                    {astronautDirectory.filter(a => a.status === "Active").slice(0,3).map((astronaut, i) => (
+                    {astronautDirectory.filter(a => a.status === "Active").slice(0,3).map((_, i) => (
                       <Box key={i} w="4px" h="4px" bg="#22c55e" borderRadius="50%" opacity={0.7} />
                     ))}
                   </HStack>
@@ -846,8 +728,8 @@ const LunarSidePanel = ({
             </Text>
           </Box>
           
-          <Box p={3} height="calc(100% - 40px)" display="flex" flexDirection="column"> {/* Account for header */}
-            {/* 3D Viewer - Full Width on Top */}
+          <Box p={3} height="calc(100% - 40px)" display="flex" flexDirection="column" alignItems="center" justifyContent="center"> {/* Account for header */}
+            {/* Simplified Customizer Section - Just a launch button */}
             <Box 
               bg="linear-gradient(135deg, rgba(30,27,75,0.8), rgba(49,46,129,0.6))"
               borderRadius="md"
@@ -855,281 +737,34 @@ const LunarSidePanel = ({
               position="relative"
               overflow="hidden"
               boxShadow="inset 0 0 20px rgba(0,0,0,0.5), 0 0 15px rgba(99,102,241,0.2)"
-              height={showCustomizerControls ? "60%" : "calc(100% - 80px)"} // Adjust based on controls visibility
-              mb={showCustomizerControls ? 3 : 2}
-            >
-              {/* Viewer Header */}
-              {/* <Box
-                position="absolute"
-                top="0"
-                left="0"
-                right="0"
-                height="24px"
-                bg="rgba(49,46,129,0.8)"
-                borderBottom="1px solid rgba(99,102,241,0.4)"
-                display="flex"
-                alignItems="center"
-                justifyContent="center"
-                zIndex={2}
-              >
-                <Text fontSize="xs" color="#a78bfa" fontFamily="monospace">
-                  3D ASTRONAUT PREVIEW//FULL_VIEW
-                </Text>
-              </Box> */}
-              
-              {/* 3D Viewer Content - Much Larger! */}
-              <Box position="absolute" top="0" left="0" right="0" bottom="0">
-                <AstronautViewer
-                  modelPath={astronautModels.find(m => m.id === selectedModel)?.path || '/astronaut.glb'}
-                  textureUrl={activeTextureUrl}
-                  textureOffset={textureOffset}
-                  textureScale={textureScale}
-                />
-              </Box>
-              
-              {/* Model Selector Arrows - Positioned over viewer */}
-              <HStack 
-                position="absolute" 
-                bottom="8px" 
-                left="50%" 
-                transform="translateX(-50%)"
-                spacing={2}
-                bg="rgba(30,27,75,0.8)"
-                borderRadius="md"
-                border="1px solid rgba(99,102,241,0.4)"
-                p={1}
-                backdropFilter="blur(5px)"
-              >
-                <Button
-                  size="xs"
-                  onClick={() => {
-                    const currentIndex = astronautModels.findIndex(m => m.id === selectedModel);
-                    const prevIndex = (currentIndex - 1 + astronautModels.length) % astronautModels.length;
-                    setSelectedModel(astronautModels[prevIndex].id);
-                  }}
-                  bg="rgba(99,102,241,0.3)"
-                  _hover={{ bg: "rgba(99,102,241,0.5)" }}
-                  color="#e0e7ff"
-                  minW="28px"
-                  h="20px"
-                  fontSize="sm"
-                >
-                  ←
-                </Button>
-                <Text fontSize="xs" color="#e0e7ff" minW="30px" textAlign="center" py={1}>
-                  {astronautModels.findIndex(m => m.id === selectedModel) + 1}/{astronautModels.length}
-                </Text>
-                <Button
-                  size="xs"
-                  onClick={() => {
-                    const currentIndex = astronautModels.findIndex(m => m.id === selectedModel);
-                    const nextIndex = (currentIndex + 1) % astronautModels.length;
-                    setSelectedModel(astronautModels[nextIndex].id);
-                  }}
-                  bg="rgba(99,102,241,0.3)"
-                  _hover={{ bg: "rgba(99,102,241,0.5)" }}
-                  color="#e0e7ff"
-                  minW="28px"
-                  h="20px"
-                  fontSize="sm"
-                >
-                  →
-                </Button>
-              </HStack>
-              
-              {/* Corner indicators */}
-              <Box position="absolute" top="4px" left="4px" width="8px" height="8px" bg="#6366f1" opacity={0.6} />
-              <Box position="absolute" top="4px" right="4px" width="8px" height="8px" bg="#8b5cf6" opacity={0.6} />
-              <Box position="absolute" bottom="4px" left="4px" width="8px" height="8px" bg="#a78bfa" opacity={0.6} />
-              <Box position="absolute" bottom="4px" right="4px" width="8px" height="8px" bg="#6366f1" opacity={0.6} />
-            </Box>
-            
-            {/* Controls Panel - Clean Layout */}
-            <Box 
-              bg="linear-gradient(135deg, rgba(49,46,129,0.4), rgba(30,27,75,0.6))"
-              borderRadius="md"
-              border="1px solid rgba(167,139,250,0.3)"
-              p={3}
-              height={showCustomizerControls ? "40%" : "auto"} // Expand when showing controls
-              minHeight={showCustomizerControls ? "40%" : "60px"} // Minimum height
-              maxHeight={showCustomizerControls ? "40%" : "60px"} // Constrain when collapsed
-              boxShadow="inset 0 0 10px rgba(0,0,0,0.3)"
-              overflow="hidden"
               display="flex"
               flexDirection="column"
-              justifyContent={showCustomizerControls ? "space-between" : "center"}
-              transition="all 0.3s ease"
+              alignItems="center"
+              justifyContent="center"
+              p={6}
+              width="100%"
             >
-              {/* Image Upload Button */}
+              {/* Launch Customizer Button */}
               <Button
-                as="label"
-                size="sm"
-                bg="linear-gradient(135deg, rgba(99,102,241,0.3) 0%, rgba(139,92,246,0.3) 100%)"
+                bg="rgba(99,102,241,0.2)"
                 color="#e0e7ff"
                 border="1px solid #6366f1"
-                cursor="pointer"
-                fontSize="sm"
-                h="32px"
+                size="sm"
                 w="100%"
                 _hover={{
-                  bg: "linear-gradient(135deg, rgba(99,102,241,0.5) 0%, rgba(139,92,246,0.5) 100%)"
+                  bg: "rgba(99,102,241,0.3)",
+                  borderColor: "#818cf8"
                 }}
-                leftIcon={<Text fontSize="lg">📁</Text>}
-                rightIcon={
-                  <Icon
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    transform={showCustomizerControls ? "rotate(180deg)" : "rotate(0deg)"}
-                    transition="transform 0.2s"
-                  >
-                    <path d="M6 9l6 6 6-6"/>
-                  </Icon>
-                }
-                onClick={() => {
-                  // Toggle controls visibility
-                  setShowCustomizerControls(!showCustomizerControls);
+                _active={{
+                  transform: "scale(0.98)"
                 }}
+                onClick={() => setShowEnhancedViewer(true)}
+                fontFamily="monospace"
+                fontSize="sm"
               >
-                CHANGE IMAGE
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  style={{ display: 'none' }}
-                />
+                Customize Astronaut
               </Button>
-
-              {/* Texture Adjustment Controls */}
-              {showCustomizerControls && activeTextureUrl && (
-                <VStack spacing={2} flex={1} justify="center">
-                  <Text fontSize="xs" color="#a78bfa" fontFamily="monospace" alignSelf="flex-start">
-                    TEXTURE ADJUSTMENT
-                  </Text>
-                  
-                  {/* Scale Control */}
-                  <HStack spacing={3} w="100%">
-                    <Text color="#a78bfa" fontSize="sm" minW="50px">Scale:</Text>
-                    <input
-                      type="range"
-                      min="0.5"
-                      max="3"
-                      step="0.1"
-                      value={textureScale}
-                      onChange={(e) => setTextureScale(parseFloat(e.target.value))}
-                      style={{
-                        flex: 1,
-                        height: '4px',
-                        background: '#4c1d95',
-                        borderRadius: '2px',
-                        outline: 'none'
-                      }}
-                    />
-                    <Text color="#e0e7ff" fontSize="sm" minW="30px" textAlign="right">
-                      {textureScale.toFixed(1)}
-                    </Text>
-                  </HStack>
-                  
-                  {/* X Offset Control */}
-                  <HStack spacing={3} w="100%">
-                    <Text color="#a78bfa" fontSize="sm" minW="50px">X Pos:</Text>
-                    <input
-                      type="range"
-                      min="-1"
-                      max="1"
-                      step="0.01"
-                      value={textureOffset.x}
-                      onChange={(e) => setTextureOffset(prev => ({ ...prev, x: parseFloat(e.target.value) }))}
-                      style={{
-                        flex: 1,
-                        height: '4px',
-                        background: '#4c1d95',
-                        borderRadius: '2px',
-                        outline: 'none'
-                      }}
-                    />
-                    <Text color="#e0e7ff" fontSize="sm" minW="30px" textAlign="right">
-                      {textureOffset.x.toFixed(2)}
-                    </Text>
-                  </HStack>
-                  
-                  {/* Y Offset Control */}
-                  <HStack spacing={3} w="100%">
-                    <Text color="#a78bfa" fontSize="sm" minW="50px">Y Pos:</Text>
-                    <input
-                      type="range"
-                      min="-1"
-                      max="1"
-                      step="0.01"
-                      value={textureOffset.y}
-                      onChange={(e) => setTextureOffset(prev => ({ ...prev, y: parseFloat(e.target.value) }))}
-                      style={{
-                        flex: 1,
-                        height: '4px',
-                        background: '#4c1d95',
-                        borderRadius: '2px',
-                        outline: 'none'
-                      }}
-                    />
-                    <Text color="#e0e7ff" fontSize="sm" minW="30px" textAlign="right">
-                      {textureOffset.y.toFixed(2)}
-                    </Text>
-                  </HStack>
-                </VStack>
-              )}
               
-              {/* Action Buttons */}
-              {showCustomizerControls && (
-                <HStack spacing={2}>
-                  <Button
-                  size="sm"
-                  bg="rgba(99,102,241,0.2)"
-                  color="#e0e7ff"
-                  border="1px solid #6366f1"
-                  fontSize="sm"
-                  h="28px"
-                  flex={1}
-                  _hover={{
-                    bg: "rgba(99,102,241,0.3)"
-                  }}
-                  onClick={() => {
-                    // Reset to defaults
-                    setTextureOffset({ x: 0, y: 0 });
-                    setTextureScale(1);
-                    setCustomImageUrl(null);
-                    setActiveTextureUrl(user?.imageUrl || null);
-                    setShowCustomizerControls(false); // Collapse controls
-                  }}
-                >
-                  RESET
-                </Button>
-                <Button
-                  size="sm"
-                  bg="linear-gradient(135deg, rgba(34,197,94,0.3) 0%, rgba(34,197,94,0.5) 100%)"
-                  color="#22c55e"
-                  border="1px solid #22c55e"
-                  fontSize="sm"
-                  h="28px"
-                  flex={2}
-                  onClick={() => {
-                    const customization = {
-                      modelPath: astronautModels.find(m => m.id === selectedModel)?.path,
-                      customImage: customImageUrl || activeTextureUrl,
-                      textureOffset,
-                      textureScale,
-                    };
-                    handleAstronautSave(customization);
-                    setShowCustomizerControls(false); // Collapse controls after saving
-                  }}
-                  _hover={{
-                    bg: "linear-gradient(135deg, rgba(34,197,94,0.5) 0%, rgba(34,197,94,0.7) 100%)"
-                  }}
-                >
-                  ✓ APPLY
-                </Button>
-                </HStack>
-              )}
             </Box>
           </Box>
         </Box>
@@ -1137,27 +772,68 @@ const LunarSidePanel = ({
         {/* Bottom controls - dynamic height */}
         <Box height={sectionHeights.controls} p={4} borderTop="1px solid rgba(167,139,250,0.3)" transition="height 0.3s ease">
           <HStack justify="space-between" align="center" h="100%">
-            {/* Return to Earth Button - Left Side */}
+            {/* Exit/Reset Button - Left Side */}
             <Button
+              aria-label="Exit to Home"
               size="sm"
-              bg="rgba(99,102,241,0.2)"
-              color="#e0e7ff"
-              border="1px solid #6366f1"
+              bg={is80sMode ? "rgba(255, 0, 255, 0.2)" : "rgba(99,102,241,0.2)"}
+              color={is80sMode ? "#67e8f9" : "#e0e7ff"}
+              border={is80sMode ? "1px solid #ff00ff" : "1px solid #6366f1"}
+              borderRadius="full"
+              boxShadow={is80sMode ?
+                "0 0 10px rgba(255, 0, 255, 0.4), inset 0 0 6px rgba(0, 255, 255, 0.2)" :
+                "0 0 10px rgba(6, 182, 212, 0.3), inset 0 0 6px rgba(6, 182, 212, 0.2)"
+              }
               _hover={{
-                bg: "rgba(99,102,241,0.3)",
-                transform: "scale(1.05)"
+                bg: is80sMode ? "rgba(255, 0, 255, 0.3)" : "rgba(99,102,241,0.3)",
+                transform: "scale(1.08)",
+                boxShadow: is80sMode ?
+                  "0 0 15px rgba(255, 0, 255, 0.6), 0 0 25px rgba(0, 255, 255, 0.3)" :
+                  "0 0 15px rgba(6, 182, 212, 0.5)",
               }}
               onClick={() => {
-                console.log("Return to Earth Gallery");
-                // Post message to parent iframe
-                if (window.parent) {
-                  window.parent.postMessage({
-                    type: 'NAVIGATE_TO_GALLERY'
-                  }, '*');
-                }
+                console.log("🌍 Exit button clicked - Returning to Earth");
+                // Send message to return to gallery
+                window.postMessage({ type: 'NAVIGATE_TO_GALLERY' }, '*');
+                
+                // Reset lunar-specific states
+                setSelectedAstronaut(null);
+                setExpandedSection('video');
+                
+                // After a short delay to ensure scene has switched, reset the rocket state
+                setTimeout(() => {
+                  // Send a message to reset rocket state in the gallery
+                  window.postMessage({ type: 'RESET_ROCKET_STATE' }, '*');
+                  
+                  // Also try to click the rocket button if it exists and is visible
+                  const rocketButton = document.querySelector('[aria-label="Rocket Mode"]');
+                  if (rocketButton && rocketModelVisible) {
+                    console.log('🚀 Clicking rocket button to reset state');
+                    rocketButton.click();
+                  }
+                }, 500); // Half second delay to ensure scene switch completes
               }}
+              w="40px"
+              h="40px"
+              p={0}
+              display="flex"
+              alignItems="center"
+              justifyContent="center"
             >
-              Return to Earth
+              <Icon 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="currentColor" 
+                strokeWidth="2" 
+                strokeLinecap="round" 
+                strokeLinejoin="round"
+                w="20px"
+                h="20px"
+              >
+                <path d="m16 17 5-5-5-5"/>
+                <path d="M21 12H9"/>
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+              </Icon>
             </Button>
             
             {/* Music Player Button - Right Side */}
@@ -1419,12 +1095,74 @@ const LunarSidePanel = ({
           transition: all 0.2s;
         }
       `}</style>
+      
+      {/* Enhanced Astronaut Viewer Modal with all customization controls */}
+      <EnhancedAstronautViewer
+        isOpen={showEnhancedViewer}
+        onClose={() => setShowEnhancedViewer(false)}
+        modelPath={astronautModels.find(m => m.id === selectedModel)?.path || '/Astronaut2.glb'}
+        helmetTexture={helmetTextureUrl}
+        suitTexture={suitTextureUrl}
+        textureOffset={textureOffset}
+        textureScale={textureScale}
+        position="center"
+        // Pass all customization props
+        onModelChange={setSelectedModel}
+        onHelmetTextureChange={setHelmetTextureUrl}
+        onSuitTextureChange={setSuitTextureUrl}
+        onTextureOffsetChange={setTextureOffset}
+        onTextureScaleChange={setTextureScale}
+        onImageUpload={handleImageChange}
+        onReset={() => {
+          setTextureOffset({ x: 0, y: 0 });
+          setTextureScale(1);
+          setCustomImageUrl(null);
+          setHelmetTextureUrl(user?.imageUrl || null);
+          setSuitTextureUrl(null);
+        }}
+        onSave={() => {
+          const customization = {
+            modelPath: astronautModels.find(m => m.id === selectedModel)?.path,
+            helmetTexture: helmetTextureUrl,
+            suitTexture: suitTextureUrl,
+            customImage: customImageUrl,
+            textureOffset,
+            textureScale,
+          };
+          handleAstronautSave(customization);
+        }}
+        selectedModel={selectedModel}
+        astronautModels={astronautModels}
+        textureOptions={textureOptions}
+        currentTextureIndex={currentTextureIndex}
+        onTextureIndexChange={setCurrentTextureIndex}
+        user={user}
+      />
     </>
   );
 };
 
 // Preload astronaut models
-useGLTF.preload('/astronaut.glb');
+// useGLTF.preload('/astronaut.glb');
 useGLTF.preload('/Astronaut2.glb');
+
+// Optionally preload some textures for better performance
+if (typeof window !== 'undefined') {
+  const textureLoader = new THREE.TextureLoader();
+  const texturesToPreload = [
+    '/astronaut_colors/Studio_Ochi_Astronauts_Gallactic.png',
+    '/astronaut_colors/Studio_Ochi_Astronauts_Origin.png',
+    '/astronaut_colors/Studio_Ochi_Astronauts_Spaxe.png',
+    '/astronaut_colors/Studio_Ochi_Astronauts_Generic_01.png',
+  ];
+  
+  // Preload the first few textures in the background
+  texturesToPreload.forEach(path => {
+    textureLoader.load(path, (texture) => {
+      texture.colorSpace = THREE.SRGBColorSpace;
+      // Textures are now cached by the browser
+    });
+  });
+}
 
 export default React.memo(LunarSidePanel);

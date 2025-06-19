@@ -531,7 +531,8 @@ const SimplifiedMusicPlayer = memo(({
           border="1px solid rgba(239, 68, 68, 0.3)"
           borderRadius="full"
           onClick={() => {
-            // Just close the UI, don't pause the music
+            // Stop the music and close the UI
+            pause();
             onClose && onClose();
           }}
           _hover={{ 

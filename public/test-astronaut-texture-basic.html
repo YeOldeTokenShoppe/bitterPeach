@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Basic Astronaut Texture Test</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #1e1b4b;
+            color: #e0e7ff;
+        }
+        #container {
+            display: flex;
+            height: 100vh;
+        }
+        #canvas-container {
+            flex: 1;
+            position: relative;
+        }
+        #controls {
+            width: 300px;
+            padding: 20px;
+            background-color: rgba(49, 46, 129, 0.9);
+            overflow-y: auto;
+        }
+        .control-group {
+            margin-bottom: 20px;
+            padding: 10px;
+            background-color: rgba(99, 102, 241, 0.2);
+            border-radius: 8px;
+            border: 1px solid rgba(99, 102, 241, 0.5);
+        }
+        button {
+            background-color: rgba(99, 102, 241, 0.5);
+            color: #e0e7ff;
+            border: 1px solid #6366f1;
+            padding: 8px 16px;
+            margin: 5px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        button:hover {
+            background-color: rgba(99, 102, 241, 0.7);
+        }
+        #mesh-info {
+            font-size: 12px;
+            background-color: rgba(30, 27, 75, 0.8);
+            padding: 10px;
+            border-radius: 4px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="canvas-container"></div>
+        <div id="controls">
+            <h2>Astronaut Texture Test</h2>
+            
+            <div class="control-group">
+                <h3>Model Selection</h3>
+                <button onclick="loadModel('/astronaut.glb')">Load Astronaut 1</button>
+                <button onclick="loadModel('/Astronaut2.glb')">Load Astronaut 2</button>
+            </div>
+            
+            <div class="control-group">
+                <h3>Texture Selection</h3>
+                <button onclick="applyTexture('/astronaut_colors/Studio_Ochi_Astronauts_Gallactic.png')">Galactic</button>
+                <button onclick="applyTexture('/astronaut_colors/Studio_Ochi_Astronauts_Origin.png')">Origin</button>
+                <button onclick="applyTexture('/astronaut_colors/Studio_Ochi_Astronauts_Spaxe.png')">Spaxe</button>
+                <button onclick="applyTexture('/astronaut_colors/Studio_Ochi_Astronauts_Generic_01.png')">Generic 1</button>
+                <button onclick="applyTexture(null)">Remove Texture</button>
+            </div>
+            
+            <div class="control-group">
+                <h3>Mesh Information</h3>
+                <div id="mesh-info">No model loaded</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Use standard script tags with CDN -->
+    <script src="https://unpkg.com/three@0.158.0/build/three.min.js"></script>
+    <script src="https://unpkg.com/three@0.158.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://unpkg.com/three@0.158.0/examples/js/controls/OrbitControls.js"></script>
+    
+    <script>
+        // Global variables
+        let scene, camera, renderer, controls;
+        let currentModel = null;
+        let meshInfo = [];
+        
+        // Initialize scene
+        function init() {
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1e1b4b);
+            
+            // Camera
+            camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 0, 5);
+            
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth - 300, window.innerHeight);
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+            
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+            directionalLight.position.set(5, 5, 5);
+            scene.add(directionalLight);
+            
+            // Controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.autoRotate = true;
+            controls.autoRotateSpeed = 1;
+            
+            // Start animation loop
+            animate();
+            
+            // Handle window resize
+            window.addEventListener('resize', onWindowResize);
+        }
+        
+        function onWindowResize() {
+            camera.aspect = (window.innerWidth - 300) / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth - 300, window.innerHeight);
+        }
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        
+        // Load model
+        function loadModel(modelPath) {
+            console.log('Loading model:', modelPath);
+            
+            // Remove current model
+            if (currentModel) {
+                scene.remove(currentModel);
+                currentModel = null;
+            }
+            
+            const loader = new THREE.GLTFLoader();
+            loader.load(
+                modelPath,
+                (gltf) => {
+                    currentModel = gltf.scene;
+                    currentModel.position.set(0, 0, 0);
+                    currentModel.rotation.set(0, -Math.PI / 2, 0);
+                    currentModel.scale.set(1.2, 1.2, 1.2);
+                    
+                    scene.add(currentModel);
+                    
+                    // Analyze meshes
+                    analyzeMeshes();
+                },
+                (progress) => {
+                    console.log('Loading progress:', progress);
+                },
+                (error) => {
+                    console.error('Error loading model:', error);
+                    alert('Error loading model: ' + error.message);
+                }
+            );
+        }
+        
+        // Analyze meshes in the model
+        function analyzeMeshes() {
+            meshInfo = [];
+            
+            if (!currentModel) return;
+            
+            currentModel.traverse((child) => {
+                if (child.isMesh) {
+                    const info = {
+                        name: child.name || 'Unnamed',
+                        hasUV: !!(child.geometry && child.geometry.attributes.uv),
+                        materialType: child.material ? child.material.type : 'None',
+                        mesh: child
+                    };
+                    meshInfo.push(info);
+                }
+            });
+            
+            // Update mesh info display
+            const infoDiv = document.getElementById('mesh-info');
+            infoDiv.innerHTML = '<strong>Found ' + meshInfo.length + ' meshes:</strong><br><br>';
+            
+            meshInfo.forEach((info, index) => {
+                infoDiv.innerHTML += `
+                    <strong>${index + 1}. ${info.name}</strong><br>
+                    UV: ${info.hasUV ? '✓' : '✗'}<br>
+                    Material: ${info.materialType}<br><br>
+                `;
+            });
+        }
+        
+        // Apply texture to model
+        function applyTexture(texturePath) {
+            if (!currentModel) {
+                alert('Please load a model first');
+                return;
+            }
+            
+            if (!texturePath) {
+                // Remove texture
+                currentModel.traverse((child) => {
+                    if (child.isMesh && child.userData.originalMaterial) {
+                        child.material = child.userData.originalMaterial;
+                    }
+                });
+                console.log('Texture removed');
+                return;
+            }
+            
+            console.log('Loading texture:', texturePath);
+            
+            const textureLoader = new THREE.TextureLoader();
+            textureLoader.load(
+                texturePath,
+                (texture) => {
+                    console.log('Texture loaded successfully');
+                    
+                    // Configure texture
+                    texture.colorSpace = THREE.SRGBColorSpace;
+                    texture.center = new THREE.Vector2(0.5, 0.5);
+                    texture.rotation = Math.PI;
+                    texture.repeat.set(-1, 1);
+                    texture.needsUpdate = true;
+                    
+                    // Apply to meshes
+                    let appliedCount = 0;
+                    currentModel.traverse((child) => {
+                        if (child.isMesh) {
+                            const nameLower = child.name.toLowerCase();
+                            
+                            // Skip glass/transparent parts
+                            if (nameLower.includes('glass') || 
+                                nameLower.includes('helmet') || 
+                                nameLower.includes('visor')) {
+                                console.log('Skipping:', child.name);
+                                return;
+                            }
+                            
+                            // Store original material if not already stored
+                            if (!child.userData.originalMaterial) {
+                                child.userData.originalMaterial = child.material;
+                            }
+                            
+                            // Apply texture to everything else
+                            console.log('Applying texture to:', child.name);
+                            
+                            const newMaterial = new THREE.MeshStandardMaterial({
+                                map: texture,
+                                color: new THREE.Color(1, 1, 1),
+                                metalness: 0.1,
+                                roughness: 0.6
+                            });
+                            
+                            child.material = newMaterial;
+                            appliedCount++;
+                        }
+                    });
+                    
+                    console.log(`Texture applied to ${appliedCount} meshes`);
+                },
+                undefined,
+                (error) => {
+                    console.error('Error loading texture:', error);
+                    alert('Error loading texture: ' + error.message);
+                }
+            );
+        }
+        
+        // Initialize on load
+        window.addEventListener('load', () => {
+            init();
+            
+            // Load first model automatically
+            setTimeout(() => {
+                loadModel('/astronaut.glb');
+            }, 100);
+        });
+    </script>
+</body>
+</html>

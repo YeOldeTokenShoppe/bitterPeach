@@ -32,7 +32,7 @@ import {
   StatHelpText,
 } from "@chakra-ui/react";
 import AnimatedRadioButtons from "./3DVotiveStand/CyberButtons";
-import SidePanel from "./SidePanel";
+
 import {
   collection,
   query,
@@ -558,7 +558,7 @@ function BurnGallery({
             position="fixed"
             zIndex={1000}
           >
-            <SidePanelEnhanced
+            {/* <SidePanelEnhanced
               key="side-panel-enhanced"
               onButtonClick={handleButtonClick}
               is80sMode={is80sMode}
@@ -571,7 +571,7 @@ function BurnGallery({
               isConstellationsVisible={isConstellationsVisible}
               toggleMoonShots={toggleMoonShots}
               isMoonShotsEnabled={isMoonShotsEnabled}
-            />
+            /> */}
           </Box>
         )}
         {/* <Box

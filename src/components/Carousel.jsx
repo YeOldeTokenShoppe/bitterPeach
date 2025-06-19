@@ -27,7 +27,8 @@ import {
   SignInButton,
   useClerk,
 } from "@clerk/nextjs"; // Use Clerk's useUser for user management
-import { Button, Input } from "./ui/button";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
 import Image from "next/image";
 import { useRouter } from "next/router";
 // import { useActiveAccount } from "thirdweb/react";
@@ -1409,11 +1410,11 @@ const Carousel = ({ images, setCarouselLoaded }) => {
           textAlign: "center"
         }}>
         <h2 className="text-4xl font-bold font-['Oleo_Script'] leading-none text-[#c48901] mb-4 text-center w-full">
-          Ride or Die with RL80
+          Ride the 
         </h2>
 
         <p className="text-xl font-['Roboto'] leading-tight text-white text-center w-full">
-          They say fortune favors the bold. Charter a ride on the charts and careen carefree with the ups and
+          They say fortune favors the bold. Careen carefree with the ups and
           downs of the crypto market. Must be at least 36&quot; tall and hold
           RL80 or NFIN80 reward tokens. 10 minutes per ride. Your username and
           avatar will be displayed live! Messages are not saved. Click on any available beast to ride.

@@ -242,109 +242,38 @@ function initializeEnhancedToggles() {
     console.error('🌟 Constellation toggle button not found');
   }
   
-  // Vertical Toggle (MoonShots)
-  const moonshotsToggle = document.getElementById('moonshots-toggle');
+  // MoonShots Button
+  const moonshotsButton = document.getElementById('moonshots-button');
   
-  if (moonshotsToggle) {
-    console.log('🌙 MoonShots toggle element found');
-    console.log('🌙 Initial classes:', moonshotsToggle.className);
+  if (moonshotsButton) {
+    console.log('🌙 MoonShots button element found');
     
     // Clone the element to remove all existing event handlers
-    const newToggle = moonshotsToggle.cloneNode(true);
-    moonshotsToggle.parentNode.replaceChild(newToggle, moonshotsToggle);
+    const newButton = moonshotsButton.cloneNode(true);
+    moonshotsButton.parentNode.replaceChild(newButton, moonshotsButton);
     
     // Get the new reference
-    const freshToggle = document.getElementById('moonshots-toggle');
+    const freshButton = document.getElementById('moonshots-button');
     
-    // Force remove active class and reset handle position
-    freshToggle.classList.remove('active');
-    const handle = freshToggle.querySelector('.toggle-handle');
-    if (handle) {
-      handle.style.top = '28px'; // OFF position
-      handle.style.transition = 'none';
-      // Force a reflow to ensure styles are applied
-      void handle.offsetHeight;
-      handle.style.transition = ''; // Re-enable transition
-    }
-    
-    console.log('🌙 MoonShots toggle initialized to OFF state');
-    console.log('🌙 Classes after init:', freshToggle.className);
+    console.log('🌙 MoonShots button initialized');
     
     // Clear any persisted moon spawn state
     if (window.parent && window.parent._moonsAlreadySpawned) {
       window.parent._moonsAlreadySpawned = false;
     }
     
-    // Wait for parent state sync before setting up the click handler
-    // This ensures the toggle state matches the parent state before first interaction
-    window.moonShotsSyncTimeout = setTimeout(() => {
-      console.log('🌙 Warning: No sync state received from parent after 2 seconds');
-    }, 2000);
+    // Mark the fresh button as having handlers
+    freshButton.setAttribute('data-handlers-added', 'true');
     
-    // Add a MutationObserver to track class changes on the FRESH toggle
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
-          console.log('🌙 MoonShots toggle class changed!');
-          console.log('🌙   Old classes:', mutation.oldValue);
-          console.log('🌙   New classes:', mutation.target.className);
-          console.log('🌙   Stack trace:', new Error().stack);
-        }
-      });
-    });
-    
-    observer.observe(freshToggle, {
-      attributes: true,
-      attributeOldValue: true,
-      attributeFilter: ['class']
-    });
-    
-    // Mark the fresh toggle as having handlers
-    freshToggle.setAttribute('data-handlers-added', 'true');
-    
-    // Add click handler to the FRESH toggle element
-    freshToggle.addEventListener('click', function(e) {
+    // Add click handler to the FRESH button element
+    freshButton.addEventListener('click', function(e) {
       e.preventDefault();
       e.stopPropagation();
-      console.log('🌙 MoonShots toggle clicked');
-      console.log('🌙 Classes before toggle:', this.className);
-      
-      // Toggle the active class
-      if (this.classList.contains('active')) {
-        this.classList.remove('active');
-        // Debug: Force visual update
-        const handle = this.querySelector('.toggle-handle');
-        console.log('🌙 Toggle handle element:', handle);
-        if (handle) {
-          handle.style.transition = 'top 0.3s ease'; // Re-enable transition for animation
-          handle.style.top = '28px';
-          console.log('🌙 Manually set handle to OFF position');
-          console.log('🌙 Handle computed style top:', window.getComputedStyle(handle).top);
-        } else {
-          console.error('🌙 ERROR: Toggle handle not found!');
-        }
-      } else {
-        this.classList.add('active');
-        // Debug: Force visual update
-        const handle = this.querySelector('.toggle-handle');
-        console.log('🌙 Toggle handle element:', handle);
-        if (handle) {
-          handle.style.transition = 'top 0.3s ease'; // Re-enable transition for animation
-          handle.style.top = '4px';
-          console.log('🌙 Manually set handle to ON position');
-          console.log('🌙 Handle computed style top:', window.getComputedStyle(handle).top);
-        } else {
-          console.error('🌙 ERROR: Toggle handle not found!');
-        }
-      }
-      
-      console.log('🌙 Classes after toggle:', this.className);
-      const isActive = this.classList.contains('active');
+      console.log('🌙 MoonShots button clicked');
       
       // Send message to parent
       if (window.parent) {
-        console.log('🌙 MoonShots toggle isActive:', isActive);
-        console.log('🌙 MoonShots toggle classList:', this.className);
+        console.log('🌙 Sending MOONSHOTS_TOGGLE message to parent');
         
         // Small delay to ensure DOM updates are complete
         setTimeout(() => {
@@ -358,10 +287,10 @@ function initializeEnhancedToggles() {
     });
     
     // Make sure it's not disabled
-    freshToggle.style.pointerEvents = 'auto';
-    freshToggle.style.cursor = 'pointer';
+    freshButton.style.pointerEvents = 'auto';
+    freshButton.style.cursor = 'pointer';
   } else {
-    console.error('🌙 MoonShots toggle element NOT found');
+    console.error('🌙 MoonShots button element NOT found');
   }
 }
 
@@ -418,7 +347,7 @@ function initializeEnhancedButtons() {
     button.setAttribute('data-enhanced-initialized', 'true');
     
     // Add a separate click handler for visual effects only
-    button.addEventListener('click', function(e) {
+    button.addEventListener('click', function() {
       // Don't interfere with the base functionality
       // Just add the ripple effect
       const ripple = document.createElement('div');
@@ -741,7 +670,6 @@ window.addEventListener('message', function(event) {
         if (toggleSection) {
           // Keep the music toggle visible but hide others
           const eightiesToggle = document.getElementById('eighties-toggle')?.closest('.toggle-group');
-          const constellationToggle = document.getElementById('constellation-toggle')?.closest('.toggle-group');
           
           if (eightiesToggle) eightiesToggle.style.display = 'none';
           // Keep constellation toggle visible for Star Chart functionality

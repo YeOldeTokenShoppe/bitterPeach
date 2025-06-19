@@ -19,6 +19,7 @@ import { doc, setDoc, getDoc } from "firebase/firestore"; // Import Firestore me
 import { signInWithCustomToken } from "firebase/auth"; // Import Firebase auth methods
 import { db, auth } from "../utilities/firebaseClient"; // Import Firestore and Auth setup
 import RotatingBadge2 from "./RotatingBadge2";
+import RotatingBadgeSVG from "./RotatingBadgeSVG";
 import { debounce } from "lodash";
 import { getUserImageUrl } from "../utilities/clerkHelpers"; // <-- IMPORT ADDED
 
@@ -325,12 +326,27 @@ function Header() {
                     <img
                       className="logo"
                       src="./electricRL80.png"
-                      width="10rem"
-                      height="10rem"
+                      width="9rem"
+                      height="9rem"
                       alt="Logo"
                       style={{ zIndex: "3" }}
                     />
-                    <RotatingBadge2 />
+                    <RotatingBadgeSVG 
+                      scale={0.8}
+                      size={200}
+                      text="PROSPER POPULUS ★ LUCRUM PERPETUUM ★ "
+                      textColor="#e1b67e"
+                      fontSize={14}
+                      rotationSpeed={20}
+                      style={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        opacity: 0.9,
+                        pointerEvents: 'none'
+                      }}
+                    />
                   </div>
                 </div>
               </Link>
@@ -390,7 +406,7 @@ function Header() {
                   </Link>
                   {/* </div> */}
                   {/* <div className="p-1"> */}
-                  <Link
+                  {/* <Link
                     href="/moon-scene"
                     className="menu-item"
                     onClick={() => setMenuOpen(false)}
@@ -399,6 +415,16 @@ function Header() {
                     data-value="High Soci80"
                   >
                     High Soci80
+                  </Link> */}
+                        <Link
+                    href="/fountain.html"
+                    className="menu-item"
+                    onClick={() => setMenuOpen(false)}
+                    onMouseEnter={handleMouseEnter}
+                    onMouseLeave={handleMouseLeave}
+                    data-value="Fountain of Char80"
+                  >
+                    Fountain of Generos80
                   </Link>
                   <Link
                     href="/communion"
@@ -410,16 +436,7 @@ function Header() {
                   >
                    Gangster&apos;s Paradise
                   </Link>
-                  <Link
-                    href="/fountain.html"
-                    className="menu-item"
-                    onClick={() => setMenuOpen(false)}
-                    onMouseEnter={handleMouseEnter}
-                    onMouseLeave={handleMouseLeave}
-                    data-value="Fountain of Char80"
-                  >
-                    Fountain of Char80
-                  </Link>
+            
                   {/* </div> */}
                 </Menu>
               </div>

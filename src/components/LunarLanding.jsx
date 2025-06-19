@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect, Suspense, useCallback, useMemo } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import HolographicStatueMoon from './3DVotiveStand/HolographicStatueMoon';
+
 import ConstellationModel from "./3DVotiveStand/ConstellationModel";
 import StarField from "./3DVotiveStand/StarField";
  

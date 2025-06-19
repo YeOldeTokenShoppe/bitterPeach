@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Astronaut Texture Test</title>
+    <script type="module">
+        import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.156.0/build/three.module.js';
+        import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.156.0/examples/jsm/loaders/GLTFLoader.js';
+        import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.156.0/examples/jsm/controls/OrbitControls.js';
+
+        // Scene setup
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x2a3644);
+        
+        const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 0, 8);
+        
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+        
+        // Lighting
+        scene.add(new THREE.AmbientLight(0xffffff, 1.5));
+        scene.add(new THREE.DirectionalLight(0xffffff, 1));
+        
+        // Controls
+        const controls = new OrbitControls(camera, renderer.domElement);
+        
+        // Load astronaut
+        const loader = new GLTFLoader();
+        let model;
+        
+        loader.load('/astronaut.glb', (gltf) => {
+            model = gltf.scene;
+            model.scale.set(2, 2, 2);
+            model.position.y = -1;
+            scene.add(model);
+            
+            // Debug: Show all meshes
+            model.traverse((child) => {
+                if (child.isMesh) {
+                    console.log('Mesh:', child.name, 'Material:', child.material.name);
+                }
+            });
+        });
+        
+        // Test texture loading
+        function testTexture() {
+            if (!model) {
+                alert('Model not loaded yet!');
+                return;
+            }
+            
+            const textureLoader = new THREE.TextureLoader();
+            textureLoader.load('/astronaut_colors/Studio_Ochi_Astronauts_Gallactic.png', (texture) => {
+                texture.colorSpace = THREE.SRGBColorSpace;
+                
+                // Apply to ALL meshes (except glass)
+                model.traverse((child) => {
+                    if (child.isMesh && !child.name.toLowerCase().includes('glass')) {
+                        child.material = new THREE.MeshStandardMaterial({
+                            map: texture,
+                            metalness: 0.1,
+                            roughness: 0.6
+                        });
+                    }
+                });
+                
+                console.log('Texture applied!');
+            });
+        }
+        
+        // Button
+        const button = document.createElement('button');
+        button.textContent = 'Apply Galactic Texture';
+        button.style.position = 'absolute';
+        button.style.top = '10px';
+        button.style.left = '10px';
+        button.style.padding = '10px 20px';
+        button.style.fontSize = '16px';
+        button.onclick = testTexture;
+        document.body.appendChild(button);
+        
+        // Animate
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+    </script>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover { background: #2563eb; }
+    </style>
+</head>
+<body></body>
+</html>

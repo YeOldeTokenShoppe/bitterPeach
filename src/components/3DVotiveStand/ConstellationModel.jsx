@@ -36,17 +36,33 @@ function ConstellationModel({
     const infinityStarsClone = infinityStarsScene.clone();
 
     const processModel = (modelScene, namePrefix = "", position = [0, 0, 0], scale = [1, 1, 1]) => {
+      // First pass: Mark all meshes with their parent model
+      modelScene.traverse(child => {
+        if (child.isMesh) {
+          if (modelScene === whaleClone) {
+            child.userData.isWhaleModel = true;
+            // Check if this is a star or line mesh
+            if (child.name.toLowerCase().includes("star") || 
+                child.name.startsWith("RedStar") || 
+                child.name.startsWith("GreenStar")) {
+              child.userData.isWhaleStar = true;
+            } else {
+              child.userData.isWhaleLine = true;
+            }
+          }
+        }
+      });
+      
       modelScene.traverse(child => {
         if (
           child.isMesh &&
-          (child.name.startsWith("RedStar") || child.name.startsWith("GreenStar"))
+          (child.name.startsWith("RedStar") || child.name.startsWith("GreenStar") || child.userData.isWhaleStar)
         ) {
           child.visible = true;
           if (child.material) {
             child.material.transparent = true;
-            if (modelScene === whaleClone) {
+            if (modelScene === whaleClone || child.userData.isWhaleStar) {
               child.material.opacity = 1;
-              child.userData.isWhaleStar = true;
             } else if (modelScene === marketClone) {
               child.userData.isBearStar = true;
               child.material.opacity = 0.15;
@@ -71,24 +87,37 @@ function ConstellationModel({
           child.isMesh &&
           !child.name.startsWith("RedStar") &&
           !child.name.startsWith("GreenStar") &&
-          !child.name.startsWith("Infinity")
+          !child.name.startsWith("Infinity") &&
+          !child.userData.isWhaleStar &&
+          !child.userData.isBearStar &&
+          !child.userData.isInfinityStar
         ) {
           child.castShadow = false;
           child.receiveShadow = false;
           child.renderOrder = -1; 
-          child.visible = isVisible;
-          if (child.material) {
-            child.material.transparent = true;
-            if (child.name.startsWith("Bear")) {
-              child.material.opacity = isVisible ? 0.15 : 0;
-            } else if (modelScene === starCandlesClone) {
-              child.material.opacity = isVisible ? 0.1 : 0;
-            } else if (modelScene === whaleClone) {
-              child.material.opacity = isVisible ? 0.15 : 0;
-            } else if (modelScene === infinityStarsClone) {
-              child.material.opacity = isVisible ? 0.15 : 0;
-            } else {
-              child.material.opacity = isVisible ? 0.15 : 0;
+          
+          // For whale lines, handle visibility differently
+          if (child.userData.isWhaleLine) {
+            child.visible = true; // Keep in scene graph
+            if (child.material) {
+              child.material.transparent = true;
+              child.material.opacity = isVisible ? 0.15 : 0; // Control via opacity
+            }
+          } else {
+            child.visible = isVisible;
+            if (child.material) {
+              child.material.transparent = true;
+              if (child.name.startsWith("Bear")) {
+                child.material.opacity = isVisible ? 0.15 : 0;
+              } else if (modelScene === starCandlesClone) {
+                child.material.opacity = isVisible ? 0.1 : 0;
+              } else if (modelScene === whaleClone) {
+                child.material.opacity = isVisible ? 0.15 : 0;
+              } else if (modelScene === infinityStarsClone) {
+                child.material.opacity = isVisible ? 0.15 : 0;
+              } else {
+                child.material.opacity = isVisible ? 0.15 : 0;
+              }
             }
           }
         }
@@ -140,15 +169,20 @@ function ConstellationModel({
 
     groupRef.current.traverse(child => {
       if (child.isMesh) {
-        if (child.name.startsWith("RedStar") || child.name.startsWith("GreenStar")) {
+        if (child.name.startsWith("RedStar") || child.name.startsWith("GreenStar") || child.userData.isWhaleStar || child.userData.isBearStar || child.userData.isInfinityStar) {
           child.visible = true; // Stars always visible in terms of object visibility
           if (child.material) {
             child.material.transparent = true;
-            // Opacity for stars can be set here if needed, or rely on initial setup
-             if (child.userData.isWhaleStar) child.material.opacity = 1; // Example
-             else if (child.userData.isBearStar) child.material.opacity = 0.15;
-             else if (child.userData.isInfinityStar) child.material.opacity = 0.2;
-             else child.material.opacity = 0.05; // Fallback, was 0.01
+            // Reduce star opacity when lines are hidden
+            if (child.userData.isWhaleStar) {
+              child.material.opacity = isVisible ? 0.05 : 0.03; // Dim whale stars when lines off
+            } else if (child.userData.isBearStar) {
+              child.material.opacity = isVisible ? 0.05 : 0.02; // Dim bear stars when lines off
+            } else if (child.userData.isInfinityStar) {
+              child.material.opacity = isVisible ? 0.06 : 0.05; // Dim infinity stars when lines off
+            } else {
+              child.material.opacity = isVisible ? 0.05 : 0.02; // Dim other stars when lines off
+            }
           }
         } else if (child.name.startsWith("Infinity")) { // For Infinity lines
           child.visible = true; // Lines are always part of the scene graph
@@ -157,20 +191,29 @@ function ConstellationModel({
             child.material.opacity = isVisible ? 0.3 : 0; // Opacity controlled by isVisible
           }
         } else { // For all other meshes (parts of constellations)
-          child.visible = isVisible;
-          if (child.material) {
-            child.material.transparent = true;
-            // Set opacity based on isVisible for non-star/non-line meshes
-            if (child.name.startsWith("Bear")) {
-              child.material.opacity = isVisible ? 0.15 : 0;
-            } else if (child.parent?.name.includes("StarCandles")) { // Check parent for StarCandles context
-              child.material.opacity = isVisible ? 0.1 : 0;
-            } else if (child.parent?.name.includes("Whale")) { // Check parent for Whale context
-              child.material.opacity = isVisible ? 0.15 : 0; // was 0.1
-            } else if (child.parent?.name.includes("InfinityStars")) { // Check parent for InfinityStars context
-              child.material.opacity = isVisible ? 0.15 : 0;
-            } else {
-              child.material.opacity = isVisible ? 0.15 : 0; // was 0.1
+          // Special handling for whale lines
+          if (child.userData.isWhaleLine) {
+            child.visible = true; // Keep in scene graph
+            if (child.material) {
+              child.material.transparent = true;
+              child.material.opacity = isVisible ? 0.15 : 0; // Control via opacity
+            }
+          } else {
+            child.visible = isVisible;
+            if (child.material) {
+              child.material.transparent = true;
+              // Set opacity based on isVisible for non-star/non-line meshes
+              if (child.name.startsWith("Bear")) {
+                child.material.opacity = isVisible ? 0.15 : 0;
+              } else if (child.parent?.name.includes("StarCandles")) { // Check parent for StarCandles context
+                child.material.opacity = isVisible ? 0.1 : 0;
+              } else if (child.parent?.name.includes("Whale") || child.userData.isWhaleModel) { // Check parent for Whale context
+                child.material.opacity = isVisible ? 0.15 : 0; // was 0.1
+              } else if (child.parent?.name.includes("InfinityStars")) { // Check parent for InfinityStars context
+                child.material.opacity = isVisible ? 0.15 : 0;
+              } else {
+                child.material.opacity = isVisible ? 0.15 : 0; // was 0.1
+              }
             }
           }
         }

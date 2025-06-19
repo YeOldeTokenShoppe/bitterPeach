@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Astronaut Texture Loading</title>
+    <script type="module">
+        import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.156.0/build/three.module.js';
+        import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.156.0/examples/jsm/loaders/GLTFLoader.js';
+        import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.156.0/examples/jsm/controls/OrbitControls.js';
+
+        // Scene setup
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x2a3644);
+        
+        const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 0, 8);
+        
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        document.body.appendChild(renderer.domElement);
+        
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
+        scene.add(ambientLight);
+        
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+        directionalLight.position.set(5, 5, 5);
+        scene.add(directionalLight);
+        
+        // Controls
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        
+        // Load model
+        const loader = new GLTFLoader();
+        let astronautModel = null;
+        
+        loader.load('/astronaut.glb', function(gltf) {
+            astronautModel = gltf.scene;
+            astronautModel.scale.set(2, 2, 2);
+            astronautModel.position.y = -1;
+            scene.add(astronautModel);
+            
+            console.log('Model loaded successfully');
+            
+            // Debug model structure
+            astronautModel.traverse((child) => {
+                if (child.isMesh) {
+                    console.log(`Mesh found: ${child.name}`, {
+                        geometry: child.geometry,
+                        material: child.material,
+                        hasUV: child.geometry.attributes.uv ? 'Yes' : 'No'
+                    });
+                }
+            });
+        }, undefined, function(error) {
+            console.error('Error loading model:', error);
+        });
+        
+        // Texture loader
+        const textureLoader = new THREE.TextureLoader();
+        
+        function loadTexture(path) {
+            console.log(`Loading texture: ${path}`);
+            
+            textureLoader.load(path, function(texture) {
+                console.log('Texture loaded successfully:', texture);
+                texture.colorSpace = THREE.SRGBColorSpace;
+                texture.flipY = true;
+                
+                if (astronautModel) {
+                    astronautModel.traverse((child) => {
+                        if (child.isMesh) {
+                            const nameLower = child.name.toLowerCase();
+                            
+                            // Apply texture to suit parts
+                            if (nameLower.includes('suit') || nameLower.includes('body')) {
+                                console.log(`Applying texture to: ${child.name}`);
+                                
+                                // Create new material
+                                const newMaterial = new THREE.MeshStandardMaterial({
+                                    map: texture,
+                                    metalness: 0.1,
+                                    roughness: 0.6
+                                });
+                                
+                                child.material = newMaterial;
+                            }
+                        }
+                    });
+                } else {
+                    console.error('Model not loaded yet');
+                }
+            }, undefined, function(error) {
+                console.error('Error loading texture:', error);
+            });
+        }
+        
+        // Test texture paths
+        const testTextures = [
+            '/astronaut_colors/Studio_Ochi_Astronauts_Gallactic.png',
+            '/astronaut_colors/Studio_Ochi_Astronauts_Origin.png',
+            '/astronaut_colors/Studio_Ochi_Astronauts_Spaxe.png'
+        ];
+        
+        // Create buttons for testing
+        const buttonContainer = document.createElement('div');
+        buttonContainer.style.position = 'absolute';
+        buttonContainer.style.top = '10px';
+        buttonContainer.style.left = '10px';
+        buttonContainer.style.display = 'flex';
+        buttonContainer.style.flexDirection = 'column';
+        buttonContainer.style.gap = '10px';
+        document.body.appendChild(buttonContainer);
+        
+        testTextures.forEach((texturePath, index) => {
+            const button = document.createElement('button');
+            button.textContent = `Load Texture ${index + 1}`;
+            button.style.padding = '10px';
+            button.style.cursor = 'pointer';
+            button.onclick = () => loadTexture(texturePath);
+            buttonContainer.appendChild(button);
+        });
+        
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+        
+        // Handle resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #2563eb;
+        }
+    </style>
+</head>
+<body>
+</body>
+</html>

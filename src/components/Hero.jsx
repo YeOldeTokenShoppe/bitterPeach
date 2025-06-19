@@ -284,6 +284,7 @@ function Hero({ setHeroLoaded }) {
       clearInterval(intervalId);
     };
   }, []);
+  
   const [isLargerThan768] = useMediaQuery("(min-width: 37rem)");
   const [isChromeBrowser, setIsChromeBrowser] = useState(false);
   const [isSmallScreen] = useMediaQuery("(max-width: 600px)");

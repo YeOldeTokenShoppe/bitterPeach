@@ -41,6 +41,7 @@ import Image from "next/image";
 import { getUserImageUrl, getUsername, createUserData } from "../utilities/clerkHelpers";
 import { useMusic } from "../contexts/MusicContext";
 import MissionControlIframe from "./MissionControlIframe";
+import { FiChevronLeft } from "react-icons/fi";
 
 // Dynamically import the simplified music player
 const SimplifiedMusicPlayer = dynamic(() => import("./SimplifiedMusicPlayer"), {
@@ -992,8 +993,8 @@ const SidePanelEnhanced = ({
 
   return (
     <>
-      {/* Toggle button for touch devices - Enhanced with Card-style aesthetics */}
-      {isTouchDevice && !isTextBoxVisible && (
+      {/* Toggle button - Enhanced with Card-style aesthetics */}
+      {!isTextBoxVisible && (
         <Button
           position="fixed"
           right="0"
@@ -1025,58 +1026,36 @@ const SidePanelEnhanced = ({
           alignItems="center"
           justifyContent="center"
           overflow="hidden"
-          _before={{
-            content: '""',
-            position: "absolute",
-            inset: 0,
-            background: "radial-gradient(circle at 10px 10px, #00f 0px, #006 30px, transparent 30px)",
-            filter: "blur(5px) contrast(100) blur(8px) opacity(0.3)",
-            zIndex: -1
-          }}
-          _after={{
-            content: '""',
-            position: "absolute",
-            inset: 0,
-            background: "linear-gradient(75deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0) 15%, rgba(255,255,255,0.7) 16%, rgba(255,255,255,0) 20%)",
-            opacity: 0,
-            transition: "opacity 0.3s ease",
-            animation: "shimmer 3s ease-in-out infinite",
-            mixBlendMode: "overlay"
-          }}
         >
-          <Icon as={() => (
-            <Box className="energy-ball" 
-              width="30px" 
-              height="30px" 
-              borderRadius="50%"
-              overflow="hidden"
-              position="relative"
-              _before={{
-                content: '"⚡"',
-                fontSize: "1.4rem",
-                color: "black",
-                width: "100%",
-                height: "100%",
-                position: "absolute",
-                top: "1px",
-                left: "0",
-                filter: "grayscale(1) contrast(10)",
-                zIndex: 10,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center"
-              }}
-              _after={{
-                content: '" "',
-                width: "100%",
-                height: "100%",
-                position: "absolute",
-                top: 0,
-                left: 0,
-                background: "radial-gradient(circle at 8px 8px, rgba(255,255,255,0.8) 0px, rgba(255,255,255,0) 20px), radial-gradient(circle at 20px 20px, rgba(0,0,0,0.6) 0px, rgba(0,0,0,0) 30px), radial-gradient(farthest-side, magenta, magenta)"
+          <Box
+            position="relative"
+            width="100%"
+            height="100%"
+            display="flex"
+            alignItems="center"
+            justifyContent="center"
+            _before={{
+              content: '""',
+              position: "absolute",
+              inset: "0",
+              background: "linear-gradient(45deg, rgba(255,0,255,0.2), rgba(128,0,128,0.1))",
+              filter: "blur(5px)",
+              zIndex: 0
+            }}
+          >
+            <Icon
+              as={FiChevronLeft}
+              w={6}
+              h={6}
+              color="white"
+              filter="drop-shadow(0 0 2px rgba(255,0,255,0.8))"
+              transform="rotate(180deg)"
+              transition="transform 0.3s ease"
+              _groupHover={{
+                transform: "rotate(180deg) translateX(2px)"
               }}
             />
-          )} />
+          </Box>
         </Button>
       )}
 
@@ -1109,6 +1088,10 @@ const SidePanelEnhanced = ({
         display="flex"
         flexDirection="column"
         className="enhanced-panel"
+        borderLeft="2px solid"
+        borderColor="rgba(255, 0, 255, 0.6)"
+        boxShadow="0 0 20px rgba(255, 0, 255, 0.4)"
+        borderRadius="0 0 0 12px"
         _before={{
           content: '""',
           position: "absolute",
@@ -1168,13 +1151,26 @@ const SidePanelEnhanced = ({
           position="absolute"
           inset="0"
           className="shimmer-layer"
-          background="linear-gradient(75deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 15%, rgba(255,255,255,0.4) 16%, rgba(255,255,255,0) 20%)"
-          backgroundSize="200% 100%"
-          animation="shimmerMove 4s ease-in-out infinite"
-          mixBlendMode="overlay"
-          opacity="0.3"
           pointerEvents="none"
           zIndex={2}
+          _before={{
+            content: '""',
+            position: "absolute",
+            inset: "3px",
+            background: "rgba(48, 10, 67, 0.95)",
+            borderRadius: "inherit",
+            zIndex: 1
+          }}
+          _after={{
+            content: '""',
+            position: "absolute",
+            inset: "0",
+            background: "linear-gradient(75deg, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0) 15%, rgba(255,255,255,0.6) 16%, rgba(255,255,255,0) 20%)",
+            backgroundSize: "200% 100%",
+            animation: "shimmerMove 4s ease-in-out infinite",
+            borderRadius: "inherit",
+            zIndex: 0
+          }}
         />
 
         {/* Video overlay removed - vaporwave video is handled inside the iframe */}
@@ -1183,7 +1179,9 @@ const SidePanelEnhanced = ({
         <Box flex="1" minHeight="0" overflow="hidden" position="relative" zIndex={3}>
           <Box
             position="absolute"
-            inset="20px"
+            inset="5px"
+            borderRadius="8px"
+            overflow="hidden"
           >
             <MissionControlIframe onLoad={handleIframeLoad} />
           </Box>

@@ -51,14 +51,16 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
 
   // Track lists
   const non80sTrackNames = [
-    "Rocket Man - Steven Drozd",
-    "Magnetic - Tunde Adebimpe",
-    "Intergalactic - Beastie Boys",  // Space themed, fits alternative mode
+    // "Rocket Man - Steven Drozd",
+    // "Magnetic - Tunde Adebimpe",
+    // "Intergalactic - Beastie Boys",  // Space themed, fits alternative mode
+    "Lifetimes"
   ];
   const non80sFirebasePaths = [
-    "audio/320k/rocket-man---steven-drozd.m4a",
-    "audio/320k/01-magnetic.m4a",
-    "audio/320k/intergalactic-beastie-boys.m4a",
+    // "audio/320k/rocket-man---steven-drozd.m4a",
+    // "audio/320k/01-magnetic.m4a",
+    // "audio/320k/intergalactic-beastie-boys.m4a",
+    "audio/192k/07-lifetimes.m4a"
   ];
 
   const eightyTrackNames = [
@@ -336,8 +338,9 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
 
   // Long press handlers for genre switching
   const handleLongPressStart = useCallback(() => {
+    console.log('🎵 Long press started');
     const timer = setTimeout(() => {
-   
+      console.log('🎵 Long press triggered - showing mode choice dialog');
       setShowModeChoice(true);
     }, 800); // 800ms long press
     setLongPressTimer(timer);
@@ -352,7 +355,14 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
 
   // Handle mode change from popup
   const handleModeChoice = useCallback((enable80s) => {
+    console.log('🎵 MobileMusicPlayer handleModeChoice:', enable80s, 'current is80sMode:', is80sMode);
     setShowModeChoice(false);
+    
+    // Only proceed if this is actually a mode change
+    if (enable80s === is80sMode) {
+      console.log('🎵 Same mode selected, no change needed');
+      return;
+    }
     
     if (onModeChange) {
       const wasPlaying = isPlaying;
@@ -367,7 +377,7 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
         }, 200);
       }
     }
-  }, [isPlaying, onModeChange, loadTrack]);
+  }, [isPlaying, is80sMode, onModeChange, loadTrack]);
   
   // Add a dedicated pause method
   const pause = useCallback(() => {
@@ -381,22 +391,40 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
       console.log('⚠️ Mobile: No audio ref available to pause');
     }
   }, [onPlayingStateChange, setContextIsPlaying]);
+  
+  // Add a dedicated play method
+  const play = useCallback(() => {
+    if (audioRef.current) {
+      userPausedRef.current = false; // Clear user-paused flag
+      audioRef.current.play().then(() => {
+        setIsPlaying(true);
+        setContextIsPlaying(true);
+        if (onPlayingStateChange) onPlayingStateChange(true);
+        console.log('🎵 Play successful via play method');
+      }).catch(e => {
+        console.log("🔇 Mobile: Play blocked by browser", e);
+      });
+    } else {
+      console.log('⚠️ Mobile: No audio ref available to play');
+    }
+  }, [onPlayingStateChange, setContextIsPlaying]);
 
   // Track if controls have been sent to prevent repeated calls
   const controlsSentRef = useRef(false);
   
   // Pass control methods to parent via callback - only once when functions are ready
   useEffect(() => {
-    if (onControlsReady && togglePlayPause && skipNext && pause && !controlsSentRef.current) {
+    if (onControlsReady && togglePlayPause && skipNext && pause && play && !controlsSentRef.current) {
       controlsSentRef.current = true;
       onControlsReady({
         togglePlayPause,
         skipTrack: skipNext,
         pause,
+        play,
         isPlaying: () => audioRef.current && !audioRef.current.paused
       });
     }
-  }, [onControlsReady, skipNext, togglePlayPause, pause]);
+  }, [onControlsReady, skipNext, togglePlayPause, pause, play]);
 
   // Update the shared audio element's src when track changes
   useEffect(() => {
@@ -708,7 +736,7 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
             </Box>
             
             {/* Mode Indicator */}
-            <Box textAlign="center">
+            {/* <Box textAlign="center">
               <Text
                 fontSize="0.6rem"
                 color="#67e8f9"
@@ -716,7 +744,7 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
               >
                 {is80sMode ? "80s" : "Alt"}
               </Text>
-            </Box>
+            </Box> */}
           </Box>
         </Box>
       )}
@@ -803,10 +831,10 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
                 }}
                 transition="all 0.2s ease"
               >
-                <Box textAlign="center">
+                {/* <Box textAlign="center">
                   <Text fontSize="1rem" fontWeight="bold">🌊 80s Mode</Text>
                   <Text fontSize="0.8rem" opacity={0.8}>Synthwave & Retro Hits</Text>
-                </Box>
+                </Box> */}
               </Box>
               
               <Box

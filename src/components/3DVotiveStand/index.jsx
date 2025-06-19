@@ -53,6 +53,7 @@ import { useMusic } from "../../contexts/MusicContext";
 // import NeonLines from "./NeonLinesSimple"; // Temporary test
 // import NeonLines from "./NeonLinesFixed"; // Fixed version using Line component
 import NeonLines from "./NeonLinesFinal"; // Final optimized version
+// import NeonCylinders from "./NeonCylinders"; // New neon cylinders effect - temporarily disabled
 
 // Scene is created internally by React Three Fiber
 
@@ -1134,7 +1135,21 @@ const ThreeDVotiveStand = forwardRef(({
     const handleMessage = (event) => {
       if (event.data.type === 'NAVIGATE_TO_GALLERY') {
         console.log('🌍 Received NAVIGATE_TO_GALLERY message, returning to gallery scene');
+        
+        // If resetState flag is true, reset the rocket/scene state
+        if (event.data.resetState) {
+          console.log('🔄 Resetting gallery state - showing rocket again');
+          // Reset any launch-related state
+          setShowTransition(false);
+          setShowUI(true);
+          // The RocketModel component should automatically show the statue when it's visible
+        }
+        
         handleSceneSwitch('gallery');
+      } else if (event.data.type === 'RESET_ROCKET_STATE') {
+        console.log('🚀 Received RESET_ROCKET_STATE message, resetting rocket/statue visibility');
+        // This message handler will help ensure the rocket state is reset
+        // The actual reset logic should be handled by the RocketModel component
       } else if (event.data.type === 'ASTRONAUT_CUSTOMIZED') {
         console.log('🚀 Received ASTRONAUT_CUSTOMIZED message:', event.data.data);
         // Store the customization data or pass it to the lunar scene
@@ -1675,6 +1690,7 @@ const ThreeDVotiveStand = forwardRef(({
             onSpawnReady={onSpawnReady}
             rocketModelVisible={rocketModelVisible}
             isMobileView={isMobileView}
+            isMoonShotsEnabled={isMoonShotsEnabled}
             onControlsCreated={(controls) => {
        
               controlsRef.current = controls;
@@ -1742,6 +1758,14 @@ const ThreeDVotiveStand = forwardRef(({
           <NeonLines 
             enabled={is80sMode && !monsterMode && !rocketModelVisible} 
             linesAmount={is80sMode ? 12 : 0}
+          />
+        </Suspense> */}
+        
+        {/* Add NeonCylinders effect for enhanced 80s mode - temporarily disabled */}
+        {/* <Suspense fallback={null}>
+          <NeonCylinders 
+            enabled={is80sMode && !monsterMode && !rocketModelVisible} 
+            count={is80sMode ? 50 : 0}
           />
         </Suspense> */}
 

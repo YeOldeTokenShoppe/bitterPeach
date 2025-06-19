@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Astronaut Viewer Test</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: monospace;
+            background: #1e1b4b;
+            color: #e0e7ff;
+            overflow-x: hidden;
+        }
+        
+        .test-container {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .info-panel {
+            background: rgba(49,46,129,0.8);
+            border: 2px solid rgba(99,102,241,0.5);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+            max-width: 800px;
+            text-align: center;
+        }
+        
+        h1 {
+            color: #a78bfa;
+            text-shadow: 0 0 10px rgba(167,139,250,0.6);
+            margin: 0 0 20px 0;
+        }
+        
+        .feature-list {
+            text-align: left;
+            margin: 20px 0;
+        }
+        
+        .feature-list li {
+            margin: 10px 0;
+            color: #c4b5fd;
+        }
+        
+        .test-instructions {
+            background: rgba(30,27,75,0.8);
+            border: 1px solid rgba(167,139,250,0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+        }
+        
+        .highlight {
+            color: #22c55e;
+            font-weight: bold;
+        }
+        
+        .code {
+            background: rgba(0,0,0,0.5);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <div class="info-panel">
+            <h1>🚀 ASTRONAUT VIEWER ENHANCEMENTS</h1>
+            
+            <p>The astronaut 3D viewer has been enhanced with the following fixes and improvements:</p>
+            
+            <ul class="feature-list">
+                <li><span class="highlight">✓</span> Fixed texture flashing issues by:
+                    <ul>
+                        <li>Using <code class="code">THREE.FrontSide</code> instead of <code class="code">THREE.DoubleSide</code> to prevent z-fighting</li>
+                        <li>Implementing proper render order (body → helmet → glass)</li>
+                        <li>Setting correct depth write/test properties</li>
+                        <li>Using memoized texture loading with proper cleanup</li>
+                    </ul>
+                </li>
+                <li><span class="highlight">✓</span> Added enhanced viewer modal:
+                    <ul>
+                        <li>Large 700x700px centered view</li>
+                        <li>High-quality rendering with antialiasing</li>
+                        <li>Smooth camera controls with zoom limits</li>
+                        <li>Proper lighting setup with shadows</li>
+                    </ul>
+                </li>
+                <li><span class="highlight">✓</span> Added "EXPAND" button in the top-right corner of the inline viewer</li>
+                <li><span class="highlight">✓</span> Improved texture handling:
+                    <ul>
+                        <li>Separate helmet and suit texture management</li>
+                        <li>Proper texture filtering with mipmaps</li>
+                        <li>Consistent texture application across all mesh parts</li>
+                    </ul>
+                </li>
+                <li><span class="highlight">✓</span> Enhanced glass/visor transparency with proper render order</li>
+            </ul>
+            
+            <div class="test-instructions">
+                <h3 style="color: #6366f1; margin-top: 0;">📋 TEST INSTRUCTIONS</h3>
+                <ol style="text-align: left; margin: 10px 0;">
+                    <li>Navigate to the moon scene in your application</li>
+                    <li>Open the Lunar Side Panel (right side)</li>
+                    <li>Scroll to the Astronaut Customizer section</li>
+                    <li>Click the <strong>"EXPAND"</strong> button in the top-right of the 3D viewer</li>
+                    <li>Test texture uploads and predefined textures - they should apply without flashing</li>
+                    <li>Verify smooth rotation and zoom in both inline and expanded views</li>
+                </ol>
+                
+                <p style="margin-top: 15px; color: #fb923c;">
+                    ⚠️ <strong>Note:</strong> If you still see any flashing, it may be due to texture loading delays. 
+                    The enhanced viewer pre-loads textures with mipmaps to minimize this issue.
+                </p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

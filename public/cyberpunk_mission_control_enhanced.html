@@ -98,6 +98,112 @@
         position: relative !important;
         display: block !important;
       }
+
+      /* Cyberpunk Button Styles */
+      .button-wrapper {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 6px;
+        background: var(--bg-dark);
+        border-radius: 18px;
+        border: 1px solid var(--gray-700);
+        box-shadow: 
+          inset 0 2px 4px rgba(0, 0, 0, 0.5),
+          0 2px 4px rgba(0, 0, 0, 0.3);
+      }
+
+      .cyberpunk-button {
+        position: relative;
+        background: #ff8c00;
+        border: 2px solid #ff8c00;
+        border-radius: 14px;
+        color: #ffffff;
+        font-family: 'Orbitron', monospace;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        width: 28px;
+        height: 48px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-transform: uppercase;
+        overflow: hidden;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 
+          0 4px 20px rgba(255, 140, 0, 0.5),
+          0 0 30px rgba(255, 140, 0, 0.3),
+          inset 0 -2px 4px rgba(0, 0, 0, 0.3);
+      }
+
+      .cyberpunk-button:hover {
+        background: #ff4500;
+        border-color: #ff4500;
+        transform: translateY(-2px);
+        box-shadow: 
+          0 6px 25px rgba(255, 140, 0, 0.7),
+          0 0 40px rgba(255, 140, 0, 0.5),
+          inset 0 -2px 4px rgba(0, 0, 0, 0.3);
+      }
+
+      .cyberpunk-button:active {
+        background: #ff6000;
+        transform: translateY(0);
+        box-shadow: 
+          0 2px 15px rgba(255, 140, 0, 0.5),
+          0 0 20px rgba(255, 140, 0, 0.3),
+          inset 0 2px 4px rgba(0, 0, 0, 0.4);
+      }
+
+      .cyberpunk-button .button-text {
+        position: relative;
+        z-index: 2;
+        writing-mode: vertical-rl;
+        text-orientation: upright;
+        letter-spacing: 1px;
+      }
+
+      .cyberpunk-button .button-glow {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 100%;
+        height: 100%;
+        background: radial-gradient(circle, rgba(255, 140, 0, 0.4) 0%, transparent 70%);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        pointer-events: none;
+      }
+
+      .cyberpunk-button:hover .button-glow {
+        opacity: 1;
+        animation: pulse-glow 1.5s ease-in-out infinite;
+      }
+
+      @keyframes pulse-glow {
+        0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.6; }
+        50% { transform: translate(-50%, -50%) scale(1.2); opacity: 0.3; }
+      }
+
+      /* Specific color for orange theme */
+      .cyberpunk-button.orange {
+        background: #ff8c00;
+        border-color: #ff8c00;
+        color: #ffffff;
+      }
+
+      .cyberpunk-button.orange:hover {
+        background: #ff4500;
+        border-color: #ff4500;
+      }
+
+      .cyberpunk-button.orange:active {
+        background: #ff6000;
+      }
     </style>
     <!-- Preload critical CSS to prevent white flash -->
     <style>
@@ -591,16 +697,14 @@
             </div>
           </div>
 
-          <!-- MoonShots Toggle -->
+          <!-- MoonShots Button -->
           <div class="toggle-group vertical">
             <span class="toggle-label">MOONSHOTS</span>
-            <div class="toggle-wrapper">
-              <div id="moonshots-toggle" class="vertical-toggle orange">
-                <div class="toggle-track">
-                  <div class="toggle-handle"></div>
-                  <div class="toggle-glow"></div>
-                </div>
-              </div>
+            <div class="button-wrapper">
+              <button id="moonshots-button" class="cyberpunk-button orange">
+                <span class="button-text"></span>
+                <div class="button-glow"></div>
+              </button>
             </div>
           </div>
         </div>

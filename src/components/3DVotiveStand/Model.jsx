@@ -1710,7 +1710,7 @@ function Model({
 }
 
 // Preload both models
-useGLTF.preload("/alligatorStroll3.glb");
+useGLTF.preload("/catAltar.glb");
 useGLTF.preload("/XCandle1.glb");
 
 export default Model;

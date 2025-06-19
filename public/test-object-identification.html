@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Object Identification Test</title>
+    <style>
+        body {
+            margin: 0;
+            background: #000;
+            overflow: hidden;
+            font-family: monospace;
+        }
+        #info {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 400px;
+            max-height: 90vh;
+            overflow-y: auto;
+            color: white;
+            background: rgba(0,0,0,0.9);
+            padding: 20px;
+            border-radius: 5px;
+        }
+        .object-info {
+            margin: 10px 0;
+            padding: 10px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 3px;
+        }
+        .target-object {
+            background: rgba(255,100,0,0.3);
+            border: 1px solid orange;
+        }
+        button {
+            margin: 5px;
+            padding: 10px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <h3>Object Identification</h3>
+        <p>Looking for Object_10 through Object_18</p>
+        <div>
+            <button onclick="toggleTargetObjects()">Toggle Target Objects</button>
+            <button onclick="showOnlyTargets()">Show Only Targets</button>
+            <button onclick="showAll()">Show All</button>
+        </div>
+        <div id="object-list"></div>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.module.js';
+        import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.150.1/examples/jsm/loaders/GLTFLoader.js';
+        import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.150.1/examples/jsm/controls/OrbitControls.js';
+
+        let scene, camera, renderer, controls;
+        let targetObjects = [];
+        let allObjects = [];
+        const targetNames = ['Object_10', 'Object_11', 'Object_12', 'Object_13', 'Object_14', 'Object_15', 'Object_16', 'Object_17', 'Object_18'];
+
+        // Scene setup
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x111111);
+        
+        camera = new THREE.PerspectiveCamera(
+            45,
+            window.innerWidth / window.innerHeight,
+            0.1,
+            1000
+        );
+        camera.position.set(10, 5, 10);
+        
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        document.body.appendChild(renderer.domElement);
+        
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+        
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(10, 10, 5);
+        scene.add(directionalLight);
+        
+        // Controls
+        controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        
+        // Grid
+        const gridHelper = new THREE.GridHelper(20, 20);
+        scene.add(gridHelper);
+        
+        // Load model
+        const loader = new GLTFLoader();
+        loader.load('/lambo5k.glb', (gltf) => {
+            const model = gltf.scene;
+            const objectList = document.getElementById('object-list');
+            
+            // Analyze model
+            model.traverse((child) => {
+                allObjects.push(child);
+                
+                if (targetNames.includes(child.name)) {
+                    targetObjects.push(child);
+                    
+                    // Create detailed info
+                    const div = document.createElement('div');
+                    div.className = 'object-info target-object';
+                    
+                    // Calculate world position
+                    const worldPos = new THREE.Vector3();
+                    child.getWorldPosition(worldPos);
+                    
+                    // Get bounding box if it's a mesh
+                    let size = 'N/A';
+                    if (child.isMesh && child.geometry) {
+                        child.geometry.computeBoundingBox();
+                        const box = child.geometry.boundingBox;
+                        const sizeVec = new THREE.Vector3();
+                        box.getSize(sizeVec);
+                        size = `${sizeVec.x.toFixed(2)} x ${sizeVec.y.toFixed(2)} x ${sizeVec.z.toFixed(2)}`;
+                    }
+                    
+                    div.innerHTML = `
+                        <strong>${child.name}</strong><br>
+                        Type: ${child.type}<br>
+                        Local Position: (${child.position.x.toFixed(2)}, ${child.position.y.toFixed(2)}, ${child.position.z.toFixed(2)})<br>
+                        World Position: (${worldPos.x.toFixed(2)}, ${worldPos.y.toFixed(2)}, ${worldPos.z.toFixed(2)})<br>
+                        Size: ${size}<br>
+                        Parent: ${child.parent?.name || 'Scene'}<br>
+                        ${child.material ? `Material: ${child.material.type}` : 'No material'}
+                    `;
+                    
+                    objectList.appendChild(div);
+                    
+                    // Add wireframe to make it visible
+                    if (child.isMesh) {
+                        const wireframe = new THREE.WireframeGeometry(child.geometry);
+                        const line = new THREE.LineSegments(wireframe, new THREE.LineBasicMaterial({ color: 0xff6600 }));
+                        child.add(line);
+                    }
+                }
+            });
+            
+            // Add to scene
+            scene.add(model);
+            
+            console.log(`Found ${targetObjects.length} target objects out of ${allObjects.length} total objects`);
+            
+        }, undefined, (error) => {
+            console.error('Error loading model:', error);
+        });
+        
+        // Global functions
+        window.toggleTargetObjects = function() {
+            targetObjects.forEach(obj => {
+                obj.visible = !obj.visible;
+            });
+        };
+        
+        window.showOnlyTargets = function() {
+            allObjects.forEach(obj => {
+                if (obj.isMesh || obj.isGroup) {
+                    obj.visible = targetNames.includes(obj.name);
+                }
+            });
+        };
+        
+        window.showAll = function() {
+            allObjects.forEach(obj => {
+                obj.visible = true;
+            });
+        };
+        
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+        
+        // Handle resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+/* Old English Five - West Coast Gothic Font */
+@font-face {
+  font-family: 'Old English Five';
+  src: url('/fonts/OldEnglishFive.woff2') format('woff2'),
+       url('/fonts/OldEnglishFive.woff') format('woff'),
+       url('/fonts/OldEnglishFive.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap; /* Ensures text is visible while font loads */
+}
+
+/* Optional: Add font variations if you have them */
+@font-face {
+  font-family: 'Old English Five';
+  src: url('/fonts/OldEnglishFive-Bold.woff2') format('woff2'),
+       url('/fonts/OldEnglishFive-Bold.woff') format('woff');
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
