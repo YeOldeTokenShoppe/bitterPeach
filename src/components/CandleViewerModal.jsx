@@ -116,7 +116,7 @@ export default function CandleViewerModal({ isOpen, onClose, candleData }) {
                   Message
                 </Text>
                 <Text color="purple.200" fontStyle="italic">
-                  "{candleData.message}"
+                  &ldquo;{candleData.message}&rdquo;
                 </Text>
               </Box>
             )}

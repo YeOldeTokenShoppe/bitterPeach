@@ -39,6 +39,8 @@ const SimpleModel = React.forwardRef(({ url, position = [0, 0, 0] }, ref) => {
   return <primitive ref={group} object={scene} position={position} />;
 });
 
+SimpleModel.displayName = 'SimpleModel';
+
 export default function ModelViewer() {
   const statuePosition = [0, 0.5, -0.9];
   const modelRef = useRef();
