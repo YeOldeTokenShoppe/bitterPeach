@@ -7,7 +7,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 function HolographicStatue2({ 
   onLoad, 
   position = [-0.3, 4.6, -0.3],  // Default position if not provided
-  rotation = [0, -Math.PI / 15, 0],  // Default rotation if not provided
+  rotation = [0, -Math.PI*2, 0],  // Default rotation if not provided
   scale = [18, 18, 18],  // Default scale if not provided
   hover = false,  // Disable hover animation by default
   rotate = true  // Disable rotation animation by default
@@ -504,7 +504,7 @@ function HolographicStatue2({
 
       // Apply rotation to the rotation group only if rotate is enabled
       if (rotate) {
-        groupRef.current.rotation.rotation.y += delta * 0.2;
+        groupRef.current.rotation.rotation.y += delta * 0.0;
       }
 
       // Update shader uniforms using cached materials (more efficient)

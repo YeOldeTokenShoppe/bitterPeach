@@ -54,13 +54,19 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
     // "Rocket Man - Steven Drozd",
     // "Magnetic - Tunde Adebimpe",
     // "Intergalactic - Beastie Boys",  // Space themed, fits alternative mode
-    "Lifetimes"
+ 
+
+    "Lifetimes",
+    "Corner Of My Eye"
   ];
   const non80sFirebasePaths = [
     // "audio/320k/rocket-man---steven-drozd.m4a",
     // "audio/320k/01-magnetic.m4a",
     // "audio/320k/intergalactic-beastie-boys.m4a",
-    "audio/192k/07-lifetimes.m4a"
+
+
+    "audio/192k/07-lifetimes.m4a",
+    "audio/192k/future-islands---corner-of-my-eye.mp3"
   ];
 
   const eightyTrackNames = [

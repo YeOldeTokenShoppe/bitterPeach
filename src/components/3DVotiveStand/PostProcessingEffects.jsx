@@ -135,8 +135,8 @@ const PostProcessingEffects = ({ is80sMode = false }) => {
   const eightiesEffects = (
     <>
       <Bloom
-        intensity={1.0}           // Increased from 1.5
-        luminanceThreshold={0.05} // Lowered from 0.1 to catch more colors
+        intensity={0.2}           // Increased from 1.5
+        luminanceThreshold={0.01} // Lowered from 0.1 to catch more colors
         luminanceSmoothing={0.3}  // Decreased for sharper bloom
         height={400}              // Increased for more detail
         blendFunction={BlendFunction.SCREEN}

@@ -1,6 +1,6 @@
 import React, { Suspense, useRef, useEffect, useState, useCallback } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, useGLTF, useAnimations } from '@react-three/drei';
+import { OrbitControls, useGLTF, useAnimations, Environment } from '@react-three/drei';
 import HolographicStatue2 from '../components/3DVotiveStand/HolographicStatue2';
 import GlassButton from '../components/GlassButton';
 // import PrismaticOverlay from '../components/PrismaticOverlay';
@@ -14,24 +14,112 @@ import { useFirestoreResults } from '../utilities/useFirestoreResults';
 import dynamic from 'next/dynamic';
 import { useMusic } from '../contexts/MusicContext';
 import PostProcessingEffects from '../components/3DVotiveStand/PostProcessingEffects';
+import TickerDisplay2 from '../components/3DVotiveStand/TickerDisplay2';
 
 // Dynamically import the Mobile Music Player component
 const MobileMusicPlayer = dynamic(() => import('../components/MobileMusicPlayer'), {
   ssr: false,
 });
 
-const SimpleModel = React.forwardRef(({ url, position = [0, 0, 0] }, ref) => {
+const SimpleModel = React.forwardRef(({ url, position = [0, 0, 0], isPlaying = false }, ref) => {
   const group = useRef();
   const { scene, animations } = useGLTF(url);
-  const { actions } = useAnimations(animations, group);
+  const { actions, names } = useAnimations(animations, group);
+  const [isInitialized, setIsInitialized] = useState(false);
 
+  // Initialize animations on first load
   useEffect(() => {
-    if (actions && Object.keys(actions).length > 0) {
-      Object.values(actions).forEach(action => {
-        action.play();
+    if (actions && Object.keys(actions).length > 0 && !isInitialized) {
+      console.log(`🎬 Animations loaded for ${url}:`, Object.keys(actions));
+      console.log('Animation names:', names);
+      
+      // Make sure all animations are properly initialized
+      Object.entries(actions).forEach(([name, action]) => {
+        action.reset();
+        action.stop();
+        console.log(`Animation "${name}" initialized`);
+      });
+      
+      setIsInitialized(true);
+    }
+  }, [actions, names, url, isInitialized]);
+  
+  // Hide the original Circle floor object from the GLB
+  useEffect(() => {
+    if (scene) {
+      scene.traverse((child) => {
+        if (child.name === 'Circle' || child.name === 'circle') {
+          child.visible = false;
+          console.log('🔵 Hidden original Circle floor object');
+        }
       });
     }
-  }, [actions]);
+  }, [scene]);
+
+  // Handle animation switching based on music state
+  useEffect(() => {
+    if (!isInitialized || !actions || Object.keys(actions).length === 0) return;
+    
+    console.log(`🎵 Music state changed. isPlaying: ${isPlaying}`);
+    
+    // Stop all animations first
+    Object.values(actions).forEach(action => {
+      action.stop();
+      action.reset();
+    });
+    
+    // Rotate Robot_Empty when playing HIPHOP1
+    // Default: -90 degrees (facing left), HIPHOP1: 0 degrees (facing forward)
+    if (scene) {
+      const robotEmpty = scene.getObjectByName('Robot_Empty');
+      if (robotEmpty) {
+        robotEmpty.rotation.y = isPlaying ? Math.PI : Math.PI/2;
+        console.log('🔄 Rotating Robot_Empty:', isPlaying ? 'forward (0°)' : 'left (-90°)');
+      } else {
+        console.log('⚠️ Robot_Empty not found in scene');
+      }
+    }
+    
+    // Play the appropriate animation
+    if (isPlaying) {
+      if (actions.HIPHOP1) {
+        console.log('🕺 Playing HIPHOP1 animation');
+        actions.HIPHOP1.reset().play();
+      } else {
+        console.warn('❌ HIPHOP1 animation not found!');
+        // Try to find any animation with "hip" or "dance" in the name
+        const danceAnimation = Object.entries(actions).find(([name]) => 
+          name.toLowerCase().includes('hip') || name.toLowerCase().includes('dance')
+        );
+        if (danceAnimation) {
+          console.log(`🕺 Playing alternative dance animation: ${danceAnimation[0]}`);
+          danceAnimation[1].reset().play();
+        }
+      }
+    } else {
+      if (actions.TYPING) {
+        console.log('⌨️ Playing TYPING animation');
+        actions.TYPING.reset().play();
+      } else {
+        console.warn('❌ TYPING animation not found!');
+        // Try to find any animation with "type" or "idle" in the name
+        const typingAnimation = Object.entries(actions).find(([name]) => 
+          name.toLowerCase().includes('typ') || name.toLowerCase().includes('idle')
+        );
+        if (typingAnimation) {
+          console.log(`⌨️ Playing alternative typing animation: ${typingAnimation[0]}`);
+          typingAnimation[1].reset().play();
+        } else {
+          // Last resort: play first animation
+          const firstAction = Object.values(actions)[0];
+          if (firstAction) {
+            console.log('🎬 Playing first available animation as fallback');
+            firstAction.reset().play();
+          }
+        }
+      }
+    }
+  }, [actions, isPlaying, isInitialized, scene]);
   
   // Expose the group ref
   React.useImperativeHandle(ref, () => group);
@@ -42,7 +130,7 @@ const SimpleModel = React.forwardRef(({ url, position = [0, 0, 0] }, ref) => {
 SimpleModel.displayName = 'SimpleModel';
 
 export default function ModelViewer() {
-  const statuePosition = [0, 0.5, -0.9];
+  const statuePosition = [-0.05, 1, -1];
   const modelRef = useRef();
   const votiveModelRef = useRef(); // Ref for the votive stand model with VCANDLEs
   const [currentPage, setCurrentPage] = useState(0);
@@ -55,7 +143,6 @@ export default function ModelViewer() {
   // Music player states
   const [showMobileMusicPlayer, setShowMobileMusicPlayer] = useState(false);
   const [musicPlayerVisible, setMusicPlayerVisible] = useState(false);
-  const [userClosedMusic, setUserClosedMusic] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [musicPlayerControls, setMusicPlayerControls] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
@@ -181,7 +268,6 @@ export default function ModelViewer() {
     setContextShowSpotify(false);
     
     // Then hide the player
-    setUserClosedMusic(true);
     setShowMobileMusicPlayer(false);
     setMusicPlayerVisible(false);
   }, [musicPlayerControls, setContextIsPlaying, setContextShowSpotify]);
@@ -254,10 +340,38 @@ export default function ModelViewer() {
         <Suspense fallback={null}>
           
          
-    
+          <TickerDisplay2 />
           <ambientLight intensity={0.5} />
           <directionalLight position={[5, 10, 5]} intensity={1} />
-          <SimpleModel ref={modelRef} url='/hologramDesk.glb' position={[0, -1.5, -1]} />
+          <Environment preset="city" />
+          <SimpleModel 
+            ref={modelRef} 
+            url='/hologramDesk.glb' 
+            position={[0, -1, -1]} 
+            isPlaying={contextIsPlaying || isPlaying}
+          />
+          
+          {/* Iridescent Floor Circle */}
+          <mesh position={[0, -1.05, -1]} rotation={[-Math.PI / 2, 0, 0]}>
+            <circleGeometry args={[3, 64]} />
+            <meshPhysicalMaterial
+              color="#2a2a3e"
+              metalness={0.2}
+              roughness={0.8}
+              iridescence={1}
+              iridescenceIOR={1.8}
+              iridescenceThicknessRange={[100, 800]}
+              clearcoat={1}
+              clearcoatRoughness={0.1}
+              reflectivity={0.5}
+              envMapIntensity={2}
+              sheen={1}
+              sheenColor="#d946ef"
+              sheenRoughness={0.3}
+              transmission={0.1}
+              thickness={0.5}
+            />
+          </mesh>
           
           {/* Hidden votive stand model to extract VCANDLEs from */}
           <group visible={false}>
@@ -287,9 +401,9 @@ export default function ModelViewer() {
             enableZoom={true}
             enableRotate={true}
             enableDamping={true}
-            dampingFactor={0.5}
+            dampingFactor={0.05}
             minDistance={1}
-            maxDistance={7}
+            maxDistance={10}
             minPolarAngle={0}
             maxPolarAngle={Math.PI / 2}
             zoomToCursor={true}
@@ -336,7 +450,7 @@ export default function ModelViewer() {
         pointerEvents="auto"
       >
         {/* Title */}
-        <Text 
+        {/* <Text 
                 className={!is80sMode ? "thelma2" : ""}
                 fontSize="2rem"
                 // Override styles in 80s mode for chrome/neon effect
@@ -392,7 +506,7 @@ export default function ModelViewer() {
                 } : {}}
               >
                 THE ILLUMIN80
-              </Text>
+              </Text> */}
         
         {/* Controls */}
         <Box
@@ -503,7 +617,6 @@ export default function ModelViewer() {
             size="md"
             onClick={() => {
             console.log('🎵 Music icon clicked');
-            setUserClosedMusic(false);
             
             if (contextShowSpotify && contextIsPlaying) {
               // Music is already playing, just show the UI
@@ -549,7 +662,7 @@ export default function ModelViewer() {
             border="1px solid rgba(255, 255, 255, 0.2)"
           >
             <Text
-              color="#67e8f9"
+              color="white"
               fontSize="12px"
               fontWeight="bold"
               letterSpacing="0.5px"
@@ -588,7 +701,7 @@ export default function ModelViewer() {
                 transition="all 0.3s ease"
                 boxShadow="0 2px 4px rgba(0, 0, 0, 0.2)"
               />
-              {/* {is80sMode && (
+              {is80sMode && (
                 <Text
                   position="absolute"
                   top="50%"
@@ -601,7 +714,7 @@ export default function ModelViewer() {
                 >
                   80
                 </Text>
-              )} */}
+              )}
             </Box>
           </Box>
         </>
@@ -665,7 +778,7 @@ export default function ModelViewer() {
               }}
             >
               {/* 80s Mode Indicator */}
-              {/* {is80sMode && (
+              {is80sMode && (
                 <Box
                   position="absolute"
                   top="-8px"
@@ -685,7 +798,7 @@ export default function ModelViewer() {
                 >
                   80
                 </Box>
-              )} */}
+              )}
             </Box>
             
             {/* Skip Button */}
@@ -779,7 +892,7 @@ export default function ModelViewer() {
             border="1px solid rgba(255, 255, 255, 0.2)"
           >
             <Text
-              color="#67e8f9"
+              color="white"
               fontSize="12px"
               fontWeight="bold"
               letterSpacing="0.5px"

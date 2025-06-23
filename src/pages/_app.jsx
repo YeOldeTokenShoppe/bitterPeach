@@ -45,6 +45,7 @@ function MyApp({ Component, pageProps }) {
   const isSample1Page = router.pathname === "/sample1";
   const isJunkyardPage = router.pathname === "/junkyard";
   const isModelViewerPage = router.pathname === "/model-viewer";
+  const isTemplePage = router.pathname === "/cyborg-temple";
 
   useEffect(() => {
     // Ensure theme is forced to "dark"
@@ -70,7 +71,10 @@ function MyApp({ Component, pageProps }) {
     else if (isMoonScenePage) {
       document.body.classList.add("moon-scene-page");
     }
-  }, [isGalleryPage, isScenePage, isRocketPage, isIndexPage, isCommunionPage, router.pathname]);
+    else if (isTemplePage) {
+      document.body.classList.add("temple-page");
+    }
+  }, [isGalleryPage, isScenePage, isRocketPage, isIndexPage, isCommunionPage, isTemplePage, router.pathname]);
 
   // Set specific background colors for special pages
   useEffect(() => {
@@ -102,7 +106,7 @@ function MyApp({ Component, pageProps }) {
         body.style.overflow = "";
       }
     };
-  }, [isGalleryPage, isScenePage, isRocketPage, isIndexPage, isCommunionPage, isMoonScenePage, router.pathname]);
+  }, [isGalleryPage, isScenePage, isRocketPage, isIndexPage, isCommunionPage, isMoonScenePage, isTemplePage, router.pathname]);
 
   // Dynamically choose the theme
   const special = isGalleryPage
@@ -114,7 +118,7 @@ function MyApp({ Component, pageProps }) {
   let HeaderComponent = null;
   if (isGalleryPage) {
     HeaderComponent = Header3;
-  } else if (!(isIndexPage || isScenePage || isRocketPage || isCommunionPage || isMoonScenePage || isSamplePage || isSample1Page || isJunkyardPage || isModelViewerPage)) {
+  } else if (!(isIndexPage || isScenePage || isRocketPage || isCommunionPage || isMoonScenePage || isSamplePage || isSample1Page || isJunkyardPage || isModelViewerPage || isTemplePage )) {
     HeaderComponent = Header;
   }
 

@@ -11,6 +11,8 @@ import dynamic from 'next/dynamic';
 import { useMusic } from '../contexts/MusicContext';
 import { IconButton, Box } from '@chakra-ui/react';
 import { useRouter } from 'next/router';
+import { getProject, types } from '@theatre/core';
+import studio from '@theatre/studio';
 
 // Dynamically import the Mobile Music Player component
 const MobileMusicPlayer = dynamic(() => import('./MobileMusicPlayer'), {
@@ -69,6 +71,11 @@ const PalmsScene = () => {
   
   // Add refs for 3D card effect
   const cameraRef = useRef(null);
+  
+  // Add Theatre.js refs
+  const theatreProjectRef = useRef(null);
+  const theatreSequenceRef = useRef(null);
+  const theatreCameraObjectRef = useRef(null);
 
   
   // Check if mobile on mount and resize
@@ -895,6 +902,7 @@ const PalmsScene = () => {
       const carScene = gltf.scene;
       
       // Enhanced logging for model contents
+      
       console.log('=== Model Loading Debug ===');
       console.log('Total objects in scene:', carScene.children.length);
       
@@ -1569,21 +1577,96 @@ const PalmsScene = () => {
     
     window.addEventListener('keydown', handleKeyPress);
 
-    // Create GSAP timeline for cinematic intro
+    // Initialize Theatre.js
+    if (!theatreProjectRef.current) {
+      // Enable studio in development
+      if (process.env.NODE_ENV === 'development') {
+        studio.initialize();
+      }
+      
+      // Create Theatre.js project
+      theatreProjectRef.current = getProject('PalmTreeDrive', {
+        // You can add state here if you want to save/load animations
+      });
+      
+      // Create a sheet for the camera animation
+      const sheet = theatreProjectRef.current.sheet('CameraFlyIn');
+      theatreSequenceRef.current = sheet.sequence;
+      
+      // Create the camera object once
+      const keyframes = recordedKeyframesRef.current.length > 0 ? recordedKeyframesRef.current : defaultCinematicKeyframes;
+      theatreCameraObjectRef.current = sheet.object('Camera', {
+        // Single interpolated progress value that we'll use to calculate positions
+        progress: types.number(0, { range: [0, 1] })
+      });
+    }
+    
+    // Create Theatre.js animation for cinematic intro
     const createCinematicTimeline = () => {
       const keyframes = recordedKeyframesRef.current.length > 0 ? recordedKeyframesRef.current : defaultCinematicKeyframes;
       
-      // Kill any existing timeline
-      if (cinematicTimelineRef.current) {
-        cinematicTimelineRef.current.kill();
-      }
+      // Use the existing camera object
+      const cameraObject = theatreCameraObjectRef.current;
+      const sheet = theatreProjectRef.current.sheet('CameraFlyIn');
       
-      // Create new timeline
-      const tl = gsap.timeline({
-        onComplete: () => {
+      const totalDuration = 25; // Total animation duration in seconds
+      
+      // Helper function to interpolate between keyframes
+      const interpolateKeyframes = (progress) => {
+        // Find which two keyframes we're between
+        let fromIndex = 0;
+        let toIndex = 1;
+        
+        for (let i = 0; i < keyframes.length - 1; i++) {
+          if (progress >= keyframes[i].time && progress <= keyframes[i + 1].time) {
+            fromIndex = i;
+            toIndex = i + 1;
+            break;
+          }
+        }
+        
+        const from = keyframes[fromIndex];
+        const to = keyframes[toIndex];
+        
+        // Calculate local progress between these two keyframes
+        const localProgress = (progress - from.time) / (to.time - from.time);
+        
+        // Interpolate position, target, and fov
+        const position = new THREE.Vector3().lerpVectors(from.position, to.position, localProgress);
+        const target = new THREE.Vector3().lerpVectors(from.target, to.target, localProgress);
+        const fov = THREE.MathUtils.lerp(from.fov, to.fov, localProgress);
+        
+        return { position, target, fov };
+      };
+      
+      // Subscribe to value changes
+      const unsubscribe = cameraObject.onValuesChange((values) => {
+        const interpolated = interpolateKeyframes(values.progress);
+        
+        camera.position.copy(interpolated.position);
+        camera.lookAt(interpolated.target);
+        camera.fov = interpolated.fov;
+        camera.updateProjectionMatrix();
+        controls.target.copy(interpolated.target);
+        
+        setCinematicProgress(values.progress);
+      });
+      
+      // Animate the progress from 0 to 1
+      sheet.sequence.position = 0;
+      
+      // Wait for Theatre.js project to be ready before playing
+      theatreProjectRef.current.ready.then(() => {
+        // Use Theatre.js to play the animation
+        theatreSequenceRef.current.play({
+          iterationCount: 1,
+          range: [0, totalDuration],
+          rate: 1
+        }).then(() => {
           setIsCinematicComplete(true);
           controls.enabled = true;
           controls.update();
+          unsubscribe();
           
           // Start Mary glowing effect
           setMaryGlowing(true);
@@ -1691,53 +1774,15 @@ const PalmsScene = () => {
               });
             }
           }
-        }
+        });
       });
       
-      // Create a proxy object for smooth interpolation
-      const cameraProxy = {
-        x: keyframes[0].position.x,
-        y: keyframes[0].position.y,
-        z: keyframes[0].position.z,
-        targetX: keyframes[0].target.x,
-        targetY: keyframes[0].target.y,
-        targetZ: keyframes[0].target.z,
-        fov: keyframes[0].fov
-      };
-      
-      // Add each keyframe to the timeline
-      keyframes.forEach((keyframe, index) => {
-        if (index === 0) return; // Skip first keyframe as it's the starting position
-        
-        const totalDuration = 25; // Total animation duration in seconds
-        const duration = index === 1 
-          ? keyframe.time * totalDuration // First segment duration
-          : (keyframe.time - keyframes[index - 1].time) * totalDuration; // Subsequent segments
-        
-        tl.to(cameraProxy, {
-          duration: duration,
-          x: keyframe.position.x,
-          y: keyframe.position.y,
-          z: keyframe.position.z,
-          targetX: keyframe.target.x,
-          targetY: keyframe.target.y,
-          targetZ: keyframe.target.z,
-          fov: keyframe.fov,
-          // Use linear easing for continuous motion, except for the last keyframe
-          ease: index === keyframes.length - 1 ? "power2.inOut" : "none",
-          onUpdate: () => {
-            camera.position.set(cameraProxy.x, cameraProxy.y, cameraProxy.z);
-            camera.lookAt(cameraProxy.targetX, cameraProxy.targetY, cameraProxy.targetZ);
-            camera.fov = cameraProxy.fov;
-            camera.updateProjectionMatrix();
-            controls.target.set(cameraProxy.targetX, cameraProxy.targetY, cameraProxy.targetZ);
-          }
-        }, index === 1 ? 0 : `>`); // No overlap for continuous motion
-      });
-      
-      // Update progress for UI
-      tl.eventCallback("onUpdate", () => {
-        setCinematicProgress(tl.progress());
+      // For now, we'll use GSAP to animate the Theatre.js progress value
+      const tl = gsap.timeline({});
+      tl.to(cameraObject.value, {
+        duration: totalDuration,
+        progress: 1,
+        ease: "power2.inOut"
       });
       
       cinematicTimelineRef.current = tl;
@@ -1886,9 +1931,9 @@ const PalmsScene = () => {
         console.log('Mary intersects found:', intersects.length);
         
         if (intersects.length > 0) {
-          console.log('Mary clicked! Navigating to cyborg temple...');
+          console.log('Mary clicked! Navigating to gallery...');
           // Navigate to gallery
-          routerRef.current.push('/cyborg-temple');
+          routerRef.current.push('/gallery');
           return;
         }
       }
@@ -1906,7 +1951,7 @@ const PalmsScene = () => {
             console.log('Intersection distance from Mary position:', distance);
             if (distance < 2) { // Within 2 units of Mary's position
               console.log('Close to Mary! Navigating to gallery...');
-              routerRef.current.push('/cyborg-temple');
+              routerRef.current.push('/gallery');
               return;
             }
           }
