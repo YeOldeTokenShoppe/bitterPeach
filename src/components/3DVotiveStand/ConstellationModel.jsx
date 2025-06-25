@@ -101,14 +101,14 @@ function ConstellationModel({
             child.visible = true; // Keep in scene graph
             if (child.material) {
               child.material.transparent = true;
-              child.material.opacity = isVisible ? 0.0001 : 0; // Control via opacity
+              child.material.opacity = isVisible ? 0.01 : 0; // Control via opacity
             }
           } else {
             child.visible = isVisible;
             if (child.material) {
               child.material.transparent = true;
               if (child.name.startsWith("Bear")) {
-                child.material.opacity = isVisible ? 0.02 : 0;
+                child.material.opacity = isVisible ? 0.04 : 0;
               // } else if (modelScene === starCandlesClone) {
               //   child.material.opacity = isVisible ? 0.1 : 0;
               } else if (modelScene === whaleClone) {
@@ -129,8 +129,8 @@ function ConstellationModel({
 
     // Keep internal model positions and scales as they are, 
     // the main group's scale and position will adjust them globally.
-    processModel(marketClone, "Market", [10, 5, 0], [1, 1, 1]);
-    processModel(whaleClone, "Whale", [18, 11, 64], [1, 1, 1]);
+    processModel(marketClone, "Market", [10, 1, 0], [1, 1, 1]);
+    processModel(whaleClone, "Whale", [-10, 2, 4], [0.3, 0.3, 0.3]);
     // processModel(starCandlesClone, "StarCandles", [-15, -2, 30], [1.8 , 1.8, 1.8]);
     // processModel(infinityStarsClone, "InfinityStars", [-10, 1, -12], [1.5, 1.5, 1.5]);
 
@@ -138,11 +138,15 @@ function ConstellationModel({
     whaleClone.rotation.y = Math.PI / 4;
     whaleClone.rotation.x = Math.PI / 12;
     // infinityStarsClone.rotation.z = Math.PI / 6;
+    marketClone.rotation.y = Math.PI * 0.5;
 
     // Apply the new groupScale and groupPosition props
     groupRef.current.position.set(...groupPosition);
     groupRef.current.scale.set(...groupScale);
     groupRef.current.rotation.set(...groupRotation);
+    
+    // Ensure constellation renders behind other objects but in front of stars
+    groupRef.current.renderOrder = -500;
 
     return () => {
       [marketClone, whaleClone].forEach(scene => {
@@ -175,13 +179,13 @@ function ConstellationModel({
             child.material.transparent = true;
             // Reduce star opacity when lines are hidden
             if (child.userData.isWhaleStar) {
-              child.material.opacity = isVisible ? 0.05 : 0.03; // Dim whale stars when lines off
+              child.material.opacity = isVisible ? 0.06 : 0.02; // Dim whale stars when lines off
             } else if (child.userData.isBearStar) {
-              child.material.opacity = isVisible ? 0.05 : 0.02; // Dim bear stars when lines off
+              child.material.opacity = isVisible ? 0.06 : 0.02; // Dim bear stars when lines off
             // } else if (child.userData.isInfinityStar) {
             //   child.material.opacity = isVisible ? 0.06 : 0.05; // Dim infinity stars when lines off
             } else {
-              child.material.opacity = isVisible ? 0.05 : 0.02; // Dim other stars when lines off
+              child.material.opacity = isVisible ? 0.1 : 0.05; // Dim other stars when lines off
             }
           }
         // } else if (child.name.startsWith("Infinity")) { // For Infinity lines
@@ -196,7 +200,7 @@ function ConstellationModel({
             child.visible = true; // Keep in scene graph
             if (child.material) {
               child.material.transparent = true;
-              child.material.opacity = isVisible ? 0.05 : 0; // Control via opacity
+              child.material.opacity = isVisible ? 0.1 : 0.1; // Control via opacity
             }
           } else {
             child.visible = isVisible;
@@ -204,11 +208,11 @@ function ConstellationModel({
               child.material.transparent = true;
               // Set opacity based on isVisible for non-star/non-line meshes
               if (child.name.startsWith("Bear")) {
-                child.material.opacity = isVisible ? 0.03 : 0;
+                child.material.opacity = isVisible ? 0.09 : 0;
               // } else if (child.parent?.name.includes("StarCandles")) { // Check parent for StarCandles context
               //   child.material.opacity = isVisible ? 0.03 : 0;
               } else if (child.parent?.name.includes("Whale") || child.userData.isWhaleModel) { // Check parent for Whale context
-                child.material.opacity = isVisible ? 0.03 : 0; // was 0.1
+                child.material.opacity = isVisible ? 0.07 : 0; // was 0.1
               // } else if (child.parent?.name.includes("InfinityStars")) { // Check parent for InfinityStars context
               //   child.material.opacity = isVisible ? 0.03 : 0;
               } else {

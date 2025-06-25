@@ -135,24 +135,32 @@ const PostProcessingEffects = ({ is80sMode = false }) => {
   const eightiesEffects = (
     <>
       <Bloom
-        intensity={0.2}           // Increased from 1.5
-        luminanceThreshold={0.01} // Lowered from 0.1 to catch more colors
-        luminanceSmoothing={0.3}  // Decreased for sharper bloom
-        height={400}              // Increased for more detail
-        blendFunction={BlendFunction.SCREEN}
+        intensity={2.5}           // Much stronger bloom for that 80s glow
+        luminanceThreshold={0.1} // Lower threshold to catch more colors
+        luminanceSmoothing={0.3}  // Sharper, more pronounced bloom
+        height={512}              // Higher resolution for better quality
+        blendFunction={BlendFunction.ADD} // ADD for more intense glow
       />
       <ChromaticAberration
-        offset={[0.005, 0.005]}
+        offset={[0.01, 0.01]}     // Doubled the chromatic aberration
         radialModulation={true}
-        modulationOffset={0.3}
+        modulationOffset={0.5}     // Increased modulation
       />
       <Scanline
-        density={1.5}
-        opacity={0.2}
+        density={11.0}             // More visible scanlines
+        opacity={0.6}             // Doubled opacity
         blendFunction={BlendFunction.OVERLAY}
       />
-      <Noise opacity={0.08} />
-      <Vignette eskil={false} offset={0.1} darkness={0.7} />
+      <Glitch
+        delay={[0.5, 1.5]}        // Random glitch every 1.5-3.5 seconds
+        chromaticAberrationOffset={[0.00005, 0.00001]}
+        // delay={[1.5, 2.5]}        // Random glitch every 1.5-3.5 seconds
+        // duration={[0.1, 0.3]}     // Quick glitches
+        // strength={[0.00005, 0.00001]}     // Moderate strength
+        mode={GlitchMode.SPORADIC} // Sporadic glitches for that 80s VHS feel
+      />
+      <Noise opacity={0.15} />    {/* More visible noise */}
+      <Vignette eskil={false} offset={0.05} darkness={0.9} /> {/* Stronger vignette */}
     </>
   );
 

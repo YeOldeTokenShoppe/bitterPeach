@@ -1,5 +1,5 @@
-import React, { Suspense, useState, useRef, useEffect, useCallback } from 'react';
-import { Canvas } from '@react-three/fiber';
+import React, { Suspense, useState, useRef, useEffect, useCallback, useLayoutEffect } from 'react';
+import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { OrbitControls, Environment } from '@react-three/drei';
 import CyborgTempleScene from '../components/3DVotiveStand/CyborgTempleScene';
 import ConstellationModel from '../components/3DVotiveStand/ConstellationModel';
@@ -9,10 +9,13 @@ import PostProcessingEffects from '../components/3DVotiveStand/PostProcessingEff
 import dynamic from 'next/dynamic';
 import { useMusic } from '../contexts/MusicContext';
 import Link from 'next/link';
+import { Lights } from '../components/Lights';
 
-const MobileMusicPlayer = dynamic(() => import('../components/MobileMusicPlayer'), {
+const SimpleMusicPlayer = dynamic(() => import('../components/SimpleMusicPlayer'), {
   ssr: false,
 });
+
+
 
 export default function CyborgTemple() {
   const [showMobileMusicPlayer, setShowMobileMusicPlayer] = useState(false);
@@ -21,6 +24,7 @@ export default function CyborgTemple() {
   const [musicPlayerVisible, setMusicPlayerVisible] = useState(false);
   const [is80sMode, setIs80sMode] = useState(false);
   const audioRef = useRef(null);
+  const videoRef = useRef(null);
   const { setIsPlaying: setContextIsPlaying, setShowSpotify: setContextShowSpotify } = useMusic();
   const [musicControls, setMusicControls] = useState(null);
 
@@ -33,21 +37,44 @@ export default function CyborgTemple() {
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+  
 
-  const handleMusicControlsReady = useCallback((controls) => {
-    console.log('🎵 Music controls ready in CyborgTemple');
-    setMusicControls(controls);
-    setShowMobileMusicPlayer(true);
-    
-    // Auto-play when controls are ready
-    if (controls?.play) {
-      controls.play();
+  // Handle 80s mode video playback
+  useEffect(() => {
+    if (is80sMode && videoRef.current) {
+      videoRef.current.play().catch(err => {
+        console.log('Video autoplay failed:', err);
+      });
+    } else if (!is80sMode && videoRef.current) {
+      videoRef.current.pause();
+      videoRef.current.currentTime = 0;
     }
-  }, []);
+  }, [is80sMode]);
+
+
+
+  const controlsInitializedRef = useRef(false);
+  
+  const handleMusicControlsReady = useCallback((controls) => {
+    console.log('🎵 Music controls updated in CyborgTemple');
+    setMusicControls(controls);
+    
+    // Only initialize player visibility once
+    if (!controlsInitializedRef.current) {
+      controlsInitializedRef.current = true;
+      setShowMobileMusicPlayer(true);
+      
+      // Auto-play when controls are ready (only once)
+      if (controls?.play && !isPlaying) {
+        controls.play();
+      }
+    }
+  }, [isPlaying]);
   
   const handleSceneLoad = useCallback(() => {
     console.log('Cyborg Temple Scene loaded');
   }, []);
+  
 
   return (
     <Box 
@@ -57,11 +84,34 @@ export default function CyborgTemple() {
       position="relative" 
       overflow="hidden"
     >
+      {/* 80s Mode Video Background */}
+      {/* {is80sMode && (
+        <video
+          ref={videoRef}
+          src="/83.mov"
+          loop
+          muted
+          playsInline
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            opacity: 0.3,
+            zIndex: 1,
+            mixBlendMode: 'screen',
+            pointerEvents: 'none'
+          }}
+        />
+      )} */}
+      
       {/* Main content */}
       <div className="textLight" id="textLight" style={{
           position: "absolute",
-          top: "20px", 
-          left: "20px",
+          top: "1.5rem", 
+          left: "1.5rem",
           zIndex: 100, // Ensure it's above the scene if opaque
           borderRadius: "8px",
           padding: "10px",
@@ -73,12 +123,13 @@ export default function CyborgTemple() {
               position: "relative",
               fontFamily: "'UnifrakturMaguntia', cursive",
               fontSize: isMobileView ? "3rem" : "4rem",
-              color: "#ffffff",
+              // color: is80sMode ? "#67e8f9" : "#ffffff",
               cursor: "pointer"
             }}
           >
             <Link href="/home" style={{ textDecoration: 'none', color: 'inherit', display: 'inline-block' }}>
-              RL80
+              <span>RL80</span>
+              {/* <span style={{ color: "inherit" }}>80</span> */}
             </Link>
             {Array.from({length: 100}).map((_, i) => {
               const index = i + 1;
@@ -92,7 +143,9 @@ export default function CyborgTemple() {
                     zIndex: -1,
                     top: 0,
                     left: 0,
-                    color: `rgba(${255 - index * 2}, ${255 - index * 3}, ${255 - index * 2})`,
+                    color: is80sMode 
+                      ? `rgba(${201 - index * 2}, ${55 - index * 3}, ${256 - index * 2})` 
+                      : `rgba(${255 - index * 2}, ${255 - index * 3}, ${255 - index * 2})`,
                     filter: "blur(0.1rem)",
                     transform: `translate(
                       ${index * 0.1}rem, 
@@ -101,7 +154,8 @@ export default function CyborgTemple() {
                     opacity: (1 / index) * 1.5,
                   }}
                 >
-                  RL80
+                  <span>RL80</span>
+                  {/* <span style={{ color: is80sMode ? "#00ff41" : "inherit" }}>80</span> */}
                 </div>
               );
             })}
@@ -109,22 +163,27 @@ export default function CyborgTemple() {
         </div>
       <Canvas
         key="cyborg-temple-canvas"
-        camera={{ position: [0, -1, 7.5], fov: 45 }}
-        gl={{ antialias: true, alpha: false }}
-        style={{ background: '#000' }}
+        camera={{ position: [0, -1.2, 8.5], fov: 40 }}
+        gl={{ antialias: true, alpha: true }}
+        style={{ background: 'transparent', position: 'relative', zIndex: 2 }}
       >
+        <fog attach="fog" args={['#000000', 20, 200]} />
         <Suspense fallback={null}>
           <ambientLight intensity={0.3} />
-          <directionalLight position={[5, 10, 5]} intensity={1} />
-          <Environment preset="night" />
+          {/* <directionalLight position={[5, 10, 5]} intensity={1} /> */}
+             {/* Starry background */}
+             <StarField radius={150} count1={500} count2={300} is80sMode={is80sMode} />
+          <ConstellationModel  groupScale={[10, 10, 10]} groupPosition={[0, 15, -80]}    isVisible={true} />
+          <Environment frames={Infinity} resolution={512} blur={(0.5)}> 
+            <Lights />
+            {/* Removed the mesh that was blocking the view */}
+          </Environment>
           <PostProcessingEffects is80sMode={is80sMode} />
           
-          {/* Starry background */}
-          <StarField radius={500} count1={500} count2={300} />
-          <ConstellationModel  groupScale={[10, 10, 10]} groupPosition={[0, 15, -150]}    isVisible={true} />
+       
           
           <CyborgTempleScene
-            position={[0, 0, 0]}
+            position={[0, 0.5, 0]}
             scale={[1, 1, 1]}
             rotation={[0, 0, 0]}
             hover={true}
@@ -135,24 +194,24 @@ export default function CyborgTemple() {
           />
           
           <OrbitControls 
+            makeDefault
             enablePan={true}
             enableZoom={true}
-            enableRotate={true}
             zoomSpeed={0.2}
-      
-
             enableDamping={true}
             dampingFactor={0.1}
-            minDistance={1}
-            maxDistance={10}
+            minDistance={0.1}
+            maxDistance={20}
             minPolarAngle={0}
-            maxPolarAngle={Math.PI / 1.9}
+            maxPolarAngle={Math.PI / 1.5}
             zoomToCursor={true}
-            // autoRotate={true}
-            // autoRotateSpeed={0.2}
+            autoRotate={true}
+            autoRotateSpeed={0.4}
+            target={[0, 0, 0]}
           />
         </Suspense>
       </Canvas>
+      
       
       {/* Music Icon Button */}
       {!showMobileMusicPlayer && (
@@ -185,7 +244,7 @@ export default function CyborgTemple() {
       
       {showMobileMusicPlayer && (
         <Box display="none">
-          <MobileMusicPlayer
+          <SimpleMusicPlayer
             isVisible={true}
             isMobile={true}
             autoPlay={true}
@@ -196,7 +255,11 @@ export default function CyborgTemple() {
               setIsPlaying(playing);
               setContextIsPlaying(playing);
             }}
-            audioRef={audioRef}
+            onClose={() => {
+              setShowMobileMusicPlayer(false);
+              setMusicPlayerVisible(false);
+              setContextShowSpotify(false);
+            }}
           />
         </Box>
       )}
@@ -253,8 +316,12 @@ export default function CyborgTemple() {
             color="white"
             _hover={{ bg: "rgba(0, 0, 0, 0.7)" }}
             onClick={() => {
-              if (musicControls?.nextTrack) {
-                musicControls.nextTrack();
+              console.log('🎵 Skip button clicked, musicControls:', musicControls);
+              if (musicControls?.skipTrack) {
+                console.log('🎵 Calling skipTrack');
+                musicControls.skipTrack();
+              } else {
+                console.log('❌ skipTrack method not found on musicControls');
               }
             }}
           />

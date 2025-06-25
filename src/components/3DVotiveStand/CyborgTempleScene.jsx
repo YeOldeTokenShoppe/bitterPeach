@@ -6,6 +6,8 @@ import { useFrame, useThree, useLoader } from "@react-three/fiber";
 import TempleTickerDisplay from "./TempleTickerDisplay";
 import TickerDisplay3 from "./TickerDisplay3";
 import VideoScreens from "./VideoScreens";
+import VideoBackground from "./VideoBackground";
+import SimpleGlitchTint from "./SimpleGlitchTint";
 
 function CyborgTempleScene({ 
   onLoad, 
@@ -50,12 +52,12 @@ function CyborgTempleScene({
       const templeScene = gltf.scene;
       
       // Debug: Log all objects in the scene
-      // console.log('[CyborgTempleScene] Loaded scene:', templeScene);
-      // templeScene.traverse((child) => {
-      //   if (child.isMesh) {
-      //     console.log('[CyborgTempleScene] Found mesh:', child.name, 'at path:', child.parent?.name);
-      //   }
-      // });
+      console.log('[CyborgTempleScene] Loaded scene:', templeScene);
+      templeScene.traverse((child) => {
+        if (child.name) {
+          console.log('[CyborgTempleScene] Found object:', child.name, 'type:', child.type, 'isMesh:', child.isMesh);
+        }
+      });
 
       // Create and store the animation mixer
       const mixer = new THREE.AnimationMixer(templeScene);
@@ -78,10 +80,14 @@ function CyborgTempleScene({
           const action = actionsRef.current[animName];
           
           // Check which character this animation belongs to based on suffix
-          if (animName === 'TYPE') {
+          if (animName === 'TYPE1') {
             // Play TYPE animation for the first character (no suffix)
             action.play();
             console.log(`Playing TYPE animation: ${animation.name}`);
+          } else if (animName === 'HaloRotation') {
+            // Play HaloRotation animation
+            action.play();
+            console.log(`Playing HaloRotation animation: ${animation.name}`);
           } else if (animName === 'Idle.001' || animName === 'Idle.002' || animName === 'Idle.003') {
             // Play idle animations with different time offsets
             
@@ -227,8 +233,8 @@ function CyborgTempleScene({
       }
       
       // Keep TYPE animation running for the first character
-      if (actions['TYPE'] && !actions['TYPE'].isRunning()) {
-        actions['TYPE'].play();
+      if (actions['TYPE1'] && !actions['TYPE1'].isRunning()) {
+        actions['TYPE1'].play();
       }
       
       // Delay the dance animations by 2 seconds
@@ -280,8 +286,8 @@ function CyborgTempleScene({
       });
       
       // Make sure TYPE animation is still playing for the first character
-      if (actions['TYPE'] && !actions['TYPE'].isRunning()) {
-        actions['TYPE'].reset().play();
+      if (actions['TYPE1'] && !actions['TYPE1'].isRunning()) {
+        actions['TYPE1'].reset().play();
         console.log('Ensuring TYPE animation continues');
       }
       
@@ -344,8 +350,10 @@ function CyborgTempleScene({
 
   return (
     <>
+      {modelLoaded && <VideoBackground is80sMode={is80sMode} />}
       {modelLoaded && <TickerDisplay3 is80sMode={is80sMode} />}
       {modelLoaded && <VideoScreens />}
+      {modelLoaded && <SimpleGlitchTint />}
     </>
   );
 }

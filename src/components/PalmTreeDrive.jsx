@@ -6,6 +6,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import GUI from 'lil-gui';
 import NoiseParticleEffect from './NoiseParticleEffect';
 import { gsap } from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import CoinLoader from './CoinLoader';
 import dynamic from 'next/dynamic';
 import { useMusic } from '../contexts/MusicContext';
@@ -13,9 +14,43 @@ import { IconButton, Box } from '@chakra-ui/react';
 import { useRouter } from 'next/router';
 
 // Dynamically import the Mobile Music Player component
-const MobileMusicPlayer = dynamic(() => import('./MobileMusicPlayer'), {
+const SimpleMusicPlayer = dynamic(() => import('./SimpleMusicPlayer'), {
   ssr: false,
 });
+
+// Register GSAP ScrollTrigger plugin
+gsap.registerPlugin(ScrollTrigger);
+
+// Define text blocks for transitions
+const textBlocks = [
+  [
+    "cruising through neon dreams",
+    "where palm trees meet",
+    "electric skies",
+    "and memories blur",
+    "into synthetic sunsets",
+    "forever driving",
+    "through digital paradise"
+  ],
+  [
+    "beneath the static",
+    "voices from another time",
+    "echo through circuits",
+    "searching for meaning",
+    "in silicon valleys",
+    "where futures past",
+    "never sleep"
+  ],
+  [
+    "chrome reflections dance",
+    "on midnight highways",
+    "leading nowhere",
+    "and everywhere at once",
+    "chasing ghosts",
+    "in rearview mirrors",
+    "of tomorrow"
+  ]
+];
 
 const PalmsScene = () => {
   const mountRef = useRef(null);
@@ -27,6 +62,7 @@ const PalmsScene = () => {
   const [isCinematicComplete, setIsCinematicComplete] = useState(false);
   const [cinematicMode, setCinematicMode] = useState('playback'); // 'playback' or 'design'
   const [recordedKeyframes, setRecordedKeyframes] = useState([]);
+  const [currentKeyframeLabel, setCurrentKeyframeLabel] = useState('');
   const cinematicModeRef = useRef('playback'); // Add ref to track mode in useEffect
   const recordedKeyframesRef = useRef([]); // Add ref for keyframes
   const [isSceneLoading, setIsSceneLoading] = useState(true); // Loading state
@@ -69,6 +105,14 @@ const PalmsScene = () => {
   
   // Add refs for 3D card effect
   const cameraRef = useRef(null);
+  
+  // Add refs and state for text animation
+  const scrollTextRef = useRef(null);
+  const textSectionRef = useRef(null);
+  const [currentTextBlock, setCurrentTextBlock] = useState(0);
+  const textTimelineRef = useRef(null);
+  const scrollAccumulator = useRef(0);
+  const isTransitioning = useRef(false);
 
   
   // Check if mobile on mount and resize
@@ -141,52 +185,92 @@ const PalmsScene = () => {
   const defaultCinematicKeyframes = [
     {
       time: 0,
-      position: new THREE.Vector3(15.664018701589722, 11.199232805306618, 44.76142774532574),
-      target: new THREE.Vector3(10.537753325848097, 1, 15.842466000937105),
-      fov: 75
-    },
-    {
-      time: 0.45,
-      position: new THREE.Vector3(-3.1514565395357756, 4.644438330195376, 29.05372551560463),
-      target: new THREE.Vector3(1.792307049713763, 0.9999999999999956, 20.485462933629613),
-      fov: 75
-    },
-    {
-      time: 0.6,
-      position: new THREE.Vector3(-3.773833780743905, 3.578412779942443, 5.187135710137969),
-      target: new THREE.Vector3(1.792307049713763, 0.9999999999999956, 20.485462933629613),
-      fov: 75
-    },
-    {
-      time: 0.7,
-      position: new THREE.Vector3(8.209833359353707, 3.356904696298511, 7.452053415504825),
-      target: new THREE.Vector3(1.792307049713763, 0.9999999999999956, 20.485462933629613),
-      fov: 75
+      position: new THREE.Vector3(23.44316605882281, 10.742572701498755, 46.29070191100235),
+      target: new THREE.Vector3(10.603039680322532, 0.9999999999999947, 13.41155395604783),
+      fov: 75,
+      label: "1. Aerial Overview - High above road, distant view"
     },
     // {
-    //   time: 0.814285714285714,
-    //   position: new THREE.Vector3(5.61044309086077, 0.9329600504143526, 11.303976504418838),
-    //   target: new THREE.Vector3(1.792307049713763, 0.9999999999999956, 20.485462933629613),
-    //   fov: 75
+    //   time: 0.75,
+    //   position: new THREE.Vector3(23.44316605882281, 10.742572701498755, 46.29070191100235),
+    //   target: new THREE.Vector3(10.603039680322532, 0.9999999999999947, 13.41155395604783),
+    //   fov: 75,
+    //   label: "1. Aerial Overview - High above road, distant view"
     // },
     {
-      time: 0.842857142857143,
-      position: new THREE.Vector3(7.879961038787648, 1.4593835467216665, 16.90305971927228),
-      target: new THREE.Vector3(5.450298986515486, 0.9999999999999898, 15.760547904615681),
-      fov: 75
+      time: 0.5,
+      position: new THREE.Vector3(-1.7034359221208604, 5.915379032751001, 40.112551923455506),
+      target: new THREE.Vector3(10.603039680322532, 0.9999999999999947, 13.41155395604783),
+      fov: 75,
+      label: "2. Left Approach - Moving left, still high"
     },
+    {
+      time: 0.8,
+      position: new THREE.Vector3(-6.0524575042076805, 3.918055946607266, 21.287706152442745),
+      target: new THREE.Vector3(10.603039680322532, 0.9999999999999947, 13.41155395604783),
+      fov: 75,
+      label: "3. Left Side Mid - Lower altitude, left of car"
+    },
+    {
+      time: 1.7,
+      position: new THREE.Vector3(-0.8347882248527965, 0.5164867342836925, 10.240340065709555),
+      target: new THREE.Vector3(2.358770226904321, 1.0000000000000018, 19.503127730061472),
+      fov: 75,
+      label: "4. Low Front Left - Very low, front-left of car"
+    },
+    {
+      time: 2.1,
+      position: new THREE.Vector3(14.838671888126719, 3.659963512752572, 8.264702512977697),
+      target: new THREE.Vector3(2.671321255014452, 1.0000000000000036, 18.7751954699424),
+      fov: 75,
+      label: "5. Right Side Sweep - Swung to right side"
+    },
+    {
+      time: 2.3,
+      position: new THREE.Vector3(2.493884543752368, 1.0425462114376007, 22.350372937532807),
+      target: new THREE.Vector3(2.671321255014452, 1.0000000000000036, 18.7751954699424),
+      fov: 75,
+      label: "6. Behind Car - Moving behind the vehicle"
+    },
+    {
+      time: 2.5,
+      position: new THREE.Vector3(2.565781098685172, 0.9895585295152736, 16.298913118921327),
+      target: new THREE.Vector3(2.5616940175316363, 1.0000000000000033, 16.199543750090882),
+      fov: 75,
+      label: "7. Dashboard Approach - Close to dashboard"
+    },
+    {
+      time: 3.3,
+      position: new THREE.Vector3(2.4038267804124738, 1.2362140136787254, 15.150479396436928),
+      target: new THREE.Vector3(2.561694, 1, 12.199544),
+      fov: 10,
+      label: "8. Mary Focus - Zoomed view of Mary"
+    },
+    // {
+    //   time: 5,
+    //   position: new THREE.Vector3(2.565781098685172, 0.9895585295152736, 16.298913118921327),
+    //   target: new THREE.Vector3(2.5616940175316363, 1.0000000000000033, 16.199543750090882),
+    //   fov: 5,
+    //   label: "8. Mary Zoom - Extreme zoom on Mary (FOV 5)"
+    // },
+    // {
+    //   time: 0.842857142857143,
+    //   position: new THREE.Vector3(7.879961038787648, 1.4593835467216665, 16.90305971927228),
+    //   target: new THREE.Vector3(5.450298986515486, 0.9999999999999898, 15.760547904615681),
+    //   fov: 75
+    // },
     // {
     //   time: 0.8571428571428571,
     //   position: new THREE.Vector3(4.9724071540410995, 1.3987652980980871, 20.29527900870111),
     //   target: new THREE.Vector3(5.450298986515486, 0.9999999999999898, 15.760547904615681),
     //   fov: 75
     // },
-    {
-      time: 1,
-      position: new THREE.Vector3(2.494637977454283, 1.1850405090485119, 14.291298141694943),
-      target: new THREE.Vector3(1.1811263369229998, 0.9999999999999805, 12.355272021071679),
-      fov: 75
-    }
+    // {
+    //   time: 1,
+    //   position: new THREE.Vector3(2.494637977454283, 1.1850405090485119, 14.291298141694943),
+    //   target: new THREE.Vector3(1.1811263369229998, 0.9999999999999805, 12.355272021071679),
+    //   fov: 75
+    // }
   ];
   
   // Remove this line - we'll define cinematicKeyframes inside useEffect
@@ -397,7 +481,7 @@ const PalmsScene = () => {
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
     controls.screenSpacePanning = false;
-    controls.minDistance = 0.1;
+    controls.minDistance = 0.01;
     controls.maxDistance = 50;
     controls.maxPolarAngle = Math.PI * 0.5; // Initial limit - will be dynamic
     controls.minPolarAngle = 0; // Prevent camera from flipping
@@ -1032,7 +1116,7 @@ const PalmsScene = () => {
           const action = mixer.clipAction(clip);
           
           // Check if this is the halo animation
-          if (clip.name.toLowerCase().includes('halo')) {
+          if (clip.name.toLowerCase().includes('halorotation.001')) {
             console.log(`Playing halo animation: ${clip.name}`);
             action.loop = THREE.LoopRepeat;
             action.play();
@@ -1580,6 +1664,10 @@ const PalmsScene = () => {
       
       // Create new timeline
       const tl = gsap.timeline({
+        onStart: () => {
+          // Set initial label
+          setCurrentKeyframeLabel(keyframes[0].label || '');
+        },
         onComplete: () => {
           setIsCinematicComplete(true);
           controls.enabled = true;
@@ -1709,7 +1797,7 @@ const PalmsScene = () => {
       keyframes.forEach((keyframe, index) => {
         if (index === 0) return; // Skip first keyframe as it's the starting position
         
-        const totalDuration = 25; // Total animation duration in seconds
+        const totalDuration = 15; // Total animation duration in seconds
         const duration = index === 1 
           ? keyframe.time * totalDuration // First segment duration
           : (keyframe.time - keyframes[index - 1].time) * totalDuration; // Subsequent segments
@@ -1737,7 +1825,26 @@ const PalmsScene = () => {
       
       // Update progress for UI
       tl.eventCallback("onUpdate", () => {
-        setCinematicProgress(tl.progress());
+        const progress = tl.progress();
+        setCinematicProgress(progress);
+        
+        // Find current keyframe label based on progress
+        const currentTime = progress * keyframes[keyframes.length - 1].time;
+        let currentLabel = keyframes[0].label || '';
+        
+        for (let i = 0; i < keyframes.length - 1; i++) {
+          if (currentTime >= keyframes[i].time && currentTime < keyframes[i + 1].time) {
+            currentLabel = keyframes[i].label || '';
+            break;
+          }
+        }
+        
+        // Check if we're at or past the last keyframe
+        if (currentTime >= keyframes[keyframes.length - 1].time) {
+          currentLabel = keyframes[keyframes.length - 1].label || '';
+        }
+        
+        setCurrentKeyframeLabel(currentLabel);
       });
       
       cinematicTimelineRef.current = tl;
@@ -1885,12 +1992,12 @@ const PalmsScene = () => {
         const intersects = raycaster.current.intersectObject(maryMeshRef.current, true);
         console.log('Mary intersects found:', intersects.length);
         
-        if (intersects.length > 0) {
-          console.log('Mary clicked! Navigating to cyborg temple...');
-          // Navigate to gallery
-          routerRef.current.push('/cyborg-temple');
-          return;
-        }
+        // if (intersects.length > 0) {
+        //   console.log('Mary clicked! Navigating to cyborg temple...');
+        //   // Navigate to gallery
+        //   routerRef.current.push('/cyborg-temple');
+        //   return;
+        // }
       }
       
       // Fallback: check intersection with entire car model
@@ -1951,6 +2058,148 @@ const PalmsScene = () => {
     };
   }, []);
 
+  // Text animation setup - only animate in, no automatic transitions
+  useEffect(() => {
+    if (!isSceneLoading && textSectionRef.current) {
+      // Get all text lines
+      const lines = gsap.utils.toArray('.scroll-text-line');
+      
+      // Kill any existing animations
+      if (textTimelineRef.current) {
+        textTimelineRef.current.kill();
+      }
+      gsap.killTweensOf(lines);
+      
+      // Set initial state for all lines
+      gsap.set(lines, {
+        opacity: 0,
+        x: 50,
+        filter: 'blur(10px)',
+      });
+      
+      // Create new timeline for entrance only
+      const tl = gsap.timeline();
+      
+      // Animate in
+      tl.to(lines, {
+        opacity: 1,
+        x: 0,
+        filter: 'blur(0px)',
+        duration: 0.8,
+        stagger: 0.2,
+        ease: "power2.out",
+      });
+      
+      // Add subtle floating animation
+      lines.forEach((line, index) => {
+        gsap.to(line, {
+          x: -5 + Math.random() * 10,
+          y: -2 + Math.random() * 4,
+          duration: 3 + Math.random() * 2,
+          repeat: -1,
+          yoyo: true,
+          ease: "sine.inOut",
+          delay: index * 0.1,
+        });
+      });
+      
+      textTimelineRef.current = tl;
+
+      return () => {
+        if (textTimelineRef.current) {
+          textTimelineRef.current.kill();
+        }
+        gsap.killTweensOf('.scroll-text-line');
+      };
+    }
+  }, [isSceneLoading, currentTextBlock]);
+
+  // Handle scroll-based text transitions with higher threshold
+  useEffect(() => {
+    if (!isSceneLoading) {
+      const handleWheel = (event) => {
+        event.preventDefault();
+        
+        // Accumulate scroll delta
+        scrollAccumulator.current += event.deltaY;
+        
+        // Threshold for triggering transition (increased for less sensitivity)
+        const scrollThreshold = 250;
+        
+        if (Math.abs(scrollAccumulator.current) > scrollThreshold && !isTransitioning.current) {
+          const lines = gsap.utils.toArray('.scroll-text-line');
+          
+          // Determine direction
+          const direction = scrollAccumulator.current > 0 ? 1 : -1;
+          
+          // Check boundaries
+          if (direction < 0 && currentTextBlock <= 0) {
+            scrollAccumulator.current = 0; // Reset accumulator
+            return;
+          }
+          
+          // Special case: fade out last text block
+          if (direction > 0 && currentTextBlock >= textBlocks.length - 1) {
+            isTransitioning.current = true;
+            
+            // Fade out the last text
+            gsap.to(lines, {
+              opacity: 0,
+              y: -50,
+              filter: 'blur(10px)',
+              duration: 0.6,
+              stagger: 0.05,
+              ease: "power2.in",
+              onComplete: () => {
+                scrollAccumulator.current = 0;
+                setTimeout(() => {
+                  isTransitioning.current = false;
+                }, 500);
+              }
+            });
+            
+            // Also fade out the indicators
+            gsap.to('.progress-dots', {
+              opacity: 0,
+              duration: 0.6,
+              ease: "power2.in"
+            });
+            
+            return;
+          }
+          
+          isTransitioning.current = true;
+          const nextBlock = direction > 0 
+            ? currentTextBlock + 1
+            : currentTextBlock - 1;
+          
+          // Animate out
+          gsap.to(lines, {
+            opacity: 0,
+            x: direction > 0 ? -50 : 50,
+            filter: 'blur(10px)',
+            duration: 0.4,
+            stagger: 0.05,
+            ease: "power2.in",
+            onComplete: () => {
+              setCurrentTextBlock(nextBlock);
+              scrollAccumulator.current = 0;
+              setTimeout(() => {
+                isTransitioning.current = false;
+              }, 500);
+            }
+          });
+        }
+      };
+
+      window.addEventListener('wheel', handleWheel, { passive: false });
+      
+      return () => {
+        window.removeEventListener('wheel', handleWheel);
+      };
+    }
+  }, [isSceneLoading, currentTextBlock]);
+
   return (
     <div ref={intersectionRef} style={{ position: 'relative', width: '100%', height: '100%', backgroundColor: 'black' }}>
       {/* Loading screen */}
@@ -1992,6 +2241,26 @@ const PalmsScene = () => {
             to {
               opacity: 1;
               transform: translate(-50%, -50%) scale(1);
+            }
+          }
+        `}</style>
+        
+        <style jsx global>{`
+          .scroll-text-line {
+            display: inline-block;
+            transition: all 0.3s ease;
+          }
+          .scroll-text-line:hover {
+            color: #67e8f9;
+            text-shadow: 0 0 30px #67e8f9;
+          }
+          
+          @keyframes pulse {
+            0%, 100% {
+              opacity: 0.5;
+            }
+            50% {
+              opacity: 0.8;
             }
           }
         `}</style>
@@ -2069,7 +2338,29 @@ const PalmsScene = () => {
             pointerEvents: 'none',
             zIndex: 100
           }}>
-           
+            {/* Keyframe label display */}
+            {currentKeyframeLabel && (
+              <div style={{
+                position: 'absolute',
+                top: '40px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                padding: '12px 24px',
+                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+                borderRadius: '8px',
+                color: '#ffffff',
+                fontSize: '16px',
+                fontFamily: 'monospace',
+                fontWeight: 'bold',
+                textAlign: 'center',
+                backdropFilter: 'blur(10px)',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.5)',
+                animation: 'fadeIn 0.5s ease-out'
+              }}>
+                {currentKeyframeLabel}
+              </div>
+            )}
             
             {/* Progress bar */}
             <div style={{
@@ -2287,7 +2578,7 @@ const PalmsScene = () => {
       {/* Hidden Music Player Component */}
       {showMobileMusicPlayer && (
         <Box display="none">
-          <MobileMusicPlayer
+          <SimpleMusicPlayer
             isVisible={true}
             isMobile={true}
             autoPlay={true}
@@ -2300,6 +2591,109 @@ const PalmsScene = () => {
             audioRef={audioRef}
           />
         </Box>
+      )}
+      
+      {/* Scrolling Text Section - Right Side */}
+      {!isSceneLoading && (
+        <div 
+          ref={textSectionRef}
+          style={{
+            position: 'fixed',
+            right: isMobile ? '20px' : '15%',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            width: isMobile ? '70%' : '40%',
+            maxWidth: '600px',
+            pointerEvents: 'auto',
+            zIndex: 100,
+            height: '60vh',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            gap: '20px',
+            cursor: 'pointer',
+          }}
+          onClick={() => {
+            if (!isTransitioning.current && currentTextBlock < textBlocks.length - 1) {
+              isTransitioning.current = true;
+              const lines = gsap.utils.toArray('.scroll-text-line');
+              gsap.to(lines, {
+                opacity: 0,
+                x: -50,
+                filter: 'blur(10px)',
+                duration: 0.3,
+                stagger: 0.05,
+                ease: "power2.in",
+                onComplete: () => {
+                  setCurrentTextBlock((prev) => prev + 1);
+                  setTimeout(() => {
+                    isTransitioning.current = false;
+                  }, 500);
+                }
+              });
+            }
+          }}
+        >
+          <p 
+            ref={scrollTextRef}
+            style={{
+              fontSize: isMobile ? '20px' : '28px',
+              color: 'white',
+              lineHeight: '1.6',
+              fontFamily: 'monospace',
+              margin: 0,
+              textShadow: '0 0 20px rgba(255, 255, 255, 0.3)',
+              fontWeight: '300',
+            }}
+          >
+            {textBlocks[currentTextBlock].map((line, index) => (
+              <React.Fragment key={index}>
+                <span className="scroll-text-line">{line}</span>
+                {index < textBlocks[currentTextBlock].length - 1 && <br />}
+              </React.Fragment>
+            ))}
+          </p>
+          
+          {/* Progress indicators */}
+          <div 
+            className="progress-dots"
+            style={{
+              display: 'flex',
+              gap: '8px',
+              marginTop: '20px',
+              justifyContent: 'center',
+            }}>
+            {textBlocks.map((_, index) => (
+              <div
+                key={index}
+                style={{
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  backgroundColor: index === currentTextBlock ? 'white' : 'white',
+                  opacity: index === currentTextBlock ? 1 : 0.3,
+                  transition: 'all 0.3s ease',
+                  boxShadow: index === currentTextBlock ? '0 0 10px rgba(255, 255, 255, 0.8)' : 'none',
+                }}
+              />
+            ))}
+          </div>
+          
+          {/* Scroll hint */}
+          {currentTextBlock < textBlocks.length - 1 && (
+            <div style={{
+              marginTop: '30px',
+              fontSize: '12px',
+              color: 'white',
+              opacity: 0.5,
+              textAlign: 'center',
+              fontFamily: 'monospace',
+              animation: 'pulse 2s ease-in-out infinite',
+            }}>
+              scroll or click
+            </div>
+          )}
+        </div>
       )}
       
     </div>

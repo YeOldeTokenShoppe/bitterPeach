@@ -77,7 +77,7 @@ const StarField = ({ count1 = 250, count2 = 150, is80sMode = false, radius = 200
   const starsGroup = useRef();
   const smallStars = useRef();
   const largeStars = useRef();
-  const { camera, scene, gl } = useThree();
+  const { camera } = useThree();
 
   // Load textures with absolute URLs
   const [starTextures] = useState(() => {
@@ -141,54 +141,15 @@ const StarField = ({ count1 = 250, count2 = 150, is80sMode = false, radius = 200
     starMaterial2.current.color.set(is80sMode ? 0xff88ff : 0xffffff);
   }, [is80sMode]);
 
-  // CRITICAL FIX: Set up a separate rendering pass for stars
+  // Ensure stars render properly behind other objects
   useEffect(() => {
-    if (!gl || !scene || !camera) return;
-
-    // Important: Move stars to a separate scene layer for depth handling
-    const originalOnBeforeRender = gl.onBeforeRender;
-
-    // Modify the scene's onBeforeRender
-    gl.onBeforeRender = () => {
-      if (originalOnBeforeRender) originalOnBeforeRender();
-
-      // Make all other objects temporarily invisible
-      const originalVisibility = new Map();
-      scene.traverse((obj) => {
-        if (
-          obj.isMesh &&
-          obj !== smallStars.current &&
-          obj !== largeStars.current &&
-          !obj.parent?.uuid === starsGroup.current?.uuid
-        ) {
-          originalVisibility.set(obj.uuid, obj.visible);
-
-          // Force all objects to have proper depth settings
-          if (obj.material) {
-            if (Array.isArray(obj.material)) {
-              obj.material.forEach((mat) => {
-                if (mat.transparent && mat.opacity < 0.1) {
-                  mat.depthWrite = false;
-                } else {
-                  mat.depthWrite = true;
-                }
-              });
-            } else {
-              if (obj.material.transparent && obj.material.opacity < 0.1) {
-                obj.material.depthWrite = false;
-              } else {
-                obj.material.depthWrite = true;
-              }
-            }
-          }
-        }
-      });
-    };
-
-    return () => {
-      gl.onBeforeRender = originalOnBeforeRender;
-    };
-  }, [gl, scene, camera]);
+    if (!starsGroup.current) return;
+    
+    // Set render order for the entire group to ensure it renders first (behind everything)
+    starsGroup.current.renderOrder = -1000;
+    
+    return () => {};
+  }, []);
 
   // Move stars with camera and apply mouse influence
   useFrame((state) => {

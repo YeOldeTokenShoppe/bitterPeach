@@ -109,7 +109,7 @@ const TickerDisplay3 = ({ modelRef, is80sMode = false }) => {
     }
 
     // Set a fixed position for the ticker instead of searching for it
-    setTickerPosition(new THREE.Vector3(0, 0.45, 0)); // Position at ground level
+    setTickerPosition(new THREE.Vector3(0, 0.95, 0)); // Position at ground level
     setTickerRotation(new THREE.Euler(0, 0, 0));
     setTickerScale(new THREE.Vector3(2.1, 2.1, 2.1));
   }, [isReady]); // Only depend on isReady
@@ -653,7 +653,7 @@ const TickerDisplay3 = ({ modelRef, is80sMode = false }) => {
         // Special case - if this is 10Y Treasury Yield or Fear & Greed, we need to ensure it has enough space
         if (item.name === "10Y Treasury Yield") {
           // Force an extra separator for 10Y Treasury
-          ctx.fillStyle = is80sMode ? "#67e8f9" : "#AAAAAA"; // Cyan in 80s mode, bright color for visibility
+          ctx.fillStyle = "#AAAAAA"; // Bright color for visibility
           ctx.font = "bold 14px Arial"; // Adjusted for smaller canvas
           ctx.fillText(" ", xPos, yPos);
           xPos += ctx.measureText(" ◆ ").width + 110;

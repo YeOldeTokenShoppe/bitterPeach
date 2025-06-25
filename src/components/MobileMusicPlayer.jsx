@@ -30,6 +30,9 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
   const prevModeRef = useRef(is80sMode);
   const [hasModeChanged, setHasModeChanged] = useState(false);
   const isFirstMount = useRef(true);
+  const isChangingTrackRef = useRef(false);
+  const currentTrackIndexRef = useRef(0); // Track the actual current index
+  const lastProcessedModeRef = useRef(is80sMode); // Track last processed mode
 
   // Detect actual mode changes
   useEffect(() => {
@@ -98,17 +101,32 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
 
   // Load track from Firebase
   const loadTrack = useCallback(async (index, attemptCount = 0) => {
-
+    console.log('🎵 loadTrack called with index:', index, 'attemptCount:', attemptCount);
+    console.log('🎵 is80sMode:', is80sMode, 'trackNames.length:', trackNames.length);
+    console.log('🎵 Track to load:', trackNames[index], 'Path:', firebasePaths[index]);
+    console.log('🎵 Current track index:', currentTrackIndex, 'Current URL:', trackUrl);
+    
+    if (!trackNames[index] || !firebasePaths[index]) {
+      console.error('❌ Invalid track index:', index, 'trackNames:', trackNames);
+      return;
+    }
+    
+    // Set flag to indicate we're changing tracks
+    isChangingTrackRef.current = true;
     
     try {
       const audioRef = storageRefUtil(storage, firebasePaths[index]);
       const url = await getDownloadURL(audioRef);
+      console.log('🎵 Track URL obtained:', url);
       setTrackUrl(url);
       setCurrentTrackIndex(index);
+      currentTrackIndexRef.current = index; // Update ref immediately
+      setContextTrackIndex(index); // Also update context immediately
       setIsLoaded(true);
 
       // Clear failed tracks on successful load
       failedTracksRef.current.clear();
+      console.log('🎵 Track loaded successfully, index set to:', index);
     } catch (error) {
       console.error(`❌ Mobile: Error loading track ${index} (${trackNames[index]}):`, error);
       console.error('Firebase path attempted:', firebasePaths[index]);
@@ -127,15 +145,15 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
         loadTrack(nextIndex, attemptCount + 1);
       }
     }
-  }, [firebasePaths, trackNames]);
+  }, [firebasePaths, trackNames, setContextTrackIndex, is80sMode, currentTrackIndex, trackUrl]);
 
   // Initialize with first track or sync with existing track
   useEffect(() => {
     if (isVisible && trackNames.length > 0) {
       // Initialization check
       
-      // Clear failed tracks when component becomes visible (scene change)
-      if (isVisible) {
+      // Clear failed tracks only on first visibility
+      if (isVisible && failedTracksRef.current.size > 0) {
         console.log('🎵 MobileMusicPlayer: Clearing failed tracks on visibility change');
         failedTracksRef.current.clear();
       }
@@ -169,12 +187,19 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
         failedTracksRef.current.clear();
       }
       
-      // Only check for playlist switch if mode actually changed
-      if (hasModeChanged) {
-        // Mode changed, checking if need to switch playlist
+      // Only check for playlist switch if mode actually changed AND we haven't processed it yet
+      if (hasModeChanged && lastProcessedModeRef.current !== is80sMode) {
+        console.log('🎵 MobileMusicPlayer: Mode change detected, hasModeChanged:', hasModeChanged, 'is80sMode:', is80sMode);
+        
+        // Update last processed mode
+        lastProcessedModeRef.current = is80sMode;
+        
+        // Reset the track index to 0 when switching modes
+        currentTrackIndexRef.current = 0;
+        setCurrentTrackIndex(0);
+        setContextTrackIndex(0);
         
         // When mode changes, always switch to the new playlist
-        // This ensures that when 80s mode is toggled and player appears, it plays 80s tracks
         if (contextTrackUrl && audioRef.current) {
           // Check if current track is from the other mode's playlist
           const currentPath = firebasePaths[contextTrackIndex];
@@ -183,7 +208,7 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
           if (!isCurrentTrackInNewPlaylist) {
             // Current track is not in the new playlist, load first track of new mode
             console.log('🎵 MobileMusicPlayer: Switching to new playlist due to mode change');
-            const wasPlaying = !audioRef.current.paused || autoPlay; // Consider autoPlay for new mode
+            const wasPlaying = !audioRef.current.paused || autoPlay;
             
             // Stop current track
             if (audioRef.current) {
@@ -192,8 +217,6 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
             
             // Load first track of new playlist
             loadTrack(0);
-            
-            // If music was playing or autoPlay is true, it will auto-play
             return;
           }
         } else {
@@ -217,7 +240,7 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
         if (audioRef.current.src === contextTrackUrl || audioRef.current.src.includes(contextTrackUrl)) {
           console.log('🎵 MobileMusicPlayer: Same track already loaded, just syncing state');
           setTrackUrl(contextTrackUrl);
-          setCurrentTrackIndex(contextTrackIndex || 0);
+          // Don't update the index here - it should already be correct
           setIsPlaying(!audioRef.current.paused);
           setIsLoaded(true);
           return; // Don't load a new track
@@ -235,10 +258,11 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
   // Track if user has intentionally paused
   const userPausedRef = useRef(false);
   
-  // Auto-play when track loads (only if not already playing)
+  // Auto-play when component first mounts with a track
   useEffect(() => {
-    if (trackUrl && autoPlay && audioRef.current && isVisible) {
-      // Auto-play check
+    if (trackUrl && autoPlay && audioRef.current && isVisible && isFirstMount.current) {
+      // Only auto-play on first mount
+      isFirstMount.current = false;
       
       // Don't auto-play if already playing
       if (!audioRef.current.paused) {
@@ -246,16 +270,10 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
         return;
       }
       
-      // Don't auto-play if user has intentionally paused
-      if (userPausedRef.current) {
-        console.log('🎵 MobileMusicPlayer: User has paused, skipping auto-play');
-        return;
-      }
-      
       // Small delay to ensure audio element is ready
       setTimeout(() => {
-        if (audioRef.current && audioRef.current.paused && !userPausedRef.current) {
-          console.log('🎵 MobileMusicPlayer: Attempting to auto-play track');
+        if (audioRef.current && audioRef.current.paused) {
+          console.log('🎵 MobileMusicPlayer: Attempting initial auto-play');
           audioRef.current.play().then(() => {
             console.log('🎵 MobileMusicPlayer: Auto-play successful');
             setIsPlaying(true);
@@ -271,6 +289,7 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
 
   // Find next available track index
   const findNextAvailableTrack = useCallback((startIndex, direction = 1) => {
+    console.log('🎵 findNextAvailableTrack called:', { startIndex, direction, totalTracks: trackNames.length });
     let attempts = 0;
     let index = startIndex;
     
@@ -278,30 +297,71 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
       index = direction > 0 
         ? (index + 1) % trackNames.length 
         : index === 0 ? trackNames.length - 1 : index - 1;
-        
+      
+      console.log('🎵 Checking index:', index, 'Failed tracks:', Array.from(failedTracksRef.current));
+      
       if (!failedTracksRef.current.has(index)) {
+        console.log('🎵 Found available track at index:', index);
         return index;
       }
       attempts++;
     }
     
     // If all tracks failed, return the original next index
-    return direction > 0 
+    const fallbackIndex = direction > 0 
       ? (startIndex + 1) % trackNames.length 
       : startIndex === 0 ? trackNames.length - 1 : startIndex - 1;
+    console.log('🎵 All tracks failed, returning fallback index:', fallbackIndex);
+    return fallbackIndex;
   }, [trackNames.length]);
 
   // Skip to next track
   const skipNext = useCallback(() => {
+    // Use the ref as source of truth for current index, but ensure it's within bounds
+    let actualCurrentIndex = currentTrackIndexRef.current;
+    
+    // Ensure index is within bounds for current playlist
+    if (actualCurrentIndex >= trackNames.length) {
+      console.log('⚠️ Current index out of bounds, resetting to 0');
+      actualCurrentIndex = 0;
+      currentTrackIndexRef.current = 0;
+    }
+    
+    console.log('🎵 skipNext called, current state:', {
+      is80sMode,
+      currentTrackIndex,
+      contextTrackIndex,
+      actualCurrentIndex,
+      currentTrackIndexRef: currentTrackIndexRef.current,
+      trackNames: trackNames.length,
+      trackNamesList: trackNames,
+      firebasePathsList: firebasePaths,
+      currentTrackName: trackNames[actualCurrentIndex],
+      currentAudioSrc: audioRef.current?.src,
+      failedTracks: failedTracksRef.current.size
+    });
+    
     if (trackNames.length <= 1) {
+      console.log('❌ Only one track in playlist, cannot skip');
       return;
     }
 
-    const nextIndex = findNextAvailableTrack(currentTrackIndex, 1);
-    setIsPlaying(false); // Stop current track
-    userPausedRef.current = false; // Clear user-paused flag when skipping
+    const nextIndex = (actualCurrentIndex + 1) % trackNames.length;
+    console.log('🎵 Next track index:', nextIndex, 'from current:', actualCurrentIndex);
+    console.log('🎵 Next track will be:', trackNames[nextIndex], 'Path:', firebasePaths[nextIndex]);
+    
+    // Stop current playback
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+    
+    // Clear user paused flag
+    userPausedRef.current = false;
+    
+    // Just call loadTrack which will handle everything
     loadTrack(nextIndex);
-  }, [currentTrackIndex, trackNames.length, loadTrack, findNextAvailableTrack]);
+  }, [trackNames, firebasePaths, loadTrack, currentTrackIndex, contextTrackIndex, is80sMode]);
 
   // Skip to previous track
   const skipPrevious = useCallback(() => {
@@ -434,36 +494,82 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
 
   // Update the shared audio element's src when track changes
   useEffect(() => {
-    if (audioRef.current && trackUrl) {
-      // Track URL update check
+    if (!audioRef.current || !trackUrl) return;
+    
+    if (isChangingTrackRef.current) {
+      console.log('🎵 MobileMusicPlayer: Track change detected, updating audio src to:', trackUrl);
+      const wasPlaying = !audioRef.current.paused || autoPlay;
       
-      // Only update src if it's actually different
-      if (audioRef.current.src !== trackUrl && !audioRef.current.src.includes(trackUrl)) {
-        console.log('🎵 MobileMusicPlayer: Updating audio src from', audioRef.current.src, 'to:', trackUrl);
-        const wasPlaying = !audioRef.current.paused;
-        const currentTime = audioRef.current.currentTime;
+      // Immediately reset the flag to prevent re-runs
+      isChangingTrackRef.current = false;
+      
+      // Reset the audio element to ensure clean playback
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      audioRef.current.src = trackUrl;
+      
+      // Trigger load event
+      audioRef.current.load();
+      
+      // Remove any existing loadeddata listeners first
+      const existingHandlers = audioRef.current._loadHandlers || [];
+      existingHandlers.forEach(handler => {
+        audioRef.current.removeEventListener('loadeddata', handler);
+      });
+      
+      // Wait for loadeddata event before trying to play
+      const handleLoaded = () => {
+        console.log('🎵 Track loaded, ready to play');
         
-        audioRef.current.src = trackUrl;
-        
-        // Trigger load event
-        audioRef.current.load();
-        
-        // If it was playing or autoPlay is true, try to play
-        if (wasPlaying || autoPlay) {
-          // Give a moment for the audio to load
-          setTimeout(() => {
-            audioRef.current.play().catch(e => {
-              console.log('🎵 Could not auto-play after src change:', e);
-            });
-          }, 200);
+        if (wasPlaying) {
+          audioRef.current.play().then(() => {
+            console.log('🎵 Playback started after track change');
+            setIsPlaying(true);
+            setContextIsPlaying(true);
+            if (onPlayingStateChange) onPlayingStateChange(true);
+          }).catch(e => {
+            console.log('🎵 Could not auto-play after src change:', e);
+            setIsPlaying(false);
+            setContextIsPlaying(false);
+            if (onPlayingStateChange) onPlayingStateChange(false);
+          });
         }
-      }
+        
+        // Remove this one-time listener
+        audioRef.current.removeEventListener('loadeddata', handleLoaded);
+        // Clean up stored handlers
+        audioRef.current._loadHandlers = audioRef.current._loadHandlers?.filter(h => h !== handleLoaded) || [];
+      };
+      
+      // Store handler reference for cleanup
+      audioRef.current._loadHandlers = audioRef.current._loadHandlers || [];
+      audioRef.current._loadHandlers.push(handleLoaded);
+      
+      audioRef.current.addEventListener('loadeddata', handleLoaded);
+      
+      // Timeout fallback in case loadeddata doesn't fire
+      const loadTimeout = setTimeout(() => {
+        console.log('⚠️ loadeddata timeout, forcing play attempt');
+        if (wasPlaying && audioRef.current.paused) {
+          handleLoaded();
+        }
+      }, 1000);
+      
+      // Store timeout for cleanup
+      audioRef.current._loadTimeout = loadTimeout;
       
       // Update context with current track info
       setContextTrackUrl(trackUrl);
-      setContextTrackIndex(currentTrackIndex);
+      // Don't update context index here - it should be updated when we actually change tracks
     }
-  }, [trackUrl, currentTrackIndex, setContextTrackUrl, setContextTrackIndex, autoPlay]);
+    
+    // Cleanup function
+    return () => {
+      if (audioRef.current?._loadTimeout) {
+        clearTimeout(audioRef.current._loadTimeout);
+      }
+    };
+  }, [trackUrl, currentTrackIndex, setContextTrackUrl, setContextTrackIndex, autoPlay, setContextIsPlaying, onPlayingStateChange]);
 
   // Set up event listeners on the shared audio element
   useEffect(() => {
@@ -482,14 +588,32 @@ const MobileMusicPlayer = ({ isVisible, onClose, autoPlay = true, is80sMode = fa
       setIsLoaded(true);
     };
     
+    const handlePlay = () => {
+      console.log('🎵 MobileMusicPlayer: Audio started playing');
+      setIsPlaying(true);
+      setContextIsPlaying(true);
+      if (onPlayingStateChange) onPlayingStateChange(true);
+    };
+    
+    const handlePause = () => {
+      console.log('🎵 MobileMusicPlayer: Audio paused');
+      setIsPlaying(false);
+      setContextIsPlaying(false);
+      if (onPlayingStateChange) onPlayingStateChange(false);
+    };
+    
     audio.addEventListener('ended', handleEnded);
     audio.addEventListener('loadeddata', handleLoadedData);
+    audio.addEventListener('play', handlePlay);
+    audio.addEventListener('pause', handlePause);
     
     return () => {
       audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('loadeddata', handleLoadedData);
+      audio.removeEventListener('play', handlePlay);
+      audio.removeEventListener('pause', handlePause);
     };
-  }, [handleTrackEnd]);
+  }, [handleTrackEnd, setContextIsPlaying, onPlayingStateChange]);
 
   // Sync local state with context state
   useEffect(() => {
