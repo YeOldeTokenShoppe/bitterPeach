@@ -4,29 +4,30 @@ import { OrbitControls, Environment } from '@react-three/drei';
 import CyborgTempleScene from '../components/3DVotiveStand/CyborgTempleScene';
 import ConstellationModel from '../components/3DVotiveStand/ConstellationModel';
 import StarField from '../components/3DVotiveStand/StarField';
-import { Box, IconButton, Text } from '@chakra-ui/react';
+import { Box, IconButton } from '@chakra-ui/react';
 import PostProcessingEffects from '../components/3DVotiveStand/PostProcessingEffects';
 import dynamic from 'next/dynamic';
 import { useMusic } from '../contexts/MusicContext';
 import Link from 'next/link';
 import { Lights } from '../components/Lights';
-
+import { StarrySky } from '../components/3DVotiveStand/StarrySky';
+import BuyTokenFAB from '../components/BuyTokenFAB';
+import CandlePaginationUI from '../components/CandlePaginationUI';
 const SimpleMusicPlayer = dynamic(() => import('../components/SimpleMusicPlayer'), {
   ssr: false,
 });
 
 
 
-export default function CyborgTemple() {
+export default function CyborgTemple({ is80sMode, setIs80sMode }) {
   const [showMobileMusicPlayer, setShowMobileMusicPlayer] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMobileView, setIsMobileView] = useState(false);
   const [musicPlayerVisible, setMusicPlayerVisible] = useState(false);
-  const [is80sMode, setIs80sMode] = useState(false);
-  const audioRef = useRef(null);
   const videoRef = useRef(null);
   const { setIsPlaying: setContextIsPlaying, setShowSpotify: setContextShowSpotify } = useMusic();
   const [musicControls, setMusicControls] = useState(null);
+  const [paginationControls, setPaginationControls] = useState(null);
 
   // Check if mobile on mount
   useEffect(() => {
@@ -173,6 +174,7 @@ export default function CyborgTemple() {
           {/* <directionalLight position={[5, 10, 5]} intensity={1} /> */}
              {/* Starry background */}
              <StarField radius={150} count1={500} count2={300} is80sMode={is80sMode} />
+             {/* <StarrySky /> */}
           <ConstellationModel  groupScale={[10, 10, 10]} groupPosition={[0, 15, -80]}    isVisible={true} />
           <Environment frames={Infinity} resolution={512} blur={(0.5)}> 
             <Lights />
@@ -191,6 +193,28 @@ export default function CyborgTemple() {
             onLoad={handleSceneLoad}
             isPlaying={isPlaying}
             is80sMode={is80sMode}
+            candleData={[
+              // Sample candle data - replace with actual user data
+              { name: "User 1", image: "/path/to/image1.jpg", burnAmount: 0.5 },
+              { name: "User 2", image: "/path/to/image2.jpg", burnAmount: 0.3 },
+              { name: "User 3", image: "/path/to/image3.jpg", burnAmount: 0.7 },
+              { name: "User 4", image: "/path/to/image4.jpg", burnAmount: 0.2 },
+              { name: "User 5", image: "/path/to/image5.jpg", burnAmount: 0.9 },
+              { name: "User 6", image: "/path/to/image6.jpg", burnAmount: 0.4 },
+              { name: "User 7", image: "/path/to/image7.jpg", burnAmount: 0.6 },
+              { name: "User 8", image: "/path/to/image8.jpg", burnAmount: 0.8 },
+              // Add more candle data as needed for pagination demo
+              { name: "User 9", image: "/path/to/image9.jpg", burnAmount: 0.1 },
+              { name: "User 10", image: "/path/to/image10.jpg", burnAmount: 0.5 },
+            ]}
+            onCandleClick={(index, userData) => {
+              console.log('Candle clicked:', index, userData);
+              // Here you can open your candle viewer modal
+              // For example: setSelectedCandle(userData); setShowCandleViewer(true);
+            }}
+            onPaginationReady={(controls) => {
+              setPaginationControls(controls);
+            }}
           />
           
           <OrbitControls 
@@ -203,7 +227,7 @@ export default function CyborgTemple() {
             minDistance={0.1}
             maxDistance={20}
             minPolarAngle={0}
-            maxPolarAngle={Math.PI / 1.5}
+            maxPolarAngle={Math.PI / 1.9}
             zoomToCursor={true}
             autoRotate={true}
             autoRotateSpeed={0.4}
@@ -217,7 +241,7 @@ export default function CyborgTemple() {
       {!showMobileMusicPlayer && (
         <IconButton
           position="fixed"
-          top="2rem"
+          top={isMobileView ? "7rem" : "7.5rem"}
           right={isMobileView ? "20px" : "2rem"}
           zIndex="1100"
           aria-label="Music Player"
@@ -268,8 +292,8 @@ export default function CyborgTemple() {
       {showMobileMusicPlayer && (
         <Box
           position="fixed"
-          top="2rem"
-          right="2rem"
+          top={isMobileView ? "7rem" : "7.5rem"}
+          right={isMobileView ? "20px" : "2rem"}
           zIndex="9999"
           display="flex"
           alignItems="center"
@@ -351,55 +375,117 @@ export default function CyborgTemple() {
         </Box>
       )}
       
-      {/* 80s Mode Toggle - Always visible below music icon */}
-      <Box
+      {/* 80s Mode Toggle */}
+      <IconButton
         position="fixed"
-        top={isMobileView ? "4rem" : "5.5rem"}
+        top={isMobileView ? "4rem" : "4.5rem"}
         right={isMobileView ? "20px" : "2rem"}
         zIndex="1100"
-        display="flex"
-        alignItems="center"
-        gap="0.5rem"
-        bg="rgba(0, 0, 0, 0.7)"
-        borderRadius="full"
-        padding="0.5rem 1rem"
-        backdropFilter="blur(10px)"
-      >
-        <Text
-          fontSize="0.9rem"
-          fontWeight="medium"
-          color="white"
-        >
-          80s Mode
-        </Text>
-        <Box
-          as="button"
-          position="relative"
-          width="3rem"
-          height="1.5rem"
-          borderRadius="full"
-          bg={is80sMode ? "rgba(0, 255, 65, 0.3)" : "rgba(255, 255, 255, 0.2)"}
-          border={`2px solid ${is80sMode ? "#00ff41" : "white"}`}
-          cursor="pointer"
-          transition="all 0.3s ease"
-          onClick={() => setIs80sMode(!is80sMode)}
-          _hover={{
-            transform: "scale(1.05)"
-          }}
-        >
-          <Box
-            position="absolute"
-            top="50%"
-            transform={`translateY(-50%) translateX(${is80sMode ? "1.5rem" : "0.1rem"})`}
-            width="1rem"
-            height="1rem"
-            borderRadius="full"
-            bg={is80sMode ? "#00ff41" : "white"}
-            transition="all 0.3s ease"
-            boxShadow={is80sMode ? "0 0 10px #00ff41" : "0 0 4px rgba(255,255,255,0.5)"}
-          />
-        </Box>
-      </Box>
+        aria-label="Toggle 80s Mode"
+        icon={
+          <svg width={isMobileView ? "30" : "2.5rem"} height={isMobileView ? "30" : "2.5rem"} viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill={is80sMode ? "currentColor" : "none"}/>
+            <text 
+              x="12" 
+              y="12" 
+              textAnchor="middle" 
+              dominantBaseline="middle" 
+              fontSize="10" 
+              fontWeight="bold"
+              fontFamily="'Rajdhani', sans-serif"
+              fill={is80sMode ? (is80sMode === "#00ff41" ? "#000" : "#000") : "currentColor"}
+            >
+              80s
+            </text>
+          </svg>
+        }
+        color={is80sMode ? "#00ff41" : "white"}
+        bg="transparent"
+        size="md"
+        onClick={() => setIs80sMode(!is80sMode)}
+        _hover={{
+          bg: "rgba(255, 255, 255, 0.1)",
+          color: is80sMode ? "#00ff41" : "#D946EF",
+          transform: "scale(1.1)",
+        }}
+        transition="all 0.3s ease"
+      />
+      
+      {/* User Login Icon */}
+      <IconButton
+        position="fixed"
+        top={isMobileView ? "10rem" : "10.5rem"}
+        right={isMobileView ? "20px" : "2rem"}
+        zIndex="1100"
+        aria-label="User Account"
+        icon={
+          <svg width={isMobileView ? "30" : "2.5rem"} height={isMobileView ? "30" : "2.5rem"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
+        }
+        color={is80sMode ? "#00ff41" : "white"}
+        bg="transparent"
+        size="md"
+        onClick={() => {
+          // Add your login/account action here
+          console.log("User account clicked");
+        }}
+        _hover={{
+          bg: "rgba(255, 255, 255, 0.1)",
+          color: is80sMode ? "#00ff41" : "#D946EF",
+          transform: "scale(1.1)",
+        }}
+        transition="all 0.3s ease"
+      />
+      
+      {/* Bot/AI Assistant Icon */}
+      <IconButton
+        position="fixed"
+        top={isMobileView ? "16rem" : "16.5rem"}
+        right={isMobileView ? "20px" : "2rem"}
+        zIndex="1100"
+        aria-label="AI Assistant"
+        icon={
+          <svg width={isMobileView ? "30" : "2.5rem"} height={isMobileView ? "30" : "2.5rem"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 8V4H8"/>
+            <rect width="16" height="12" x="4" y="8" rx="2"/>
+            <path d="M2 14h2"/>
+            <path d="M20 14h2"/>
+            <path d="M15 13v2"/>
+            <path d="M9 13v2"/>
+          </svg>
+        }
+        color={is80sMode ? "#00ff41" : "white"}
+        bg="transparent"
+        size="md"
+        onClick={() => {
+          // Add your AI assistant action here
+          console.log("AI assistant clicked");
+        }}
+        _hover={{
+          bg: "rgba(255, 255, 255, 0.1)",
+          color: is80sMode ? "#00ff41" : "#D946EF",
+          transform: "scale(1.1)",
+        }}
+        transition="all 0.3s ease"
+      />
+      
+      {/* Buy Token FAB */}
+      <BuyTokenFAB is80sMode={is80sMode} />
+      
+      {/* Candle Pagination UI */}
+      {paginationControls && (
+        <CandlePaginationUI
+          currentPage={paginationControls.currentPage}
+          totalPages={paginationControls.totalPages}
+          candlesPerPage={paginationControls.candlesPerPage}
+          totalCandles={paginationControls.totalCandles}
+          onPageChange={paginationControls.changePage}
+          is80sMode={is80sMode}
+          isMobile={isMobileView}
+        />
+      )}
       
       <style jsx>{`
         @keyframes spin {

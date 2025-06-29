@@ -17,12 +17,15 @@ function CyborgTempleScene({
   hover = false,
   rotate = false,
   isPlaying = false,
-  is80sMode = false
+  is80sMode = false,
+  candleData = [], // Array of user data for candles
+  onCandleClick = null, // Callback when candle is clicked
+  onPaginationReady = null // Callback to expose pagination controls
 }) {
   console.log('[CyborgTempleScene] Component rendered with isPlaying:', isPlaying);
   const sceneRef = useRef();
   const groupRef = useRef();
-  const { scene, camera, gl } = useThree();
+  const { scene, camera, gl, raycaster, pointer } = useThree();
   const initialY = useRef(position[1]);
   const mixerRef = useRef();
   const hasLoadedRef = useRef(false);
@@ -31,6 +34,13 @@ function CyborgTempleScene({
   const chandelierRef = useRef();
   const chandelierInitialRotation = useRef();
   const danceTimeoutRef = useRef(null);
+  
+  // Candle pagination state
+  const [currentCandlePage, setCurrentCandlePage] = useState(0);
+  const [candleRefs, setCandleRefs] = useState([]);
+  const [hoveredCandle, setHoveredCandle] = useState(null);
+  const candlesPerPage = 8;
+  const totalCandlePages = Math.ceil(candleData.length / candlesPerPage);
 
   // Use useMemo to prevent recreating the loader on every render
   const loader = useMemo(() => {
@@ -40,13 +50,62 @@ function CyborgTempleScene({
     gltfLoader.setDRACOLoader(dracoLoader);
     return gltfLoader;
   }, []);
+  
+  // Update candle visibility based on current page
+  const updateCandleVisibility = (candles, page) => {
+    const start = page * candlesPerPage;
+    const end = start + candlesPerPage;
+    
+    candles.forEach((candle, index) => {
+      const shouldBeVisible = index >= start && index < end;
+      candle.visible = shouldBeVisible;
+      
+      // Apply user data if available
+      if (shouldBeVisible && candleData[index]) {
+        const userData = candleData[index];
+        candle.userData = { ...candle.userData, ...userData };
+        
+        // Apply user image to candle labels if available
+        if (userData.image) {
+          const textureLoader = new THREE.TextureLoader();
+          textureLoader.load(userData.image, (texture) => {
+            candle.traverse((child) => {
+              if (child.name?.includes('Label') && child.isMesh) {
+                if (child.material) {
+                  child.material = child.material.clone();
+                  child.material.map = texture;
+                  child.material.needsUpdate = true;
+                }
+              }
+            });
+          });
+        }
+      }
+    });
+  };
+  
+  // Handle candle click
+  const handleCandleClick = (candleIndex) => {
+    const actualIndex = currentCandlePage * candlesPerPage + candleIndex;
+    if (onCandleClick && candleData[actualIndex]) {
+      onCandleClick(actualIndex, candleData[actualIndex]);
+    }
+  };
+  
+  // Handle page change
+  const changeCandlePage = (newPage) => {
+    if (newPage >= 0 && newPage < totalCandlePages) {
+      setCurrentCandlePage(newPage);
+      updateCandleVisibility(candleRefs, newPage);
+    }
+  };
 
   useEffect(() => {
     if (hasLoadedRef.current) return;
 
     let isCurrentInstance = true;
 
-    loader.load("/cyborgTempleScene.glb", (gltf) => {
+    loader.load("/cyborgTempleScene3.glb", (gltf) => {
       if (!isCurrentInstance) return;
 
       const templeScene = gltf.scene;
@@ -147,6 +206,35 @@ function CyborgTempleScene({
       } else {
         console.log('[CyborgTempleScene] ChandelierMain not found in scene');
       }
+      
+      // Find and store candle references
+      const foundCandles = [];
+      templeScene.traverse((child) => {
+        if (child.name && child.name.startsWith('VCANDLE')) {
+          foundCandles.push(child);
+          console.log('[CyborgTempleScene] Found candle:', child.name);
+          
+          // Make candles interactive
+          child.userData.isCandle = true;
+          child.userData.originalScale = child.scale.clone();
+          
+          // Add click handler to candle
+          child.traverse((subChild) => {
+            if (subChild.isMesh) {
+              subChild.userData.candleIndex = foundCandles.length - 1;
+              subChild.userData.candleName = child.name;
+            }
+          });
+        }
+      });
+      
+      // Sort candles by name to ensure consistent ordering
+      foundCandles.sort((a, b) => a.name.localeCompare(b.name));
+      setCandleRefs(foundCandles);
+      console.log(`[CyborgTempleScene] Found ${foundCandles.length} candles`);
+      
+      // Apply initial candle visibility based on pagination
+      updateCandleVisibility(foundCandles, 0);
      
       // Create grid ground
       const gridHelper = new THREE.GridHelper(50, 50, 0x00ff41, 0x00ff41);
@@ -333,6 +421,57 @@ function CyborgTempleScene({
       chandelierRef.current.rotation.x = chandelierInitialRotation.current.x + swayX;
       chandelierRef.current.rotation.z = chandelierInitialRotation.current.z + swayZ;
     }
+    
+    // Handle candle hover effects
+    if (candleRefs.length > 0) {
+      // Cast ray from pointer
+      raycaster.setFromCamera(pointer, camera);
+      
+      // Check for intersections with visible candles
+      const visibleCandles = candleRefs.filter(c => c.visible);
+      const meshes = [];
+      visibleCandles.forEach(candle => {
+        candle.traverse(child => {
+          if (child.isMesh && child.userData.candleIndex !== undefined) {
+            meshes.push(child);
+          }
+        });
+      });
+      
+      const intersects = raycaster.intersectObjects(meshes, false);
+      
+      if (intersects.length > 0) {
+        const candleIndex = intersects[0].object.userData.candleIndex;
+        if (hoveredCandle !== candleIndex) {
+          setHoveredCandle(candleIndex);
+          document.body.style.cursor = 'pointer';
+        }
+      } else if (hoveredCandle !== null) {
+        setHoveredCandle(null);
+        document.body.style.cursor = 'default';
+      }
+      
+      // Apply hover animation to candles
+      visibleCandles.forEach((candle, index) => {
+        const isHovered = hoveredCandle === index;
+        const targetScale = isHovered ? 1.1 : 1;
+        
+        // Smooth scale animation
+        candle.scale.x = THREE.MathUtils.lerp(candle.scale.x, candle.userData.originalScale.x * targetScale, delta * 5);
+        candle.scale.y = THREE.MathUtils.lerp(candle.scale.y, candle.userData.originalScale.y * targetScale, delta * 5);
+        candle.scale.z = THREE.MathUtils.lerp(candle.scale.z, candle.userData.originalScale.z * targetScale, delta * 5);
+        
+        // Flame flicker effect
+        candle.traverse((child) => {
+          if (child.name?.toLowerCase().includes('flame') && child.isMesh) {
+            const flicker = Math.sin(state.clock.elapsedTime * 10 + index) * 0.1 + 0.9;
+            if (child.material && child.material.emissiveIntensity !== undefined) {
+              child.material.emissiveIntensity = flicker * (isHovered ? 1.5 : 1);
+            }
+          }
+        });
+      });
+    }
 
     if (sceneRef.current && groupRef.current) {
       // Apply hover animation to the anchor group only if hover is enabled
@@ -348,12 +487,43 @@ function CyborgTempleScene({
     }
   });
 
+  // Add click event listener
+  useEffect(() => {
+    if (!modelLoaded || candleRefs.length === 0) return;
+    
+    const handleClick = () => {
+      if (hoveredCandle !== null) {
+        handleCandleClick(hoveredCandle);
+      }
+    };
+    
+    gl.domElement.addEventListener('click', handleClick);
+    
+    return () => {
+      gl.domElement.removeEventListener('click', handleClick);
+    };
+  }, [gl, hoveredCandle, modelLoaded, candleRefs]);
+
+  // Expose pagination controls to parent
+  useEffect(() => {
+    if (onPaginationReady && candleRefs.length > 0) {
+      onPaginationReady({
+        currentPage: currentCandlePage,
+        totalPages: totalCandlePages,
+        candlesPerPage,
+        totalCandles: candleData.length,
+        changePage: changeCandlePage
+      });
+    }
+  }, [onPaginationReady, currentCandlePage, totalCandlePages, candleData.length, candleRefs.length]);
+
   return (
     <>
       {modelLoaded && <VideoBackground is80sMode={is80sMode} />}
       {modelLoaded && <TickerDisplay3 is80sMode={is80sMode} />}
       {modelLoaded && <VideoScreens />}
       {modelLoaded && <SimpleGlitchTint />}
+      
     </>
   );
 }

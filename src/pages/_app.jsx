@@ -26,13 +26,16 @@ import { useRouter } from "next/router";
 import Header from "../components/Header";
 import Header2 from "../components/Header2";
 import Header3 from "../components/Header3";
+import CyberNav from "../components/CyberNav";
+import SocialBar from "../components/SocialBar";
 import styles from "../../styles/MusicPlayer.module.css";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { ClerkProvider } from "@clerk/nextjs";
 import { MusicProvider } from "../contexts/MusicContext";
 
 function MyApp({ Component, pageProps }) {
   const router = useRouter();
+  const [is80sMode, setIs80sMode] = useState(false);
 
   const isGalleryPage = router.pathname === "/gallery";
   const isIndexPage = router.pathname === "/";
@@ -46,6 +49,10 @@ function MyApp({ Component, pageProps }) {
   const isJunkyardPage = router.pathname === "/junkyard";
   const isModelViewerPage = router.pathname === "/model-viewer";
   const isTemplePage = router.pathname === "/cyborg-temple";
+  const isRL80SwordPage = router.pathname === "/rl80-sword";
+  
+  // Pages that should show CyberNav
+  const showCyberNav = isTemplePage || isRL80SwordPage || router.pathname === "/home" || router.pathname === "/about";
 
   useEffect(() => {
     // Ensure theme is forced to "dark"
@@ -118,7 +125,7 @@ function MyApp({ Component, pageProps }) {
   let HeaderComponent = null;
   if (isGalleryPage) {
     HeaderComponent = Header3;
-  } else if (!(isIndexPage || isScenePage || isRocketPage || isCommunionPage || isMoonScenePage || isSamplePage || isSample1Page || isJunkyardPage || isModelViewerPage || isTemplePage )) {
+  } else if (!(isIndexPage || isScenePage || isRocketPage || isCommunionPage || isMoonScenePage || isSamplePage || isSample1Page || isJunkyardPage || isModelViewerPage || isTemplePage || isRL80SwordPage )) {
     HeaderComponent = Header;
   }
 
@@ -139,6 +146,7 @@ function MyApp({ Component, pageProps }) {
                 name="viewport"
                 content="width=device-width, initial-scale=1"
               />
+              <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
             </Head>
             <div
               className={`${isGalleryPage ? "gallery-page" : ""} ${
@@ -158,6 +166,12 @@ function MyApp({ Component, pageProps }) {
               >
                 {HeaderComponent && <HeaderComponent />}
               </div>
+              {showCyberNav && (
+                <>
+                  <CyberNav is80sMode={is80sMode} />
+                  <SocialBar is80sMode={is80sMode} />
+                </>
+              )}
               <ThemeProvider
                 defaultTheme="dark"
                 enableSystem={false}
@@ -172,7 +186,7 @@ function MyApp({ Component, pageProps }) {
                 }}
               >
                 {/* Render the main page content */}
-                <Component {...pageProps} />
+                <Component {...pageProps} is80sMode={is80sMode} setIs80sMode={setIs80sMode} />
               </ThemeProvider>
             </div>
             </MusicProvider>
