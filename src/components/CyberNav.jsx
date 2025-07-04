@@ -19,10 +19,11 @@ const CyberNav = ({ is80sMode = false }) => {
   }, []);
 
   const navItems = [
-    { id: '01', date: '01', title: 'HOME', path: '/home', thumbnail: '/rl80logo.png' },
-    { id: '02', date: '02', title: 'TEMPLE', path: '/cyborg-temple', thumbnail: '/sacred.png' },
-    { id: '03', date: '03', title: 'SWORD', path: '/rl80-sword', thumbnail: '/fight1.jpg' },
-    { id: '04', date: '04', title: 'ABOUT', path: '/about', thumbnail: '/star_01.png' },
+    // { id: '01', date: '01', title: 'HOME', path: '/home', thumbnail: '/rl80logo.png' },
+    { id: '01', date: 'NATIV80', title: 'Behold! A digital token is born', path: '/cyborg-temple', thumbnail: '/sacred.png' },
+    { id: '02', date: 'ILLUMIN80', title: 'A shrine to shine', path: '/rl80-sword', thumbnail: '/fight1.jpg' },
+    { id: '03', date: 'LIQUID80', title: 'Stay hydrated with RL80', path: '/fountain.html', thumbnail: '/fountain.png' },
+    { id: '04', date: 'INFIN80', title: 'A digital infinity', path: '/sci-fi-lab', thumbnail: '/unicorn.glb' },
   ];
 
   // Mobile menu toggle button

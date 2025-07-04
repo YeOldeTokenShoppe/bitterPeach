@@ -13,6 +13,7 @@ import { Lights } from '../components/Lights';
 import { StarrySky } from '../components/3DVotiveStand/StarrySky';
 import BuyTokenFAB from '../components/BuyTokenFAB';
 import CandlePaginationUI from '../components/CandlePaginationUI';
+import CyberCalloutOverlay from '../components/3DVotiveStand/CyberCalloutOverlay';
 const SimpleMusicPlayer = dynamic(() => import('../components/SimpleMusicPlayer'), {
   ssr: false,
 });
@@ -36,7 +37,20 @@ export default function CyborgTemple({ is80sMode, setIs80sMode }) {
     };
     checkMobile();
     window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+    
+    // Suppress Chrome extension errors
+    const originalError = console.error;
+    console.error = (...args) => {
+      if (args[0]?.includes?.('message channel closed')) {
+        return; // Suppress extension errors
+      }
+      originalError.apply(console, args);
+    };
+    
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+      console.error = originalError;
+    };
   }, []);
   
 
@@ -85,6 +99,20 @@ export default function CyborgTemple({ is80sMode, setIs80sMode }) {
       position="relative" 
       overflow="hidden"
     >
+      {/* Cyber Callout Overlay */}
+      <CyberCalloutOverlay
+        title="CYBORG TEMPLE"
+        subtitle="DIGITAL SANCTUARY"
+        description="Welcome to the sacred nexus where consciousness meets code. Light a virtual candle and join the collective meditation."
+        buttonText="ENTER"
+        is80sMode={is80sMode}
+        autoHide={false}
+        onButtonClick={() => {
+          console.log('Entering the temple...');
+          // Add any temple entry logic here
+        }}
+      />
+      
       {/* 80s Mode Video Background */}
       {/* {is80sMode && (
         <video
@@ -195,17 +223,17 @@ export default function CyborgTemple({ is80sMode, setIs80sMode }) {
             is80sMode={is80sMode}
             candleData={[
               // Sample candle data - replace with actual user data
-              { name: "User 1", image: "/path/to/image1.jpg", burnAmount: 0.5 },
-              { name: "User 2", image: "/path/to/image2.jpg", burnAmount: 0.3 },
-              { name: "User 3", image: "/path/to/image3.jpg", burnAmount: 0.7 },
-              { name: "User 4", image: "/path/to/image4.jpg", burnAmount: 0.2 },
-              { name: "User 5", image: "/path/to/image5.jpg", burnAmount: 0.9 },
-              { name: "User 6", image: "/path/to/image6.jpg", burnAmount: 0.4 },
-              { name: "User 7", image: "/path/to/image7.jpg", burnAmount: 0.6 },
-              { name: "User 8", image: "/path/to/image8.jpg", burnAmount: 0.8 },
-              // Add more candle data as needed for pagination demo
-              { name: "User 9", image: "/path/to/image9.jpg", burnAmount: 0.1 },
-              { name: "User 10", image: "/path/to/image10.jpg", burnAmount: 0.5 },
+              // { name: "User 1", image: "/path/to/image1.jpg", burnAmount: 0.5 },
+              // { name: "User 2", image: "/path/to/image2.jpg", burnAmount: 0.3 },
+              // { name: "User 3", image: "/path/to/image3.jpg", burnAmount: 0.7 },
+              // { name: "User 4", image: "/path/to/image4.jpg", burnAmount: 0.2 },
+              // { name: "User 5", image: "/path/to/image5.jpg", burnAmount: 0.9 },
+              // { name: "User 6", image: "/path/to/image6.jpg", burnAmount: 0.4 },
+              // { name: "User 7", image: "/path/to/image7.jpg", burnAmount: 0.6 },
+              // { name: "User 8", image: "/path/to/image8.jpg", burnAmount: 0.8 },
+              // // Add more candle data as needed for pagination demo
+              // { name: "User 9", image: "/path/to/image9.jpg", burnAmount: 0.1 },
+              // { name: "User 10", image: "/path/to/image10.jpg", burnAmount: 0.5 },
             ]}
             onCandleClick={(index, userData) => {
               console.log('Candle clicked:', index, userData);
@@ -374,11 +402,37 @@ export default function CyborgTemple({ is80sMode, setIs80sMode }) {
           />
         </Box>
       )}
-      
+            {/* User Login Icon */}
+            <IconButton
+        position="fixed"
+        top={isMobileView ? "4rem" : "4.5rem"}
+        right={isMobileView ? "20px" : "2rem"}
+        zIndex="1100"
+        aria-label="User Account"
+        icon={
+          <svg width={isMobileView ? "30" : "2.5rem"} height={isMobileView ? "30" : "2.5rem"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
+        }
+        color={is80sMode ? "#00ff41" : "white"}
+        bg="transparent"
+        size="md"
+        onClick={() => {
+          // Add your login/account action here
+          console.log("User account clicked");
+        }}
+        _hover={{
+          bg: "rgba(255, 255, 255, 0.1)",
+          color: is80sMode ? "#00ff41" : "#D946EF",
+          transform: "scale(1.1)",
+        }}
+        transition="all 0.3s ease"
+      />
       {/* 80s Mode Toggle */}
       <IconButton
         position="fixed"
-        top={isMobileView ? "4rem" : "4.5rem"}
+        top={isMobileView ? "10rem" : "10.5rem"}
         right={isMobileView ? "20px" : "2rem"}
         zIndex="1100"
         aria-label="Toggle 80s Mode"
@@ -411,33 +465,7 @@ export default function CyborgTemple({ is80sMode, setIs80sMode }) {
         transition="all 0.3s ease"
       />
       
-      {/* User Login Icon */}
-      <IconButton
-        position="fixed"
-        top={isMobileView ? "10rem" : "10.5rem"}
-        right={isMobileView ? "20px" : "2rem"}
-        zIndex="1100"
-        aria-label="User Account"
-        icon={
-          <svg width={isMobileView ? "30" : "2.5rem"} height={isMobileView ? "30" : "2.5rem"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-            <circle cx="12" cy="7" r="4"/>
-          </svg>
-        }
-        color={is80sMode ? "#00ff41" : "white"}
-        bg="transparent"
-        size="md"
-        onClick={() => {
-          // Add your login/account action here
-          console.log("User account clicked");
-        }}
-        _hover={{
-          bg: "rgba(255, 255, 255, 0.1)",
-          color: is80sMode ? "#00ff41" : "#D946EF",
-          transform: "scale(1.1)",
-        }}
-        transition="all 0.3s ease"
-      />
+
       
       {/* Bot/AI Assistant Icon */}
       <IconButton

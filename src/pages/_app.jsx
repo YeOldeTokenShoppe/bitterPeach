@@ -50,9 +50,10 @@ function MyApp({ Component, pageProps }) {
   const isModelViewerPage = router.pathname === "/model-viewer";
   const isTemplePage = router.pathname === "/cyborg-temple";
   const isRL80SwordPage = router.pathname === "/rl80-sword";
+  const isSciFiLabPage = router.pathname === "/sci-fi-lab";
   
   // Pages that should show CyberNav
-  const showCyberNav = isTemplePage || isRL80SwordPage || router.pathname === "/home" || router.pathname === "/about";
+  const showCyberNav = isTemplePage || isRL80SwordPage || isSciFiLabPage || router.pathname === "/home" || router.pathname === "/about";
 
   useEffect(() => {
     // Ensure theme is forced to "dark"
@@ -125,7 +126,7 @@ function MyApp({ Component, pageProps }) {
   let HeaderComponent = null;
   if (isGalleryPage) {
     HeaderComponent = Header3;
-  } else if (!(isIndexPage || isScenePage || isRocketPage || isCommunionPage || isMoonScenePage || isSamplePage || isSample1Page || isJunkyardPage || isModelViewerPage || isTemplePage || isRL80SwordPage )) {
+  } else if (!(isIndexPage || isScenePage || isRocketPage || isCommunionPage || isMoonScenePage || isSamplePage || isSample1Page || isJunkyardPage || isModelViewerPage || isTemplePage || isRL80SwordPage || isSciFiLabPage )) {
     HeaderComponent = Header;
   }
 

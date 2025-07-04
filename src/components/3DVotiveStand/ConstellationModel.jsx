@@ -101,14 +101,14 @@ function ConstellationModel({
             child.visible = true; // Keep in scene graph
             if (child.material) {
               child.material.transparent = true;
-              child.material.opacity = isVisible ? 0.01 : 0; // Control via opacity
+              child.material.opacity = isVisible ? 0.05 : 0; // Control via opacity
             }
           } else {
             child.visible = isVisible;
             if (child.material) {
               child.material.transparent = true;
               if (child.name.startsWith("Bear")) {
-                child.material.opacity = isVisible ? 0.04 : 0;
+                child.material.opacity = isVisible ? 0.05 : 0;
               // } else if (modelScene === starCandlesClone) {
               //   child.material.opacity = isVisible ? 0.1 : 0;
               } else if (modelScene === whaleClone) {
@@ -129,8 +129,8 @@ function ConstellationModel({
 
     // Keep internal model positions and scales as they are, 
     // the main group's scale and position will adjust them globally.
-    processModel(marketClone, "Market", [10, 1, 0], [1, 1, 1]);
-    processModel(whaleClone, "Whale", [-10, 2, 4], [0.3, 0.3, 0.3]);
+    processModel(marketClone, "Market", [3, 0, 0], [1, 1, 1]);
+    processModel(whaleClone, "Whale", [-9, 0.5, 7], [0.3, 0.3, 0.3]);
     // processModel(starCandlesClone, "StarCandles", [-15, -2, 30], [1.8 , 1.8, 1.8]);
     // processModel(infinityStarsClone, "InfinityStars", [-10, 1, -12], [1.5, 1.5, 1.5]);
 
@@ -138,7 +138,7 @@ function ConstellationModel({
     whaleClone.rotation.y = Math.PI / 4;
     whaleClone.rotation.x = Math.PI / 12;
     // infinityStarsClone.rotation.z = Math.PI / 6;
-    marketClone.rotation.y = Math.PI * 0.5;
+    marketClone.rotation.y = Math.PI * 0.75;
 
     // Apply the new groupScale and groupPosition props
     groupRef.current.position.set(...groupPosition);

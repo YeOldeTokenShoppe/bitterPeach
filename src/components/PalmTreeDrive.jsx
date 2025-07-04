@@ -66,6 +66,9 @@ const PalmsScene = () => {
   const cinematicModeRef = useRef('playback'); // Add ref to track mode in useEffect
   const recordedKeyframesRef = useRef([]); // Add ref for keyframes
   const [isSceneLoading, setIsSceneLoading] = useState(true); // Loading state
+  const [cinematicReverse, setCinematicReverse] = useState(false); // Control reverse playback
+  const [scrollCameraActive, setScrollCameraActive] = useState(true); // Track scroll camera state - enabled by default
+  const [currentCameraStage, setCurrentCameraStage] = useState(0); // Track which camera position we're at
   // Music player states
   const [showMobileMusicPlayer, setShowMobileMusicPlayer] = useState(false);
   const [musicPlayerVisible, setMusicPlayerVisible] = useState(false);
@@ -106,13 +109,13 @@ const PalmsScene = () => {
   // Add refs for 3D card effect
   const cameraRef = useRef(null);
   
-  // Add refs and state for text animation
+  // Add refs for text animation
   const scrollTextRef = useRef(null);
   const textSectionRef = useRef(null);
-  const [currentTextBlock, setCurrentTextBlock] = useState(0);
-  const textTimelineRef = useRef(null);
-  const scrollAccumulator = useRef(0);
-  const isTransitioning = useRef(false);
+  
+  // Refs for scroll camera
+  const scrollCameraEnabledRef = useRef(true); // Initialize as true to match state
+  const scrollProgressRef = useRef(0);
 
   
   // Check if mobile on mount and resize
@@ -126,6 +129,34 @@ const PalmsScene = () => {
     
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+  
+  // Handle text transitions when camera stage changes
+  useEffect(() => {
+    if (previousCameraStage.current !== currentCameraStage && scrollCameraActive) {
+      const lines = gsap.utils.toArray('.scroll-text-line');
+      
+      // Animate text transition
+      if (lines.length > 0) {
+        gsap.fromTo(lines, 
+          {
+            opacity: 0,
+            y: 20,
+            filter: 'blur(10px)'
+          },
+          {
+            opacity: 1,
+            y: 0,
+            filter: 'blur(0px)',
+            duration: 0.6,
+            stagger: 0.05,
+            ease: "power2.out"
+          }
+        );
+      }
+      
+      previousCameraStage.current = currentCameraStage;
+    }
+  }, [currentCameraStage, scrollCameraActive]);
   
   // Callback to receive controls from MobileMusicPlayer
   const handleMusicControlsReady = useCallback((controls) => {
@@ -173,6 +204,7 @@ const PalmsScene = () => {
   const routerRef = useRef(router);
   const raycaster = useRef(new THREE.Raycaster());
   const mouse = useRef(new THREE.Vector2());
+  const previousCameraStage = useRef(0);
 
   
 
@@ -402,17 +434,23 @@ const PalmsScene = () => {
     `;
 
     const materialShaders = [];
-    const speed = 10;
+    const speed = 15; // Increased from 10 to make the car appear faster
     
     // Scene setup
     const scene = new THREE.Scene();
     sceneRef.current = scene;
     
     const camera = new THREE.PerspectiveCamera(75, mountRef.current.clientWidth / mountRef.current.clientHeight, 0.1, 1000);
-    // Start at the first cinematic keyframe
-    const initialKeyframes = recordedKeyframesRef.current.length > 0 ? recordedKeyframesRef.current : defaultCinematicKeyframes;
-    camera.position.copy(initialKeyframes[0].position);
-    camera.lookAt(initialKeyframes[0].target);
+    // DISABLED CINEMATIC - Set a simple starting position instead
+    // const initialKeyframes = recordedKeyframesRef.current.length > 0 ? recordedKeyframesRef.current : defaultCinematicKeyframes;
+    // camera.position.copy(initialKeyframes[0].position);
+    // camera.lookAt(initialKeyframes[0].target);
+    
+    // Start camera at user-specified position
+    camera.position.set(2.4564, 1.2084, 24.3895);
+    camera.lookAt(2.5729, 1.0383, 22.2069);
+    camera.fov = 20;
+    camera.updateProjectionMatrix();
     cameraRef.current = camera;
     
     const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -480,14 +518,14 @@ const PalmsScene = () => {
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
-    controls.screenSpacePanning = false;
-    controls.minDistance = 0.01;
-    controls.maxDistance = 50;
+    controls.screenSpacePanning = true; // Allow panning in screen space
+    controls.minDistance = 0.001;
+    controls.maxDistance = 80;
     controls.maxPolarAngle = Math.PI * 0.5; // Initial limit - will be dynamic
     controls.minPolarAngle = 0; // Prevent camera from flipping
-    controls.target.copy(initialKeyframes[0].target);
+    controls.target.set(2.5729, 1.0383, 22.2069); // Target from user coordinates
     controls.zoomToCursor = true;
-    controls.enabled = false; // Disable during cinematic intro
+    controls.enabled = !scrollCameraEnabledRef.current; // Disable controls if scroll camera is enabled
     controls.update();
     controlsRef.current = controls; // Store ref for access in event handlers
     
@@ -742,6 +780,7 @@ const PalmsScene = () => {
         dummy.rotation.y = Math.random() * Math.PI * 2;
         
         dummy.updateMatrix();
+        
         palms.setMatrixAt(i, dummy.matrix);
       }
       
@@ -1077,7 +1116,7 @@ const PalmsScene = () => {
       }
       
       // Position the car
-      carScene.position.set(2.5, 0, 15.6);
+      carScene.position.set(2.5, 0, 25.6);
       // Rotate 180 degrees so car faces away from camera (same direction we're looking)
       carScene.rotation.y = Math.PI;
       carScene.scale.set(2.7, 2.7, 2.7);
@@ -1132,9 +1171,9 @@ const PalmsScene = () => {
             // Play from the beginning
             action.time = 0;
             // Adjust speed as needed (1.0 = normal speed, negative = reverse)
-            action.timeScale = -3.0; // Negative value reverses the animation
+            action.timeScale = -9.0; // Increased from -3.0 to match the tripled speed
             action.play();
-            console.log(`Playing wheel animation: ${clip.name}, duration: ${clip.duration}s, frames: ~${Math.round(clip.duration * 30)}, speed: -2x (reversed)`);
+            console.log(`Playing wheel animation: ${clip.name}, duration: ${clip.duration}s, frames: ~${Math.round(clip.duration * 30)}, speed: -9x (reversed)`);
           } else if (clip.name === 'ArmatureAction.001') {
             // UFO animation - handle separately for scroll-based trigger
             action.clampWhenFinished = true;
@@ -1636,7 +1675,7 @@ const PalmsScene = () => {
           controlsRef.current.enabled = false;
         }
         // Create and play GSAP timeline
-        const timeline = createCinematicTimeline();
+        const timeline = createCinematicTimeline(cinematicReverse);
         timeline.restart(); // Use restart to ensure it starts from the beginning
       } else if (e.key === 'r' && cinematicModeRef.current === 'design') {
         // Reset keyframes with 'R'
@@ -1648,14 +1687,61 @@ const PalmsScene = () => {
         const keyframesToLog = recordedKeyframesRef.current.length > 0 ? recordedKeyframesRef.current : defaultCinematicKeyframes;
         console.log('Current keyframes:', JSON.stringify(keyframesToLog, null, 2));
         console.log('Recorded keyframes count:', recordedKeyframesRef.current.length);
+      } else if (e.key === 'v') {
+        // Toggle reverse mode with 'V'
+        setCinematicReverse(prev => !prev);
+        console.log('Cinematic reverse mode:', !cinematicReverse);
+        
+        // If already playing, restart with new direction
+        if (!isCinematicComplete && cinematicModeRef.current === 'playback') {
+          const timeline = createCinematicTimeline(!cinematicReverse);
+          timeline.restart();
+        }
+      } else if (e.key === 's' || e.key === 'S') {
+        // Toggle scroll camera mode with 'S'
+        toggleScrollCamera();
+      } else if (e.key === 'i' || e.key === 'I') {
+        // Log current camera position and target with 'I' (info)
+        if (cameraRef.current && controlsRef.current) {
+          const pos = cameraRef.current.position;
+          const target = controlsRef.current.target;
+          const fov = cameraRef.current.fov;
+          
+          console.log('=== Current Camera Info ===');
+          console.log('Position:', `(${pos.x.toFixed(4)}, ${pos.y.toFixed(4)}, ${pos.z.toFixed(4)})`);
+          console.log('Target:', `(${target.x.toFixed(4)}, ${target.y.toFixed(4)}, ${target.z.toFixed(4)})`);
+          console.log('FOV:', fov);
+          console.log('Distance to target:', pos.distanceTo(target).toFixed(4));
+          
+          // Also log as copy-pasteable code
+          console.log('\n// Copy this to set camera position:');
+          console.log(`camera.position.set(${pos.x.toFixed(4)}, ${pos.y.toFixed(4)}, ${pos.z.toFixed(4)});`);
+          console.log(`camera.lookAt(${target.x.toFixed(4)}, ${target.y.toFixed(4)}, ${target.z.toFixed(4)});`);
+          console.log(`camera.fov = ${fov};`);
+          console.log(`camera.updateProjectionMatrix();`);
+          
+          // Log as Three.js Vector3 format
+          console.log('\n// Or as Vector3:');
+          console.log(`new THREE.Vector3(${pos.x.toFixed(4)}, ${pos.y.toFixed(4)}, ${pos.z.toFixed(4)})`);
+          console.log(`new THREE.Vector3(${target.x.toFixed(4)}, ${target.y.toFixed(4)}, ${target.z.toFixed(4)})`);
+        }
       }
     };
     
     window.addEventListener('keydown', handleKeyPress);
 
     // Create GSAP timeline for cinematic intro
-    const createCinematicTimeline = () => {
-      const keyframes = recordedKeyframesRef.current.length > 0 ? recordedKeyframesRef.current : defaultCinematicKeyframes;
+    const createCinematicTimeline = (reverse = false) => {
+      let keyframes = recordedKeyframesRef.current.length > 0 ? recordedKeyframesRef.current : defaultCinematicKeyframes;
+      
+      // If reverse is true, reverse the keyframes array and adjust times
+      if (reverse) {
+        keyframes = [...keyframes].reverse().map((kf, index, arr) => ({
+          ...kf,
+          time: 1 - kf.time, // Invert the time values
+          label: kf.label ? `REVERSE: ${kf.label}` : ''
+        }));
+      }
       
       // Kill any existing timeline
       if (cinematicTimelineRef.current) {
@@ -1783,15 +1869,23 @@ const PalmsScene = () => {
       });
       
       // Create a proxy object for smooth interpolation
+      const startKeyframe = keyframes[0];
       const cameraProxy = {
-        x: keyframes[0].position.x,
-        y: keyframes[0].position.y,
-        z: keyframes[0].position.z,
-        targetX: keyframes[0].target.x,
-        targetY: keyframes[0].target.y,
-        targetZ: keyframes[0].target.z,
-        fov: keyframes[0].fov
+        x: startKeyframe.position.x,
+        y: startKeyframe.position.y,
+        z: startKeyframe.position.z,
+        targetX: startKeyframe.target.x,
+        targetY: startKeyframe.target.y,
+        targetZ: startKeyframe.target.z,
+        fov: startKeyframe.fov
       };
+      
+      // Set camera to starting position
+      camera.position.set(cameraProxy.x, cameraProxy.y, cameraProxy.z);
+      camera.lookAt(cameraProxy.targetX, cameraProxy.targetY, cameraProxy.targetZ);
+      camera.fov = cameraProxy.fov;
+      camera.updateProjectionMatrix();
+      controls.target.set(cameraProxy.targetX, cameraProxy.targetY, cameraProxy.targetZ);
       
       // Add each keyframe to the timeline
       keyframes.forEach((keyframe, index) => {
@@ -1851,11 +1945,219 @@ const PalmsScene = () => {
       return tl;
     };
     
-    // Start cinematic intro if not in design mode
-    if (cinematicModeRef.current !== 'design') {
-      const timeline = createCinematicTimeline();
-      timeline.play();
+    // DISABLED CINEMATIC - Start cinematic intro if not in design mode
+    // if (cinematicModeRef.current !== 'design') {
+    //   const timeline = createCinematicTimeline(cinematicReverse);
+    //   timeline.play();
+    // }
+    
+    // Set cinematic as complete so controls work immediately
+    setIsCinematicComplete(true);
+    
+    // Also trigger Mary glow effect since we're skipping the cinematic
+    setMaryGlowing(true);
+    maryGlowingRef.current = true;
+    
+    // Scroll-based camera movement (optional - toggle with 'S' key)
+    const maxScroll = 2000; // Less sensitive - requires more scrolling
+    
+    const handleScroll = (event) => {
+      console.log('Scroll event detected!', {
+        cameraExists: !!cameraRef.current,
+        scrollEnabled: scrollCameraEnabledRef.current,
+        deltaY: event.deltaY
+      });
+      
+      if (!cameraRef.current || !scrollCameraEnabledRef.current) return;
+      
+      event.preventDefault(); // Prevent page scroll
+      
+      // Update scroll progress with sticky points at first 3 positions
+      // Clamp deltaY to prevent huge jumps from trackpad gestures
+      const clampedDelta = Math.max(-10, Math.min(10, event.deltaY));
+      const scrollDelta = clampedDelta / maxScroll;
+      const rawProgress = scrollProgressRef.current + scrollDelta;
+      
+      // Define exact positions where camera views are perfectly framed
+      // These are the exact scroll percentages where each view is reached
+      const cameraPositions = [
+        { progress: 0.0, name: "Mary Close-up" },      // Starting position
+        { progress: 0.2, name: "Full Interior" },      // End of stage 1
+        { progress: 0.4, name: "License Plate" },      // End of stage 2
+        { progress: 0.6, name: "Behind Car" },         // End of stage 3 (sticky ends here)
+        { progress: 0.8, name: "Aerial View" },        // End of stage 4
+        { progress: 1.0, name: "Final Position" }      // End position
+      ];
+      
+      // Only make first 3 positions sticky (0, 0.2, 0.4)
+      const stickyPositions = cameraPositions.slice(0, 3).map(p => p.progress);
+      const stickyThreshold = 0.02; // How close to stick
+      const breakAwayForce = 0.008; // Balanced for new sensitivity
+      const escapeDistance = 0.03; // Minimum distance to escape sticky zone
+      
+      let newProgress = rawProgress;
+      
+      // Check each sticky point
+      for (const point of stickyPositions) {
+        const currentDistance = Math.abs(scrollProgressRef.current - point);
+        const newDistance = Math.abs(rawProgress - point);
+        
+        // If we're already at a sticky point
+        if (currentDistance < 0.001) {
+          // Need significant scroll to break free
+          const scrollForce = Math.abs(clampedDelta / maxScroll);
+          if (scrollForce < breakAwayForce) {
+            newProgress = point; // Stay stuck
+            console.log(`Stuck at ${point * 100}% - need more scroll force to break free`);
+          } else {
+            // Break free with enough distance to escape sticky zone
+            const direction = clampedDelta > 0 ? 1 : -1;
+            newProgress = point + (direction * escapeDistance);
+            console.log(`Breaking free from ${point * 100}%`);
+          }
+          break;
+        }
+        
+        // Only snap if we're approaching from outside the escape zone
+        if (newDistance < stickyThreshold && currentDistance > escapeDistance) {
+          // Always snap when within threshold, regardless of direction
+          newProgress = point;
+          console.log(`Snapping to ${point * 100}%`);
+          break;
+        }
+      }
+      
+      // Clamp between 0 and 1
+      scrollProgressRef.current = Math.max(0, Math.min(1, newProgress));
+      
+      // Check if we're at a sticky point for visual feedback
+      const isAtStickyPoint = stickyPositions.some(point => 
+        Math.abs(scrollProgressRef.current - point) < 0.001
+      );
+      
+      // Determine current stage based on progress
+      let currentStage = 0;
+      const easedProg = 1 - Math.pow(1 - scrollProgressRef.current, 3);
+      if (easedProg < 0.2) currentStage = 0;
+      else if (easedProg < 0.4) currentStage = 1;
+      else if (easedProg < 0.6) currentStage = 2;
+      else if (easedProg < 0.8) currentStage = 3;
+      else currentStage = 4;
+      
+      // Enhanced debug logging
+      console.log('Scroll event:', {
+        deltaY: event.deltaY,
+        rawProgress: rawProgress.toFixed(3),
+        scrollProgress: scrollProgressRef.current.toFixed(3),
+        isAtStickyPoint: isAtStickyPoint,
+        currentStage: currentStage,
+        enabled: scrollCameraEnabledRef.current,
+        controlsEnabled: controlsRef.current ? controlsRef.current.enabled : 'N/A',
+        cameraActualPos: cameraRef.current ? `(${cameraRef.current.position.x.toFixed(2)}, ${cameraRef.current.position.y.toFixed(2)}, ${cameraRef.current.position.z.toFixed(2)})` : 'N/A'
+      });
+      
+      // Define camera path keyframes - six stages
+      const startPos = new THREE.Vector3(2.4564, 1.2084, 24.3895); // Close-up Mary position
+      const midPos1 = new THREE.Vector3(2.2983, 1.2680, 26.2786); // Full interior view position
+      const midPos2 = new THREE.Vector3(2.5441, 1.2363, 30.7488); // License plate view
+      const midPos3 = new THREE.Vector3(2.4008, 2.6902, 46.3190); // Behind car view
+      const midPos4 = new THREE.Vector3(10.4429, 12.8459, 48.9003); // High aerial view
+      const endPos = new THREE.Vector3(10.4429, 12.8459, 48.9003); // Final position (same as midPos4)
+      
+      const startTarget = new THREE.Vector3(2.5729, 1.0383, 22.2069); // Looking at Mary
+      const midTarget1 = new THREE.Vector3(2.6041, 1.2667, 22.1906); // Looking at interior
+      const midTarget2 = new THREE.Vector3(2.6723, 0.6909, 25.8858); // Looking at license plate
+      const midTarget3 = new THREE.Vector3(4.7090, 0.1080, 25.6604); // Looking at car from behind
+      const midTarget4 = new THREE.Vector3(0.2783, 12.8459, 24.1190); // Looking down at scene
+      const endTarget = new THREE.Vector3(0.2783, 12.8459, 24.1190); // Final target (same as midTarget4)
+      
+      const startFov = 20; // Close-up FOV
+      const midFov1 = 44.81375073518518; // FOV for full interior
+      const midFov2 = 44.99445463822931; // FOV for license plate
+      const midFov3 = 44.99702846471359; // FOV for behind view
+      const midFov4 = 44.99702846471359; // FOV for aerial view
+      const endFov = 44.99702846471359; // Final FOV
+      
+      // Apply easing function for smoother movement
+      const easedProgress = 1 - Math.pow(1 - scrollProgressRef.current, 3); // Cubic ease-out
+      
+      // Six-stage interpolation
+      let currentPos, currentTarget, currentFov;
+      let stage = 0;
+      
+      if (easedProgress < 0.2) {
+        // Stage 1: Close-up Mary to full interior view (0-20% of scroll)
+        stage = 0;
+        const stage1Progress = easedProgress * 5; // Map 0-0.2 to 0-1
+        currentPos = new THREE.Vector3().lerpVectors(startPos, midPos1, stage1Progress);
+        currentTarget = new THREE.Vector3().lerpVectors(startTarget, midTarget1, stage1Progress);
+        currentFov = startFov + (midFov1 - startFov) * stage1Progress;
+      } else if (easedProgress < 0.4) {
+        // Stage 2: Full interior to license plate (20-40% of scroll)
+        stage = 1;
+        const stage2Progress = (easedProgress - 0.2) * 5; // Map 0.2-0.4 to 0-1
+        currentPos = new THREE.Vector3().lerpVectors(midPos1, midPos2, stage2Progress);
+        currentTarget = new THREE.Vector3().lerpVectors(midTarget1, midTarget2, stage2Progress);
+        currentFov = midFov1 + (midFov2 - midFov1) * stage2Progress;
+      } else if (easedProgress < 0.6) {
+        // Stage 3: License plate to behind car (40-60% of scroll)
+        stage = 2;
+        const stage3Progress = (easedProgress - 0.4) * 5; // Map 0.4-0.6 to 0-1
+        currentPos = new THREE.Vector3().lerpVectors(midPos2, midPos3, stage3Progress);
+        currentTarget = new THREE.Vector3().lerpVectors(midTarget2, midTarget3, stage3Progress);
+        currentFov = midFov2 + (midFov3 - midFov2) * stage3Progress;
+      } else if (easedProgress < 0.8) {
+        // Stage 4: Behind car to aerial view (60-80% of scroll)
+        stage = 3;
+        const stage4Progress = (easedProgress - 0.6) * 5; // Map 0.6-0.8 to 0-1
+        currentPos = new THREE.Vector3().lerpVectors(midPos3, midPos4, stage4Progress);
+        currentTarget = new THREE.Vector3().lerpVectors(midTarget3, midTarget4, stage4Progress);
+        currentFov = midFov3 + (midFov4 - midFov3) * stage4Progress;
+      } else {
+        // Stage 5: Hold at final aerial view (80-100% of scroll)
+        stage = 4;
+        currentPos = endPos;
+        currentTarget = endTarget;
+        currentFov = endFov;
+      }
+      
+      // Update current stage
+      setCurrentCameraStage(stage);
+      
+      // Apply the interpolated values
+      cameraRef.current.position.copy(currentPos);
+      cameraRef.current.lookAt(currentTarget);
+      cameraRef.current.fov = currentFov;
+      cameraRef.current.updateProjectionMatrix();
+      
+      // Update controls target but DON'T call update() when scroll camera is enabled
+      if (controlsRef.current) {
+        controlsRef.current.target.copy(currentTarget);
+        // Don't call update() here as it would override our camera position
+      }
+    };
+    
+    // Toggle scroll camera with 'S' key
+    const toggleScrollCamera = () => {
+      scrollCameraEnabledRef.current = !scrollCameraEnabledRef.current;
+      setScrollCameraActive(scrollCameraEnabledRef.current);
+      if (controlsRef.current) {
+        controlsRef.current.enabled = !scrollCameraEnabledRef.current;
+      }
+      console.log('Scroll camera:', scrollCameraEnabledRef.current ? 'ENABLED' : 'DISABLED');
+      console.log('Orbit controls:', !scrollCameraEnabledRef.current ? 'ENABLED' : 'DISABLED');
+    };
+    
+    // Add scroll listener to multiple elements to ensure it's captured
+    window.addEventListener('wheel', handleScroll, { passive: false });
+    if (renderer.domElement) {
+      renderer.domElement.addEventListener('wheel', handleScroll, { passive: false });
     }
+    if (mountRef.current) {
+      mountRef.current.addEventListener('wheel', handleScroll, { passive: false });
+    }
+    // Also add to document as a fallback
+    document.addEventListener('wheel', handleScroll, { passive: false });
     
     // Animation loop
     const animate = () => {
@@ -1885,26 +2187,31 @@ const PalmsScene = () => {
       // GSAP handles the cinematic animation now
       if (cinematicModeRef.current === 'design' || isCinematicComplete) {
         // In design mode or after cinematic is complete
-        // Dynamic maxPolarAngle based on camera distance
-        // Calculate current distance from camera to target
-        const cameraDistance = camera.position.distanceTo(controls.target);
         
-        // Adjust maxPolarAngle based on distance
-        // When close (distance < 5), allow lower angles for dashboard view
-        // When far (distance > 20), restrict to prevent seeing below road
-        if (cameraDistance < 5) {
-          // Very close - allow almost horizontal view for dashboard
-          controls.maxPolarAngle = Math.PI * 0.55; // ~153 degrees
-        } else if (cameraDistance < 10) {
-          // Medium distance - moderate restriction
-          controls.maxPolarAngle = Math.PI * 0.55; // ~117 degrees
-        } else {
-          // Far distance - restrict to prevent seeing below road
-          controls.maxPolarAngle = Math.PI * 0.45; // ~81 degrees
+        // Only update controls if scroll camera is NOT enabled
+        if (!scrollCameraEnabledRef.current) {
+          // Dynamic maxPolarAngle based on camera distance
+          // Calculate current distance from camera to target
+          const cameraDistance = camera.position.distanceTo(controls.target);
+          
+          // Adjust maxPolarAngle based on distance
+          // When close (distance < 5), allow lower angles for dashboard view
+          // When far (distance > 20), restrict to prevent seeing below road
+          if (cameraDistance < 5) {
+            // Very close - allow almost horizontal view for dashboard
+            controls.maxPolarAngle = Math.PI * 0.55; // ~153 degrees
+          } else if (cameraDistance < 10) {
+            // Medium distance - moderate restriction
+            controls.maxPolarAngle = Math.PI * 0.55; // ~117 degrees
+          } else {
+            // Far distance - restrict to prevent seeing below road
+            controls.maxPolarAngle = Math.PI * 0.45; // ~81 degrees
+          }
+          
+          // Update orbit controls
+          controls.update();
         }
-        
-        // Always use orbit controls
-        controls.update();
+        // If scroll camera is enabled, don't update controls as it would override scroll position
       }
       
       // Render the scene
@@ -1927,7 +2234,14 @@ const PalmsScene = () => {
     
     // Handle mouse move for hover effect
     const handleMouseMove = (event) => {
-      if (!maryGlowingRef.current || !mountRef.current) return;
+      // Debug logging
+      if (!maryGlowingRef.current || !mountRef.current) {
+        console.log('Mouse move blocked:', {
+          maryGlowing: maryGlowingRef.current,
+          mountExists: !!mountRef.current
+        });
+        return;
+      }
       
       const rect = mountRef.current.getBoundingClientRect();
       mouse.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
@@ -2030,8 +2344,17 @@ const PalmsScene = () => {
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('click', handleClick);
-      // window.removeEventListener('wheel', handleScrollAnimation);
+      window.removeEventListener('wheel', handleScroll);
       window.removeEventListener('keydown', handleKeyPress);
+      document.removeEventListener('wheel', handleScroll);
+      
+      // Also remove from renderer and mount if they exist
+      if (renderer.domElement) {
+        renderer.domElement.removeEventListener('wheel', handleScroll);
+      }
+      if (mountRef.current) {
+        mountRef.current.removeEventListener('wheel', handleScroll);
+      }
       
       // Kill GSAP timeline
       if (cinematicTimelineRef.current) {
@@ -2058,147 +2381,6 @@ const PalmsScene = () => {
     };
   }, []);
 
-  // Text animation setup - only animate in, no automatic transitions
-  useEffect(() => {
-    if (!isSceneLoading && textSectionRef.current) {
-      // Get all text lines
-      const lines = gsap.utils.toArray('.scroll-text-line');
-      
-      // Kill any existing animations
-      if (textTimelineRef.current) {
-        textTimelineRef.current.kill();
-      }
-      gsap.killTweensOf(lines);
-      
-      // Set initial state for all lines
-      gsap.set(lines, {
-        opacity: 0,
-        x: 50,
-        filter: 'blur(10px)',
-      });
-      
-      // Create new timeline for entrance only
-      const tl = gsap.timeline();
-      
-      // Animate in
-      tl.to(lines, {
-        opacity: 1,
-        x: 0,
-        filter: 'blur(0px)',
-        duration: 0.8,
-        stagger: 0.2,
-        ease: "power2.out",
-      });
-      
-      // Add subtle floating animation
-      lines.forEach((line, index) => {
-        gsap.to(line, {
-          x: -5 + Math.random() * 10,
-          y: -2 + Math.random() * 4,
-          duration: 3 + Math.random() * 2,
-          repeat: -1,
-          yoyo: true,
-          ease: "sine.inOut",
-          delay: index * 0.1,
-        });
-      });
-      
-      textTimelineRef.current = tl;
-
-      return () => {
-        if (textTimelineRef.current) {
-          textTimelineRef.current.kill();
-        }
-        gsap.killTweensOf('.scroll-text-line');
-      };
-    }
-  }, [isSceneLoading, currentTextBlock]);
-
-  // Handle scroll-based text transitions with higher threshold
-  useEffect(() => {
-    if (!isSceneLoading) {
-      const handleWheel = (event) => {
-        event.preventDefault();
-        
-        // Accumulate scroll delta
-        scrollAccumulator.current += event.deltaY;
-        
-        // Threshold for triggering transition (increased for less sensitivity)
-        const scrollThreshold = 250;
-        
-        if (Math.abs(scrollAccumulator.current) > scrollThreshold && !isTransitioning.current) {
-          const lines = gsap.utils.toArray('.scroll-text-line');
-          
-          // Determine direction
-          const direction = scrollAccumulator.current > 0 ? 1 : -1;
-          
-          // Check boundaries
-          if (direction < 0 && currentTextBlock <= 0) {
-            scrollAccumulator.current = 0; // Reset accumulator
-            return;
-          }
-          
-          // Special case: fade out last text block
-          if (direction > 0 && currentTextBlock >= textBlocks.length - 1) {
-            isTransitioning.current = true;
-            
-            // Fade out the last text
-            gsap.to(lines, {
-              opacity: 0,
-              y: -50,
-              filter: 'blur(10px)',
-              duration: 0.6,
-              stagger: 0.05,
-              ease: "power2.in",
-              onComplete: () => {
-                scrollAccumulator.current = 0;
-                setTimeout(() => {
-                  isTransitioning.current = false;
-                }, 500);
-              }
-            });
-            
-            // Also fade out the indicators
-            gsap.to('.progress-dots', {
-              opacity: 0,
-              duration: 0.6,
-              ease: "power2.in"
-            });
-            
-            return;
-          }
-          
-          isTransitioning.current = true;
-          const nextBlock = direction > 0 
-            ? currentTextBlock + 1
-            : currentTextBlock - 1;
-          
-          // Animate out
-          gsap.to(lines, {
-            opacity: 0,
-            x: direction > 0 ? -50 : 50,
-            filter: 'blur(10px)',
-            duration: 0.4,
-            stagger: 0.05,
-            ease: "power2.in",
-            onComplete: () => {
-              setCurrentTextBlock(nextBlock);
-              scrollAccumulator.current = 0;
-              setTimeout(() => {
-                isTransitioning.current = false;
-              }, 500);
-            }
-          });
-        }
-      };
-
-      window.addEventListener('wheel', handleWheel, { passive: false });
-      
-      return () => {
-        window.removeEventListener('wheel', handleWheel);
-      };
-    }
-  }, [isSceneLoading, currentTextBlock]);
 
   return (
     <div ref={intersectionRef} style={{ position: 'relative', width: '100%', height: '100%', backgroundColor: 'black' }}>
@@ -2267,8 +2449,36 @@ const PalmsScene = () => {
         
         <div 
           ref={mountRef} 
-          style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }}
+          style={{ 
+            width: '100%', 
+            height: '100%', 
+            position: 'absolute', 
+            top: 0, 
+            left: 0,
+            pointerEvents: 'auto'
+          }}
         />
+        
+        {/* Camera mode indicator */}
+        <div style={{
+          position: 'absolute',
+          bottom: '60px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          padding: '8px 16px',
+          backgroundColor: scrollCameraActive ? 'rgba(0, 255, 0, 0.8)' : 'rgba(0, 123, 255, 0.8)',
+          border: '1px solid rgba(255, 255, 255, 0.5)',
+          borderRadius: '4px',
+          color: '#ffffff',
+          fontSize: '14px',
+          fontFamily: 'monospace',
+          fontWeight: 'bold',
+          textAlign: 'center',
+          zIndex: 150,
+          transition: 'all 0.3s ease'
+        }}>
+          {scrollCameraActive ? '📜 SCROLL CAMERA' : '🎮 ORBIT CONTROLS'} (S: toggle | I: log position)
+        </div>
         
         
         
@@ -2298,6 +2508,7 @@ const PalmsScene = () => {
                 <li><kbd>P</kbd> - Play recorded cinematic</li>
                 <li><kbd>R</kbd> - Reset all keyframes</li>
                 <li><kbd>L</kbd> - Log keyframes to console</li>
+                <li><kbd>V</kbd> - Toggle reverse mode</li>
                 <li><kbd>Ctrl+C</kbd> - Exit design mode</li>
               </ul>
             </div>
@@ -2338,6 +2549,28 @@ const PalmsScene = () => {
             pointerEvents: 'none',
             zIndex: 100
           }}>
+            {/* Reverse mode indicator */}
+            {cinematicReverse && (
+              <div style={{
+                position: 'absolute',
+                top: '20px',
+                right: '20px',
+                padding: '8px 16px',
+                backgroundColor: 'rgba(255, 0, 0, 0.8)',
+                border: '1px solid rgba(255, 255, 255, 0.5)',
+                borderRadius: '4px',
+                color: '#ffffff',
+                fontSize: '14px',
+                fontFamily: 'monospace',
+                fontWeight: 'bold',
+                textAlign: 'center',
+                backdropFilter: 'blur(10px)',
+                boxShadow: '0 2px 8px rgba(255, 0, 0, 0.5)',
+              }}>
+                ⏪ REVERSE MODE
+              </div>
+            )}
+            
             {/* Keyframe label display */}
             {currentKeyframeLabel && (
               <div style={{
@@ -2594,7 +2827,7 @@ const PalmsScene = () => {
       )}
       
       {/* Scrolling Text Section - Right Side */}
-      {!isSceneLoading && (
+      {!isSceneLoading && currentCameraStage < 3 && scrollCameraActive && (
         <div 
           ref={textSectionRef}
           style={{
@@ -2604,34 +2837,13 @@ const PalmsScene = () => {
             transform: 'translateY(-50%)',
             width: isMobile ? '70%' : '40%',
             maxWidth: '600px',
-            pointerEvents: 'auto',
+            pointerEvents: 'none',
             zIndex: 100,
             height: '60vh',
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'center',
             gap: '20px',
-            cursor: 'pointer',
-          }}
-          onClick={() => {
-            if (!isTransitioning.current && currentTextBlock < textBlocks.length - 1) {
-              isTransitioning.current = true;
-              const lines = gsap.utils.toArray('.scroll-text-line');
-              gsap.to(lines, {
-                opacity: 0,
-                x: -50,
-                filter: 'blur(10px)',
-                duration: 0.3,
-                stagger: 0.05,
-                ease: "power2.in",
-                onComplete: () => {
-                  setCurrentTextBlock((prev) => prev + 1);
-                  setTimeout(() => {
-                    isTransitioning.current = false;
-                  }, 500);
-                }
-              });
-            }
           }}
         >
           <p 
@@ -2646,10 +2858,10 @@ const PalmsScene = () => {
               fontWeight: '300',
             }}
           >
-            {textBlocks[currentTextBlock].map((line, index) => (
+            {textBlocks[currentCameraStage].map((line, index) => (
               <React.Fragment key={index}>
                 <span className="scroll-text-line">{line}</span>
-                {index < textBlocks[currentTextBlock].length - 1 && <br />}
+                {index < textBlocks[currentCameraStage].length - 1 && <br />}
               </React.Fragment>
             ))}
           </p>
@@ -2663,36 +2875,67 @@ const PalmsScene = () => {
               marginTop: '20px',
               justifyContent: 'center',
             }}>
-            {textBlocks.map((_, index) => (
+            {[0, 1, 2, 3, 4].map((index) => (
               <div
                 key={index}
                 style={{
                   width: '8px',
                   height: '8px',
                   borderRadius: '50%',
-                  backgroundColor: index === currentTextBlock ? 'white' : 'white',
-                  opacity: index === currentTextBlock ? 1 : 0.3,
+                  backgroundColor: 'white',
+                  opacity: index === currentCameraStage ? 1 : 0.3,
                   transition: 'all 0.3s ease',
-                  boxShadow: index === currentTextBlock ? '0 0 10px rgba(255, 255, 255, 0.8)' : 'none',
+                  boxShadow: index === currentCameraStage ? '0 0 10px rgba(255, 255, 255, 0.8)' : 'none',
                 }}
               />
             ))}
           </div>
           
           {/* Scroll hint */}
-          {currentTextBlock < textBlocks.length - 1 && (
-            <div style={{
-              marginTop: '30px',
-              fontSize: '12px',
-              color: 'white',
-              opacity: 0.5,
-              textAlign: 'center',
-              fontFamily: 'monospace',
-              animation: 'pulse 2s ease-in-out infinite',
-            }}>
-              scroll or click
-            </div>
-          )}
+          <div style={{
+            marginTop: '30px',
+            fontSize: '12px',
+            color: 'white',
+            opacity: 0.5,
+            textAlign: 'center',
+            fontFamily: 'monospace',
+            animation: 'pulse 2s ease-in-out infinite',
+          }}>
+            scroll to continue
+          </div>
+        </div>
+      )}
+      
+      {/* Scroll Camera Indicator */}
+      {!isSceneLoading && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          left: '20px',
+          backgroundColor: scrollCameraActive ? 'rgba(0, 255, 0, 0.2)' : 'rgba(255, 0, 0, 0.2)',
+          color: 'white',
+          padding: '10px 15px',
+          borderRadius: '5px',
+          fontFamily: 'monospace',
+          fontSize: '14px',
+          zIndex: 1000,
+          border: `1px solid ${scrollCameraActive ? '#00ff00' : '#ff0000'}`,
+          boxShadow: `0 0 10px ${scrollCameraActive ? 'rgba(0, 255, 0, 0.5)' : 'rgba(255, 0, 0, 0.5)'}`,
+          cursor: 'pointer',
+          userSelect: 'none',
+        }}
+        onClick={() => {
+          scrollCameraEnabledRef.current = !scrollCameraEnabledRef.current;
+          setScrollCameraActive(scrollCameraEnabledRef.current);
+          if (controlsRef.current) {
+            controlsRef.current.enabled = !scrollCameraEnabledRef.current;
+          }
+        }}
+        title="Click or press 'S' to toggle">
+          Scroll Camera: {scrollCameraActive ? 'ON' : 'OFF'}
+          <div style={{ fontSize: '10px', opacity: 0.7, marginTop: '4px' }}>
+            Press 'S' or click to toggle
+          </div>
         </div>
       )}
       

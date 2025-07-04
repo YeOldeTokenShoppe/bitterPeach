@@ -8,6 +8,7 @@ import TickerDisplay3 from "./TickerDisplay3";
 import VideoScreens from "./VideoScreens";
 import VideoBackground from "./VideoBackground";
 import SimpleGlitchTint from "./SimpleGlitchTint";
+import AnnotationSystem from "./AnnotationSystem";
 
 function CyborgTempleScene({ 
   onLoad, 
@@ -22,7 +23,7 @@ function CyborgTempleScene({
   onCandleClick = null, // Callback when candle is clicked
   onPaginationReady = null // Callback to expose pagination controls
 }) {
-  console.log('[CyborgTempleScene] Component rendered with isPlaying:', isPlaying);
+  // console.log('[CyborgTempleScene] Component rendered with isPlaying:', isPlaying);
   const sceneRef = useRef();
   const groupRef = useRef();
   const { scene, camera, gl, raycaster, pointer } = useThree();
@@ -517,13 +518,42 @@ function CyborgTempleScene({
     }
   }, [onPaginationReady, currentCandlePage, totalCandlePages, candleData.length, candleRefs.length]);
 
+  // Define annotation points - adjust positions based on your temple scene
+  const annotations = [
+    {
+      position: [0, 0, 0], // Near the main altar/center
+      text: "Sacred Altar\nThe heart of the cyborg temple"
+    },
+    // {
+    //   position: [2, 0, -2], // Right side
+    //   text: "Digital Offering Station\nPlace virtual candles here"
+    // },
+
+    {
+      position: [0.3, -1.6, 2], // Near chandelier
+      text: "Neural Chandelier\nSyncs with collective thoughts"
+    },
+    {
+      position: [-2, -0.99, 0.3], // Left side
+      text: "The 3 Wise Mechs",
+      // Special camera settings for viewing characters from center
+      customCamera: {
+        position: [2, -1.8, -0.7], // Camera moved right and lower
+        lookAt: [-3, -1.5, 0.5], // Look outward toward the characters
+        distance: 2.9 // Slightly increased distance for better framing
+      },
+      // Custom annotation position for this view (in screen space)
+      annotationOffset: [100, 260] // [x, y] offset in pixels from center
+    },
+  ];
+
   return (
     <>
       {modelLoaded && <VideoBackground is80sMode={is80sMode} />}
       {modelLoaded && <TickerDisplay3 is80sMode={is80sMode} />}
       {modelLoaded && <VideoScreens />}
       {modelLoaded && <SimpleGlitchTint />}
-      
+      {modelLoaded && <AnnotationSystem annotations={annotations} is80sMode={is80sMode} />}
     </>
   );
 }
