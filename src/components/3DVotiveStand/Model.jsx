@@ -48,6 +48,7 @@ function Model({
 
   monsterMode,
   rocketModelVisible,
+  onDarkCloudsRef,
   cameraControlsRef,
   onCandleClick,
   onHoldStateChange,
@@ -1694,7 +1695,15 @@ function Model({
         }}
       />
       <primitive ref={candleModelRef} object={new THREE.Group()} />
-      {window.innerWidth >= 768 && <DarkClouds />}
+      {window.innerWidth >= 768 && (
+        <DarkClouds 
+          ref={(ref) => {
+            if (ref && onDarkCloudsRef) {
+              onDarkCloudsRef(ref.sunRef);
+            }
+          }} 
+        />
+      )}
       
       {/* Render particle effects */}
       {activeParticles.map(particle => (

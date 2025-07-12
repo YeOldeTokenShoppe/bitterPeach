@@ -7,7 +7,7 @@ import {
   Vignette,
   ChromaticAberration,
   Scanline,
-  GodRays,
+  // GodRays,
   Glitch,
 } from "@react-three/postprocessing";
 import { BlendFunction, GlitchMode } from "postprocessing";
@@ -20,7 +20,7 @@ const PostProcessingEffects = ({ is80sMode = false }) => {
   const [isReady, setIsReady] = useState(false);
 
   // Increase time for animated effects
-  useFrame((state, delta) => {
+  useFrame((_, delta) => {
     timeRef.current += delta;
   });
 
@@ -120,6 +120,20 @@ const PostProcessingEffects = ({ is80sMode = false }) => {
   // Regular effects for normal mode with enhanced sunset bloom
   const normalEffects = (
     <>
+      {/* Temporarily disable GodRays to prevent errors */}
+      {/* {sunRef && (
+        <GodRays
+          sun={sunRef}
+          exposure={1.0}
+          decay={0.95}
+          density={0.96}
+          weight={1.0}
+          samples={100}
+          clampMax={1}
+          blur={true}
+          blendFunction={BlendFunction.SCREEN}
+        />
+      )} */}
       <Bloom
         intensity={1.2}           // Increased from 0.8
         luminanceThreshold={0.3}  // Lowered from 0.4 to catch more of the sunset colors
@@ -134,6 +148,20 @@ const PostProcessingEffects = ({ is80sMode = false }) => {
   // Enhanced effects for 80s mode with even stronger bloom
   const eightiesEffects = (
     <>
+      {/* Temporarily disable GodRays to prevent errors */}
+      {/* {sunRef && (
+        <GodRays
+          sun={sunRef}
+          exposure={0.5}
+          decay={0.95}
+          density={0.96}
+          weight={0.6}
+          samples={60}
+          clampMax={1}
+          blur={true}
+          blendFunction={BlendFunction.ADD}
+        />
+      )} */}
       <Bloom
         intensity={2.5}           // Much stronger bloom for that 80s glow
         luminanceThreshold={0.1} // Lower threshold to catch more colors

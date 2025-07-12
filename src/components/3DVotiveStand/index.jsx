@@ -613,6 +613,9 @@ const ThreeDVotiveStand = forwardRef(({
   // Add refs for spotlight and target
   const spotlightRef = useRef();
   const spotlightTargetRef = useRef();
+  
+  // Add state for sharing sunRef from DarkClouds to PostProcessingEffects
+  const [darkCloudsSunRef, setDarkCloudsSunRef] = useState(null);
 
   // Set up spotlight target
   useEffect(() => {
@@ -1660,6 +1663,7 @@ const ThreeDVotiveStand = forwardRef(({
           rocketModelVisible={rocketModelVisible}
           onHoldStateChange={handleHoldStateChange}
           isMobileView={isMobileView}
+          onDarkCloudsRef={setDarkCloudsSunRef}
           onModelDataLoaded={({ animations }) => { // Callback to get animations
             // modelRef.current is already being set by the <primitive> in Model.jsx
             // using the ref prop. We just need the animations here.
@@ -1741,7 +1745,7 @@ const ThreeDVotiveStand = forwardRef(({
           {!isMobileView && <TickerDisplay modelRef={modelRef} />}
         </Suspense>
         <Suspense fallback={null}>
-          <PostProcessingEffects is80sMode={is80sMode} />
+          <PostProcessingEffects is80sMode={is80sMode} sunRef={darkCloudsSunRef} />
         </Suspense>
 
         {/* Add the constellation model before the star field */}

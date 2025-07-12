@@ -51,6 +51,7 @@ function MyApp({ Component, pageProps }) {
   const isTemplePage = router.pathname === "/cyborg-temple";
   const isRL80SwordPage = router.pathname === "/rl80-sword";
   const isSciFiLabPage = router.pathname === "/sci-fi-lab";
+  const isEtherealCloudsPage = router.pathname === "/ethereal-clouds";
   
   // Pages that should show CyberNav
   const showCyberNav = isTemplePage || isRL80SwordPage || isSciFiLabPage || router.pathname === "/home" || router.pathname === "/about";
@@ -126,7 +127,7 @@ function MyApp({ Component, pageProps }) {
   let HeaderComponent = null;
   if (isGalleryPage) {
     HeaderComponent = Header3;
-  } else if (!(isIndexPage || isScenePage || isRocketPage || isCommunionPage || isMoonScenePage || isSamplePage || isSample1Page || isJunkyardPage || isModelViewerPage || isTemplePage || isRL80SwordPage || isSciFiLabPage )) {
+  } else if (!(isIndexPage || isScenePage || isRocketPage || isCommunionPage || isMoonScenePage || isSamplePage || isSample1Page || isJunkyardPage || isModelViewerPage || isTemplePage || isRL80SwordPage || isSciFiLabPage || isEtherealCloudsPage)) {
     HeaderComponent = Header;
   }
 
