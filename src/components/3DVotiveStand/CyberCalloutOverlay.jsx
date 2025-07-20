@@ -32,7 +32,7 @@ function CyberCalloutOverlay({
   
   if (!isVisible) return null;
   
-  const primaryColor = is80sMode ? '#D946EF' : '#00ff41';
+  const primaryColor = is80sMode ? '#D946EF' : '#c896ff';
   const accentColor = is80sMode ? '#67e8f9' : '#ffff00';
   
   return (
@@ -57,7 +57,7 @@ function CyberCalloutOverlay({
           padding: '30px',
           fontFamily: 'Arial, sans-serif',
           color: '#ffffff',
-          transform: 'skewX(-5deg)',
+          transform: 'skewX(5deg)',
           boxShadow: `0 0 30px ${primaryColor}40, inset 0 0 30px ${primaryColor}20`,
           backdropFilter: 'blur(10px)',
           overflow: 'hidden',
@@ -80,7 +80,7 @@ function CyberCalloutOverlay({
             lineHeight: '1',
             padding: '0',
             transition: 'all 0.3s ease',
-            transform: 'skewX(5deg)', // Counteract parent skew
+            transform: 'skewX(-5deg)', // Counteract parent skew
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -99,7 +99,7 @@ function CyberCalloutOverlay({
         </button>
         
         {/* Inner content wrapper to counteract skew */}
-        <div style={{ transform: 'skewX(5deg)' }}>
+        <div style={{ transform: 'skewX(-5deg)' }}>
           {/* Subtitle */}
           <div
             style={{
@@ -151,17 +151,17 @@ function CyberCalloutOverlay({
               fontWeight: 'bold',
               letterSpacing: '2px',
               cursor: 'pointer',
-              transform: 'skewX(-5deg)',
+              transform: 'skewX(5deg)',
               transition: 'all 0.3s ease',
               boxShadow: `0 0 20px ${accentColor}60`,
               textTransform: 'uppercase',
             }}
             onMouseEnter={(e) => {
-              e.target.style.transform = 'skewX(-5deg) scale(1.05)';
+              e.target.style.transform = 'skewX(5deg) scale(1.05)';
               e.target.style.boxShadow = `0 0 30px ${accentColor}80`;
             }}
             onMouseLeave={(e) => {
-              e.target.style.transform = 'skewX(-5deg) scale(1)';
+              e.target.style.transform = 'skewX(5deg) scale(1)';
               e.target.style.boxShadow = `0 0 20px ${accentColor}60`;
             }}
           >
@@ -202,7 +202,7 @@ function CyberCalloutOverlay({
             left: '0',
             right: '0',
             height: '2px',
-            background: `linear-gradient(90deg, transparent, ${primaryColor}, transparent)`,
+            background: `linear-gradient(90deg, transparent, #67e8f9, transparent)`,
             animation: 'scanline 3s linear infinite',
           }}
         />

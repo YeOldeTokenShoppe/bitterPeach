@@ -190,6 +190,14 @@ const DarkCloudsComponent = React.forwardRef((props, ref) => {
           castShadow
         />
         
+        {/* Hemisphere light from below for sunset glow on cloud undersides */}
+        <hemisphereLight
+          skyColor="#ff6b35"
+          groundColor="#ff6b35"
+          intensity={5}
+          position={[0, 0, -3]}
+        />
+        
         {/* Multiple lightning sources for dramatic effect */}
         <pointLight
           ref={lightningRef1}
@@ -334,9 +342,12 @@ const DarkCloudsComponent = React.forwardRef((props, ref) => {
           </group>
     
       </group>
-
+    // </lightningContext.Provider>
   );
 });
+
+// Add display name to fix the ESLint error
+DarkCloudsComponent.displayName = 'DarkCloudsComponent';
 
 // Use dynamic import with no SSR to avoid 'document is not defined' error
 const DarkClouds = dynamic(() => Promise.resolve(DarkCloudsComponent), {

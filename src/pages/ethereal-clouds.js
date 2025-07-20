@@ -9,10 +9,15 @@ import { useRouter } from 'next/router';
 // import { BlendFunction } from 'postprocessing';
 import * as THREE from 'three';
 import Link from 'next/link';
+import CyberNav from '../components/CyberNav';
 
 
 // Dynamic import for SSR compatibility
 const EtherealClouds = dynamic(() => import('../components/EtherealClouds/EtherealClouds'), {
+  ssr: false,
+});
+
+const FloatingPriceIndicators = dynamic(() => import('../components/EtherealClouds/FloatingPriceIndicators'), {
   ssr: false,
 });
 
@@ -171,7 +176,7 @@ const EtherealCloudsPage = ({ is80sMode, setIs80sMode }) => {
           </EffectComposer> */}
         </Suspense>
       </Canvas>
-      
+      <CyberNav variant="space" is80sMode={is80sMode} />
       {/* Loading indicator */}
       <Suspense
         fallback={
@@ -221,7 +226,7 @@ const EtherealCloudsPage = ({ is80sMode, setIs80sMode }) => {
       </VStack> */}
       
       {/* Info text */}
-      <Box
+      {/* <Box
         position="absolute"
         bottom={4}
         left={4}
@@ -233,7 +238,7 @@ const EtherealCloudsPage = ({ is80sMode, setIs80sMode }) => {
         <Text color="white" fontSize="sm">
           Drag to rotate • Scroll to zoom • Hold shift to pan
         </Text>
-      </Box>
+      </Box> */}
     </Box>
   );
 };

@@ -78,12 +78,28 @@ const SpiralDollarBills = ({ count = 10, radius = 5, height = 20, speed = 0.5, s
       pos.y -= speed * delta * (1 + pos.verticalOffset * 0.3);
       
       if (pos.y < endY) {
-        pos.y = startY + Math.random() * 5; // Add random offset when respawning
+        // Respawn at random height for continuous flow
+        pos.y = startY + Math.random() * (height + 10);
+        
+        // Re-randomize position for straight falling bills
+        if (pos.isStraightFalling) {
+          const spreadRadius = radius * 1.5;
+          pos.straightX = (Math.random() - 0.5) * spreadRadius * 2;
+          pos.straightZ = (Math.random() - 0.5) * spreadRadius * 2;
+        }
       }
       
-      const currentAngle = pos.angle + state.clock.elapsedTime * pos.spiralSpeed;
-      const x = Math.cos(currentAngle) * pos.radius;
-      const z = Math.sin(currentAngle) * pos.radius;
+      let x, z;
+      if (pos.isStraightFalling) {
+        // Straight falling bills maintain their X/Z position
+        x = pos.straightX;
+        z = pos.straightZ;
+      } else {
+        // Spiraling bills
+        const currentAngle = pos.angle + state.clock.elapsedTime * pos.spiralSpeed;
+        x = Math.cos(currentAngle) * pos.radius;
+        z = Math.sin(currentAngle) * pos.radius;
+      }
       
       dummy.position.set(x, pos.y, z);
       dummy.rotation.x = pos.flipX + Math.sin(state.clock.elapsedTime * pos.rotationSpeed + pos.phase) * 0.5;

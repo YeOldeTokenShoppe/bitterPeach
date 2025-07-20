@@ -8,6 +8,8 @@ import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import SciFiLabScene from "../components/3DVotiveStand/SciFiLabScene";
 import CyberNav from "../components/CyberNav";
+import CyberCalloutOverlay from "../components/3DVotiveStand/CyberCalloutOverlay";
+import Link from "next/link";
 
 const MemoizedSciFiLabScene = memo(SciFiLabScene);
 
@@ -33,8 +35,74 @@ const SciFiLab = () => {
       overflow="hidden"
       fontFamily="'Rajdhani', monospace"
     >
+       <div className="textLight" id="textLight" style={{
+          position: "absolute",
+          top: "1.5rem", 
+          left: "1.5rem",
+          zIndex: 100, // Ensure it's above the scene if opaque
+          borderRadius: "8px",
+          padding: "10px",
+          pointerEvents: "auto"
+        }}>
+          <div 
+            id="text"
+            style={{
+              position: "relative",
+              fontFamily: "'UnifrakturMaguntia', cursive",
+              fontSize: isMobileView ? "3rem" : "4rem",
+              // color: is80sMode ? "#67e8f9" : "#ffffff",
+              cursor: "pointer"
+            }}
+          >
+            <Link href="/home" style={{ textDecoration: 'none', color: 'inherit', display: 'inline-block' }}>
+              <span>RL80</span>
+              {/* <span style={{ color: "inherit" }}>80</span> */}
+            </Link>
+            {Array.from({length: 100}).map((_, i) => {
+              const index = i + 1;
+              return (
+                <div
+                  key={index}
+                  className="text__copy"
+                  style={{
+                    position: "absolute",
+                    pointerEvents: "none",
+                    zIndex: -1,
+                    top: 0,
+                    left: 0,
+                    color: is80sMode 
+                      ? `rgba(${201 - index * 2}, ${55 - index * 3}, ${256 - index * 2})` 
+                      : `rgba(${255 - index * 2}, ${255 - index * 3}, ${255 - index * 2})`,
+                    filter: "blur(0.1rem)",
+                    transform: `translate(
+                      ${index * 0.1}rem, 
+                      ${index * 0.1}rem
+                    ) scale(${1 + index * 0.01})`,
+                    opacity: (1 / index) * 1.5,
+                  }}
+                >
+                  <span>RL80</span>
+                  {/* <span style={{ color: is80sMode ? "#00ff41" : "inherit" }}>80</span> */}
+                </div>
+              );
+            })}
+          </div>
+        </div>
       {/* Cyber Navigation */}
       <CyberNav variant="space" is80sMode={is80sMode} />
+      
+      {/* Cyber Callout Overlay */}
+      <CyberCalloutOverlay
+        title="NATIV80 LAB"
+        subtitle="EXPERIMENTAL CHAMBER"
+        description="Welcome to the high-tech laboratory where cutting-edge experiments in digital consciousness take place. Explore the frontier of cyborg technology."
+        buttonText="ENTER LAB"
+        is80sMode={is80sMode}
+        autoHide={false}
+        onButtonClick={() => {
+          console.log('Entering the lab...');
+        }}
+      />
       
       {/* 3D Canvas */}
       <Box
@@ -47,21 +115,23 @@ const SciFiLab = () => {
       >
         <Canvas
           shadows
-          camera={{ position: [-0.6, -2, 4], fov: 45 }}
+      
+          camera={{ position: [1, 1.2, 5.5], fov: 45 }}
           style={{ width: "100%", height: "100%" }}
         >
           <OrbitControls 
             enableDamping 
             dampingFactor={0.5}
-            maxPolarAngle={Math.PI / 2.3}
-            minDistance={0.5}
-            maxDistance={20}
+            maxPolarAngle={Math.PI / 2}
+            minDistance={2}
+            maxDistance={10}
             zoomToCursor={true}
+            target={[0, -0.2, 0]}
           />
           <MemoizedSciFiLabScene
             position={[0, 0, 0]}
             scale={[1, 1, 1]}
-            rotation={[0, Math.PI/1.8, 0]}
+            rotation={[0, Math.PI / 1.3, 0]}
             hover={false}
             rotate={false}
             is80sMode={is80sMode}

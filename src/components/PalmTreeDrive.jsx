@@ -2931,10 +2931,10 @@ const PalmsScene = () => {
             controlsRef.current.enabled = !scrollCameraEnabledRef.current;
           }
         }}
-        title="Click or press 'S' to toggle">
+        title="Click or press &apos;S&apos; to toggle">
           Scroll Camera: {scrollCameraActive ? 'ON' : 'OFF'}
           <div style={{ fontSize: '10px', opacity: 0.7, marginTop: '4px' }}>
-            Press 'S' or click to toggle
+            Press &apos;S&apos; or click to toggle
           </div>
         </div>
       )}

@@ -26,7 +26,14 @@ const SimpleGlitchTint = () => {
           lowerName.includes('mesh') ||
           lowerName.includes('fabric') ||
           lowerName.includes('wear') ||
-          (child.parent && child.parent.name && child.parent.name.toLowerCase().includes('armature'))
+          lowerName.includes('madonnina') ||
+          lowerName.includes('clothing') ||
+          lowerName.includes('simulation') ||
+          (child.parent && child.parent.name && (
+            child.parent.name.toLowerCase().includes('armature') ||
+            child.parent.name.toLowerCase().includes('ourlady') ||
+            child.parent.name === 'individual'
+          ))
         ) {
           characterMeshes.push(child);
           console.log(`[SimpleGlitchTint] Found character mesh: ${child.name}, material type: ${child.material?.type}`);
