@@ -26,11 +26,14 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getAlphaVantageData = exports.getOilData = exports.getFMPData = exports.getFearAndGreed = exports.proxy = void 0;
+exports.receiveMarketData = exports.getAlphaVantageData = exports.getOilData = exports.getFMPData = exports.getFearAndGreed = exports.proxy = void 0;
 const functions = __importStar(require("firebase-functions"));
+const admin = __importStar(require("firebase-admin"));
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const axios_1 = __importDefault(require("axios"));
+// Initialize Firebase Admin
+admin.initializeApp();
 // App for the proxy function
 const proxyApp = (0, express_1.default)();
 proxyApp.use((0, cors_1.default)({ origin: true }));
@@ -557,4 +560,56 @@ alphaVantageApp.get('/:symbol', async (req, res) => {
 });
 // Export the getAlphaVantageData function
 exports.getAlphaVantageData = functions.https.onRequest(alphaVantageApp);
+// Create app for receiving market data webhook from RL80 bot
+const marketDataApp = (0, express_1.default)();
+marketDataApp.use((0, cors_1.default)({ origin: true }));
+marketDataApp.post('/', async (req, res) => {
+    var _a;
+    // Handle CORS preflight
+    if (req.method === 'OPTIONS') {
+        res.status(204).send('');
+        return;
+    }
+    // Basic authentication
+    const authToken = req.headers['x-auth-token'];
+    const webhookToken = (_a = functions.config().webhook) === null || _a === void 0 ? void 0 : _a.token;
+    if (!webhookToken) {
+        console.error("Webhook token not configured");
+        return res.status(500).json({
+            error: "Webhook token not configured",
+            message: "Please set webhook.token in Firebase Functions config"
+        });
+    }
+    if (authToken !== webhookToken) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+    try {
+        const marketData = req.body;
+        const db = admin.firestore();
+        // Store in Firestore
+        await db.collection('marketData').doc('latest').set(Object.assign(Object.assign({}, marketData), { receivedAt: admin.firestore.FieldValue.serverTimestamp() }));
+        // Store historical data (keep last 30 days)
+        const historyRef = await db.collection('marketHistory').add(Object.assign(Object.assign({}, marketData), { receivedAt: admin.firestore.FieldValue.serverTimestamp() }));
+        // Clean old history (older than 30 days)
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const oldDocs = await db.collection('marketHistory')
+            .where('timestamp', '<', thirtyDaysAgo.toISOString())
+            .get();
+        const batch = db.batch();
+        oldDocs.forEach(doc => batch.delete(doc.ref));
+        await batch.commit();
+        return res.json({
+            success: true,
+            message: 'Market data received',
+            docId: historyRef.id
+        });
+    }
+    catch (error) {
+        console.error('Error storing market data:', error);
+        return res.status(500).json({ error: 'Failed to store market data' });
+    }
+});
+// Export the receiveMarketData function
+exports.receiveMarketData = functions.https.onRequest(marketDataApp);
 //# sourceMappingURL=index.js.map

@@ -15,31 +15,7 @@ const MobileMusicPlayer = dynamic(() => import('./MobileMusicPlayer'), {
 });
 
 // Theatre.js project
-const project = getProject('PalmTreeDrive', {
-  state: {
-    // Add a basic state configuration to prevent the warning
-    // This can be expanded with actual animation data later
-    sheets: {
-      CameraFlyIn: {
-        objects: {
-          Camera: {
-            valuesByPropPath: {
-              position: { x: 15.66, y: 11.19, z: 44.76 },
-              rotation: { x: 0, y: 0, z: 0 },
-              fov: 75
-            }
-          },
-          Ground: {
-            valuesByPropPath: {
-              position: { x: 0, y: 0, z: 0 },
-              rotation: { x: -Math.PI * 0.5, y: 0, z: 0 }
-            }
-          }
-        }
-      }
-    }
-  }
-});
+const project = getProject('PalmTreeDrive');
 const sheet = project.sheet('CameraFlyIn');
 
 // Shader code

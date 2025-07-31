@@ -20,10 +20,10 @@ const CyberNav = ({ is80sMode = false }) => {
 
   const navItems = [
     // { id: '01', date: '01', title: 'HOME', path: '/home', thumbnail: '/rl80logo.png' },
-    { id: '01', date: 'NATIV80', title: 'Behold! A digital token is born', path: '/cyborg-temple', thumbnail: '/sacred.png' },
-    { id: '02', date: 'ILLUMIN80', title: 'Your shrine to shine', path: '/rl80-sword', thumbnail: '/fight1.jpg' },
-    { id: '03', date: 'LIQUID80', title: 'Stay hydrated with RL80', path: '/fountain.html', thumbnail: '/fountain.png' },
-    { id: '04', date: 'INFIN80', title: 'A digital infinity', path: '/sci-fi-lab', thumbnail: '/vvv.jpg' },
+    { id: '01', date: 'THE ILLUMIN80', title: 'Get lit with RL80', path: '/cyborg-temple', thumbnail: '/sacred.png' },
+    { id: '02', date: 'ANTI-GRAV80', title: 'A shrine to shine', path: '/', thumbnail: '/fight1.jpg' },
+    { id: '03', date: 'INFIN80 FOUNTAIN', title: 'Stay hydrated with RL80', path: '/fountain.html', thumbnail: '/fountain.png' },
+    { id: '04', date: 'PROBABIL80', title: 'A digital infinity', path: '/sci-fi-lab', thumbnail: '/vvv.jpg' },
   ];
 
   // Mobile menu toggle button
@@ -53,12 +53,12 @@ const CyberNav = ({ is80sMode = false }) => {
             </svg>
           }
           color={is80sMode ? "#00ff41" : "white"}
-          bg="rgba(0, 0, 0, 0.1)"
+          bg="rgba(0, 0, 0, 0.5)"
           backdropFilter="blur(10px)"
           size="md"
           onClick={() => setIsMenuOpen(!isMenuOpen)}
           _hover={{
-            bg: "rgba(0, 0, 0, 0.1)",
+            bg: "rgba(0, 0, 0, 0.7)",
           }}
         />
         
@@ -157,12 +157,6 @@ const CyberNav = ({ is80sMode = false }) => {
         borderRadius="10px"
         padding="10px"
         pointerEvents="auto"
-        bg="rgba(0, 0, 0, 0.7)"
-        border="1px solid"
-        borderColor={is80sMode ? "rgba(217, 70, 239, 0.3)" : "rgba(200, 150, 255, 0.3)"}
-        boxShadow={is80sMode 
-          ? "0 0 20px rgba(217, 70, 239, 0.4), 0 0 40px rgba(217, 70, 239, 0.2), inset 0 0 30px rgba(217, 70, 239, 0.3), inset 0 0 60px rgba(217, 70, 239, 0.1)" 
-          : "0 0 20px rgba(200, 150, 255, 0.4), 0 0 40px rgba(200, 150, 255, 0.2), inset 0 0 30px rgba(200, 150, 255, 0.3), inset 0 0 60px rgba(200, 150, 255, 0.1)"}
       >
         {navItems.map((item) => {
           const isActive = router.pathname === item.path;

@@ -1,5 +1,19 @@
+rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Public read access to market data
+    match /marketData/{document} {
+      allow read: if true;
+      allow write: if false;
+    }
+    
+    // Optional: Restrict historical data
+    match /marketHistory/{document} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+    
+    // Default rules for other documents
     match /{document=**} {
       allow read: if true;  // Anyone can read
       allow write: if request.auth != null;  // Only authenticated users can write

@@ -265,6 +265,12 @@ const NavBar = () => {
       emoji: "🎠",
       link: "./communion",
     },
+    {
+      date: "06",
+      title: "Market Intel",
+      emoji: "📈",
+      link: "./market-intelligence",
+    },
   ];
 
   return (

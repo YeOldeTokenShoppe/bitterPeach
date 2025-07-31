@@ -56,7 +56,7 @@ function HolographicStatue2({
         float glitchStrength = sin(glitchTime) + sin(glitchTime * 3.45) + sin(glitchTime * 8.76) * 1.1;
         glitchStrength /= 3.0;
         glitchStrength = smoothstep(0.8, 1.0, glitchStrength);
-        glitchStrength *= 0.02; //adjust this for the vertical movement
+        glitchStrength *= 0.04; //adjust this for the vertical movement
         modelPosition.x += (random2D(modelPosition.xz + uTime).x - 0.5) * glitchStrength;
         modelPosition.z += (random2D(modelPosition.zx + uTime).x - 0.5) * glitchStrength;
 

@@ -1,7 +1,11 @@
 import * as functions from 'firebase-functions';
+import * as admin from 'firebase-admin';
 import express from 'express';
 import cors from 'cors';
 import axios from 'axios';
+
+// Initialize Firebase Admin
+admin.initializeApp();
 
 // App for the proxy function
 const proxyApp = express();
@@ -600,4 +604,73 @@ alphaVantageApp.get('/:symbol', async (req: express.Request, res: express.Respon
 });
 
 // Export the getAlphaVantageData function
-export const getAlphaVantageData = functions.https.onRequest(alphaVantageApp); 
+export const getAlphaVantageData = functions.https.onRequest(alphaVantageApp);
+
+// Create app for receiving market data webhook from RL80 bot
+const marketDataApp = express();
+marketDataApp.use(cors({ origin: true }));
+
+marketDataApp.post('/', async (req: express.Request, res: express.Response) => {
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
+    res.status(204).send('');
+    return;
+  }
+  
+  // Basic authentication
+  const authToken = req.headers['x-auth-token'];
+  const webhookToken = functions.config().webhook?.token;
+  
+  if (!webhookToken) {
+    console.error("Webhook token not configured");
+    return res.status(500).json({ 
+      error: "Webhook token not configured",
+      message: "Please set webhook.token in Firebase Functions config"
+    });
+  }
+  
+  if (authToken !== webhookToken) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  try {
+    const marketData = req.body;
+    const db = admin.firestore();
+    
+    // Store in Firestore
+    await db.collection('marketData').doc('latest').set({
+      ...marketData,
+      receivedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+    
+    // Store historical data (keep last 30 days)
+    const historyRef = await db.collection('marketHistory').add({
+      ...marketData,
+      receivedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+    
+    // Clean old history (older than 30 days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    const oldDocs = await db.collection('marketHistory')
+      .where('timestamp', '<', thirtyDaysAgo.toISOString())
+      .get();
+    
+    const batch = db.batch();
+    oldDocs.forEach(doc => batch.delete(doc.ref));
+    await batch.commit();
+    
+    return res.json({ 
+      success: true, 
+      message: 'Market data received',
+      docId: historyRef.id 
+    });
+  } catch (error) {
+    console.error('Error storing market data:', error);
+    return res.status(500).json({ error: 'Failed to store market data' });
+  }
+});
+
+// Export the receiveMarketData function
+export const receiveMarketData = functions.https.onRequest(marketDataApp); 

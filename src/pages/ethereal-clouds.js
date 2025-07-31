@@ -129,7 +129,7 @@ const EtherealCloudsPage = ({ is80sMode, setIs80sMode }) => {
         </div>
       <Canvas
         ref={canvasRef}
-        camera={{ position: [0, 0, 35], fov: 60, target: [0, 3, 0] }}
+        camera={{ position: [-15, 10, 45], fov: 60 }}
         gl={{ 
           antialias: true, 
           alpha: false,
@@ -152,7 +152,8 @@ const EtherealCloudsPage = ({ is80sMode, setIs80sMode }) => {
             maxPolarAngle={Math.PI * 0.85}
             // autoRotate
             // autoRotateSpeed={0.5}
-            target={[0, 5, 0]}
+            target={[-20, 15, 0]}
+
             zoomToCursor
           />
           
