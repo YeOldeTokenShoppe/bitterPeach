@@ -61,12 +61,12 @@ export const MusicProvider = ({ children }) => {
   // Toggle music visibility
   const toggleMusic = useCallback((value) => {
     const newValue = value !== undefined ? value : !showSpotify;
-    console.log("🎵 MusicContext: Setting showSpotify to", newValue);
+    // console.log("🎵 MusicContext: Setting showSpotify to", newValue);
     setShowSpotify(newValue);
     
     // Pause audio when music is toggled off
     if (!newValue && audioRef.current && isPlaying) {
-      console.log("🎵 MusicContext: Pausing audio as music is toggled off");
+      // console.log("🎵 MusicContext: Pausing audio as music is toggled off");
       audioRef.current.pause();
       setIsPlaying(false);
     }
@@ -80,12 +80,12 @@ export const MusicProvider = ({ children }) => {
       if (event.data && typeof event.data === "object") {
         // Handle music toggle from mission control
         if (event.data.type === "MUSIC_TOGGLE") {
-          console.log("🎵 MusicContext: Music toggle message received:", event.data.enabled);
+          // console.log("🎵 MusicContext: Music toggle message received:", event.data.enabled);
           setShowSpotify(event.data.enabled);
           
           // Pause audio when music is toggled off via iframe
           if (!event.data.enabled && audioRef.current && isPlaying) {
-            console.log("🎵 MusicContext: Pausing audio as music is toggled off via iframe");
+            // console.log("🎵 MusicContext: Pausing audio as music is toggled off via iframe");
             audioRef.current.pause();
             setIsPlaying(false);
           }
@@ -93,7 +93,7 @@ export const MusicProvider = ({ children }) => {
         
         // Handle request for current music state
         if (event.data.type === "REQUEST_MUSIC_STATE") {
-          console.log("🎵 MusicContext: Music state requested");
+          // console.log("🎵 MusicContext: Music state requested");
           syncWithMissionControl(showSpotify);
         }
       }
@@ -106,7 +106,7 @@ export const MusicProvider = ({ children }) => {
   // Initialize audio element once and persist it
   useEffect(() => {
     if (!audioRef.current) {
-      console.log("🎵 MusicContext: Creating persistent audio element");
+      // console.log("🎵 MusicContext: Creating persistent audio element");
       const audio = new Audio();
       audio.volume = volume;
       audio.crossOrigin = "anonymous"; // Add CORS support
@@ -125,7 +125,7 @@ export const MusicProvider = ({ children }) => {
         // Resume audio context if it gets suspended
         const resumeAudioContext = () => {
           if (audioContext.state === 'suspended') {
-            console.log("🎵 Resuming suspended audio context");
+            // console.log("🎵 Resuming suspended audio context");
             audioContext.resume();
           }
         };
@@ -140,23 +140,23 @@ export const MusicProvider = ({ children }) => {
       
       // Add event listeners
       audio.addEventListener('ended', () => {
-        console.log("🎵 Track ended");
+        // console.log("🎵 Track ended");
         setIsPlaying(false);
       });
       
       // Handle audio context suspension/interruption
       audio.addEventListener('pause', (e) => {
-        console.log("🎵 Audio paused event", e);
+        // console.log("🎵 Audio paused event", e);
       });
       
       audio.addEventListener('play', (e) => {
-        console.log("🎵 Audio play event", e);
+        // console.log("🎵 Audio play event", e);
       });
       
       // Handle visibility changes
       const handleVisibilityChange = () => {
         if (document.hidden && audioRef.current && !audioRef.current.paused) {
-          console.log("🎵 Document hidden, but keeping audio playing");
+          // console.log("🎵 Document hidden, but keeping audio playing");
           // Don't pause the audio when tab becomes hidden
         }
       };
@@ -186,7 +186,7 @@ export const MusicProvider = ({ children }) => {
   
   // Debug logging
   useEffect(() => {
-    console.log("🎵 MusicContext showSpotify state:", showSpotify);
+    // console.log("🎵 MusicContext showSpotify state:", showSpotify);
   }, [showSpotify]);
   
   // Create a stable reference for setShowSpotify

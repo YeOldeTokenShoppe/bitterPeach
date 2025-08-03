@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, memo } from 'react';
 import { Box, IconButton, Text } from '@chakra-ui/react';
 import { storage } from '../utilities/firebaseClient';
 import { ref as storageRefUtil, getDownloadURL } from 'firebase/storage';
-import { useMusic } from '../contexts/MusicContext';
+import { useMusic } from '../contexts/';
 
 /**
  * Simplified Music Player Component

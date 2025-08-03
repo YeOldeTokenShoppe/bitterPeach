@@ -1,9 +1,16 @@
-import React, { Suspense, useState, useRef, useEffect} from 'react';
+import React, { Suspense, useState, useRef, useEffect, useCallback } from 'react';
 import Cathedral from '../components/Cathedral';
 import CyberNav from '../components/CyberNav';
 import CyberCalloutOverlay from '../components/3DVotiveStand/CyberCalloutOverlay';
 import Link from 'next/link';
 import { Box, IconButton } from '@chakra-ui/react';
+import dynamic from 'next/dynamic';
+import { useMusic } from '../contexts/MusicContext';
+import BuyTokenFAB from '../components/BuyTokenFAB';
+
+const SimpleMusicPlayer = dynamic(() => import('../components/SimpleMusicPlayer'), {
+  ssr: false,
+});
 
 // Custom wrapper component for right-aligned overlay
 function RightAlignedCyberCallout({ children, ...props }) {
@@ -35,6 +42,26 @@ function RightAlignedCyberCallout({ children, ...props }) {
 
 export default function CathedralPage({ is80sMode, setIs80sMode }) {
   const [isMobileView, setIsMobileView] = useState(false);
+  const [showMobileMusicPlayer, setShowMobileMusicPlayer] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [musicPlayerVisible, setMusicPlayerVisible] = useState(false);
+  const { setIsPlaying: setContextIsPlaying, setShowSpotify: setContextShowSpotify } = useMusic();
+  const musicControlsRef = useRef(null);
+
+  // Check if mobile on mount
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobileView(window.innerWidth <= 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+    };
+  }, []);
+
+
   return (
     <Box 
     width="100%" 
@@ -101,7 +128,7 @@ export default function CathedralPage({ is80sMode, setIs80sMode }) {
       
       
       <CyberNav />
-      <Cathedral />
+      <Cathedral isPlaying={isPlaying} />
       
       {/* Right-aligned CyberCalloutOverlay */}
       <RightAlignedCyberCallout
@@ -112,9 +139,272 @@ export default function CathedralPage({ is80sMode, setIs80sMode }) {
         is80sMode={is80sMode}
         autoHide={false}
         onButtonClick={() => {
-          console.log('Exploring the cathedral...');
+          // console.log('Exploring the cathedral...');
         }}
       />
-    </div></Box>
+    </div>
+    
+    {/* Music Icon Button */}
+    {!showMobileMusicPlayer && (
+      <IconButton
+        position="fixed"
+        top={isMobileView ? "7rem" : "7.5rem"}
+        right={isMobileView ? "20px" : "2rem"}
+        zIndex="1100"
+        aria-label="Music Player"
+        icon={
+          <svg width={isMobileView ? "24" : "2.5rem"} height={isMobileView ? "24" : "2.5rem"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 18V5l12-2v13"/>
+            <circle cx="6" cy="18" r="3"/>
+            <circle cx="18" cy="16" r="3"/>
+          </svg>
+        }
+        color="white"
+        bg="transparent"
+        size="md"
+        onClick={() => {
+          setShowMobileMusicPlayer(true);
+          setMusicPlayerVisible(true);
+          setContextShowSpotify(true);
+          // Try to start music after a delay if controls are ready
+          setTimeout(() => {
+            if (musicControlsRef.current?.play && !isPlaying) {
+              console.log('🎵 Starting music from icon click...');
+              musicControlsRef.current.play();
+            }
+          }, 200);
+        }}
+        _hover={{
+          bg: "rgba(255, 255, 255, 0.1)",
+        }}
+      />
+    )}
+    
+    {/* Always render SimpleMusicPlayer but control its visibility */}
+    <Box display="none">
+      <SimpleMusicPlayer
+        isVisible={showMobileMusicPlayer}
+        isMobile={true}
+        autoPlay={false}
+        is80sMode={is80sMode}
+        onControlsReady={(controls) => {
+          musicControlsRef.current = controls;
+          // Auto-play when first shown with a small delay
+          if (showMobileMusicPlayer && controls?.play) {
+            setTimeout(() => {
+              if (!isPlaying && musicControlsRef.current?.play) {
+                console.log('🎵 Auto-playing music...');
+                musicControlsRef.current.play();
+              }
+            }, 100);
+          }
+        }}
+        onPlayingStateChange={(playing) => {
+          console.log('🎵 Music state changed:', playing, 'from SimpleMusicPlayer');
+          setIsPlaying(playing);
+          setContextIsPlaying(playing);
+        }}
+        onClose={() => {
+          setShowMobileMusicPlayer(false);
+          setMusicPlayerVisible(false);
+          setContextShowSpotify(false);
+          setIsPlaying(false);
+        }}
+      />
+    </Box>
+    
+    {/* Minimal Music Player UI */}
+    {showMobileMusicPlayer && (
+      <Box
+        position="fixed"
+        top={isMobileView ? "7rem" : "7.5rem"}
+        right={isMobileView ? "20px" : "2rem"}
+        zIndex="9999"
+        display="flex"
+        alignItems="center"
+        gap="1rem"
+      >
+        {/* Spinning Album Art */}
+        <Box
+          width="40px"
+          height="40px"
+          borderRadius="50%"
+          overflow="hidden"
+          animation={isPlaying ? "spin 4s linear infinite" : "none"}
+          cursor="pointer"
+          onClick={() => {
+            // Toggle play/pause by changing the state
+            // The SimpleMusicPlayer will handle the actual audio control
+            setShowMobileMusicPlayer(false);
+            setShowMobileMusicPlayer(true);
+          }}
+        >
+          <Box
+            width="100%"
+            height="100%"
+            backgroundImage="url('/virginRecords.jpg')"
+            backgroundSize="cover"
+            backgroundPosition="center"
+          />
+        </Box>
+        
+        {/* Skip Button */}
+        <IconButton
+          aria-label="Skip Track"
+          icon={
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polygon points="5 4 15 12 5 20 5 4"/>
+              <line x1="19" y1="5" x2="19" y2="19"/>
+            </svg>
+          }
+          size="sm"
+          bg="rgba(0, 0, 0, 0.5)"
+          color="white"
+          _hover={{ bg: "rgba(0, 0, 0, 0.7)" }}
+          onClick={() => {
+            // Skip functionality would need to be implemented differently
+            console.log('Skip button clicked');
+          }}
+        />
+        
+        {/* Close Button */}
+        <IconButton
+          aria-label="Close Music Player"
+          icon={
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          }
+          size="sm"
+          bg="rgba(0, 0, 0, 0.5)"
+          color="white"
+          _hover={{ bg: "rgba(0, 0, 0, 0.7)" }}
+          onClick={() => {
+            // Force stop the music using the controls
+            if (musicControlsRef.current?.pause) {
+              musicControlsRef.current.pause();
+            }
+            setIsPlaying(false);
+            setContextIsPlaying(false);
+            setShowMobileMusicPlayer(false);
+            setMusicPlayerVisible(false);
+            setContextShowSpotify(false);
+          }}
+        />
+      </Box>
+    )}
+    
+    {/* User Login Icon */}
+    <IconButton
+      position="fixed"
+      top={isMobileView ? "4rem" : "4.5rem"}
+      right={isMobileView ? "20px" : "2rem"}
+      zIndex="1100"
+      aria-label="User Account"
+      icon={
+        <svg width={isMobileView ? "30" : "2.5rem"} height={isMobileView ? "30" : "2.5rem"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+          <circle cx="12" cy="7" r="4"/>
+        </svg>
+      }
+      color={is80sMode ? "#00ff41" : "white"}
+      bg="transparent"
+      size="md"
+      onClick={() => {
+        // Add your login/account action here
+        // console.log("User account clicked");
+      }}
+      _hover={{
+        bg: "rgba(255, 255, 255, 0.1)",
+        color: is80sMode ? "#00ff41" : "#D946EF",
+        transform: "scale(1.1)",
+      }}
+      transition="all 0.3s ease"
+    />
+    
+    {/* 80s Mode Toggle */}
+    <IconButton
+      position="fixed"
+      top={isMobileView ? "10rem" : "10.5rem"}
+      right={isMobileView ? "20px" : "2rem"}
+      zIndex="1100"
+      aria-label="Toggle 80s Mode"
+      icon={
+        <svg width={isMobileView ? "30" : "2.5rem"} height={isMobileView ? "30" : "2.5rem"} viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill={is80sMode ? "currentColor" : "none"}/>
+          <text 
+            x="12" 
+            y="12" 
+            textAnchor="middle" 
+            dominantBaseline="middle" 
+            fontSize="10" 
+            fontWeight="bold"
+            fontFamily="'Rajdhani', sans-serif"
+            fill={is80sMode ? (is80sMode === "#00ff41" ? "#000" : "#000") : "currentColor"}
+          >
+            80s
+          </text>
+        </svg>
+      }
+      color={is80sMode ? "#00ff41" : "white"}
+      bg="transparent"
+      size="md"
+      onClick={() => setIs80sMode(!is80sMode)}
+      _hover={{
+        bg: "rgba(255, 255, 255, 0.1)",
+        color: is80sMode ? "#00ff41" : "#D946EF",
+        transform: "scale(1.1)",
+      }}
+      transition="all 0.3s ease"
+    />
+    
+    {/* Bot/AI Assistant Icon */}
+    <IconButton
+      position="fixed"
+      top={isMobileView ? "16rem" : "16.5rem"}
+      right={isMobileView ? "20px" : "2rem"}
+      zIndex="1100"
+      aria-label="AI Assistant"
+      icon={
+        <svg width={isMobileView ? "30" : "2.5rem"} height={isMobileView ? "30" : "2.5rem"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 8V4H8"/>
+          <rect width="16" height="12" x="4" y="8" rx="2"/>
+          <path d="M2 14h2"/>
+          <path d="M20 14h2"/>
+          <path d="M15 13v2"/>
+          <path d="M9 13v2"/>
+        </svg>
+      }
+      color={is80sMode ? "#00ff41" : "white"}
+      bg="transparent"
+      size="md"
+      onClick={() => {
+        // Add your AI assistant action here
+        console.log("AI assistant clicked");
+      }}
+      _hover={{
+        bg: "rgba(255, 255, 255, 0.1)",
+        color: is80sMode ? "#00ff41" : "#D946EF",
+        transform: "scale(1.1)",
+      }}
+      transition="all 0.3s ease"
+    />
+    
+    {/* Buy Token FAB */}
+    <BuyTokenFAB is80sMode={is80sMode} />
+    
+    <style jsx>{`
+      @keyframes spin {
+        from {
+          transform: rotate(0deg);
+        }
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    `}</style>
+    
+    </Box>
   );
 }

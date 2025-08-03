@@ -11,7 +11,8 @@ function AnnotationMarker({
   isActive = false,
   color = '#00ff41',
   hoverColor = '#67e8f9',
-  annotationOffset = null
+  annotationOffset = null,
+  scale = 1
 }) {
   const meshRef = useRef();
   const { camera } = useThree();
@@ -52,14 +53,14 @@ function AnnotationMarker({
       <Billboard follow={true} lockX={false} lockY={false} lockZ={false}>
         {/* Invisible larger click area */}
         <mesh visible={false}>
-          <circleGeometry args={[0.2, 32]} />
+          <circleGeometry args={[0.2 * scale, 32]} />
           <meshBasicMaterial transparent opacity={0} />
         </mesh>
         
         {/* Visible marker */}
         <mesh ref={meshRef}>
           {/* Outer ring */}
-          <ringGeometry args={[0.09, 0.11, 32]} />
+          <ringGeometry args={[0.09 * scale, 0.11 * scale, 32]} />
           <meshBasicMaterial 
             color={markerColor} 
             transparent 
@@ -71,7 +72,7 @@ function AnnotationMarker({
         
         {/* Inner circle */}
         <mesh position={[0, 0, 0.001]}>
-          <circleGeometry args={[0.09, 32]} />
+          <circleGeometry args={[0.09 * scale, 32]} />
           <meshBasicMaterial 
             color="#000000" 
             transparent 
@@ -84,7 +85,7 @@ function AnnotationMarker({
         {/* Number text */}
         <Text
           position={[0, 0, 0.002]}
-          fontSize={0.15}
+          fontSize={0.15 * scale}
           color={markerColor}
           anchorX="center"
           anchorY="middle"
@@ -99,7 +100,7 @@ function AnnotationMarker({
       {/* Annotation text panel */}
       {isActive && (
         <Html
-          position={[0, 0.8, 0]}
+          position={[0, 0.8 * scale, 0]}
           center={!annotationOffset}
           distanceFactor={8}
           style={{
@@ -118,22 +119,22 @@ function AnnotationMarker({
           <div
             style={{
               background: 'rgba(0, 0, 0, 0.9)',
-              border: `1px solid ${color}`,
-              borderRadius: '4px',
-              padding: '12px 16px',
+              border: `${Math.max(1, scale)}px solid ${color}`,
+              borderRadius: `${4 * scale}px`,
+              padding: `${12 * scale}px ${16 * scale}px`,
               color: '#ffffff',
-              fontSize: '14px',
+              fontSize: `${14 * scale}px`,
               fontFamily: 'Arial, sans-serif',
-              maxWidth: '200px',
-              boxShadow: `0 0 10px ${color}40`,
+              maxWidth: `${200 * scale}px`,
+              boxShadow: `0 0 ${10 * scale}px ${color}40`,
               whiteSpace: 'pre-wrap',
             }}
           >
             {text}
             <div
               style={{
-                fontSize: '12px',
-                marginTop: '10px',
+                fontSize: `${12 * scale}px`,
+                marginTop: `${10 * scale}px`,
                 opacity: 0.7,
                 fontStyle: 'italic',
               }}

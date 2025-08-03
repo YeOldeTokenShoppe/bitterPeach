@@ -18,7 +18,7 @@ const TickerCanvasTextureApplier = ({ is80sMode = false }) => {
     const findTickerCanvas = () => {
       scene.traverse((child) => {
         if (child.name === 'TickerCanvas' && child.isMesh) {
-          console.log('Found TickerCanvas mesh:', child);
+          // console.log('Found TickerCanvas mesh:', child);
           
           // Store reference to the mesh
           setTickerMesh(child);
@@ -69,7 +69,7 @@ const TickerCanvasTextureApplier = ({ is80sMode = false }) => {
               side: THREE.DoubleSide,
               transparent: false
             });
-            console.log('Applied texture to TickerCanvas mesh');
+            // console.log('Applied texture to TickerCanvas mesh');
           }
         }
       });

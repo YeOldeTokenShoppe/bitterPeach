@@ -13,7 +13,7 @@ const Object2Replacer = () => {
     const findObject2 = () => {
       scene.traverse((child) => {
         if (child.name === 'Object_2') {
-          console.log('Found Object_2:', child);
+          // console.log('Found Object_2:', child);
           
           // Get the world transform
           const worldPosition = new THREE.Vector3();
@@ -27,18 +27,18 @@ const Object2Replacer = () => {
           // Convert quaternion to euler angles
           const worldRotation = new THREE.Euler().setFromQuaternion(worldQuaternion);
           
-          console.log('Object_2 World Transform:', {
-            position: worldPosition,
-            rotation: worldRotation,
-            scale: worldScale
-          });
+          // console.log('Object_2 World Transform:', {
+          //   position: worldPosition,
+          //   rotation: worldRotation,
+          //   scale: worldScale
+          // });
           
           // Hide the original object
           child.visible = false;
           
           // Store the transform
           setObject2Transform({
-            position: [worldPosition.x, worldPosition.y, worldPosition.z],
+            position: [worldPosition.x + 4, worldPosition.y, worldPosition.z - 7],
             rotation: [worldRotation.x, worldRotation.y - .2, worldRotation.z], // Add 90 degrees to X
             scale: [worldScale.x * 12, worldScale.y * 12, worldScale.z * 12] // Scale up 4x more (20 * 4 = 80)
           });

@@ -3,7 +3,7 @@ import { useThree, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import AnnotationMarker from './AnnotationMarker';
 
-function AnnotationSystem({ annotations = [], is80sMode = false }) {
+function AnnotationSystem({ annotations = [], is80sMode = false, scale = 1 }) {
   const { camera, controls, gl } = useThree();
   const [activeAnnotation, setActiveAnnotation] = useState(null);
   const targetPosition = useRef(new THREE.Vector3());
@@ -16,6 +16,7 @@ function AnnotationSystem({ annotations = [], is80sMode = false }) {
   // Store original camera position for reset
   const originalCameraPosition = useRef(new THREE.Vector3());
   const originalControlsTarget = useRef(new THREE.Vector3());
+  const originalAutoRotate = useRef(false);
   const hasStoredOriginal = useRef(false);
   
   // Store original camera position on first render
@@ -24,6 +25,7 @@ function AnnotationSystem({ annotations = [], is80sMode = false }) {
       originalCameraPosition.current.copy(camera.position);
       if (controls) {
         originalControlsTarget.current.copy(controls.target);
+        originalAutoRotate.current = controls.autoRotate;
       }
       hasStoredOriginal.current = true;
       
@@ -110,9 +112,9 @@ function AnnotationSystem({ annotations = [], is80sMode = false }) {
   const resetCamera = () => {
     setActiveAnnotation(null);
     
-    // Re-enable autoRotate when returning to normal view
+    // Restore original autoRotate state
     if (controls) {
-      controls.autoRotate = true;
+      controls.autoRotate = originalAutoRotate.current;
     }
     
     // Animate back to original position
@@ -209,6 +211,7 @@ function AnnotationSystem({ annotations = [], is80sMode = false }) {
           color={markerColor}
           hoverColor={hoverColor}
           annotationOffset={annotation.annotationOffset}
+          scale={scale}
         />
       ))}
     </>

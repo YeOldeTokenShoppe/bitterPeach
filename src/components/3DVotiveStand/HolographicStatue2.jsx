@@ -97,7 +97,7 @@ function HolographicStatue2({
         transparent: true,
         blending: THREE.AdditiveBlending,
         depthWrite: true,
-        depthTest: true, // Disable depth testing
+        depthTest: true, 
         side: THREE.FrontSide,
       }),
     []
@@ -376,8 +376,9 @@ function HolographicStatue2({
       
       statue.traverse((child) => {
         if (child.isMesh) {
+          // console.log("Mesh name:", child.name); // Keep this for now
           const meshName = child.name.toLowerCase();
-
+      
           if (
             meshName.includes("halotext1") ||
             meshName.includes("halotext2")
@@ -393,39 +394,29 @@ function HolographicStatue2({
               depthWrite: true,
               depthTest: true,
               blending: THREE.AdditiveBlending,
-              needsUpdate: true,
+              // needsUpdate: true, // Remove this line - it's causing the warning
             });
-          // } else if (child.name.toLowerCase() === 'heart1') {
-          //   // Apply flame shader to heart1
-          //   const clonedFlameMaterial = flameHolographicMaterial.clone();
-          //   clonedFlameMaterial.uniforms = {
-          //     uTime: { value: 0 },
-          //     uColor1: { value: new THREE.Color(0xff4500) }, // Orange-red
-          //     uColor2: { value: new THREE.Color(0xffd700) }, // Gold
-          //     uGlowIntensity: { value: 3.0 }
-          //   };
-          //   child.material = clonedFlameMaterial;
-          //   animatedMaterialsRef.current.push(clonedFlameMaterial);
-          // } else if (child.name.startsWith('Heart2') || child.name.toLowerCase().startsWith('heart')) {
-          //   // Apply special heart holographic shader to other hearts
-          //   const clonedHeartMaterial = heartHolographicMaterial.clone();
-          //   clonedHeartMaterial.uniforms = {
-          //     uTime: { value: 0 },
-          //     uColor: { value: new THREE.Color(0xff69b4) }, // Hot pink matching shader
-          //     uGlowIntensity: { value: 2.5 }
-          //   };
-          //   child.material = clonedHeartMaterial;
-          //   animatedMaterialsRef.current.push(clonedHeartMaterial);
-          } else {
-            // Clone the material for each mesh to prevent shared state conflicts
+            child.renderOrder = 2;
+          } else if (meshName === "heart1" || meshName === "heart3" || meshName === "heart") {
+            // Be more specific with the heart names
+            // console.log("Found heart object:", child.name); // Debug log
             const clonedMaterial = holographicMaterial.clone();
-            // Properly clone uniforms to avoid shared references
+            clonedMaterial.uniforms = {
+              uTime: { value: 0 },
+              uColor: { value: new THREE.Color(0xff0000) } // Make it bright red so we can see it
+            };
+            child.material = clonedMaterial;
+            child.renderOrder = 0; // Between statue (1) and halo (2)
+            animatedMaterialsRef.current.push(clonedMaterial);
+          } else {
+            // Main statue parts
+            const clonedMaterial = holographicMaterial.clone();
             clonedMaterial.uniforms = {
               uTime: { value: 0 },
               uColor: { value: new THREE.Color(0x00ffff) }
             };
             child.material = clonedMaterial;
-            // Cache materials that need animation
+            child.renderOrder = 1;
             animatedMaterialsRef.current.push(clonedMaterial);
           }
         }

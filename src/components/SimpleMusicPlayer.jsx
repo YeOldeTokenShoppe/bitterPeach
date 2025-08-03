@@ -223,6 +223,10 @@ const SimpleMusicPlayer = ({
       
       // Force reload from the new playlist
       if (isVisible && audioRef.current) {
+        // Remember if we were playing
+        const wasPlaying = !audioRef.current.paused;
+        console.log('🎵 Was playing before mode switch:', wasPlaying);
+        
         // Stop current playback
         audioRef.current.pause();
         audioRef.current.src = '';
@@ -231,10 +235,18 @@ const SimpleMusicPlayer = ({
         setTimeout(() => {
           console.log('🎵 Loading first track from new playlist');
           loadTrack(0);
+          
+          // Resume playback if we were playing before
+          if (wasPlaying) {
+            setTimeout(() => {
+              console.log('🎵 Resuming playback after mode switch');
+              play();
+            }, 200); // Give time for track to load
+          }
         }, 100); // Small delay to ensure state updates
       }
     }
-  }, [is80sMode, isVisible, loadTrack, audioRef]);
+  }, [is80sMode, isVisible, loadTrack, audioRef, play]);
   
   // Ensure audioRef exists
   if (!audioRef) {

@@ -40,6 +40,7 @@
             height: window.innerWidth <= 768 ? '70vh' : '80vh',
             borderRadius: '10px',
             position: 'relative',
+            zIndex: 11, // Higher than background but lower than close button
           }}
           onClick={(e) => e.stopPropagation()}
         >
@@ -48,9 +49,14 @@
               width: "100%",
               height: "100%",
               borderRadius: "10px",
+              position: "relative",
+              zIndex: 11,
             }}
             gl={{ alpha: true }}
             camera={{ position: [0, 1, 5], fov: 45 }}
+            onCreated={({ gl }) => {
+              gl.domElement.style.touchAction = 'none'; // Disable browser touch gestures
+            }}
           >
             <SceneContent userData={userData} />
           </Canvas>
@@ -299,8 +305,8 @@
           const DEFAULT_IMAGES = [
             "/Triumph.jpg",
             "/vsClown.jpg",
-            "/vsZombie.webp",
-            "/vsSkeleton.webp",
+            "/vsZombie.jpg",
+            "/vsSkeleton.jpg",
           ];
 
           // Check if this is a default candle
@@ -445,8 +451,8 @@
       const DEFAULT_IMAGES = [
         "/Triumph.jpg",
         "/vsClown.jpg",
-        "/vsZombie.webp",
-        "/vsSkeleton.webp",
+        "/vsZombie.jpg",
+        "/vsSkeleton.jpg",
       ];
 
       // More thorough approach to find and control flame visibility
@@ -565,11 +571,12 @@
 
         <OrbitControls
           ref={controlsRef}
+          enableRotate={true}
           enableZoom={true}
           enablePan={false}
           minDistance={2}
           maxDistance={10}
-          touchAction="none"
+          makeDefault
         />
       </>
     );
