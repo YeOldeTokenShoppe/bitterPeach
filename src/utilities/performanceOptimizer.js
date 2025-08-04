@@ -238,10 +238,19 @@ class TexturePool {
     }
     
     // Load new texture
-    loader.load(url, (texture) => {
-      this.pool.set(url, texture);
-      if (onLoad) onLoad(texture);
-    });
+    loader.load(
+      url, 
+      (texture) => {
+        this.pool.set(url, texture);
+        if (onLoad) onLoad(texture);
+      },
+      // Progress callback
+      undefined,
+      // Error callback
+      (error) => {
+        console.error(`Failed to load texture from ${url}:`, error);
+      }
+    );
   }
   
   clear() {

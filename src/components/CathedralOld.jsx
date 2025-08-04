@@ -1,4 +1,4 @@
-import React, { useRef, Suspense, useEffect, useState, useCallback, useMemo, useContext } from 'react';
+import React, { useRef, Suspense, useEffect, useState, useCallback } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Environment, OrbitControls, useGLTF, useAnimations } from '@react-three/drei';
 import * as THREE from 'three';
@@ -10,14 +10,9 @@ import AnnotationSystem from './3DVotiveStand/AnnotationSystem';
 import PostProcessingEffects from './3DVotiveStand/PostProcessingEffects';
 import FloatingCandleViewer from './3DVotiveStand/CandleInteraction';
 import { useFirestoreResults } from '../utilities/useFirestoreResults';
-import { detectDevice, getSceneSettings, optimizeTexture, texturePool } from '../utilities/performanceOptimizer';
-import { useMusic, MusicContext } from '../contexts/MusicContext';
 //hi
-// Version string for cache busting - update this when model changes
-const MODEL_VERSION = '1.0.1';
-
-function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClick, showFloatingViewer, device, currentTrackBPM = 100 }) {
-  const gltf = useGLTF(`/cathedral.glb?v=${MODEL_VERSION}`);
+function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClick, showFloatingViewer }) {
+  const gltf = useGLTF('/cathedral.glb');
   const modelRef = useRef();
   const groupRef = useRef();
   const { actions, mixer } = useAnimations(gltf.animations, modelRef);
@@ -31,24 +26,26 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
   const { camera } = useThree();
   const results = useFirestoreResults();
   const textureLoader = useRef(new THREE.TextureLoader());
-
-  // Calculate animation speed multiplier based on BPM
-  // Base BPM of 100 = 1.0 speed multiplier
-  // Slower songs (85 BPM) = 0.85 speed
-  // Faster songs (120 BPM) = 1.2 speed
-  const getAnimationSpeedFromBPM = useCallback((baseBPM = 100) => {
-    return currentTrackBPM / baseBPM;
-  }, [currentTrackBPM]);
+  const textureCache = useRef(new Map());
 
   // Function to optimize texture loading
   const loadOptimizedTexture = useCallback((url, onLoad) => {
-    // Use the texture loader directly
+    // Check cache first
+    if (textureCache.current.has(url)) {
+      onLoad(textureCache.current.get(url));
+      return;
+    }
+
+    // Use the texture loader
     textureLoader.current.load(
       url,
       texture => {
         // Apply optimizations
         texture.generateMipmaps = true;
         texture.anisotropy = 4;
+
+        // Store in cache
+        textureCache.current.set(url, texture);
 
         // Return the optimized texture
         onLoad(texture);
@@ -298,16 +295,29 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
     
     console.log(`Found ${vcandleObjects.length} total candles, ${vcandlesWithLabels.length} VCANDLE objects with labels`);
 
-    // First ensure all VCANDLES are initially visible
-    vcandlesWithLabels.forEach((candle) => {
-      candle.visible = true;
-    });
-
     if (!results || results.length === 0) {
-      // No user data, hide all VCANDLEs with labels
+      // No user data, apply default images to all VCANDLEs with labels
+      const DEFAULT_IMAGES = [
+        "/Triumph.jpg",
+        "/vsClown.jpg",
+        "/vsZombie.jpg",
+        "/vsSkeleton.jpg",
+      ];
+      
       vcandlesWithLabels.forEach((candle) => {
-        candle.visible = false;
-        console.log(`Hid ${candle.name} - no user data available`);
+        const randomImage = DEFAULT_IMAGES[Math.floor(Math.random() * DEFAULT_IMAGES.length)];
+        
+        candle.userData = {
+          ...candle.userData,
+          hasUser: false,
+          isDefault: true,
+          userName: "Anonymous",
+          image: randomImage,
+          message: "Stake RL80 to dedicate a votive candle.",
+        };
+        
+        console.log(`Applied default image to ${candle.name}:`, randomImage);
+        applyUserImageToLabel(candle, candle.userData);
       });
       return;
     }
@@ -330,9 +340,8 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
       .filter(user => !topBurnersArray.some(topUser => topUser.id === user.id))
       .slice(0, 4);
 
-    // Apply the users to candles - distribute them every 12th candle
-    // On mobile devices, increase spacing to reduce number of visible candles
-    const spacing = device.isLowEnd ? 24 : 12; // Place a user candle every 12th/24th position
+    // Apply the users to candles - distribute them every 10th candle
+    const spacing = 10; // Place a user candle every 10th position
     
     // Combine all users into one array, alternating between top burners and recent users
     const allUsers = [];
@@ -349,12 +358,9 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
     
     // Apply users to VCANDLEs with labels only, with even spacing
     allUsers.forEach((user, index) => {
-      const candleIndex = index * spacing; // 0, 12, 24, 36, 48, 60, 72, 84
+      const candleIndex = index * spacing; // 0, 10, 20, 30, 40, 50, 60, 70
       if (candleIndex < vcandlesWithLabels.length) {
         const candle = vcandlesWithLabels[candleIndex];
-        // Make sure the candle is visible
-        candle.visible = true;
-        
         candle.userData = {
           ...candle.userData,
           hasUser: true,
@@ -381,8 +387,15 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
       }
     });
     
-    // Hide remaining candles (non-user candles) that have labels
-    let hiddenCandleCount = 0;
+    // Apply default images to remaining candles (non-user candles) that have labels
+    const DEFAULT_IMAGES = [
+      "/Triumph.jpg",
+      "/vsClown.jpg",
+      "/vsZombie.jpg",
+      "/vsSkeleton.jpg",
+    ];
+    
+    let defaultCandleCount = 0;
     let skippedCandleCount = 0;
     
     vcandlesWithLabels.forEach((candle, index) => {
@@ -393,27 +406,43 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
         return;
       }
       
-      // Hide candles without user data
-      candle.visible = false;
+      // Check if candle has Label objects
+      const hasLabels = candle.children.some(child => 
+        child.name.includes("Label1") || child.name.includes("Label2")
+      );
+      
+      if (!hasLabels) {
+        console.log(`WARNING: ${candle.name} has no Label objects to apply image to`);
+      }
+      
+      // Assign a random default image
+      const randomImage = DEFAULT_IMAGES[Math.floor(Math.random() * DEFAULT_IMAGES.length)];
+      
       candle.userData = {
         ...candle.userData,
         hasUser: false,
         isDefault: true,
+        userName: "Anonymous",
+        image: randomImage,
+        message: "Stake RL80 to dedicate a votive candle.",
       };
       
-      hiddenCandleCount++;
-      console.log(`Hid ${candle.name} (${hiddenCandleCount}) - no user data`);
+      defaultCandleCount++;
+      console.log(`Applied default image to ${candle.name} (${defaultCandleCount}):`, randomImage);
       
-      // Ensure flames are hidden for these candles
+      // Apply the default image to the candle's labels
+      applyUserImageToLabel(candle, candle.userData);
+      
+      // Keep flames hidden for default candles
       candle.traverse((child) => {
         if (child.name && (child.name.includes('FLAME') || child.name.includes('Flame') || 
             child.name.includes('flame') || child.name.includes('Fire'))) {
-          child.visible = false;
+          child.visible = false; // Keep flame hidden for default candles
         }
       });
     });
     
-    console.log(`Summary: ${vcandlesWithLabels.length} VCANDLEs with labels, ${skippedCandleCount} with user data, ${hiddenCandleCount} hidden`);
+    console.log(`Summary: ${vcandlesWithLabels.length} VCANDLEs with labels, ${skippedCandleCount} with user data, ${defaultCandleCount} with default images`);
   }, [results, gltf.scene, applyUserImageToLabel]);
 
   // Function to play next animation in Cyborg3's sequence
@@ -506,27 +535,6 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
     }
   }, [actions]);
 
-  // Update animation speeds when BPM changes while playing
-  useEffect(() => {
-    if (isPlaying && actions) {
-      const speedMultiplier = getAnimationSpeedFromBPM();
-      
-      // Update speeds for all dance animations
-      Object.entries(actions).forEach(([name, action]) => {
-        if (action.isRunning() && (
-          name.toUpperCase().includes('SAMBA') || 
-          name.toUpperCase().includes('SALSA') ||
-          name === 'Cheer' ||
-          name === 'BBOYHIPHOP' ||
-          name === 'GUITAR' ||
-          name === 'SitClap'
-        )) {
-          action.timeScale = 0.5 * speedMultiplier;
-        }
-      });
-    }
-  }, [currentTrackBPM, isPlaying, actions, getAnimationSpeedFromBPM]);
-
   // Handle animation switching when isPlaying changes
   useEffect(() => {
     if (!actions || Object.keys(actions).length === 0 || !isInitializedRef.current) {
@@ -605,7 +613,7 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
               if (isPlaying && actions['SAMBA0']) {
                 // Start SAMBA0
                 actions['SAMBA0'].reset();
-                actions['SAMBA0'].timeScale = 0.5 * getAnimationSpeedFromBPM(); // Half speed adjusted by BPM
+                actions['SAMBA0'].timeScale = 0.5; // Half speed
                 actions['SAMBA0'].setLoop(THREE.LoopRepeat);
                 actions['SAMBA0'].play();
                 // console.log('Started SAMBA0 for Cyborg0 after transition');
@@ -648,7 +656,7 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
               if (isPlaying && actions['Cheer']) {
                 // Start Cheer at half speed
                 actions['Cheer'].reset();
-                actions['Cheer'].timeScale = 0.5 * getAnimationSpeedFromBPM(); // Half speed adjusted by BPM
+                actions['Cheer'].timeScale = 0.5; // Half speed
                 actions['Cheer'].setLoop(THREE.LoopRepeat);
                 actions['Cheer'].play();
                 // console.log('Started Cheer for Cyborg2 after transition (half speed)');
@@ -675,7 +683,7 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
           
           // Play BBOYHIPHOP animation
           actions['BBOYHIPHOP'].reset();
-          actions['BBOYHIPHOP'].timeScale = 0.5 * getAnimationSpeedFromBPM(); // Half speed adjusted by BPM
+          actions['BBOYHIPHOP'].timeScale = 0.5; // Half speed
           actions['BBOYHIPHOP'].setLoop(THREE.LoopRepeat);
           actions['BBOYHIPHOP'].clampWhenFinished = false; // Don't clamp to avoid hitches
           actions['BBOYHIPHOP'].play();
@@ -690,7 +698,7 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
           
           // Play GUITAR animation
           actions['GUITAR'].reset();
-          actions['GUITAR'].timeScale = 0.5 * getAnimationSpeedFromBPM(); // Half speed adjusted by BPM
+          actions['GUITAR'].timeScale = 0.5; // Half speed
           actions['GUITAR'].setLoop(THREE.LoopRepeat);
           actions['GUITAR'].play();
           // console.log('Playing GUITAR animation for CyborgInAlley (half speed)');
@@ -711,7 +719,7 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
             
             action.stop(); // Make sure it's stopped first
             action.reset();
-            action.timeScale = 0.5 * getAnimationSpeedFromBPM(); // Half speed adjusted by BPM
+            action.timeScale = 0.5; // Half speed for slower dance
             action.play();
             danceFound = true;
             
@@ -958,15 +966,11 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
 }
 
 // Preload the model
-useGLTF.preload(`/cathedral.glb?v=${MODEL_VERSION}`);
+useGLTF.preload('/cathedral.glb');
 
-// Inner component that uses music context
-function CathedralWithMusic({ isPlaying = false }) {
+function Cathedral({ isPlaying = false }) {
   const [showFloatingViewer, setShowFloatingViewer] = useState(false);
   const [selectedCandleData, setSelectedCandleData] = useState(null);
-  const device = useMemo(() => detectDevice(), []);
-  const sceneSettings = useMemo(() => getSceneSettings(device), [device]);
-  const { currentTrackBPM } = useMusic();
 
   const handleCandleClick = useCallback((candleData) => {
     setSelectedCandleData(candleData);
@@ -978,31 +982,10 @@ function CathedralWithMusic({ isPlaying = false }) {
     setSelectedCandleData(null);
   }, []);
 
-  // Cleanup textures on unmount
-  useEffect(() => {
-    return () => {
-      // Clear texture pool when component unmounts
-      if (device.isLowEnd) {
-        texturePool.clear();
-      }
-    };
-  }, [device.isLowEnd]);
-
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
-      <Canvas 
-        shadows={sceneSettings.shadowsEnabled}
-        camera={{ position: [0, -43, -49], fov: 40, near: 0.01, far: 200 }}
-        gl={{ 
-          antialias: sceneSettings.antialias,
-          pixelRatio: sceneSettings.pixelRatio,
-          powerPreference: "high-performance",
-          alpha: false,
-          stencil: false,
-          depth: true
-        }}
-        dpr={sceneSettings.pixelRatio}>
-      <StarField radius={150} count1={device.isLowEnd ? 200 : 500} count2={device.isLowEnd ? 100 : 300} />
+      <Canvas shadows camera={{ position: [0, -43, -49], fov: 40, near: 0.01, far: 200 }}>
+      <StarField radius={150} count1={500} count2={300} />
              {/* <StarrySky /> */}
           <ConstellationModel  groupScale={[10, 10, 10]} groupPosition={[0, 15, -80]}    isVisible={true} />
         <OrbitControls 
@@ -1030,8 +1013,8 @@ function CathedralWithMusic({ isPlaying = false }) {
         <directionalLight 
           position={[10, 10, 5]} 
           intensity={1} 
-          castShadow={sceneSettings.shadowsEnabled}
-          shadow-mapSize={[sceneSettings.shadowMapSize, sceneSettings.shadowMapSize]}
+          castShadow
+          shadow-mapSize={[1024, 1024]}
           shadow-camera-far={150}
           shadow-camera-left={-50}
           shadow-camera-right={50}
@@ -1045,27 +1028,25 @@ function CathedralWithMusic({ isPlaying = false }) {
             isPlaying={isPlaying} 
             onCandleClick={handleCandleClick}
             showFloatingViewer={showFloatingViewer}
-            device={device}
-            currentTrackBPM={currentTrackBPM}
           />
           <TickerCanvasTextureApplier is80sMode={false} />
           <Object2Replacer />
           <AnnotationSystem 
             annotations={[
               {
-                position: [-9.5, -48, -4], // Main altar area
+                position: [-6, -50, -3], // Main altar area
                 text: "Sacred Digital Altar\nWhere prayers become code"
               },
               {
-                position: [1, -51, 1], // Right side
+                position: [2, -50, -2], // Right side
                 text: "Quantum Confessional\nConfess to the algorithm"
               },
               {
-                position: [-16, -51, -9], // Left side
+                position: [-16, -50, -9], // Left side
                 text: "Neural Nave\nProcessing faithful data"
               },
               {
-                position: [-4, -55, -18], // Upper area
+                position: [0, -55, -18], // Upper area
                 text: "Holographic Heavens\nCloud computing the divine"
               }
             ]}
@@ -1089,147 +1070,4 @@ function CathedralWithMusic({ isPlaying = false }) {
   );
 }
 
-// Wrapper component that checks for MusicProvider
-function Cathedral(props) {
-  // Try to access the context
-  const musicContext = useContext(MusicContext);
-  
-  // If we have music context, use the music-aware version
-  if (musicContext !== undefined) {
-    return <CathedralWithMusic {...props} />;
-  }
-  
-  // Otherwise, use a version without music context
-  return <CathedralWithoutMusic {...props} />;
-}
-
-// Version without music context for standalone usage
-function CathedralWithoutMusic({ isPlaying = false }) {
-  const [showFloatingViewer, setShowFloatingViewer] = useState(false);
-  const [selectedCandleData, setSelectedCandleData] = useState(null);
-  const device = useMemo(() => detectDevice(), []);
-  const sceneSettings = useMemo(() => getSceneSettings(device), [device]);
-  const currentTrackBPM = 100; // Default BPM
-
-  const handleCandleClick = useCallback((candleData) => {
-    setSelectedCandleData(candleData);
-    setShowFloatingViewer(true);
-  }, []);
-
-  const closeFloatingViewer = useCallback(() => {
-    setShowFloatingViewer(false);
-    setSelectedCandleData(null);
-  }, []);
-
-  // Cleanup textures on unmount
-  useEffect(() => {
-    return () => {
-      // Clear texture pool when component unmounts
-      if (device.isLowEnd) {
-        texturePool.clear();
-      }
-    };
-  }, [device.isLowEnd]);
-
-  return (
-    <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
-      <Canvas 
-        shadows={sceneSettings.shadowsEnabled}
-        camera={{ position: [0, -43, -49], fov: 40, near: 0.01, far: 200 }}
-        gl={{ 
-          antialias: sceneSettings.antialias,
-          pixelRatio: sceneSettings.pixelRatio,
-          powerPreference: "high-performance",
-          alpha: false,
-          stencil: false,
-          depth: true
-        }}
-        dpr={sceneSettings.pixelRatio}>
-      <StarField radius={150} count1={device.isLowEnd ? 200 : 500} count2={device.isLowEnd ? 100 : 300} />
-             {/* <StarrySky /> */}
-          <ConstellationModel  groupScale={[10, 10, 10]} groupPosition={[0, 15, -80]}    isVisible={true} />
-        <OrbitControls 
-            target={[0, -50, -5]}
-            zoomToCursor={true}
-            enablePan={false} 
-            enableRotate={!showFloatingViewer} 
-            enableZoom={!showFloatingViewer}
-            enabled={!showFloatingViewer}
-            zoomSpeed={0.7}
-            // panSpeed={0.8}
-            rotateSpeed={0.5}
-            enableDamping={true}
-            dampingFactor={0.1}
-            minDistance={0.1}
-            maxDistance={60}
-            maxPolarAngle={Math.PI * 0.85}
-            minPolarAngle={0}
-            autoRotate={false}
-            makeDefault
-            />
-          
-        
-        <ambientLight intensity={0.3} />
-        <directionalLight 
-          position={[10, 10, 5]} 
-          intensity={1} 
-          castShadow={sceneSettings.shadowsEnabled}
-          shadow-mapSize={[sceneSettings.shadowMapSize, sceneSettings.shadowMapSize]}
-          shadow-camera-far={150}
-          shadow-camera-left={-50}
-          shadow-camera-right={50}
-          shadow-camera-top={50}
-          shadow-camera-bottom={-50}
-          shadow-bias={-0.001}
-        />
-    <PostProcessingEffects is80sMode={false} />
-        <Suspense fallback={null}>
-          <CathedralModel 
-            isPlaying={isPlaying} 
-            onCandleClick={handleCandleClick}
-            showFloatingViewer={showFloatingViewer}
-            device={device}
-            currentTrackBPM={currentTrackBPM}
-          />
-          <TickerCanvasTextureApplier is80sMode={false} />
-          <Object2Replacer />
-          <AnnotationSystem 
-            annotations={[
-              {
-                position: [-9.5, -48, -4], // Main altar area
-                text: "Sacred Digital Altar\nWhere prayers become code"
-              },
-              {
-                position: [1, -51, 1], // Right side
-                text: "Quantum Confessional\nConfess to the algorithm"
-              },
-              {
-                position: [-16, -51, -9], // Left side
-                text: "Neural Nave\nProcessing faithful data"
-              },
-              {
-                position: [-4, -55, -18], // Upper area
-                text: "Holographic Heavens\nCloud computing the divine"
-              }
-            ]}
-            is80sMode={false}
-            scale={4}
-          />
-        </Suspense>
-        <Environment preset="sunset" />
-      </Canvas>
-      
-      {/* FloatingCandleViewer outside the Canvas */}
-      {showFloatingViewer && selectedCandleData && (
-        <FloatingCandleViewer
-          key={`candle-viewer-${selectedCandleData.candleId}-${selectedCandleData.candleTimestamp}`}
-          isVisible={showFloatingViewer}
-          userData={selectedCandleData}
-          onClose={closeFloatingViewer}
-        />
-      )}
-    </div>
-  );
-}
-
-export default Cathedral;
+export default Cathedral;i
