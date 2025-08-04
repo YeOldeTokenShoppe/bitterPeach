@@ -26,30 +26,30 @@ const SimpleMusicPlayer = ({
   const prevModeRef = useRef(is80sMode);
   
   // Use shared audio from MusicContext
-  const { audioRef } = useMusic();
+  const { audioRef, setCurrentTrackBPM } = useMusic();
   
-  // Track lists
+  // Track lists with BPM data
   const non80sTracks = [
-    { name: "Lifetimes", path: "audio/192k/07-lifetimes.m4a" },
-    { name: "Rocket Man - Steven Drozd", path: "audio/192k/rocket-man---steven-drozd.m4a" }
+    { name: "Lifetimes", path: "audio/192k/07-lifetimes.m4a", bpm: 115 }, // Mid-tempo pop
+    { name: "Rocket Man - Steven Drozd", path: "audio/192k/rocket-man---steven-drozd.m4a", bpm: 75 } // Slower ballad
   ];
   
   const eightyTracks = [
-    { name: "For Those About To Rock - AC/DC", path: "audio/320k/for-those-about-to-rock-ac-dc.m4a" },
-    { name: "Dirty Cash - The Adventures of Stevie V", path: "audio/320k/dirty-cash.m4a" },
-    { name: "Sweet Dreams - Eurythmics", path: "audio/320k/sweet-dreams-eurythmics.m4a" },
-    { name: "Intergalactic - Beastie Boys", path: "audio/320k/intergalactic-beastie-boys.m4a" },
-    { name: "1984 - Van Halen", path: "audio/192k/vanhalen---1984.mp3" },
-    { name: "Good Life - Inner City", path: "audio/320k/good-life-inner-city.m4a" },
-    { name: "Like A Prayer - Madonna", path: "audio/320k/like-a-prayer-madonna.m4a" },
-    { name: "99 Luftballoons - Nena", path: "audio/320k/99-luftballoons-nena.m4a" }
+    { name: "For Those About To Rock - AC/DC", path: "audio/320k/for-those-about-to-rock-ac-dc.m4a", bpm: 75 }, // Medium tempo rock
+    { name: "Dirty Cash - The Adventures of Stevie V", path: "audio/320k/dirty-cash.m4a", bpm: 100 }, // Dance
+    { name: "Sweet Dreams - Eurythmics", path: "audio/320k/sweet-dreams-eurythmics.m4a", bpm: 85 }, // Synth-pop
+    { name: "Intergalactic - Beastie Boys", path: "audio/320k/intergalactic-beastie-boys.m4a", bpm: 108 }, // Hip hop
+    { name: "1984 - Van Halen", path: "audio/192k/vanhalen---1984.mp3", bpm: 75 }, // Rock instrumental
+    { name: "Good Life - Inner City", path: "audio/320k/good-life-inner-city.m4a", bpm: 120 }, // House/dance
+    { name: "Like A Prayer - Madonna", path: "audio/320k/like-a-prayer-madonna.m4a", bpm: 85 }, // Dance pop
+    { name: "99 Luftballoons - Nena", path: "audio/320k/99-luftballoons-nena.m4a", bpm: 85 } // Upbeat pop
   ];
   
   // Get current playlist based on mode
   const currentPlaylist = is80sMode ? eightyTracks : non80sTracks;
   
   // Load and play track
-  const loadTrack = useCallback(async (index) => {
+  const loadTrack = useCallback(async (index, shouldAutoPlay = null) => {
     // Get fresh playlist based on current mode
     const playlist = is80sMode ? eightyTracks : non80sTracks;
     
@@ -80,10 +80,12 @@ const SimpleMusicPlayer = ({
       
       setCurrentTrackIndex(index);
       currentTrackIndexRef.current = index; // Update ref too
+      setCurrentTrackBPM(playlist[index].bpm || 100); // Set BPM for current track
       setIsLoading(false);
       
-      // Auto-play if requested
-      if (autoPlay && audioRef.current) {
+      // Auto-play if requested (use parameter if provided, otherwise use prop)
+      const shouldPlay = shouldAutoPlay !== null ? shouldAutoPlay : autoPlay;
+      if (shouldPlay && audioRef.current) {
         audioRef.current.play().then(() => {
           setIsPlaying(true);
           if (onPlayingStateChange) onPlayingStateChange(true);
@@ -94,7 +96,7 @@ const SimpleMusicPlayer = ({
       console.error('❌ Failed track was:', playlist[index]);
       setIsLoading(false);
     }
-  }, [audioRef, autoPlay, onPlayingStateChange, is80sMode]);
+  }, [audioRef, autoPlay, onPlayingStateChange, is80sMode, setCurrentTrackBPM]);
   
   // Play/pause controls
   const play = useCallback(() => {
@@ -142,15 +144,25 @@ const SimpleMusicPlayer = ({
     console.log('🎵 Next track will be:', playlist[nextIndex]?.name);
     console.log('🎵 Next track path:', playlist[nextIndex]?.path);
     
+    // Remember if we were playing
+    const wasPlaying = audioRef.current && !audioRef.current.paused;
+    console.log('🎵 Was playing before skip:', wasPlaying);
+    
     // Load the next track
     await loadTrack(nextIndex);
-  }, [loadTrack, is80sMode, isLoading]);
+    
+    // Resume playback if we were playing
+    if (wasPlaying) {
+      console.log('🎵 Resuming playback after skip');
+      play();
+    }
+  }, [loadTrack, is80sMode, isLoading, audioRef, play]);
   
   useEffect(() => {
     // Reset initialization when mode changes
     if (lastModeRef.current !== is80sMode) {
       lastModeRef.current = is80sMode;
-      isInitializedRef.current = false;
+      // Don't reset initialization flag here - let the mode change handler deal with it
     }
     
     if (isVisible && currentPlaylist.length > 0 && !isInitializedRef.current) {
@@ -218,35 +230,25 @@ const SimpleMusicPlayer = ({
       setCurrentTrackIndex(0);
       currentTrackIndexRef.current = 0;
       
-      // Reset initialization flag
-      isInitializedRef.current = false;
-      
       // Force reload from the new playlist
       if (isVisible && audioRef.current) {
         // Remember if we were playing
         const wasPlaying = !audioRef.current.paused;
         console.log('🎵 Was playing before mode switch:', wasPlaying);
         
-        // Stop current playback
-        audioRef.current.pause();
-        audioRef.current.src = '';
+        // Set initialization flag to prevent double-loading
+        isInitializedRef.current = true;
         
-        // Load first track from new playlist
-        setTimeout(() => {
-          console.log('🎵 Loading first track from new playlist');
-          loadTrack(0);
-          
-          // Resume playback if we were playing before
-          if (wasPlaying) {
-            setTimeout(() => {
-              console.log('🎵 Resuming playback after mode switch');
-              play();
-            }, 200); // Give time for track to load
-          }
-        }, 100); // Small delay to ensure state updates
+        // Don't pause - just load the new track directly
+        // This prevents the music from stopping
+        console.log('🎵 Loading first track from new playlist');
+        loadTrack(0, wasPlaying);
+      } else {
+        // If not visible, reset initialization flag so it loads when shown
+        isInitializedRef.current = false;
       }
     }
-  }, [is80sMode, isVisible, loadTrack, audioRef, play]);
+  }, [is80sMode, isVisible, loadTrack, audioRef, play, onPlayingStateChange]);
   
   // Ensure audioRef exists
   if (!audioRef) {

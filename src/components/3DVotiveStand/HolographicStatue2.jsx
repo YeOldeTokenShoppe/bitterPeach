@@ -12,6 +12,9 @@ function HolographicStatue2({
   hover = false,  // Disable hover animation by default
   rotate = true  // Disable rotation animation by default
 }) {
+  // Detect if we're on a mobile/tablet device
+  const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  const isTablet = /iPad|Android(?!.*Mobile)|Tablet/i.test(navigator.userAgent);
   const statueRef = useRef();
   const groupRef = useRef();
   const { scene } = useThree();
@@ -386,7 +389,7 @@ function HolographicStatue2({
             child.material = new THREE.MeshStandardMaterial({
               color: child.material.color,
               emissive: child.material.color,
-              emissiveIntensity: 3.0,
+              emissiveIntensity: 1.0,
               metalness: 0.8,
               roughness: 0.2,
               side: THREE.DoubleSide,
@@ -406,7 +409,7 @@ function HolographicStatue2({
               uColor: { value: new THREE.Color(0xff0000) } // Make it bright red so we can see it
             };
             child.material = clonedMaterial;
-            child.renderOrder = 0; // Between statue (1) and halo (2)
+            // child.renderOrder = 0; // Between statue (1) and halo (2)
             animatedMaterialsRef.current.push(clonedMaterial);
           } else {
             // Main statue parts

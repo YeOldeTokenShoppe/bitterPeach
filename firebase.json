@@ -28,6 +28,15 @@
     "cleanUrls": true,
     "headers": [
       {
+        "source": "**/*.glb",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate"
+          }
+        ]
+      },
+      {
         "source": "**/*.@(js|css|png|jpg|jpeg|svg|webp|woff2|woff|ttf|ico)",
         "headers": [
           {

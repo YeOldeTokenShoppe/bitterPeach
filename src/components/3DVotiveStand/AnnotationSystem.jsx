@@ -94,7 +94,7 @@ function AnnotationSystem({ annotations = [], is80sMode = false, scale = 1 }) {
         }
         
         // Position camera at a fixed distance from the annotation
-        const distance = 3; // Adjust this value: smaller = closer zoom, larger = farther zoom
+        const distance = 7; // Adjust this value: smaller = closer zoom, larger = farther zoom
         targetPosition.current.copy(annotationPos).add(direction.multiplyScalar(distance));
         targetLookAt.current.copy(annotationPos);
       }

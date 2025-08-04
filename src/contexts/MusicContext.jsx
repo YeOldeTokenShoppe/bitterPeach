@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 
 // Create the music context
-const MusicContext = createContext();
+export const MusicContext = createContext();
 
 // Custom hook to use the music context
 export const useMusic = () => {
@@ -23,6 +23,7 @@ export const MusicProvider = ({ children }) => {
   const [is80sMode, setIs80sMode] = useState(false);
   const [currentTrackUrl, setCurrentTrackUrl] = useState('');
   const [currentTrackPath, setCurrentTrackPath] = useState(''); // Add path tracking
+  const [currentTrackBPM, setCurrentTrackBPM] = useState(100); // Add BPM tracking
   const audioRef = React.useRef(null);
   const [audioElement, setAudioElement] = useState(null);
   
@@ -223,6 +224,8 @@ export const MusicProvider = ({ children }) => {
     setCurrentTrackUrl,
     currentTrackPath,
     setCurrentTrackPath,
+    currentTrackBPM,
+    setCurrentTrackBPM,
     audioElement: audioRef.current,
     audioRef,
   };

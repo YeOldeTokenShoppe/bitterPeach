@@ -132,8 +132,8 @@ export default function CathedralPage({ is80sMode, setIs80sMode }) {
       
       {/* Right-aligned CyberCalloutOverlay */}
       <CyberCalloutOverlay
-        title="GET LIT WITH RL80"
-        subtitle="PROSPER80 GOSPEL"
+        title="THE ILLUMIN80"
+        subtitle="GET LIT WITH RL80"
         description="Enter the cathedral where ancient architecture meets digital transcendence. Experience the convergence of past and future."
         buttonText="EXPLORE"
         is80sMode={is80sMode}
@@ -262,8 +262,10 @@ export default function CathedralPage({ is80sMode, setIs80sMode }) {
           color="white"
           _hover={{ bg: "rgba(0, 0, 0, 0.7)" }}
           onClick={() => {
-            // Skip functionality would need to be implemented differently
-            console.log('Skip button clicked');
+            // Call the skip function from music controls
+            if (musicControlsRef.current?.skipTrack) {
+              musicControlsRef.current.skipTrack();
+            }
           }}
         />
         
@@ -362,7 +364,7 @@ export default function CathedralPage({ is80sMode, setIs80sMode }) {
     {/* Bot/AI Assistant Icon */}
     <IconButton
       position="fixed"
-      top={isMobileView ? "16rem" : "16.5rem"}
+      top={isMobileView ? "13rem" : "13.5rem"}
       right={isMobileView ? "20px" : "2rem"}
       zIndex="1100"
       aria-label="AI Assistant"

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, memo } from 'react';
 import { Box, IconButton, Text } from '@chakra-ui/react';
 import { storage } from '../utilities/firebaseClient';
 import { ref as storageRefUtil, getDownloadURL } from 'firebase/storage';
-import { useMusic } from '../contexts/';
+import { useMusic } from '../contexts/MusicContext';
 
 /**
  * Simplified Music Player Component
@@ -25,7 +25,8 @@ const SimplifiedMusicPlayer = memo(({
     currentTrackUrl: contextTrackUrl,
     setCurrentTrackUrl: setContextTrackUrl,
     currentTrackPath: contextTrackPath,
-    setCurrentTrackPath: setContextTrackPath
+    setCurrentTrackPath: setContextTrackPath,
+    setCurrentTrackBPM: setContextTrackBPM
   } = useMusic();
   
   // Local state for UI
@@ -34,22 +35,22 @@ const SimplifiedMusicPlayer = memo(({
   const [pendingPlay, setPendingPlay] = useState(false);
   const [userPaused, setUserPaused] = useState(false);
   
-  // Track lists with Firebase Storage paths
+  // Track lists with Firebase Storage paths and BPM metadata
   const tracks80s = [
-    { name: "For Those About to Rock", path: "audio/320k/for-those-about-to-rock-ac-dc.m4a" },
-    { name: "99 Luftballoons", path: "audio/320k/99-luftballoons-nena.m4a" },
-    { name: "Like a Prayer", path: "audio/320k/like-a-prayer-madonna.m4a" },
-    { name: "Good Life", path: "audio/320k/good-life-inner-city.m4a" },
-    { name: "Dirty Cash", path: "audio/320k/dirty-cash.m4a" },
-    { name: "Intergalactic", path: "audio/320k/intergalactic-beastie-boys.m4a" },
+    { name: "For Those About to Rock", path: "audio/320k/for-those-about-to-rock-ac-dc.m4a", bpm: 95 }, // Medium tempo rock
+    { name: "99 Luftballoons", path: "audio/320k/99-luftballoons-nena.m4a", bpm: 120 }, // Upbeat pop
+    { name: "Like a Prayer", path: "audio/320k/like-a-prayer-madonna.m4a", bpm: 112 }, // Dance pop
+    { name: "Good Life", path: "audio/320k/good-life-inner-city.m4a", bpm: 120 }, // House/dance
+    { name: "Dirty Cash", path: "audio/320k/dirty-cash.m4a", bpm: 116 }, // Dance
+    { name: "Intergalactic", path: "audio/320k/intergalactic-beastie-boys.m4a", bpm: 108 }, // Hip hop
 
 
 
   ];
   
   const tracksAlt = [
-    { name: "Rocket Man", path: "audio/320k/rocket-man---steven-drozd.m4a" },
-    { name: "Magnetic", path: "audio/320k/01-magnetic.m4a" },
+    { name: "Rocket Man", path: "audio/320k/rocket-man---steven-drozd.m4a", bpm: 85 }, // Slower ballad
+    { name: "Magnetic", path: "audio/320k/01-magnetic.m4a", bpm: 100 }, // Mid-tempo
   ];
   
   const currentTracks = is80sMode ? tracks80s : tracksAlt;
@@ -89,6 +90,7 @@ const SimplifiedMusicPlayer = memo(({
       // When mode changes, reset to first track of new mode
       setContextTrackIndex(0);
       setContextTrackPath(currentTracks[0].path);
+      setContextTrackBPM(currentTracks[0].bpm); // Set BPM for new track
       
       // If currently playing, stop playback to force reload
       if (contextIsPlaying && audioRef.current) {
@@ -106,6 +108,7 @@ const SimplifiedMusicPlayer = memo(({
     const nextIndex = (contextTrackIndex + 1) % currentTracks.length;
     setContextTrackIndex(nextIndex);
     setContextTrackPath(currentTracks[nextIndex].path);
+    setContextTrackBPM(currentTracks[nextIndex].bpm); // Set BPM for new track
   };
   
   // Add event listener for track end
@@ -157,6 +160,7 @@ const SimplifiedMusicPlayer = memo(({
         
         setContextTrackUrl(downloadUrl); // Update context
         setContextTrackPath(currentTrack.path); // Save current track path
+        setContextTrackBPM(currentTrack.bpm); // Set BPM for current track
         
         // Only update src if it's different
         const needsUpdate = audioRef.current.src !== downloadUrl;
@@ -303,6 +307,7 @@ const SimplifiedMusicPlayer = memo(({
     // Update track index and path
     setContextTrackIndex(nextIndex);
     setContextTrackPath(currentTracks[nextIndex].path);
+    setContextTrackBPM(currentTracks[nextIndex].bpm); // Set BPM for new track
     
     // If we were playing, set flag to resume after load
     if (contextIsPlaying) {

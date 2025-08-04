@@ -20,8 +20,8 @@ const CyberNav = ({ is80sMode = false }) => {
 
   const navItems = [
     // { id: '01', date: '01', title: 'HOME', path: '/home', thumbnail: '/rl80logo.png' },
-    { id: '01', date: 'THE ILLUMIN80', title: 'Get lit with RL80', path: '/cyborg-temple', thumbnail: '/sacred.png' },
-    { id: '02', date: 'ANTI-GRAV80', title: 'A shrine to shine', path: '/', thumbnail: '/fight1.jpg' },
+    { id: '01', date: 'THE ILLUMIN80', title: 'Get lit with RL80', path: '/cathedral', thumbnail: '/sacred.png' },
+    { id: '02', date: 'THE NATIV-80', title: '', path: '/', thumbnail: '/candles.png' },
     { id: '03', date: 'INFIN80 FOUNTAIN', title: 'Stay hydrated with RL80', path: '/fountain.html', thumbnail: '/fountain.png' },
     { id: '04', date: 'PROBABIL80', title: 'A digital infinity', path: '/sci-fi-lab', thumbnail: '/vvv.jpg' },
   ];

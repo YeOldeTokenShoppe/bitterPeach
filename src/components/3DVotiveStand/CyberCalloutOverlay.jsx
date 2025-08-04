@@ -52,7 +52,7 @@ function CyberCalloutOverlay({
         style={{
           position: 'relative',
           width: '400px',
-          background: 'rgba(0, 0, 0, 0.95)',
+          background: 'rgba(0, 0, 0, 0.55)',
           border: `2px solid ${primaryColor}`,
           padding: '30px',
           fontFamily: 'Arial, sans-serif',
