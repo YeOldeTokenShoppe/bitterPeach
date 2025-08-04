@@ -12,6 +12,7 @@ import FloatingCandleViewer from './3DVotiveStand/CandleInteraction';
 import { useFirestoreResults } from '../utilities/useFirestoreResults';
 import { detectDevice, getSceneSettings, optimizeTexture, texturePool } from '../utilities/performanceOptimizer';
 import { useMusic, MusicContext } from '../contexts/MusicContext';
+import CinematicCamera from './CinematicCamera';
 //hi
 // Version string for cache busting - update this when model changes
 const MODEL_VERSION = '1.0.1';
@@ -31,6 +32,16 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
   const { camera } = useThree();
   const results = useFirestoreResults();
   const textureLoader = useRef(new THREE.TextureLoader());
+  
+  // Nightclub lighting refs
+  const spotlightsRef = useRef([]);
+  const lightGroupRef = useRef();
+  
+  // Video screen refs
+  const videoRef = useRef();
+  const videoTextureRef = useRef();
+  const videoWallsRef = useRef([]); // Store multiple walls
+  const originalMaterialsRef = useRef(new Map()); // Store original materials for each wall
 
   // Calculate animation speed multiplier based on BPM
   // Base BPM of 100 = 1.0 speed multiplier
@@ -176,6 +187,54 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
       // Enable shadows selectively for better performance
       gltf.scene.traverse((child) => {
         if (child.isMesh) {
+          // Find the video walls
+          if (child.name === 'pPlane3_Walls_0' || child.name === 'pPlane4_Walls_0') {
+            console.log('Found video wall:', child.name);
+            originalMaterialsRef.current.set(child.name, child.material);
+            child.userData.isVideoWall = true;
+            videoWallsRef.current.push(child);
+          }
+          // Make GodsRay objects non-clickable
+          if (child.name && (child.name.includes('GodsRay') || child.name.includes('Godsray') || 
+              child.name.includes('godray') || child.name.includes('GodRay'))) {
+            child.raycast = () => {}; // Empty function prevents raycasting
+            child.material.depthWrite = false; // Ensure transparency works correctly
+            console.log(`Made ${child.name} non-clickable`);
+          }
+          
+          // Ensure floor tiles and other objects respond to dynamic lights
+          if (child.name && (child.name.includes('Stone_Ground') || 
+              child.name.includes('Floor') || 
+              child.name.includes('Wall') ||
+              child.name.includes('Column'))) {
+            
+            // Ensure the material responds to lights
+            if (child.material) {
+              // If it's a basic material, convert to a light-responsive one
+              if (child.material.type === 'MeshBasicMaterial') {
+                const oldMaterial = child.material;
+                child.material = new THREE.MeshStandardMaterial({
+                  color: oldMaterial.color,
+                  map: oldMaterial.map,
+                  roughness: 0.8,
+                  metalness: 0.2
+                });
+                oldMaterial.dispose();
+                console.log(`Converted ${child.name} from MeshBasicMaterial to MeshStandardMaterial`);
+              }
+              
+              // Force all materials to be MeshStandardMaterial or MeshPhongMaterial
+              if (child.material.type !== 'MeshStandardMaterial' && 
+                  child.material.type !== 'MeshPhongMaterial' &&
+                  child.material.type !== 'MeshPhysicalMaterial') {
+                console.log(`Warning: ${child.name} has material type ${child.material.type} which may not respond to lights`);
+              }
+              
+              // Ensure material properties allow light interaction
+              child.material.needsUpdate = true;
+            }
+          }
+          
           // Only large objects cast shadows
           if (child.name.includes('Wall') || child.name.includes('Column') || 
               child.name.includes('Roof') || child.name.includes('Floor')) {
@@ -526,6 +585,153 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
       });
     }
   }, [currentTrackBPM, isPlaying, actions, getAnimationSpeedFromBPM]);
+
+  // Handle nightclub lighting effects when music plays
+  useEffect(() => {
+    if (spotlightsRef.current.length === 0) return;
+    
+    console.log('Nightclub lighting effect triggered. isPlaying:', isPlaying, 'Lights:', spotlightsRef.current.length);
+    
+    if (isPlaying) {
+      // Turn on nightclub lights with fade-in effect
+      spotlightsRef.current.forEach((light, i) => {
+        light.visible = true;
+        // Helper code commented out
+        // if (light.userData.helper) {
+        //   light.userData.helper.visible = true;
+        // }
+        if (light.userData.pointLight) {
+          light.userData.pointLight.visible = true;
+        }
+        // Stagger the fade-in
+        setTimeout(() => {
+          light.intensity = 0;
+          if (light.userData.pointLight) {
+            light.userData.pointLight.intensity = 0;
+          }
+          const fadeIn = setInterval(() => {
+            light.intensity += 2.0; // Even larger increment
+            if (light.userData.pointLight) {
+              light.userData.pointLight.intensity += 0.5;
+            }
+            if (light.intensity >= 30.0) { // Much higher max intensity for visibility
+              light.intensity = 50.0;
+              if (light.userData.pointLight) {
+                light.userData.pointLight.intensity = 5.0;
+              }
+              clearInterval(fadeIn);
+              console.log(`Light ${i} fully faded in with intensity:`, light.intensity);
+            }
+          }, 50);
+        }, i * 200);
+      });
+    } else {
+      // Turn off nightclub lights with fade-out
+      spotlightsRef.current.forEach((light) => {
+        const fadeOut = setInterval(() => {
+          light.intensity -= 1.0;
+          if (light.userData.pointLight) {
+            light.userData.pointLight.intensity -= 0.4;
+          }
+          if (light.intensity <= 0) {
+            light.intensity = 0;
+            light.visible = false;
+            if (light.userData.pointLight) {
+              light.userData.pointLight.intensity = 0;
+              light.userData.pointLight.visible = false;
+            }
+            // Helper code commented out
+            // if (light.userData.helper) {
+            //   light.userData.helper.visible = false;
+            // }
+            clearInterval(fadeOut);
+          }
+        }, 50);
+      });
+    }
+  }, [isPlaying]);
+
+  // Handle video screen effect when music plays
+  useEffect(() => {
+    if (!gltf.scene || videoWallsRef.current.length === 0) return;
+    
+    if (isPlaying) {
+      console.log(`Starting video on ${videoWallsRef.current.length} walls`);
+      
+      // Create video element
+      const video = document.createElement('video');
+      video.src = '/83.mov';
+      video.loop = true;
+      video.muted = true; // Required for autoplay
+      video.playsInline = true;
+      video.setAttribute('playsinline', '');
+      videoRef.current = video;
+      
+      // Create video texture
+      const videoTexture = new THREE.VideoTexture(video);
+      videoTexture.minFilter = THREE.LinearFilter;
+      videoTexture.magFilter = THREE.LinearFilter;
+      videoTexture.format = THREE.RGBFormat;
+      videoTexture.encoding = THREE.sRGBEncoding;
+      videoTextureRef.current = videoTexture;
+      
+      // Create emissive material for the video
+      const videoMaterial = new THREE.MeshBasicMaterial({
+        map: videoTexture,
+        side: THREE.DoubleSide,
+        toneMapped: false
+      });
+      
+      // Apply video material to all video walls
+      videoWallsRef.current.forEach(wall => {
+        console.log(`Applying video to wall: ${wall.name}`);
+        wall.material = videoMaterial;
+      });
+      
+      // Start playing
+      video.play().catch(err => {
+        console.error('Error playing video:', err);
+      });
+      
+    } else {
+      console.log('Stopping video on walls');
+      
+      // Stop and clean up video
+      if (videoRef.current) {
+        videoRef.current.pause();
+        videoRef.current.src = '';
+        videoRef.current.load();
+        videoRef.current = null;
+      }
+      
+      // Restore original materials to all walls
+      videoWallsRef.current.forEach(wall => {
+        const originalMaterial = originalMaterialsRef.current.get(wall.name);
+        if (originalMaterial) {
+          wall.material = originalMaterial;
+          console.log(`Restored original material to wall: ${wall.name}`);
+        }
+      });
+      
+      // Dispose of video texture
+      if (videoTextureRef.current) {
+        videoTextureRef.current.dispose();
+        videoTextureRef.current = null;
+      }
+    }
+    
+    // Cleanup function
+    return () => {
+      if (videoRef.current) {
+        videoRef.current.pause();
+        videoRef.current.src = '';
+        videoRef.current.load();
+      }
+      if (videoTextureRef.current) {
+        videoTextureRef.current.dispose();
+      }
+    };
+  }, [isPlaying, gltf.scene]);
 
   // Handle animation switching when isPlaying changes
   useEffect(() => {
@@ -922,6 +1128,76 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
       ground.receiveShadow = true;
       groupRef.current.add(ground);
       
+      // Create nightclub lighting group
+      const lightGroup = new THREE.Group();
+      lightGroupRef.current = lightGroup;
+      groupRef.current.add(lightGroup);
+      
+      // Create spotlights for nightclub effect - positioned relative to cathedral
+      // Cathedral is at position [0, -60, -15] with rotation [0, Math.PI / 1.2, 0]
+      const spotlightColors = [0xff00ff, 0x00ffff, 0xff0080, 0x00ff80]; // Purple, Cyan, Pink, Teal
+      const spotlightPositions = [
+        [10, -40, 0],     // Front right (raised and centered)
+        [-10, -40, 0],    // Front left
+        [15, -40, -20],   // Back right
+        [-15, -40, -20]   // Back left
+      ];
+      
+      console.log('Creating nightclub spotlights...');
+      
+      spotlightPositions.forEach((pos, i) => {
+        const spotlight = new THREE.SpotLight(spotlightColors[i], 0); // Start with 0 intensity
+        spotlight.position.set(...pos);
+        spotlight.angle = Math.PI / 5; // Wider for more coverage
+        spotlight.penumbra = 0.5; // Balanced edge softness
+        spotlight.distance = 200; // Much longer reach
+        spotlight.intensity = 0; // Start at 0
+        spotlight.decay = 1; // Standard decay
+        spotlight.castShadow = false; // Performance optimization
+        spotlight.visible = false; // Start hidden
+        
+        // Create target for spotlight
+        const target = new THREE.Object3D();
+        target.position.set(0, -60, -15); // Point towards cathedral center (same as model position)
+        lightGroup.add(target);
+        spotlight.target = target;
+        
+        // Store original position and color for animations
+        spotlight.userData = {
+          originalPosition: pos,
+          originalColor: new THREE.Color(spotlightColors[i]),
+          colorIndex: i,
+          target: target
+        };
+        
+        // Add a helper to visualize spotlight cone (optional, for debugging)
+        // Commenting out helpers to remove the colored lines
+        // const helper = new THREE.SpotLightHelper(spotlight);
+        // helper.visible = false; // Start hidden
+        // spotlight.userData.helper = helper;
+        // lightGroup.add(helper);
+        
+        lightGroup.add(spotlight);
+        spotlightsRef.current.push(spotlight);
+        
+        console.log(`Created spotlight ${i}:`, {
+          position: spotlight.position,
+          target: target.position,
+          color: spotlight.color,
+          angle: spotlight.angle,
+          intensity: spotlight.intensity
+        });
+        
+        // Add a point light at the spotlight position for extra glow
+        const pointLight = new THREE.PointLight(spotlightColors[i], 0, 50);
+        pointLight.position.copy(spotlight.position);
+        pointLight.visible = false;
+        lightGroup.add(pointLight);
+        
+        // Store point light reference in spotlight userData
+        spotlight.userData.pointLight = pointLight;
+      });
+      
       return () => {
         groupRef.current.remove(gridHelper);
         gridHelper.material.dispose();
@@ -929,15 +1205,81 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
         groupRef.current.remove(ground);
         groundGeometry.dispose();
         groundMaterial.dispose();
+        
+        // Clean up spotlights
+        spotlightsRef.current.forEach(light => {
+          if (light.parent) light.parent.remove(light);
+          light.dispose();
+        });
+        spotlightsRef.current = [];
+        
+        if (lightGroupRef.current && lightGroupRef.current.parent) {
+          lightGroupRef.current.parent.remove(lightGroupRef.current);
+        }
       };
     }
   }, []);
 
 
-  // Update animation mixer
+  // Update animation mixer and animate spotlights
   useFrame((state, delta) => {
     if (mixer) {
       mixer.update(delta);
+    }
+    
+    // Animate nightclub spotlights when playing
+    if (isPlaying && spotlightsRef.current.length > 0) {
+      const time = state.clock.getElapsedTime();
+      const bpmFactor = currentTrackBPM / 100; // Normalize to base BPM
+      
+      spotlightsRef.current.forEach((light, i) => {
+        if (!light.visible || light.intensity === 0) return;
+        
+        // Animate spotlight movement
+        const speed = bpmFactor * 0.5;
+        const offset = i * Math.PI / 3;
+        
+        // Create circular/figure-8 movement patterns
+        const pattern = i % 3;
+        let x, z;
+        
+        switch (pattern) {
+          case 0: // Circle pattern
+            x = Math.sin(time * speed + offset) * 10;
+            z = Math.cos(time * speed + offset) * 10;
+            break;
+          case 1: // Figure-8 pattern
+            x = Math.sin(time * speed + offset) * 15;
+            z = Math.sin(time * speed * 2 + offset) * 8;
+            break;
+          case 2: // Sweep pattern
+            x = Math.sin(time * speed * 0.7 + offset) * 20;
+            z = Math.cos(time * speed * 0.5 + offset) * 5;
+            break;
+        }
+        
+        // Update target position
+        light.userData.target.position.x = x;
+        light.userData.target.position.z = -10 + z;
+        
+        // Color cycling based on music
+        const hue = (time * speed * 0.1 + i * 0.16) % 1;
+        light.color.setHSL(hue, 1, 0.5);
+        
+        // Intensity pulsing (between 25 and 35 for maximum visibility)
+        const pulse = Math.sin(time * speed * 2 + offset) * 15.0 + 50.0;
+        light.intensity = pulse;
+        
+        // Also pulse the point light
+        if (light.userData.pointLight) {
+          light.userData.pointLight.intensity = pulse / 6; // Scale down for point light
+        }
+        
+        // Update helper if it exists
+        // if (light.userData.helper) {
+        //   light.userData.helper.update();
+        // }
+      });
     }
   });
 
@@ -961,9 +1303,10 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
 useGLTF.preload(`/cathedral.glb?v=${MODEL_VERSION}`);
 
 // Inner component that uses music context
-function CathedralWithMusic({ isPlaying = false }) {
+function CathedralWithMusic({ isPlaying = false, showAnnotations = true }) {
   const [showFloatingViewer, setShowFloatingViewer] = useState(false);
   const [selectedCandleData, setSelectedCandleData] = useState(null);
+  const [cinematicComplete, setCinematicComplete] = useState(false);
   const device = useMemo(() => detectDevice(), []);
   const sceneSettings = useMemo(() => getSceneSettings(device), [device]);
   const { currentTrackBPM } = useMusic();
@@ -976,6 +1319,11 @@ function CathedralWithMusic({ isPlaying = false }) {
   const closeFloatingViewer = useCallback(() => {
     setShowFloatingViewer(false);
     setSelectedCandleData(null);
+  }, []);
+
+  const handleCinematicComplete = useCallback(() => {
+    setCinematicComplete(true);
+    console.log('Cinematic camera animation complete');
   }, []);
 
   // Cleanup textures on unmount
@@ -992,7 +1340,7 @@ function CathedralWithMusic({ isPlaying = false }) {
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
       <Canvas 
         shadows={sceneSettings.shadowsEnabled}
-        camera={{ position: [0, -43, -49], fov: 40, near: 0.01, far: 200 }}
+        camera={{ position: [-5.41, -47.69, -8.00], fov: 45, near: 0.01, far: 200 }}
         gl={{ 
           antialias: sceneSettings.antialias,
           pixelRatio: sceneSettings.pixelRatio,
@@ -1006,7 +1354,7 @@ function CathedralWithMusic({ isPlaying = false }) {
              {/* <StarrySky /> */}
           <ConstellationModel  groupScale={[10, 10, 10]} groupPosition={[0, 15, -80]}    isVisible={true} />
         <OrbitControls 
-            target={[0, -50, -5]}
+            target={[-5.63, -47.71, -7.57]}
             zoomToCursor={true}
             enablePan={false} 
             enableRotate={!showFloatingViewer} 
@@ -1026,10 +1374,10 @@ function CathedralWithMusic({ isPlaying = false }) {
             />
           
         
-        <ambientLight intensity={0.3} />
+        {/* Directional light - much dimmer when music plays */}
         <directionalLight 
           position={[10, 10, 5]} 
-          intensity={1} 
+          intensity={isPlaying ? 0.05 : 1} 
           castShadow={sceneSettings.shadowsEnabled}
           shadow-mapSize={[sceneSettings.shadowMapSize, sceneSettings.shadowMapSize]}
           shadow-camera-far={150}
@@ -1039,8 +1387,18 @@ function CathedralWithMusic({ isPlaying = false }) {
           shadow-camera-bottom={-50}
           shadow-bias={-0.001}
         />
+        {/* Fog effect for nightclub atmosphere - enhanced for volumetric effect */}
+        {isPlaying && <fog attach="fog" args={['#050505', 5, 120]} />}
     <PostProcessingEffects is80sMode={false} />
         <Suspense fallback={null}>
+          {/* Cinematic camera - set enableLogging to true for debugging */}
+          <CinematicCamera 
+            onComplete={handleCinematicComplete}
+            duration={12000}
+            startDelay={0}
+            enableLogging={true}
+            autoStart={true}
+          />
           <CathedralModel 
             isPlaying={isPlaying} 
             onCandleClick={handleCandleClick}
@@ -1050,30 +1408,49 @@ function CathedralWithMusic({ isPlaying = false }) {
           />
           <TickerCanvasTextureApplier is80sMode={false} />
           <Object2Replacer />
-          <AnnotationSystem 
-            annotations={[
-              {
-                position: [-9.5, -48, -4], // Main altar area
-                text: "Sacred Digital Altar\nWhere prayers become code"
-              },
-              {
-                position: [1, -51, 1], // Right side
-                text: "Quantum Confessional\nConfess to the algorithm"
-              },
-              {
-                position: [-16, -51, -9], // Left side
-                text: "Neural Nave\nProcessing faithful data"
-              },
-              {
-                position: [-4, -55, -18], // Upper area
-                text: "Holographic Heavens\nCloud computing the divine"
-              }
-            ]}
-            is80sMode={false}
-            scale={4}
-          />
+          {cinematicComplete && showAnnotations && (
+            <AnnotationSystem 
+              annotations={[
+                {
+                  position: [-9.5, -48, -4], // Main altar area
+                  text: "Sacred Digital Altar\nWhere prayers become code",
+                  customCamera: {
+                    position: [-7.14, -48.21, -4.87], // Camera position
+                    lookAt: [-7.82, -47.77, -3.50], // Look at the altar
+           
+                  }
+                },
+                {
+                  position: [1, -51, 1], // Right side
+                  text: "Quantum Confessional\nConfess to the algorithm",
+                  // customCamera: {
+                  //   position: [8, -49, 5], // Camera position
+                  //   lookAt: [1, -51, 1], // Look at the confessional
+        
+                  // }
+                },
+                {
+                  position: [-16, -51, -9], // Left side
+                  text: "Neural Nave\nProcessing faithful data"
+                },
+                {
+                  position: [-3.5, -56, -15], // Upper area
+                  text: "Holographic Heavens\nCloud computing the divine",
+                  customCamera: {
+                    position: [-11.54, -48.46, -7.78], // Camera at annotation position
+                    lookAt: [-4.68, -50.84, -12.67], // Look in opposite direction
+                    distance: 10
+                  }
+                }
+              ]}
+              is80sMode={false}
+              scale={4}
+              textScale={1.5}
+            />
+          )}
         </Suspense>
-        <Environment preset="sunset" />
+        {/* Environment light - dimmed when music plays */}
+        {!isPlaying && <Environment preset="sunset" intensity={0.3} />}
       </Canvas>
       
       {/* FloatingCandleViewer outside the Canvas */}
@@ -1104,9 +1481,10 @@ function Cathedral(props) {
 }
 
 // Version without music context for standalone usage
-function CathedralWithoutMusic({ isPlaying = false }) {
+function CathedralWithoutMusic({ isPlaying = false, showAnnotations = true }) {
   const [showFloatingViewer, setShowFloatingViewer] = useState(false);
   const [selectedCandleData, setSelectedCandleData] = useState(null);
+  const [cinematicComplete, setCinematicComplete] = useState(false);
   const device = useMemo(() => detectDevice(), []);
   const sceneSettings = useMemo(() => getSceneSettings(device), [device]);
   const currentTrackBPM = 100; // Default BPM
@@ -1119,6 +1497,11 @@ function CathedralWithoutMusic({ isPlaying = false }) {
   const closeFloatingViewer = useCallback(() => {
     setShowFloatingViewer(false);
     setSelectedCandleData(null);
+  }, []);
+
+  const handleCinematicComplete = useCallback(() => {
+    setCinematicComplete(true);
+    console.log('Cinematic camera animation complete');
   }, []);
 
   // Cleanup textures on unmount
@@ -1135,7 +1518,7 @@ function CathedralWithoutMusic({ isPlaying = false }) {
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
       <Canvas 
         shadows={sceneSettings.shadowsEnabled}
-        camera={{ position: [0, -43, -49], fov: 40, near: 0.01, far: 200 }}
+        camera={{ position: [-5.41, -47.69, -8.00], fov: 45, near: 0.01, far: 200 }}
         gl={{ 
           antialias: sceneSettings.antialias,
           pixelRatio: sceneSettings.pixelRatio,
@@ -1149,7 +1532,7 @@ function CathedralWithoutMusic({ isPlaying = false }) {
              {/* <StarrySky /> */}
           <ConstellationModel  groupScale={[10, 10, 10]} groupPosition={[0, 15, -80]}    isVisible={true} />
         <OrbitControls 
-            target={[0, -50, -5]}
+            target={[-5.63, -47.71, -7.57]}
             zoomToCursor={true}
             enablePan={false} 
             enableRotate={!showFloatingViewer} 
@@ -1169,8 +1552,9 @@ function CathedralWithoutMusic({ isPlaying = false }) {
             />
           
         
-        <ambientLight intensity={0.3} />
-        <directionalLight 
+        {/* Minimal ambient light - much darker when music plays */}
+        <ambientLight intensity={isPlaying ? 0.1 : 0.3} />
+        {/* <directionalLight 
           position={[10, 10, 5]} 
           intensity={1} 
           castShadow={sceneSettings.shadowsEnabled}
@@ -1181,9 +1565,19 @@ function CathedralWithoutMusic({ isPlaying = false }) {
           shadow-camera-top={50}
           shadow-camera-bottom={-50}
           shadow-bias={-0.001}
-        />
+        /> */}
+        {/* Fog effect for nightclub atmosphere - enhanced for volumetric effect */}
+        {isPlaying && <fog attach="fog" args={['#050505', 5, 120]} />}
     <PostProcessingEffects is80sMode={false} />
         <Suspense fallback={null}>
+          {/* Cinematic camera - set enableLogging to true for debugging */}
+          <CinematicCamera 
+            onComplete={handleCinematicComplete}
+            duration={12000}
+            startDelay={0}
+            enableLogging={true}
+            autoStart={true}
+          />
           <CathedralModel 
             isPlaying={isPlaying} 
             onCandleClick={handleCandleClick}
@@ -1193,30 +1587,49 @@ function CathedralWithoutMusic({ isPlaying = false }) {
           />
           <TickerCanvasTextureApplier is80sMode={false} />
           <Object2Replacer />
-          <AnnotationSystem 
-            annotations={[
-              {
-                position: [-9.5, -48, -4], // Main altar area
-                text: "Sacred Digital Altar\nWhere prayers become code"
-              },
-              {
-                position: [1, -51, 1], // Right side
-                text: "Quantum Confessional\nConfess to the algorithm"
-              },
-              {
-                position: [-16, -51, -9], // Left side
-                text: "Neural Nave\nProcessing faithful data"
-              },
-              {
-                position: [-4, -55, -18], // Upper area
-                text: "Holographic Heavens\nCloud computing the divine"
-              }
-            ]}
-            is80sMode={false}
-            scale={4}
-          />
+          {cinematicComplete && showAnnotations && (
+            <AnnotationSystem 
+              annotations={[
+                {
+                  position: [-9.5, -48, -4], // Main altar area
+                  text: "Sacred Digital Altar\nWhere prayers become code",
+                  customCamera: {
+                    position: [-7.14, -48.21, -4.87], // Camera position
+                    lookAt: [-7.82, -47.77, -3.50], // Look at the altar
+         
+                  }
+                
+                },
+                {
+                  position: [1, -51, 1], // Right side
+                  text: "Quantum Confessional\nConfess to the algorithm",
+                  // customCamera: {
+                  //   position: [8, -49, 5], // Camera position
+                  //   lookAt: [1, -51, 1], // Look at the confessional
+   
+                  // }
+                },
+                {
+                  position: [-16, -51, -9], // Left side
+                  text: "Neural Nave\nProcessing faithful data"
+                },
+                {
+                  position: [-3.5, -56, -15], // Upper area
+                  text: "Holographic Heavens\nCloud computing the divine",
+                  customCamera: {
+                    position: [-3.5, -56, -15], // Camera at annotation position
+                    lookAt: [3.5, -56, 15], // Look in opposite direction
+                    distance: 10
+                  }
+                }
+              ]}
+              is80sMode={false}
+              scale={4}
+              textScale={1.5}
+            />
+          )}
         </Suspense>
-        <Environment preset="sunset" />
+        {/* <Environment preset="sunset" /> */}
       </Canvas>
       
       {/* FloatingCandleViewer outside the Canvas */}

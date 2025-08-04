@@ -150,7 +150,7 @@ const BuyTokenFAB = ({ is80sMode = false }) => {
       left={isMobile ? "50%" : "auto"}
       right={isMobile ? "auto" : "20px"}
       transform={isMobile ? "translateX(-50%)" : "none"}
-      zIndex="100"
+      zIndex="1200"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >

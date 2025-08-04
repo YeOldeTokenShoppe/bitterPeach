@@ -3,7 +3,7 @@ import { useThree, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import AnnotationMarker from './AnnotationMarker';
 
-function AnnotationSystem({ annotations = [], is80sMode = false, scale = 1 }) {
+function AnnotationSystem({ annotations = [], is80sMode = false, scale = 1, textScale = null }) {
   const { camera, controls, gl } = useThree();
   const [activeAnnotation, setActiveAnnotation] = useState(null);
   const targetPosition = useRef(new THREE.Vector3());
@@ -212,6 +212,7 @@ function AnnotationSystem({ annotations = [], is80sMode = false, scale = 1 }) {
           hoverColor={hoverColor}
           annotationOffset={annotation.annotationOffset}
           scale={scale}
+          textScale={textScale}
         />
       ))}
     </>

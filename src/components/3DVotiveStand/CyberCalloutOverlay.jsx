@@ -6,6 +6,8 @@ function CyberCalloutOverlay({
   description = "Enter the sacred space where technology meets spirituality. Explore the cyborg temple and discover its mysteries.",
   buttonText = "CONTINUE",
   onButtonClick,
+  secondButtonText = null,
+  onSecondButtonClick = null,
   is80sMode = false,
   show = true,
   autoHide = true,
@@ -26,6 +28,13 @@ function CyberCalloutOverlay({
   const handleButtonClick = () => {
     if (onButtonClick) {
       onButtonClick();
+    }
+    setIsVisible(false);
+  };
+  
+  const handleSecondButtonClick = () => {
+    if (onSecondButtonClick) {
+      onSecondButtonClick();
     }
     setIsVisible(false);
   };
@@ -65,7 +74,12 @@ function CyberCalloutOverlay({
       >
         {/* Close button */}
         <button
-          onClick={() => setIsVisible(false)}
+          onClick={() => {
+            setIsVisible(false);
+            if (onButtonClick) {
+              onButtonClick();
+            }
+          }}
           style={{
             position: 'absolute',
             top: '10px',
@@ -139,34 +153,77 @@ function CyberCalloutOverlay({
             {description}
           </div>
           
-          {/* Button */}
-          <button
-            onClick={handleButtonClick}
+          {/* Buttons */}
+          <div
             style={{
-              background: accentColor,
-              color: '#000000',
-              border: 'none',
-              padding: '12px 40px',
-              fontSize: '18px',
-              fontWeight: 'bold',
-              letterSpacing: '2px',
-              cursor: 'pointer',
-              transform: 'skewX(5deg)',
-              transition: 'all 0.3s ease',
-              boxShadow: `0 0 20px ${accentColor}60`,
-              textTransform: 'uppercase',
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.transform = 'skewX(5deg) scale(1.05)';
-              e.target.style.boxShadow = `0 0 30px ${accentColor}80`;
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.transform = 'skewX(5deg) scale(1)';
-              e.target.style.boxShadow = `0 0 20px ${accentColor}60`;
+              display: 'flex',
+              gap: '15px',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
-            {buttonText}
-          </button>
+            <button
+              onClick={handleButtonClick}
+              style={{
+                background: accentColor,
+                color: '#000000',
+                border: 'none',
+                padding: '12px 40px',
+                fontSize: '18px',
+                fontWeight: 'bold',
+                letterSpacing: '2px',
+                cursor: 'pointer',
+                transform: 'skewX(5deg)',
+                transition: 'all 0.3s ease',
+                boxShadow: `0 0 20px ${accentColor}60`,
+                textTransform: 'uppercase',
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.transform = 'skewX(5deg) scale(1.05)';
+                e.target.style.boxShadow = `0 0 30px ${accentColor}80`;
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.transform = 'skewX(5deg) scale(1)';
+                e.target.style.boxShadow = `0 0 20px ${accentColor}60`;
+              }}
+            >
+              {buttonText}
+            </button>
+            
+            {secondButtonText && (
+              <button
+                onClick={handleSecondButtonClick}
+                style={{
+                  background: 'transparent',
+                  color: accentColor,
+                  border: `2px solid ${accentColor}`,
+                  padding: '12px 40px',
+                  fontSize: '18px',
+                  fontWeight: 'bold',
+                  letterSpacing: '2px',
+                  cursor: 'pointer',
+                  transform: 'skewX(5deg)',
+                  transition: 'all 0.3s ease',
+                  boxShadow: `0 0 20px ${accentColor}40`,
+                  textTransform: 'uppercase',
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.background = accentColor;
+                  e.target.style.color = '#000000';
+                  e.target.style.transform = 'skewX(5deg) scale(1.05)';
+                  e.target.style.boxShadow = `0 0 30px ${accentColor}80`;
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.background = 'transparent';
+                  e.target.style.color = accentColor;
+                  e.target.style.transform = 'skewX(5deg) scale(1)';
+                  e.target.style.boxShadow = `0 0 20px ${accentColor}40`;
+                }}
+              >
+                {secondButtonText}
+              </button>
+            )}
+          </div>
         </div>
         
         {/* Corner decorations */}
@@ -197,7 +254,7 @@ function CyberCalloutOverlay({
         <div
           style={{
             position: 'absolute',
-   
+            zIndex: '-1',
             top: '0',
             left: '0',
             right: '0',

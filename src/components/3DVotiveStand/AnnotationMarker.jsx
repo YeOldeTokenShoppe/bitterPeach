@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import { Html, Billboard, Text } from '@react-three/drei';
+import { Html, Billboard } from '@react-three/drei';
 import * as THREE from 'three';
 
 function AnnotationMarker({ 
@@ -12,7 +12,8 @@ function AnnotationMarker({
   color = '#00ff41',
   hoverColor = '#67e8f9',
   annotationOffset = null,
-  scale = 1
+  scale = 1,
+  textScale = null
 }) {
   const meshRef = useRef();
   const { camera } = useThree();
@@ -34,6 +35,7 @@ function AnnotationMarker({
   };
 
   const markerColor = hovered ? hoverColor : color;
+  const effectiveTextScale = textScale !== null ? textScale : scale;
 
   return (
     <group 
@@ -54,7 +56,12 @@ function AnnotationMarker({
         {/* Invisible larger click area */}
         <mesh visible={false}>
           <circleGeometry args={[0.2 * scale, 32]} />
-          <meshBasicMaterial transparent opacity={0} />
+          <meshBasicMaterial 
+            transparent 
+            opacity={0} 
+            depthTest={true}
+            depthWrite={true}
+          />
         </mesh>
         
         {/* Visible marker */}
@@ -82,25 +89,37 @@ function AnnotationMarker({
           />
         </mesh>
         
-        {/* Number text */}
-        <Text
+        {/* Eye icon instead of number */}
+        <Html
           position={[0, 0, 0.002]}
-          fontSize={0.15 * scale}
-          color={markerColor}
-          anchorX="center"
-          anchorY="middle"
-          material-toneMapped={false}
-          material-depthTest={true}
-          material-depthWrite={true}
+          center
+          distanceFactor={1}
+          occlude
+          style={{
+            pointerEvents: 'none',
+          }}
         >
-          {number.toString()}
-        </Text>
+          <svg 
+            xmlns="http://www.w3.org/2000/svg" 
+            width={100 * scale} 
+            height={100 * scale} 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            stroke={markerColor} 
+            strokeWidth="2" 
+            strokeLinecap="round" 
+            strokeLinejoin="round"
+          >
+            <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+        </Html>
       </Billboard>
       
       {/* Annotation text panel */}
       {isActive && (
         <Html
-          position={[0, 0.8 * scale, 0]}
+          position={[0, 0.4 * scale, 0]}
           center={!annotationOffset}
           distanceFactor={8}
           style={{
@@ -119,22 +138,22 @@ function AnnotationMarker({
           <div
             style={{
               background: 'rgba(0, 0, 0, 0.9)',
-              border: `${Math.max(1, scale)}px solid ${color}`,
-              borderRadius: `${4 * scale}px`,
-              padding: `${12 * scale}px ${16 * scale}px`,
+              border: `${Math.max(1, effectiveTextScale)}px solid ${color}`,
+              borderRadius: `${4 * effectiveTextScale}px`,
+              padding: `${12 * effectiveTextScale}px ${16 * effectiveTextScale}px`,
               color: '#ffffff',
-              fontSize: `${14 * scale}px`,
+              fontSize: `${14 * effectiveTextScale}px`,
               fontFamily: 'Arial, sans-serif',
-              maxWidth: `${200 * scale}px`,
-              boxShadow: `0 0 ${10 * scale}px ${color}40`,
+              maxWidth: `${200 * effectiveTextScale}px`,
+              boxShadow: `0 0 ${10 * effectiveTextScale}px ${color}40`,
               whiteSpace: 'pre-wrap',
             }}
           >
             {text}
             <div
               style={{
-                fontSize: `${12 * scale}px`,
-                marginTop: `${10 * scale}px`,
+                fontSize: `${12 * effectiveTextScale}px`,
+                marginTop: `${10 * effectiveTextScale}px`,
                 opacity: 0.7,
                 fontStyle: 'italic',
               }}

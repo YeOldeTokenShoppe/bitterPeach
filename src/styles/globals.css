@@ -1,2 +1,12 @@
 @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css');
-@import url('/styles/cyberpunk-mission-control-enhanced.css'); 
+@import url('/styles/cyberpunk-mission-control-enhanced.css');
+
+/* Spin animation for music player */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+} 
