@@ -10,7 +10,7 @@ import AnnotationSystem from './3DVotiveStand/AnnotationSystem';
 import PostProcessingEffects from './3DVotiveStand/PostProcessingEffects';
 import FloatingCandleViewer from './3DVotiveStand/CandleInteraction';
 import { useFirestoreResults } from '../utilities/useFirestoreResults';
-
+//hi
 function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClick, showFloatingViewer }) {
   const gltf = useGLTF('/cathedral.glb');
   const modelRef = useRef();
@@ -170,6 +170,19 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
 
   useEffect(() => {
     if (gltf.scene && modelRef.current) {
+      // Enable shadows selectively for better performance
+      gltf.scene.traverse((child) => {
+        if (child.isMesh) {
+          // Only large objects cast shadows
+          if (child.name.includes('Wall') || child.name.includes('Column') || 
+              child.name.includes('Roof') || child.name.includes('Floor')) {
+            child.castShadow = true;
+          }
+          // Most objects receive shadows
+          child.receiveShadow = true;
+        }
+      });
+      
       // Calculate the model's bounding box after positioning
       const box = new THREE.Box3().setFromObject(modelRef.current);
       const center = box.getCenter(new THREE.Vector3());
@@ -214,14 +227,23 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
   useEffect(() => {
     if (!gltf.scene) return;
 
-    // First, hide all flames initially
+    // First, find all VCANDLE objects to hide only their flames
+    const vcandleFlames = [];
     gltf.scene.traverse((child) => {
-      if (child.name && (child.name.includes('FLAME') || child.name.includes('Flame') || 
-          child.name.includes('flame') || child.name.includes('Fire') || 
-          child.name.includes('XFlame'))) {
-        child.visible = false;
+      // Check if this is a VCANDLE object
+      if (child.name && child.name.startsWith('VCANDLE')) {
+        // Hide flames that are children of VCANDLE objects
+        child.traverse((vcandleChild) => {
+          if (vcandleChild.name && (vcandleChild.name.includes('FLAME') || vcandleChild.name.includes('Flame') || 
+              vcandleChild.name.includes('flame') || vcandleChild.name.includes('Fire') || 
+              vcandleChild.name.includes('XFlame'))) {
+            vcandleChild.visible = false;
+            vcandleFlames.push(vcandleChild);
+          }
+        });
       }
     });
+    console.log(`Hidden ${vcandleFlames.length} flames from VCANDLE objects`);
 
     // Find all candle objects with various naming patterns
     const vcandleObjects = [];
@@ -493,7 +515,13 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
         if (!name.toUpperCase().includes('SAMBA') && 
             !cyborg3Animations.includes(name) &&
             !transitionAnimations.includes(name)) {
-          action.timeScale = 1.0; // Ensure normal speed
+          // Special handling for flame animation
+          if (name === 'Take 001') {
+            action.timeScale = 0.5; // Half speed for flame animation
+            console.log('Setting Take 001 flame animation to half speed');
+          } else {
+            action.timeScale = 1.0; // Ensure normal speed for others
+          }
           action.play();
           // console.log(`Playing initial animation: ${name}`);
         }
@@ -865,6 +893,10 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
             name !== 'StandDrink' &&
             name !== 'GUITAR') {
           action.reset();
+          // Maintain half speed for flame animation
+          if (name === 'Take 001') {
+            action.timeScale = 0.2;
+          }
           action.play();
           // console.log(`Resumed animation: ${name}`);
         }
@@ -889,10 +921,22 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
       gridHelper.position.y = -60.2; // Position relative to cathedral base
       groupRef.current.add(gridHelper);
       
+      // Add a shadow-receiving ground plane
+      const groundGeometry = new THREE.PlaneGeometry(200, 200);
+      const groundMaterial = new THREE.ShadowMaterial({ opacity: 0.3 });
+      const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+      ground.rotation.x = -Math.PI / 2;
+      ground.position.y = -60.2;
+      ground.receiveShadow = true;
+      groupRef.current.add(ground);
+      
       return () => {
         groupRef.current.remove(gridHelper);
         gridHelper.material.dispose();
         gridHelper.geometry.dispose();
+        groupRef.current.remove(ground);
+        groundGeometry.dispose();
+        groundMaterial.dispose();
       };
     }
   }, []);
@@ -914,6 +958,8 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
         position={[0, -60, -15]}
         rotation={[0, Math.PI / 1.2, 0]}
         onClick={handleCandleClick}
+        castShadow
+        receiveShadow
       />
     </group>
   );
@@ -964,8 +1010,18 @@ function Cathedral({ isPlaying = false }) {
           
         
         <ambientLight intensity={0.3} />
-        {/* <directionalLight position={[10, 10, 5]} intensity={1} castShadow />
-         */}
+        <directionalLight 
+          position={[10, 10, 5]} 
+          intensity={1} 
+          castShadow
+          shadow-mapSize={[1024, 1024]}
+          shadow-camera-far={150}
+          shadow-camera-left={-50}
+          shadow-camera-right={50}
+          shadow-camera-top={50}
+          shadow-camera-bottom={-50}
+          shadow-bias={-0.001}
+        />
     <PostProcessingEffects is80sMode={false} />
         <Suspense fallback={null}>
           <CathedralModel 

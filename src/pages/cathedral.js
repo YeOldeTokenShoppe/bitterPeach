@@ -131,9 +131,9 @@ export default function CathedralPage({ is80sMode, setIs80sMode }) {
       <Cathedral isPlaying={isPlaying} />
       
       {/* Right-aligned CyberCalloutOverlay */}
-      <RightAlignedCyberCallout
-        title="CATHEDRAL"
-        subtitle="SACRED DIGITAL SPACE"
+      <CyberCalloutOverlay
+        title="GET LIT WITH RL80"
+        subtitle="PROSPER80 GOSPEL"
         description="Enter the cathedral where ancient architecture meets digital transcendence. Experience the convergence of past and future."
         buttonText="EXPLORE"
         is80sMode={is80sMode}
