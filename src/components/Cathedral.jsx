@@ -42,6 +42,12 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
   const videoTextureRef = useRef();
   const videoWallsRef = useRef([]); // Store multiple walls
   const originalMaterialsRef = useRef(new Map()); // Store original materials for each wall
+  const videoPoolRef = useRef({
+    video: null,
+    texture: null,
+    material: null,
+    isPreloaded: false
+  });
 
   // Calculate animation speed multiplier based on BPM
   // Base BPM of 100 = 1.0 speed multiplier
@@ -50,6 +56,43 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
   const getAnimationSpeedFromBPM = useCallback((baseBPM = 100) => {
     return currentTrackBPM / baseBPM;
   }, [currentTrackBPM]);
+
+  // Batch animation changes for better performance
+  const batchAnimationChanges = useCallback((changes) => {
+    if (!actions || !mixer) return;
+    
+    // Group operations to minimize state changes
+    const toStop = [];
+    const toStart = [];
+    
+    changes.forEach(({ action, operation, ...params }) => {
+      if (operation === 'stop') {
+        toStop.push(action);
+      } else if (operation === 'start') {
+        toStart.push({ action, ...params });
+      }
+    });
+    
+    // Stop all at once
+    toStop.forEach(actionName => {
+      if (actions[actionName]) {
+        actions[actionName].stop();
+        actions[actionName].reset(); // Ensure clean state
+      }
+    });
+    
+    // Small delay before starting new animations
+    setTimeout(() => {
+      toStart.forEach(({ action, timeScale = 1, loop = THREE.LoopRepeat }) => {
+        if (actions[action]) {
+          actions[action].reset();
+          actions[action].timeScale = timeScale;
+          actions[action].setLoop(loop);
+          actions[action].play();
+        }
+      });
+    }, 50);
+  }, [actions, mixer]);
 
   // Function to optimize texture loading
   const loadOptimizedTexture = useCallback((url, onLoad) => {
@@ -651,57 +694,145 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
     }
   }, [isPlaying]);
 
-  // Handle video screen effect when music plays
+  // Preload video during component mount for better performance
   useEffect(() => {
-    if (!gltf.scene || videoWallsRef.current.length === 0) return;
+    if (device.isLowEnd) return; // Skip on low-end devices
     
-    if (isPlaying) {
-      console.log(`Starting video on ${videoWallsRef.current.length} walls`);
-      
-      // Create video element
+    const preloadVideo = () => {
+      console.log('Preloading video for nightclub walls...');
       const video = document.createElement('video');
       video.src = '/83.mov';
       video.loop = true;
-      video.muted = true; // Required for autoplay
+      video.muted = true;
       video.playsInline = true;
       video.setAttribute('playsinline', '');
-      videoRef.current = video;
+      video.preload = 'auto'; // Full preload for instant playback
       
-      // Create video texture
+      // Create texture but don't apply yet
       const videoTexture = new THREE.VideoTexture(video);
       videoTexture.minFilter = THREE.LinearFilter;
       videoTexture.magFilter = THREE.LinearFilter;
       videoTexture.format = THREE.RGBFormat;
       videoTexture.encoding = THREE.sRGBEncoding;
-      videoTextureRef.current = videoTexture;
       
-      // Create emissive material for the video
+      // Pre-create the material
       const videoMaterial = new THREE.MeshBasicMaterial({
         map: videoTexture,
         side: THREE.DoubleSide,
         toneMapped: false
       });
       
-      // Apply video material to all video walls
-      videoWallsRef.current.forEach(wall => {
-        console.log(`Applying video to wall: ${wall.name}`);
-        wall.material = videoMaterial;
-      });
+      videoPoolRef.current = {
+        video,
+        texture: videoTexture,
+        material: videoMaterial,
+        isPreloaded: true
+      };
       
-      // Start playing
-      video.play().catch(err => {
-        console.error('Error playing video:', err);
-      });
+      // Preload by setting up metadata
+      video.load();
+      console.log('Video preload initiated');
+    };
+    
+    // Preload after a short delay to avoid blocking initial render
+    const timer = setTimeout(preloadVideo, 2000);
+    
+    return () => {
+      clearTimeout(timer);
+      // Cleanup on unmount
+      if (videoPoolRef.current.video) {
+        videoPoolRef.current.video.src = '';
+        videoPoolRef.current.video.load();
+      }
+      if (videoPoolRef.current.texture) {
+        videoPoolRef.current.texture.dispose();
+      }
+      if (videoPoolRef.current.material) {
+        videoPoolRef.current.material.dispose();
+      }
+    };
+  }, [device.isLowEnd]);
+
+  // Handle video screen effect when music plays - with staggered activation
+  useEffect(() => {
+    if (!gltf.scene || videoWallsRef.current.length === 0) return;
+    
+    let videoActivationTimeout;
+    
+    if (isPlaying) {
+      console.log('Preparing staggered nightclub effects...');
+      
+      // Stagger activation: lights first (immediate), then video after delay
+      videoActivationTimeout = setTimeout(() => {
+        console.log(`Activating video on ${videoWallsRef.current.length} walls (staggered)`);
+        
+        const pool = videoPoolRef.current;
+        let video, videoMaterial;
+        
+        if (pool.isPreloaded) {
+          console.log('Using preloaded video resources');
+          // Use preloaded resources
+          video = pool.video;
+          videoRef.current = video;
+          videoTextureRef.current = pool.texture;
+          videoMaterial = pool.material;
+        } else {
+          console.log('Creating video resources on demand');
+          // Fallback: Create on demand
+          video = document.createElement('video');
+          video.src = '/83.mov';
+          video.loop = true;
+          video.muted = true;
+          video.playsInline = true;
+          video.setAttribute('playsinline', '');
+          videoRef.current = video;
+          
+          const videoTexture = new THREE.VideoTexture(video);
+          videoTexture.minFilter = THREE.LinearFilter;
+          videoTexture.magFilter = THREE.LinearFilter;
+          videoTexture.format = THREE.RGBFormat;
+          videoTexture.encoding = THREE.sRGBEncoding;
+          videoTextureRef.current = videoTexture;
+          
+          videoMaterial = new THREE.MeshBasicMaterial({
+            map: videoTexture,
+            side: THREE.DoubleSide,
+            toneMapped: false
+          });
+        }
+        
+        // Apply video material to all walls with fade effect
+        videoWallsRef.current.forEach((wall, index) => {
+          // Stagger wall activation for extra effect
+          setTimeout(() => {
+            console.log(`Applying video to wall: ${wall.name}`);
+            wall.material = videoMaterial;
+          }, index * 100); // 100ms between each wall
+        });
+        
+        // Start playing
+        video.play().catch(err => console.error('Error playing video:', err));
+        
+      }, 500); // Start video 500ms after lights
       
     } else {
       console.log('Stopping video on walls');
       
-      // Stop and clean up video
+      // Clear any pending activation
+      if (videoActivationTimeout) {
+        clearTimeout(videoActivationTimeout);
+      }
+      
+      // Stop video but keep preloaded resources
       if (videoRef.current) {
         videoRef.current.pause();
-        videoRef.current.src = '';
-        videoRef.current.load();
-        videoRef.current = null;
+        // Don't destroy preloaded video, just pause it
+        if (!videoPoolRef.current.isPreloaded) {
+          // Only clean up non-preloaded resources
+          videoRef.current.src = '';
+          videoRef.current.load();
+          videoRef.current = null;
+        }
       }
       
       // Restore original materials to all walls
@@ -713,8 +844,8 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
         }
       });
       
-      // Dispose of video texture
-      if (videoTextureRef.current) {
+      // Don't dispose of preloaded textures
+      if (videoTextureRef.current && !videoPoolRef.current.isPreloaded) {
         videoTextureRef.current.dispose();
         videoTextureRef.current = null;
       }
@@ -722,12 +853,15 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
     
     // Cleanup function
     return () => {
-      if (videoRef.current) {
+      if (videoActivationTimeout) {
+        clearTimeout(videoActivationTimeout);
+      }
+      if (videoRef.current && !videoPoolRef.current.isPreloaded) {
         videoRef.current.pause();
         videoRef.current.src = '';
         videoRef.current.load();
       }
-      if (videoTextureRef.current) {
+      if (videoTextureRef.current && !videoPoolRef.current.isPreloaded) {
         videoTextureRef.current.dispose();
       }
     };
@@ -755,30 +889,29 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
       danceTimeoutRef.current = setTimeout(() => {
         // console.log('[Cathedral] Starting dance animations after delay...');
         
-        // First, let's see what animations are available
-        // console.log('All available animations:', Object.keys(actions));
+        // Prepare batch animation changes
+        const animationChanges = [];
         
         // First, identify which animations have corresponding SAMBA/SALSA versions
         const hasDanceVersion = {};
         Object.keys(actions).forEach(name => {
           const upperName = name.toUpperCase();
           if (upperName.includes('SAMBA') || upperName.includes('SALSA')) {
-            // Mark that we have a dance version
             hasDanceVersion[name] = true;
           }
         });
         
-        // Only stop animations if there's a corresponding dance animation
+        // Collect animations to stop
         Object.entries(actions).forEach(([name, action]) => {
           const upperName = name.toUpperCase();
           // Only stop if this isn't a dance animation AND we have dance animations available
           if (!upperName.includes('SAMBA') && !upperName.includes('SALSA') && action.isRunning()) {
-            // For now, stop all non-dance animations
-            // This will be improved once all characters have dance animations
-            action.stop();
-            // console.log(`Stopped animation: ${name}`);
+            animationChanges.push({ action: name, operation: 'stop' });
           }
         });
+        
+        // Apply batch stop first
+        batchAnimationChanges(animationChanges);
         
         // Handle Cyborg0's transition: PrayToStand -> SAMBA0
         if (actions['PrayToStand'] && actions['SAMBA0']) {
@@ -902,9 +1035,8 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
           // console.log('Playing GUITAR animation for CyborgInAlley (half speed)');
         }
         
-        // Play other SAMBA/SALSA animations (excluding SAMBA0 which is handled above)
-        let danceFound = false;
-        const danceAnimations = [];
+        // Collect other SAMBA/SALSA animations to start (excluding SAMBA0 which is handled above)
+        const danceAnimationsToStart = [];
         
         Object.entries(actions).forEach(([name, action]) => {
           const upperName = name.toUpperCase();
@@ -912,21 +1044,20 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
           if ((upperName.includes('SAMBA') || upperName.includes('SALSA')) && 
               name !== 'SAMBA0' && 
               name !== 'SAMBA2') {
-            danceAnimations.push(name);
-            // console.log(`Found dance animation: ${name}, currently running: ${action.isRunning()}`);
-            
-            action.stop(); // Make sure it's stopped first
-            action.reset();
-            action.timeScale = 0.5 * getAnimationSpeedFromBPM(); // Half speed adjusted by BPM
-            action.play();
-            danceFound = true;
-            
-            // Verify the animation is actually playing
-            setTimeout(() => {
-              console.log(`Animation ${name} is running: ${action.isRunning()}, time: ${action.time}, timeScale: ${action.timeScale}`);
-            }, 100);
+            danceAnimationsToStart.push({
+              action: name,
+              operation: 'start',
+              timeScale: 0.5 * getAnimationSpeedFromBPM(),
+              loop: THREE.LoopRepeat
+            });
           }
         });
+        
+        // Batch start all dance animations
+        if (danceAnimationsToStart.length > 0) {
+          console.log(`Starting ${danceAnimationsToStart.length} dance animations in batch`);
+          batchAnimationChanges(danceAnimationsToStart);
+        }
         
         // Stop Cyborg3's sequence when music plays
         const cyborg3Animations = ['SitClap', 'SitIdle2', 'StandClap'];
@@ -980,24 +1111,23 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
         danceTimeoutRef.current = null;
       }
       
-      // Stop all SAMBA animations, transition animations, Cheer, BBOYHIPHOP, and GUITAR
+      // Collect all animations to stop and start for batch processing
+      const stopAnimations = [];
+      const startAnimations = [];
+      
+      // Collect dance animations to stop
       Object.entries(actions).forEach(([name, action]) => {
         if (name.toUpperCase().includes('SAMBA') || 
             name === 'PrayToStand' || 
             name === 'Cheer' ||
             name === 'BBOYHIPHOP' ||
             name === 'GUITAR') {
-          action.stop();
-          action.reset(); // Reset to beginning
-          action.timeScale = 1.0; // Reset speed
-          // console.log(`Stopped animation: ${name}`);
-          
-          // Double-check SAMBA2 is stopped
-          if (name === 'SAMBA2') {
-            // console.log('Ensured SAMBA2 is stopped for Cyborg2');
-          }
+          stopAnimations.push({ action: name, operation: 'stop' });
         }
       });
+      
+      // Batch stop all dance animations
+      batchAnimationChanges(stopAnimations);
       
       // First, immediately stop all Cyborg3 animations to prevent any brief playback
       ['StandClap', 'SitClap', 'SitIdle2'].forEach(animName => {
@@ -1035,42 +1165,18 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
       }, 50); // Small delay to ensure all animations are fully stopped
       // console.log('Resumed Cyborg3 animation sequence');
       
-      // Handle Cyborg0's transition back to Pray
-      if (actions['SAMBA0'] && actions['SAMBA0'].isRunning()) {
-        actions['SAMBA0'].stop();
-        // console.log('Stopped SAMBA0');
-      }
+      // Collect idle animations to restart
+      const idleAnimations = [
+        { action: 'Pray', operation: 'start', loop: THREE.LoopRepeat },
+        { action: 'Sit', operation: 'start', loop: THREE.LoopRepeat },
+        { action: 'Leaning', operation: 'start', loop: THREE.LoopRepeat },
+        { action: 'StandDrink', operation: 'start', loop: THREE.LoopRepeat }
+      ].filter(anim => actions[anim.action]); // Only include animations that exist
       
-      if (actions['Pray']) {
-        actions['Pray'].reset();
-        actions['Pray'].setLoop(THREE.LoopRepeat);
-        actions['Pray'].play();
-        // console.log('Resumed Pray animation for Cyborg0');
-      }
-      
-      // Handle Cyborg2's transition back to Sit
-      if (actions['Sit']) {
-        actions['Sit'].reset();
-        actions['Sit'].setLoop(THREE.LoopRepeat);
-        actions['Sit'].play();
-        // console.log('Resumed Sit animation for Cyborg2');
-      }
-      
-      // Handle Cyborg4's transition back to Leaning
-      if (actions['Leaning']) {
-        actions['Leaning'].reset();
-        actions['Leaning'].setLoop(THREE.LoopRepeat);
-        actions['Leaning'].play();
-        // console.log('Resumed Leaning animation for Cyborg4');
-      }
-      
-      // Handle CyborgInAlley's transition back to StandDrink
-      if (actions['StandDrink']) {
-        actions['StandDrink'].reset();
-        actions['StandDrink'].setLoop(THREE.LoopRepeat);
-        actions['StandDrink'].play();
-        // console.log('Resumed StandDrink animation for CyborgInAlley');
-      }
+      // Batch start all idle animations
+      setTimeout(() => {
+        batchAnimationChanges(idleAnimations);
+      }, 100); // Small delay to ensure stops are complete
       
       // Resume all other non-SAMBA/dance animations
       const cyborg3Animations = cyborg3SequenceRef.current;
@@ -1221,65 +1327,90 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
   }, []);
 
 
-  // Update animation mixer and animate spotlights
+  // Update animation mixer and animate spotlights with performance optimizations
   useFrame((state, delta) => {
     if (mixer) {
       mixer.update(delta);
     }
     
-    // Animate nightclub spotlights when playing
+    // Throttle spotlight animations on low-end devices
     if (isPlaying && spotlightsRef.current.length > 0) {
       const time = state.clock.getElapsedTime();
-      const bpmFactor = currentTrackBPM / 100; // Normalize to base BPM
+      const bpmFactor = currentTrackBPM / 100;
       
-      spotlightsRef.current.forEach((light, i) => {
-        if (!light.visible || light.intensity === 0) return;
-        
-        // Animate spotlight movement
-        const speed = bpmFactor * 0.5;
-        const offset = i * Math.PI / 3;
-        
-        // Create circular/figure-8 movement patterns
-        const pattern = i % 3;
-        let x, z;
-        
-        switch (pattern) {
-          case 0: // Circle pattern
-            x = Math.sin(time * speed + offset) * 10;
-            z = Math.cos(time * speed + offset) * 10;
-            break;
-          case 1: // Figure-8 pattern
-            x = Math.sin(time * speed + offset) * 15;
-            z = Math.sin(time * speed * 2 + offset) * 8;
-            break;
-          case 2: // Sweep pattern
-            x = Math.sin(time * speed * 0.7 + offset) * 20;
-            z = Math.cos(time * speed * 0.5 + offset) * 5;
-            break;
-        }
-        
-        // Update target position
-        light.userData.target.position.x = x;
-        light.userData.target.position.z = -10 + z;
-        
-        // Color cycling based on music
-        const hue = (time * speed * 0.1 + i * 0.16) % 1;
-        light.color.setHSL(hue, 1, 0.5);
-        
-        // Intensity pulsing (between 25 and 35 for maximum visibility)
-        const pulse = Math.sin(time * speed * 2 + offset) * 15.0 + 50.0;
-        light.intensity = pulse;
-        
-        // Also pulse the point light
-        if (light.userData.pointLight) {
-          light.userData.pointLight.intensity = pulse / 6; // Scale down for point light
-        }
-        
-        // Update helper if it exists
-        // if (light.userData.helper) {
-        //   light.userData.helper.update();
-        // }
-      });
+      // Reduce update frequency on tablets/low-end devices
+      const shouldUpdate = device.isLowEnd ? 
+        Math.floor(time * 60) % 10 === 0 : true; // Update every 10th frame on low-end
+      
+      if (shouldUpdate) {
+        spotlightsRef.current.forEach((light, i) => {
+          if (!light.visible || light.intensity === 0) return;
+          
+          // Simplified animation for low-end devices
+          if (device.isLowEnd) {
+            // Simple pulsing, no movement
+            const pulse = Math.sin(time * bpmFactor + i) * 10 + 40;
+            light.intensity = pulse;
+            
+            // Update point light with same intensity
+            if (light.userData.pointLight) {
+              light.userData.pointLight.intensity = pulse / 8;
+            }
+            
+            // Less frequent color changes (every 3 seconds)
+            if (Math.floor(time) % 3 === 0) {
+              const hue = (time * 0.05 + i * 0.25) % 1;
+              light.color.setHSL(hue, 1, 0.5);
+            }
+          } else {
+            // Full animation for powerful devices
+            // Animate spotlight movement
+            const speed = bpmFactor * 0.5;
+            const offset = i * Math.PI / 3;
+            
+            // Create circular/figure-8 movement patterns
+            const pattern = i % 3;
+            let x, z;
+            
+            switch (pattern) {
+              case 0: // Circle pattern
+                x = Math.sin(time * speed + offset) * 10;
+                z = Math.cos(time * speed + offset) * 10;
+                break;
+              case 1: // Figure-8 pattern
+                x = Math.sin(time * speed + offset) * 15;
+                z = Math.sin(time * speed * 2 + offset) * 8;
+                break;
+              case 2: // Sweep pattern
+                x = Math.sin(time * speed * 0.7 + offset) * 20;
+                z = Math.cos(time * speed * 0.5 + offset) * 5;
+                break;
+            }
+            
+            // Update target position
+            light.userData.target.position.x = x;
+            light.userData.target.position.z = -10 + z;
+            
+            // Color cycling based on music
+            const hue = (time * speed * 0.1 + i * 0.16) % 1;
+            light.color.setHSL(hue, 1, 0.5);
+            
+            // Intensity pulsing (between 35 and 65 for maximum visibility)
+            const pulse = Math.sin(time * speed * 2 + offset) * 15.0 + 50.0;
+            light.intensity = pulse;
+            
+            // Also pulse the point light
+            if (light.userData.pointLight) {
+              light.userData.pointLight.intensity = pulse / 6; // Scale down for point light
+            }
+          }
+          
+          // Update helper if it exists (only on desktop)
+          // if (light.userData.helper && !device.isLowEnd) {
+          //   light.userData.helper.update();
+          // }
+        });
+      }
     }
   });
 
