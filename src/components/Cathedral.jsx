@@ -1,7 +1,8 @@
 import React, { useRef, Suspense, useEffect, useState, useCallback, useMemo, useContext } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Environment, OrbitControls, useGLTF, useAnimations } from '@react-three/drei';
+import { Environment, OrbitControls, useGLTF, useAnimations, useHelper, Html } from '@react-three/drei';
 import * as THREE from 'three';
+import { useControls, folder } from 'leva';
 import TickerCanvasTextureApplier from './TickerCanvasTextureApplier';
 import ConstellationModel from '../components/3DVotiveStand/ConstellationModel';
 import StarField from '../components/3DVotiveStand/StarField';
@@ -13,9 +14,325 @@ import { useFirestoreResults } from '../utilities/useFirestoreResults';
 import { detectDevice, getSceneSettings, optimizeTexture, texturePool } from '../utilities/performanceOptimizer';
 import { useMusic, MusicContext } from '../contexts/MusicContext';
 import CinematicCamera from './CinematicCamera';
-//hi
+import RoundWindowEffects from './RoundWindowEffects';
+import PrismaticOverlay from '../components/PrismaticOverlay';
 // Version string for cache busting - update this when model changes
 const MODEL_VERSION = '1.0.1';
+
+// Individual spotlight with helper
+function StatueSpotlight({ position, targetPosition, intensity, angle, penumbra, distance, color, showHelper, helperColor, label }) {
+  const lightRef = useRef();
+  
+  // Use the useHelper hook to create the spotlight helper with custom color
+  useHelper(showHelper && lightRef, THREE.SpotLightHelper, helperColor);
+  
+  return (
+    <>
+      <spotLight
+        ref={lightRef}
+        position={position}
+        target-position={targetPosition}
+        intensity={intensity}
+        angle={angle}
+        penumbra={penumbra}
+        distance={distance}
+        color={color}
+        castShadow={false}
+      />
+      {/* Add a visible sphere at light position for easier identification */}
+      {showHelper && (
+        <>
+          <mesh position={position}>
+            <sphereGeometry args={[0.3, 16, 16]} />
+            <meshBasicMaterial color={helperColor} />
+          </mesh>
+          {/* Add text label */}
+          <Html position={position} center>
+            <div style={{
+              background: helperColor,
+              color: 'white',
+              padding: '2px 6px',
+              borderRadius: '3px',
+              fontSize: '10px',
+              fontFamily: 'monospace',
+              whiteSpace: 'nowrap'
+            }}>
+              {label}
+            </div>
+          </Html>
+        </>
+      )}
+    </>
+  );
+}
+
+// Component to add spotlights to statues with GUI controls
+// function StatueSpotlights({ scene, isPlaying }) {
+//   const [statuePositions, setStatuePositions] = useState([]);
+  
+//   // GUI Controls for spotlight configuration
+//   const controls = useControls('Statue Spotlights', {
+//     showHelpers: true,
+//     globalSettings: folder({
+//       modelOffsetY: { value: 7, min: -100, max: 100, step: 1 },
+//       lightScale: { value: 1.2, min: 0.1, max: 3, step: 0.1 },
+//       enableAll: {
+//         value: 'Enable All',
+//         onChange: () => {
+//           // This will trigger a re-render with all lights enabled
+//         }
+//       },
+//       disableAll: {
+//         value: 'Disable All',
+//         onChange: () => {
+//           // This will trigger a re-render with all lights disabled
+//         }
+//       },
+//     }),
+//     statue1: folder({
+//       main1: folder({
+//         enabled1: true,
+//         posX1: { value: 0, min: -20, max: 20, step: 0.5 },
+//         posY1: { value: 2, min: -20, max: 20, step: 0.5 },
+//         posZ1: { value: -20, min: -30, max: 20, step: 0.5 },
+//         targetX1: { value: -0.5, min: -20, max: 20, step: 0.5 },
+//         targetY1: { value: -19, min: -30, max: 20, step: 0.5 },
+//         targetZ1: { value: 19.5, min: -20, max: 30, step: 0.5 },
+//         intensity1: { value: 1.2, min: 0, max: 5, step: 0.1 },
+//         angle1: { value: 10, min: 10, max: 90, step: 5 },
+//         distance1: { value: 22, min: 5, max: 50, step: 1 },
+//         color1: '#ffe4d6',
+//       }),
+//       accent1: folder({
+//         enabled1a: true,
+//         posX1a: { value: -2, min: -20, max: 20, step: 0.5 },
+//         posY1a: { value: -2, min: -20, max: 20, step: 0.5 },
+//         posZ1a: { value: 6, min: -20, max: 20, step: 0.5 },
+//         targetX1a: { value: 0, min: -20, max: 20, step: 0.5 },
+//         targetY1a: { value: 0, min: -20, max: 20, step: 0.5 },
+//         targetZ1a: { value: 0, min: -20, max: 20, step: 0.5 },
+//         intensity1a: { value: 0.3, min: 0, max: 5, step: 0.1 },
+//         angle1a: { value: 45, min: 10, max: 90, step: 5 },
+//         distance1a: { value: 15, min: 5, max: 50, step: 1 },
+//         color1a: '#ffd4ba',
+//       }),
+//     }),
+//     statue2: folder({
+//       main2: folder({
+//         enabled2: true,
+//         posX2: { value: 2, min: -20, max: 20, step: 0.5 },
+//         posY2: { value: 5, min: -20, max: 20, step: 0.5 },
+//         posZ2: { value: 8, min: -20, max: 20, step: 0.5 },
+//         targetX2: { value: 0, min: -20, max: 20, step: 0.5 },
+//         targetY2: { value: 0, min: -20, max: 20, step: 0.5 },
+//         targetZ2: { value: 0, min: -20, max: 20, step: 0.5 },
+//         intensity2: { value: 1.2, min: 0, max: 5, step: 0.1 },
+//         angle2: { value: 30, min: 10, max: 90, step: 5 },
+//         distance2: { value: 20, min: 5, max: 50, step: 1 },
+//         color2: '#ffe4d6',
+//       }),
+//       accent2: folder({
+//         enabled2a: true,
+//         posX2a: { value: -2, min: -20, max: 20, step: 0.5 },
+//         posY2a: { value: -2, min: -20, max: 20, step: 0.5 },
+//         posZ2a: { value: 6, min: -20, max: 20, step: 0.5 },
+//         targetX2a: { value: 0, min: -20, max: 20, step: 0.5 },
+//         targetY2a: { value: 0, min: -20, max: 20, step: 0.5 },
+//         targetZ2a: { value: 0, min: -20, max: 20, step: 0.5 },
+//         intensity2a: { value: 0.3, min: 0, max: 5, step: 0.1 },
+//         angle2a: { value: 45, min: 10, max: 90, step: 5 },
+//         distance2a: { value: 15, min: 5, max: 50, step: 1 },
+//         color2a: '#ffd4ba',
+//       }),
+//     }),
+//     statue3: folder({
+//       main3: folder({
+//         enabled3: true,
+//         posX3: { value: 2, min: -20, max: 20, step: 0.5 },
+//         posY3: { value: 5, min: -20, max: 20, step: 0.5 },
+//         posZ3: { value: 8, min: -20, max: 20, step: 0.5 },
+//         targetX3: { value: 0, min: -20, max: 20, step: 0.5 },
+//         targetY3: { value: 0, min: -20, max: 20, step: 0.5 },
+//         targetZ3: { value: 0, min: -20, max: 20, step: 0.5 },
+//         intensity3: { value: 1.2, min: 0, max: 5, step: 0.1 },
+//         angle3: { value: 30, min: 10, max: 90, step: 5 },
+//         distance3: { value: 20, min: 5, max: 50, step: 1 },
+//         color3: '#ffe4d6',
+//       }),
+//       accent3: folder({
+//         enabled3a: true,
+//         posX3a: { value: -2, min: -20, max: 20, step: 0.5 },
+//         posY3a: { value: -2, min: -20, max: 20, step: 0.5 },
+//         posZ3a: { value: 6, min: -20, max: 20, step: 0.5 },
+//         targetX3a: { value: 0, min: -20, max: 20, step: 0.5 },
+//         targetY3a: { value: 0, min: -20, max: 20, step: 0.5 },
+//         targetZ3a: { value: 0, min: -20, max: 20, step: 0.5 },
+//         intensity3a: { value: 0.3, min: 0, max: 5, step: 0.1 },
+//         angle3a: { value: 45, min: 10, max: 90, step: 5 },
+//         distance3a: { value: 15, min: 5, max: 50, step: 1 },
+//         color3a: '#ffd4ba',
+//       }),
+//     }),
+//     statue4: folder({
+//       main4: folder({
+//         enabled4: true,
+//         posX4: { value: 2, min: -20, max: 20, step: 0.5 },
+//         posY4: { value: 5, min: -20, max: 20, step: 0.5 },
+//         posZ4: { value: 8, min: -20, max: 20, step: 0.5 },
+//         targetX4: { value: 0, min: -20, max: 20, step: 0.5 },
+//         targetY4: { value: 0, min: -20, max: 20, step: 0.5 },
+//         targetZ4: { value: 0, min: -20, max: 20, step: 0.5 },
+//         intensity4: { value: 1.2, min: 0, max: 5, step: 0.1 },
+//         angle4: { value: 30, min: 10, max: 90, step: 5 },
+//         distance4: { value: 20, min: 5, max: 50, step: 1 },
+//         color4: '#ffe4d6',
+//       }),
+//       accent4: folder({
+//         enabled4a: true,
+//         posX4a: { value: -2, min: -20, max: 20, step: 0.5 },
+//         posY4a: { value: -2, min: -20, max: 20, step: 0.5 },
+//         posZ4a: { value: 6, min: -20, max: 20, step: 0.5 },
+//         targetX4a: { value: 0, min: -20, max: 20, step: 0.5 },
+//         targetY4a: { value: 0, min: -20, max: 20, step: 0.5 },
+//         targetZ4a: { value: 0, min: -20, max: 20, step: 0.5 },
+//         intensity4a: { value: 0.3, min: 0, max: 5, step: 0.1 },
+//         angle4a: { value: 45, min: 10, max: 90, step: 5 },
+//         distance4a: { value: 15, min: 5, max: 50, step: 1 },
+//         color4a: '#ffd4ba',
+//       }),
+//     }),
+//     exportSettings: {
+//       value: 'Copy Settings',
+//       onChange: () => {
+//         // Export current settings to console for saving
+//         console.log('Current Spotlight Settings:', controls);
+//       }
+//     }
+//   });
+  
+//   // Define unique colors for each statue helper
+//   const statueColors = {
+//     'Statue1': { main: '#ff0000', accent: '#ff6666' },
+//     'Statue2': { main: '#00ff00', accent: '#66ff66' },
+//     'Statue3': { main: '#0066ff', accent: '#6699ff' },
+//     'Statue4': { main: '#ff00ff', accent: '#ff66ff' }
+//   };
+  
+//   useEffect(() => {
+//     if (!scene) return;
+    
+//     const positions = [];
+    
+//     scene.traverse((child) => {
+//       if (child.name && child.name.match(/^Statue[1-4]$/)) {
+//         const box = new THREE.Box3().setFromObject(child);
+//         const center = box.getCenter(new THREE.Vector3());
+//         const size = box.getSize(new THREE.Vector3());
+        
+//         // Use simpler world position calculation
+//         // Just use the center as-is since the model transformation is handled by the group
+//         positions.push({
+//           name: child.name,
+//           center: center,
+//           height: size.y,
+//           position: child.position.clone()
+//         });
+        
+//         console.log(`Found ${child.name} at:`, {
+//           position: [center.x.toFixed(2), center.y.toFixed(2), center.z.toFixed(2)],
+//           height: size.y.toFixed(2)
+//         });
+//       }
+//     });
+    
+//     setStatuePositions(positions);
+//   }, [scene]);
+  
+//   const getControlsForStatue = (statueName, isMain) => {
+//     const num = statueName.replace('Statue', '');
+//     const suffix = isMain ? '' : 'a';
+    
+//     return {
+//       enabled: controls[`enabled${num}${suffix}`],
+//       position: [
+//         controls[`posX${num}${suffix}`],
+//         controls[`posY${num}${suffix}`] + controls.modelOffsetY,
+//         controls[`posZ${num}${suffix}`]
+//       ],
+//       target: [
+//         controls[`targetX${num}${suffix}`],
+//         controls[`targetY${num}${suffix}`] + controls.modelOffsetY,
+//         controls[`targetZ${num}${suffix}`]
+//       ],
+//       intensity: controls[`intensity${num}${suffix}`],
+//       angle: (controls[`angle${num}${suffix}`] * Math.PI) / 180,
+//       distance: controls[`distance${num}${suffix}`],
+//       color: controls[`color${num}${suffix}`]
+//     };
+//   };
+  
+//   return (
+//     <>
+//       {statuePositions.map((statue) => {
+//         const colors = statueColors[statue.name] || { main: '#ffffff', accent: '#cccccc' };
+//         const mainControls = getControlsForStatue(statue.name, true);
+//         const accentControls = getControlsForStatue(statue.name, false);
+        
+//         return (
+//           <React.Fragment key={statue.name}>
+//             {/* Main spotlight - only render if enabled */}
+//             {mainControls.enabled && (
+//               <StatueSpotlight
+//                 position={[
+//                   statue.center.x + mainControls.position[0] * controls.lightScale,
+//                   statue.center.y + mainControls.position[1] * controls.lightScale,
+//                   statue.center.z + mainControls.position[2] * controls.lightScale
+//                 ]}
+//                 targetPosition={[
+//                   statue.center.x + mainControls.target[0] * controls.lightScale,
+//                   statue.center.y + mainControls.target[1] * controls.lightScale,
+//                   statue.center.z + mainControls.target[2] * controls.lightScale
+//                 ]}
+//                 intensity={isPlaying ? mainControls.intensity * 2 : mainControls.intensity}
+//                 angle={mainControls.angle}
+//                 penumbra={0.5}
+//                 distance={mainControls.distance}
+//                 color={isPlaying ? "#c896ff" : mainControls.color}
+//                 showHelper={controls.showHelpers}
+//                 helperColor={colors.main}
+//                 label={`${statue.name} Main`}
+//               />
+//             )}
+            
+//             {/* Accent light - only render if enabled */}
+//             {accentControls.enabled && (
+//               <StatueSpotlight
+//                 position={[
+//                   statue.center.x + accentControls.position[0] * controls.lightScale,
+//                   statue.center.y + accentControls.position[1] * controls.lightScale,
+//                   statue.center.z + accentControls.position[2] * controls.lightScale
+//                 ]}
+//                 targetPosition={[
+//                   statue.center.x + accentControls.target[0] * controls.lightScale,
+//                   statue.center.y + accentControls.target[1] * controls.lightScale,
+//                   statue.center.z + accentControls.target[2] * controls.lightScale
+//                 ]}
+//                 intensity={isPlaying ? accentControls.intensity * 2 : accentControls.intensity}
+//                 angle={accentControls.angle}
+//                 penumbra={0.8}
+//                 distance={accentControls.distance}
+//                 color={isPlaying ? "#67e8f9" : accentControls.color}
+//                 showHelper={controls.showHelpers}
+//                 helperColor={colors.accent}
+//                 label={`${statue.name} Accent`}
+//               />
+//             )}
+//           </React.Fragment>
+//         );
+//       })}
+//     </>
+//   );
+// }
 
 function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClick, showFloatingViewer, device, currentTrackBPM = 100 }) {
   const gltf = useGLTF(`/cathedral.glb?v=${MODEL_VERSION}`);
@@ -32,6 +349,13 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
   const { camera } = useThree();
   const results = useFirestoreResults();
   const textureLoader = useRef(new THREE.TextureLoader());
+  
+  // Stage lighting refs
+  const stageLightRef = useRef(null);
+  const stageLightOriginalY = useRef(null);
+  const stageLightLoweringProgress = useRef(0);
+  const stageLightRaisingProgress = useRef(0);
+  const isRaisingStageLight = useRef(false);
   
   // Nightclub lighting refs
   const spotlightsRef = useRef([]);
@@ -144,11 +468,14 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
           flippedTexture.repeat.y = -1; // Flip vertically only
           flippedTexture.needsUpdate = true;
 
-          // Create new material with flipped texture
+          // Create new material with flipped texture and emissive glow
           label.material = new THREE.MeshStandardMaterial({
             map: flippedTexture,
             transparent: true,
             side: THREE.DoubleSide,
+            emissive: new THREE.Color(0xffffff), // White emissive color
+            emissiveIntensity: 0.15, // Subtle glow to enhance visibility
+            emissiveMap: flippedTexture, // Use the same texture for emissive
           });
           label.material.needsUpdate = true;
         }
@@ -232,7 +559,8 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
         if (child.isMesh) {
           // Find the video walls
           if (child.name === 'pPlane3_Walls_0' || child.name === 'pPlane4_Walls_0') {
-            console.log('Found video wall:', child.name);
+     
+            // console.log('Found video wall:', child.name);
             originalMaterialsRef.current.set(child.name, child.material);
             child.userData.isVideoWall = true;
             videoWallsRef.current.push(child);
@@ -242,7 +570,15 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
               child.name.includes('godray') || child.name.includes('GodRay'))) {
             child.raycast = () => {}; // Empty function prevents raycasting
             child.material.depthWrite = false; // Ensure transparency works correctly
-            console.log(`Made ${child.name} non-clickable`);
+            // console.log(`Made ${child.name} non-clickable`);
+          }
+          
+          // Hide StageLight initially - it will be shown when music plays
+          if (child.name === 'StageLight') {
+            child.visible = false;
+            stageLightRef.current = child;
+            stageLightOriginalY.current = child.position.y;
+            console.log('Found StageLight object, storing original Y position:', child.position.y);
           }
           
           // Ensure floor tiles and other objects respond to dynamic lights
@@ -304,7 +640,7 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
           });
         }
       });
-      console.log('Skinned meshes in scene:', skinnedMeshes);
+      // console.log('Skinned meshes in scene:', skinnedMeshes);
       
       // Debug: Check for VCANDLE objects and all objects in scene
       let candleCount = 0;
@@ -314,12 +650,12 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
           allObjects.push(child.name);
           if (child.name.startsWith('VCANDLE') || child.name.includes('candle') || child.name.includes('Candle')) {
             candleCount++;
-            console.log('Found candle object:', child.name);
+            // console.log('Found candle object:', child.name);
           }
         }
       });
-      console.log('Total VCANDLE objects found:', candleCount);
-      console.log('All objects in scene:', allObjects.filter(name => name.length > 0));
+      // console.log('Total VCANDLE objects found:', candleCount);
+      // console.log('All objects in scene:', allObjects.filter(name => name.length > 0));
       
       // Pass the center to parent component
       if (onModelLoad) {
@@ -348,7 +684,7 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
         });
       }
     });
-    console.log(`Hidden ${vcandleFlames.length} flames from VCANDLE objects`);
+    // console.log(`Hidden ${vcandleFlames.length} flames from VCANDLE objects`);
 
     // Find all candle objects with various naming patterns
     const vcandleObjects = [];
@@ -374,8 +710,8 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
       }
     });
     
-    console.log('Candle patterns found:', candlePatterns);
-    console.log('Candle objects found:', vcandleObjects.map(c => c.name));
+    // console.log('Candle patterns found:', candlePatterns);
+    // console.log('Candle objects found:', vcandleObjects.map(c => c.name));
     
     // Sort with VCANDLE objects first, then others
     vcandleObjects.sort((a, b) => {
@@ -398,7 +734,7 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
       return candle.name.startsWith('VCANDLE') && hasLabels;
     });
     
-    console.log(`Found ${vcandleObjects.length} total candles, ${vcandlesWithLabels.length} VCANDLE objects with labels`);
+    // console.log(`Found ${vcandleObjects.length} total candles, ${vcandlesWithLabels.length} VCANDLE objects with labels`);
 
     // First ensure all VCANDLES are initially visible
     vcandlesWithLabels.forEach((candle) => {
@@ -409,7 +745,7 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
       // No user data, hide all VCANDLEs with labels
       vcandlesWithLabels.forEach((candle) => {
         candle.visible = false;
-        console.log(`Hid ${candle.name} - no user data available`);
+        // console.log(`Hid ${candle.name} - no user data available`);
       });
       return;
     }
@@ -468,7 +804,7 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
           createdAt: user.createdAt,
           isTopBurner: user.isTopBurner,
         };
-        console.log(`Applied user data to ${candle.name} (position ${candleIndex}):`, user.userName);
+        // console.log(`Applied user data to ${candle.name} (position ${candleIndex}):`, user.userName);
         
         // Apply the image to the candle's labels
         applyUserImageToLabel(candle, user);
@@ -491,7 +827,7 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
       // Skip if this candle already has user data
       if (candle.userData && candle.userData.hasUser) {
         skippedCandleCount++;
-        console.log(`Skipping ${candle.name} - already has user data`);
+        // console.log(`Skipping ${candle.name} - already has user data`);
         return;
       }
       
@@ -504,7 +840,7 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
       };
       
       hiddenCandleCount++;
-      console.log(`Hid ${candle.name} (${hiddenCandleCount}) - no user data`);
+      // console.log(`Hid ${candle.name} (${hiddenCandleCount}) - no user data`);
       
       // Ensure flames are hidden for these candles
       candle.traverse((child) => {
@@ -515,7 +851,7 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
       });
     });
     
-    console.log(`Summary: ${vcandlesWithLabels.length} VCANDLEs with labels, ${skippedCandleCount} with user data, ${hiddenCandleCount} hidden`);
+    // console.log(`Summary: ${vcandlesWithLabels.length} VCANDLEs with labels, ${skippedCandleCount} with user data, ${hiddenCandleCount} hidden`);
   }, [results, gltf.scene, applyUserImageToLabel]);
 
   // Function to play next animation in Cyborg3's sequence
@@ -588,17 +924,33 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
         if (!name.toUpperCase().includes('SAMBA') && 
             !cyborg3Animations.includes(name) &&
             !transitionAnimations.includes(name)) {
+          // Reset all animations to clean state
+          action.stop();
+          action.reset();
+          
           // Special handling for flame animation
           if (name === 'Take 001') {
             action.timeScale = 0.5; // Half speed for flame animation
-            console.log('Setting Take 001 flame animation to half speed');
+            // console.log('Setting Take 001 flame animation to half speed');
           } else {
             action.timeScale = 1.0; // Ensure normal speed for others
           }
+          action.setLoop(THREE.LoopRepeat);
           action.play();
           // console.log(`Playing initial animation: ${name}`);
         }
       });
+      
+      // Ensure CyborgDJ is sitting
+      if (actions['Sit_CyborgDJ'] || actions['Sit']) {
+        const djSitAction = actions['Sit_CyborgDJ'] || actions['Sit'];
+        if (!djSitAction.isRunning()) {
+          djSitAction.reset();
+          djSitAction.setLoop(THREE.LoopRepeat);
+          djSitAction.play();
+          // console.log('CyborgDJ initially sitting');
+        }
+      }
       
       // Start Cyborg3's sequence
       playNextCyborg3Animation();
@@ -634,6 +986,24 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
     if (spotlightsRef.current.length === 0) return;
     
     console.log('Nightclub lighting effect triggered. isPlaying:', isPlaying, 'Lights:', spotlightsRef.current.length);
+    
+    // Control StageLight visibility based on music playing
+    if (stageLightRef.current && stageLightOriginalY.current !== null) {
+      if (isPlaying) {
+        // Start position: 10 units above original
+        stageLightRef.current.visible = true;
+        stageLightRef.current.position.y = stageLightOriginalY.current + 10;
+        stageLightLoweringProgress.current = 0;
+        isRaisingStageLight.current = false;
+        stageLightRaisingProgress.current = 0;
+        console.log(`StageLight starting descent from Y: ${stageLightRef.current.position.y}`);
+      } else if (!isRaisingStageLight.current && stageLightRef.current.visible) {
+        // Start raising animation when music stops
+        isRaisingStageLight.current = true;
+        stageLightRaisingProgress.current = 0;
+        console.log('StageLight starting to raise');
+      }
+    }
     
     if (isPlaying) {
       // Turn on nightclub lights with fade-in effect
@@ -715,11 +1085,20 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
       videoTexture.format = THREE.RGBFormat;
       videoTexture.encoding = THREE.sRGBEncoding;
       
-      // Pre-create the material
+      // Rotate video 90 degrees
+      videoTexture.center.set(0.5, 0.5);
+      videoTexture.rotation = Math.PI / 2; // 90 degrees in radians
+      
+      // Pre-create the material with z-fighting prevention
       const videoMaterial = new THREE.MeshBasicMaterial({
         map: videoTexture,
         side: THREE.DoubleSide,
-        toneMapped: false
+        toneMapped: false,
+        depthWrite: false,
+        depthTest: true,
+        polygonOffset: true,
+        polygonOffsetFactor: -5,
+        polygonOffsetUnits: -5
       });
       
       videoPoolRef.current = {
@@ -792,12 +1171,22 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
           videoTexture.magFilter = THREE.LinearFilter;
           videoTexture.format = THREE.RGBFormat;
           videoTexture.encoding = THREE.sRGBEncoding;
+          
+          // Rotate video 90 degrees
+          videoTexture.center.set(0.5, 0.5);
+          videoTexture.rotation = Math.PI / 2; // 90 degrees in radians
+          
           videoTextureRef.current = videoTexture;
           
           videoMaterial = new THREE.MeshBasicMaterial({
             map: videoTexture,
             side: THREE.DoubleSide,
-            toneMapped: false
+            toneMapped: false,
+            depthWrite: false,
+            depthTest: true,
+            polygonOffset: true,
+            polygonOffsetFactor: -5,
+            polygonOffsetUnits: -5
           });
         }
         
@@ -840,7 +1229,7 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
         const originalMaterial = originalMaterialsRef.current.get(wall.name);
         if (originalMaterial) {
           wall.material = originalMaterial;
-          console.log(`Restored original material to wall: ${wall.name}`);
+          // console.log(`Restored original material to wall: ${wall.name}`);
         }
       });
       
@@ -1035,6 +1424,18 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
           // console.log('Playing GUITAR animation for CyborgInAlley (half speed)');
         }
         
+        // Handle CyborgDJ's Sit animation - keep sitting during music
+        if (actions['Sit_CyborgDJ'] || actions['Sit']) {
+          const djSitAction = actions['Sit_CyborgDJ'] || actions['Sit'];
+          // Make sure DJ keeps sitting during music
+          if (!djSitAction.isRunning()) {
+            djSitAction.reset();
+            djSitAction.setLoop(THREE.LoopRepeat);
+            djSitAction.play();
+            // console.log('CyborgDJ continues sitting during music');
+          }
+        }
+        
         // Collect other SAMBA/SALSA animations to start (excluding SAMBA0 which is handled above)
         const danceAnimationsToStart = [];
         
@@ -1094,10 +1495,11 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
           mixer.addEventListener('finished', onStandClapFinished);
         }
         
-        if (danceFound) {
-          // console.log(`✅ Playing ${danceAnimations.length} dance animation(s):`, danceAnimations);
+        // Log dance animation status based on what we found
+        if (danceAnimationsToStart.length > 0) {
+          console.log(`✅ Playing ${danceAnimationsToStart.length} dance animation(s)`);
         } else {
-          // console.log('❌ No SAMBA/SALSA animations found. Available:', Object.keys(actions));
+          console.log('❌ No SAMBA/SALSA animations found. Available:', Object.keys(actions));
         }
       }, 2000); // 2 second delay
       
@@ -1205,6 +1607,17 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
           // console.log(`Resumed animation: ${name}`);
         }
       });
+      
+      // Ensure CyborgDJ resumes sitting when music stops
+      if (actions['Sit_CyborgDJ'] || actions['Sit']) {
+        const djSitAction = actions['Sit_CyborgDJ'] || actions['Sit'];
+        if (!djSitAction.isRunning()) {
+          djSitAction.reset();
+          djSitAction.setLoop(THREE.LoopRepeat);
+          djSitAction.play();
+          // console.log('CyborgDJ resumes sitting after music stops');
+        }
+      }
     }
     
     // Cleanup function
@@ -1286,13 +1699,13 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
         lightGroup.add(spotlight);
         spotlightsRef.current.push(spotlight);
         
-        console.log(`Created spotlight ${i}:`, {
-          position: spotlight.position,
-          target: target.position,
-          color: spotlight.color,
-          angle: spotlight.angle,
-          intensity: spotlight.intensity
-        });
+        // console.log(`Created spotlight ${i}:`, {
+        //   position: spotlight.position,
+        //   target: target.position,
+        //   color: spotlight.color,
+        //   angle: spotlight.angle,
+        //   intensity: spotlight.intensity
+        // });
         
         // Add a point light at the spotlight position for extra glow
         const pointLight = new THREE.PointLight(spotlightColors[i], 0, 50);
@@ -1331,6 +1744,47 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
   useFrame((state, delta) => {
     if (mixer) {
       mixer.update(delta);
+    }
+    
+    // Animate StageLight
+    if (stageLightRef.current && stageLightRef.current.visible) {
+      const lowerDistance = 10; // Units to lower/raise
+      
+      if (isPlaying) {
+        // Handle lowering animation when music is playing
+        if (stageLightLoweringProgress.current < 1) {
+          // Increase progress (2 seconds to fully lower)
+          stageLightLoweringProgress.current += delta * 0.5;
+          stageLightLoweringProgress.current = Math.min(stageLightLoweringProgress.current, 1);
+          
+          // Smooth easing function (ease-out)
+          const easedProgress = 1 - Math.pow(1 - stageLightLoweringProgress.current, 3);
+          
+          // Update position for StageLight
+          stageLightRef.current.position.y = stageLightOriginalY.current + lowerDistance * (1 - easedProgress);
+        } else {
+          // After lowering is complete, rotate the StageLight
+          const rotationSpeed = (currentTrackBPM / 100) * 0.5;
+          stageLightRef.current.rotation.z += delta * rotationSpeed;
+        }
+      } else if (isRaisingStageLight.current) {
+        // Handle raising animation when music stops
+        stageLightRaisingProgress.current += delta * 0.5; // Same speed as lowering
+        stageLightRaisingProgress.current = Math.min(stageLightRaisingProgress.current, 1);
+        
+        // Smooth easing function (ease-in)
+        const easedProgress = Math.pow(stageLightRaisingProgress.current, 3);
+        
+        // Update position for StageLight
+        stageLightRef.current.position.y = stageLightOriginalY.current + lowerDistance * easedProgress;
+        
+        // When raising is complete, hide the object
+        if (stageLightRaisingProgress.current >= 1) {
+          stageLightRef.current.visible = false;
+          isRaisingStageLight.current = false;
+          console.log('StageLight raising complete, now hidden');
+        }
+      }
     }
     
     // Throttle spotlight animations on low-end devices
@@ -1426,6 +1880,7 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
         castShadow
         receiveShadow
       />
+      {/* <StatueSpotlights scene={gltf.scene} isPlaying={isPlaying} /> */}
     </group>
   );
 }
@@ -1434,7 +1889,7 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
 useGLTF.preload(`/cathedral.glb?v=${MODEL_VERSION}`);
 
 // Inner component that uses music context
-function CathedralWithMusic({ isPlaying = false, showAnnotations = true }) {
+function CathedralWithMusic({ isPlaying = false, showAnnotations = true, is80sMode = false }) {
   const [showFloatingViewer, setShowFloatingViewer] = useState(false);
   const [selectedCandleData, setSelectedCandleData] = useState(null);
   const [cinematicComplete, setCinematicComplete] = useState(false);
@@ -1469,6 +1924,7 @@ function CathedralWithMusic({ isPlaying = false, showAnnotations = true }) {
 
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
+      
       <Canvas 
         shadows={sceneSettings.shadowsEnabled}
         camera={{ position: [-5.41, -47.69, -8.00], fov: 45, near: 0.01, far: 200 }}
@@ -1530,6 +1986,7 @@ function CathedralWithMusic({ isPlaying = false, showAnnotations = true }) {
             enableLogging={true}
             autoStart={true}
           />
+      
           <CathedralModel 
             isPlaying={isPlaying} 
             onCandleClick={handleCandleClick}
@@ -1539,8 +1996,11 @@ function CathedralWithMusic({ isPlaying = false, showAnnotations = true }) {
           />
           <TickerCanvasTextureApplier is80sMode={false} />
           <Object2Replacer />
+          <RoundWindowEffects isPlaying={isPlaying} />
           {cinematicComplete && showAnnotations && (
             <AnnotationSystem 
+              is80sMode={is80sMode}
+              showFloatingViewer={showFloatingViewer}
               annotations={[
                 {
                   position: [-9.5, -48, -4], // Main altar area
@@ -1552,7 +2012,7 @@ function CathedralWithMusic({ isPlaying = false, showAnnotations = true }) {
                   }
                 },
                 {
-                  position: [1, -51, 1], // Right side
+                  position: [0, -51, -1], // Right side
                   text: "Quantum Confessional\nConfess to the algorithm",
                   // customCamera: {
                   //   position: [8, -49, 5], // Camera position
@@ -1561,7 +2021,7 @@ function CathedralWithMusic({ isPlaying = false, showAnnotations = true }) {
                   // }
                 },
                 {
-                  position: [-16, -51, -9], // Left side
+                  position: [-16, -51, -11], // Left side
                   text: "Neural Nave\nProcessing faithful data"
                 },
                 {
@@ -1574,16 +2034,15 @@ function CathedralWithMusic({ isPlaying = false, showAnnotations = true }) {
                   }
                 }
               ]}
-              is80sMode={false}
               scale={4}
               textScale={1.5}
             />
           )}
         </Suspense>
         {/* Environment light - dimmed when music plays */}
-        {!isPlaying && <Environment preset="sunset" intensity={0.3} />}
+        {!isPlaying && <Environment preset="sunset" intensity={0.2} />}
       </Canvas>
-      
+      {isPlaying && <PrismaticOverlay />}
       {/* FloatingCandleViewer outside the Canvas */}
       {showFloatingViewer && selectedCandleData && (
         <FloatingCandleViewer
@@ -1612,7 +2071,7 @@ function Cathedral(props) {
 }
 
 // Version without music context for standalone usage
-function CathedralWithoutMusic({ isPlaying = false, showAnnotations = true }) {
+function CathedralWithoutMusic({ isPlaying = false, showAnnotations = true, is80sMode = false }) {
   const [showFloatingViewer, setShowFloatingViewer] = useState(false);
   const [selectedCandleData, setSelectedCandleData] = useState(null);
   const [cinematicComplete, setCinematicComplete] = useState(false);
@@ -1673,7 +2132,7 @@ function CathedralWithoutMusic({ isPlaying = false, showAnnotations = true }) {
             // panSpeed={0.8}
             rotateSpeed={0.5}
             enableDamping={true}
-            dampingFactor={0.1}
+            dampingFactor={0.9}
             minDistance={0.1}
             maxDistance={60}
             maxPolarAngle={Math.PI * 0.85}
@@ -1684,7 +2143,7 @@ function CathedralWithoutMusic({ isPlaying = false, showAnnotations = true }) {
           
         
         {/* Minimal ambient light - much darker when music plays */}
-        <ambientLight intensity={isPlaying ? 0.1 : 0.3} />
+        <ambientLight intensity={isPlaying ? 0.1 : 0.2} />
         {/* <directionalLight 
           position={[10, 10, 5]} 
           intensity={1} 
@@ -1718,8 +2177,11 @@ function CathedralWithoutMusic({ isPlaying = false, showAnnotations = true }) {
           />
           <TickerCanvasTextureApplier is80sMode={false} />
           <Object2Replacer />
+          <RoundWindowEffects isPlaying={isPlaying} />
           {cinematicComplete && showAnnotations && (
             <AnnotationSystem 
+              is80sMode={is80sMode}
+              showFloatingViewer={showFloatingViewer}
               annotations={[
                 {
                   position: [-9.5, -48, -4], // Main altar area
@@ -1732,7 +2194,7 @@ function CathedralWithoutMusic({ isPlaying = false, showAnnotations = true }) {
                 
                 },
                 {
-                  position: [1, -51, 1], // Right side
+                  position: [0, -51, -1], // Right side
                   text: "Quantum Confessional\nConfess to the algorithm",
                   // customCamera: {
                   //   position: [8, -49, 5], // Camera position
@@ -1741,7 +2203,7 @@ function CathedralWithoutMusic({ isPlaying = false, showAnnotations = true }) {
                   // }
                 },
                 {
-                  position: [-16, -51, -9], // Left side
+                  position: [-16, -51, -11], // Left side
                   text: "Neural Nave\nProcessing faithful data"
                 },
                 {
@@ -1754,7 +2216,6 @@ function CathedralWithoutMusic({ isPlaying = false, showAnnotations = true }) {
                   }
                 }
               ]}
-              is80sMode={false}
               scale={4}
               textScale={1.5}
             />

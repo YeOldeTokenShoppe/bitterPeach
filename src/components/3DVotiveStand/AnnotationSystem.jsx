@@ -3,7 +3,7 @@ import { useThree, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import AnnotationMarker from './AnnotationMarker';
 
-function AnnotationSystem({ annotations = [], is80sMode = false, scale = 1, textScale = null }) {
+function AnnotationSystem({ annotations = [], is80sMode = false, scale = 1, textScale = null, showFloatingViewer = false }) {
   const { camera, controls, gl } = useThree();
   const [activeAnnotation, setActiveAnnotation] = useState(null);
   const targetPosition = useRef(new THREE.Vector3());
@@ -178,25 +178,31 @@ function AnnotationSystem({ annotations = [], is80sMode = false, scale = 1, text
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [activeAnnotation]);
   
-  // Handle click anywhere to exit close-up view
-  useEffect(() => {
-    if (activeAnnotation !== null && gl && gl.domElement) {
-      const handleCanvasClick = (e) => {
-        // Small delay to prevent immediate exit when clicking a marker
-        setTimeout(() => {
-          if (activeAnnotation !== null) {
-            resetCamera();
-          }
-        }, 100);
-      };
-      
-      gl.domElement.addEventListener('click', handleCanvasClick);
-      return () => gl.domElement.removeEventListener('click', handleCanvasClick);
-    }
-  }, [activeAnnotation, gl]);
+  // Commented out auto-reset on click to allow users to interact at close-up views
+  // Users can still press Escape to return to distant view
+  // useEffect(() => {
+  //   if (activeAnnotation !== null && gl && gl.domElement) {
+  //     const handleCanvasClick = (e) => {
+  //       // Small delay to prevent immediate exit when clicking a marker
+  //       setTimeout(() => {
+  //         if (activeAnnotation !== null) {
+  //           resetCamera();
+  //         }
+  //       }, 100);
+  //     };
+  //     
+  //     gl.domElement.addEventListener('click', handleCanvasClick);
+  //     return () => gl.domElement.removeEventListener('click', handleCanvasClick);
+  //   }
+  // }, [activeAnnotation, gl]);
   
-  const markerColor = is80sMode ? '#67e8f9' : '#00ff41';
-  const hoverColor = is80sMode ? '#D946EF' : '#67e8f9';
+  const markerColor = is80sMode ? '#D946EF' : '#ffff00';
+  const hoverColor = is80sMode ? '#67e8f9' : '#c896ff';
+  
+  // Hide annotations and markers when FloatingCandleViewer is visible
+  if (showFloatingViewer) {
+    return null;
+  }
   
   return (
     <>

@@ -9,8 +9,8 @@ function AnnotationMarker({
   text = '', 
   onFocus,
   isActive = false,
-  color = '#00ff41',
-  hoverColor = '#67e8f9',
+  color = '#ffff00',
+  hoverColor = '#c896ff',
   annotationOffset = null,
   scale = 1,
   textScale = null

@@ -72,8 +72,8 @@ function CinematicCamera({
       } : 'N/A'
     };
     
-    console.log(`📸 ${label}:`, state);
-    console.log(`Copy for keyframe: { position: new THREE.Vector3(${state.position.x}, ${state.position.y}, ${state.position.z}), lookAt: new THREE.Vector3(${state.lookingAt?.x || 0}, ${state.lookingAt?.y || 0}, ${state.lookingAt?.z || 0}), fov: ${state.fov} }`);
+    // console.log(`📸 ${label}:`, state);
+    // console.log(`Copy for keyframe: { position: new THREE.Vector3(${state.position.x}, ${state.position.y}, ${state.position.z}), lookAt: new THREE.Vector3(${state.lookingAt?.x || 0}, ${state.lookingAt?.y || 0}, ${state.lookingAt?.z || 0}), fov: ${state.fov} }`);
   };
   
   // Get interpolated values between keyframes
@@ -154,7 +154,7 @@ function CinematicCamera({
       controls.update();
     }
     
-    console.log('⏭️ Animation Skipped');
+    // console.log('⏭️ Animation Skipped');
     logCameraState('Animation Skipped - Final Position');
     
     if (onComplete) {
@@ -173,11 +173,11 @@ function CinematicCamera({
           // Pause/resume animation
           if (isAnimatingRef.current) {
             isAnimatingRef.current = false;
-            console.log('⏸️  Animation Paused');
+            // console.log('⏸️  Animation Paused');
           } else if (animationStarted && progressRef.current < 1) {
             isAnimatingRef.current = true;
             startTimeRef.current = Date.now() - (progressRef.current * duration);
-            console.log('▶️  Animation Resumed');
+            // console.log('▶️  Animation Resumed');
           }
           break;
         case 'r':
@@ -186,7 +186,7 @@ function CinematicCamera({
           startTimeRef.current = Date.now();
           isAnimatingRef.current = true;
           setAnimationStarted(true);
-          console.log('🔄 Animation Restarted');
+          // console.log('🔄 Animation Restarted');
           break;
         case 'escape':
           // Skip animation
@@ -233,7 +233,7 @@ function CinematicCamera({
     
     // Debug logging for timing
     if (enableLogging && elapsed < 100) {
-      console.log(`🎬 Animation started - Duration: ${duration}ms`);
+      // console.log(`🎬 Animation started - Duration: ${duration}ms`);
     }
     
     // Ease in-out cubic function for smooth motion
@@ -286,7 +286,7 @@ function CinematicCamera({
       
       if (enableLogging) {
         const totalTime = Date.now() - startTimeRef.current;
-        console.log(`⏱️ Animation completed in ${totalTime}ms (expected: ${duration}ms)`);
+        // console.log(`⏱️ Animation completed in ${totalTime}ms (expected: ${duration}ms)`);
       }
       
       logCameraState('Animation Complete');

@@ -52,7 +52,7 @@ const CyberNav = ({ is80sMode = false }) => {
               )}
             </svg>
           }
-          color={is80sMode ? "#00ff41" : "white"}
+          color={is80sMode ? "#D946EF" : "#ffff00"}
           bg="rgba(0, 0, 0, 0.5)"
           backdropFilter="blur(10px)"
           size="md"
@@ -91,10 +91,10 @@ const CyberNav = ({ is80sMode = false }) => {
                     cursor="pointer"
                     padding="20px"
                     borderRadius="10px"
-                    bg={isActive ? (is80sMode ? "#D946EF" : "#f6f841") : "transparent"}
+                    bg={isActive ? (is80sMode ? "#67e8f9" : "#c896ff") : "transparent"}
                     onClick={() => setIsMenuOpen(false)}
                     _hover={{
-                      bg: is80sMode ? "#D946EF" : "#f6f841",
+                      bg: is80sMode ? "#67e8f9" : "#c896ff",
                       textDecoration: 'none'
                     }}
                   >
@@ -111,7 +111,7 @@ const CyberNav = ({ is80sMode = false }) => {
                     </Box>
                     <Box display="flex" flexDirection="column">
                       <Text
-                        color={isActive ? '#000000' : (is80sMode ? "#67e8f9" : '#ffffff')}
+                        color={isActive ? '#000000' : (is80sMode ? "#D946EF" : '#ffff00')}
                         fontWeight="700"
                         fontSize="14px"
                         fontFamily="'Rajdhani', sans-serif"
@@ -120,7 +120,7 @@ const CyberNav = ({ is80sMode = false }) => {
                         {item.date}
                       </Text>
                       <Text
-                        color={isActive ? '#000000' : (is80sMode ? "#67e8f9" : '#ffffff')}
+                        color={isActive ? '#000000' : (is80sMode ? "#D946EF" : '#ffff00')}
                         fontSize="24px"
                         fontWeight="700"
                         fontFamily="'Rajdhani', sans-serif"
@@ -173,8 +173,8 @@ const CyberNav = ({ is80sMode = false }) => {
                 cursor="pointer"
                 overflow="hidden"
                 borderBottom="1px solid"
-                borderColor={isHovered || isActive ? (is80sMode ? '#D946EF' : '#000000') : (is80sMode ? 'rgba(217, 70, 239, 0.25)' : 'rgba(255, 255, 255, 0.25)')}
-                bg={isHovered || isActive ? (is80sMode ? '#D946EF' : '#f6f841') : 'rgba(0,0,0,0)'}
+                borderColor={isHovered || isActive ? (is80sMode ? '#67e8f9' : '#c896ff') : (is80sMode ? 'rgba(217, 70, 239, 0.25)' : 'rgba(200, 150, 255, 0.25)')}
+                bg={isHovered || isActive ? (is80sMode ? '#67e8f9' : '#c896ff') : 'rgba(0,0,0,0)'}
                 clipPath="polygon(95% 0%, 100% 20%, 100% 100%, 0 100%, 0 0)"
                 transition="all 0.3s ease"
                 onMouseEnter={() => setHoveredTab(item.id)}
@@ -196,7 +196,7 @@ const CyberNav = ({ is80sMode = false }) => {
                   <Text
                     display="block"
                     textAlign="left"
-                    color={isHovered || isActive ? '#000000' : (is80sMode ? '#67e8f9' : '#ffffff')}
+                    color={isHovered || isActive ? '#000000' : (is80sMode ? '#D946EF' : '#ffff00')}
                     fontWeight="700"
                     fontSize="20px"
                     marginBottom="0px"
@@ -208,7 +208,7 @@ const CyberNav = ({ is80sMode = false }) => {
                   <Text
                     display="block"
                     textAlign="left"
-                    color={isHovered || isActive ? '#000000' : (is80sMode ? '#67e8f9' : '#ffffff')}
+                    color={isHovered || isActive ? '#000000' : (is80sMode ? '#D946EF' : '#ffff00')}
                     fontSize="16px"
                     fontWeight="400"
                     textTransform="none"
@@ -229,7 +229,7 @@ const CyberNav = ({ is80sMode = false }) => {
                   justifyContent="center"
                   overflow="hidden"
                   borderRight="1px solid"
-                  borderColor={isHovered || isActive ? (is80sMode ? '#D946EF' : '#000000') : (is80sMode ? 'rgba(217, 70, 239, 0.25)' : 'rgba(255, 255, 255, 0.25)')}
+                  borderColor={isHovered || isActive ? (is80sMode ? '#67e8f9' : '#c896ff') : (is80sMode ? 'rgba(217, 70, 239, 0.25)' : 'rgba(200, 150, 255, 0.25)')}
                   transition="all 0.3s ease"
                 >
                   <Image

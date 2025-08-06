@@ -1,6 +1,6 @@
 import React from 'react';
 
-const PrismaticOverlay = ({ particleCount = 30, className = '' }) => {
+const PrismaticOverlay = ({ particleCount = 90, className = '' }) => {
   // Generate random values for each particle
   const particles = Array.from({ length: particleCount }, (_, i) => {
     const plusMinus = i % 2 === 0 ? -1 : 1;
@@ -16,7 +16,7 @@ const PrismaticOverlay = ({ particleCount = 30, className = '' }) => {
       posXEnd: posX + Math.random() * 8 + 5,
       posYEnd: posY + Math.random() * 8 + 5,
       angleEnd: angle + (Math.random() * 20 + 2) * plusMinus,
-      scale: Math.random() * 2 + 1,
+      scale: Math.random() * 2 + 0.01,
       duration: Math.random() * 10 + 5,
       delay: Math.random() * 7 * -0.3,
       opacity: Math.random() * 0.5 + 0.2,

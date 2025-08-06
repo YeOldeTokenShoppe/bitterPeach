@@ -130,15 +130,15 @@ export default function CathedralPage({ is80sMode, setIs80sMode }) {
     <div style={{ position: 'relative', width: '100vw', height: '100vh' }}>
       
       
-      <CyberNav />
-      <Cathedral isPlaying={isPlaying} showAnnotations={showAnnotations} />
+      <CyberNav is80sMode={is80sMode} />
+      <Cathedral isPlaying={isPlaying} showAnnotations={showAnnotations} is80sMode={is80sMode} />
       
       {/* Right-aligned CyberCalloutOverlay */}
       <CyberCalloutOverlay
         title="THE ILLUMIN80"
         subtitle="GET LIT WITH RL80"
-        description="Ancient wisdom, quantum rewards. This is no simulation—it's sacred tech forged in faith. Burn your devotion at the altar of tomorrow."
-        buttonText="JOIN"
+        description="It is said that any sufficiently advanced technology is indistinguishable from magic. This is no illusion—it's sacred tech forged in faith. Burn your devotion at the altar of tomorrow."
+        buttonText="BUY"
         is80sMode={is80sMode}
         autoHide={false}
         show={showCyberOverlay}
@@ -167,7 +167,7 @@ export default function CathedralPage({ is80sMode, setIs80sMode }) {
             <circle cx="18" cy="16" r="3"/>
           </svg>
         }
-        color="white"
+        color={is80sMode ? "#D946EF" : "#ffff00"}
         bg="transparent"
         size="md"
         onClick={() => {
@@ -184,6 +184,8 @@ export default function CathedralPage({ is80sMode, setIs80sMode }) {
         }}
         _hover={{
           bg: "rgba(255, 255, 255, 0.1)",
+          color: is80sMode ? "#67e8f9" : "#c896ff",
+          transform: "scale(1.1)",
         }}
       />
     )}
@@ -320,7 +322,7 @@ export default function CathedralPage({ is80sMode, setIs80sMode }) {
           <circle cx="12" cy="7" r="4"/>
         </svg>
       }
-      color={is80sMode ? "#00ff41" : "white"}
+      color={is80sMode ? "#D946EF" : "#ffff00"}
       bg="transparent"
       size="md"
       onClick={() => {
@@ -329,7 +331,7 @@ export default function CathedralPage({ is80sMode, setIs80sMode }) {
       }}
       _hover={{
         bg: "rgba(255, 255, 255, 0.1)",
-        color: is80sMode ? "#00ff41" : "#D946EF",
+        color: is80sMode ? "#67e8f9" : "#c896ff",
         transform: "scale(1.1)",
       }}
       transition="all 0.3s ease"
@@ -359,13 +361,13 @@ export default function CathedralPage({ is80sMode, setIs80sMode }) {
           </text>
         </svg>
       }
-      color={is80sMode ? "#00ff41" : "white"}
+      color={is80sMode ? "#D946EF" : "#ffff00"}
       bg="transparent"
       size="md"
       onClick={() => setIs80sMode(!is80sMode)}
       _hover={{
         bg: "rgba(255, 255, 255, 0.1)",
-        color: is80sMode ? "#00ff41" : "#D946EF",
+        color: is80sMode ? "#67e8f9" : "#c896ff",
         transform: "scale(1.1)",
       }}
       transition="all 0.3s ease"
@@ -386,12 +388,14 @@ export default function CathedralPage({ is80sMode, setIs80sMode }) {
           </g>
         </svg>
       }
-      color="white"
+      color={is80sMode ? (showAnnotations ? "#D946EF" : "#67e8f9") : (showAnnotations ? "#ffff00" : "#c896ff")}
       bg="transparent"
       size="md"
       onClick={() => setShowAnnotations(!showAnnotations)}
       _hover={{
-        bg: "rgba(255, 255, 255, 0)",
+        bg: "rgba(255, 255, 255, 0.1)",
+        color: is80sMode ? "#67e8f9" : "#c896ff",
+        transform: "scale(1.1)",
       }}
     />
     {/* Bot/AI Assistant Icon */}
@@ -411,7 +415,7 @@ export default function CathedralPage({ is80sMode, setIs80sMode }) {
           <path d="M9 13v2"/>
         </svg>
       }
-      color={is80sMode ? "#00ff41" : "white"}
+      color={is80sMode ? "#D946EF" : "#ffff00"}
       bg="transparent"
       size="md"
       onClick={() => {
@@ -420,7 +424,7 @@ export default function CathedralPage({ is80sMode, setIs80sMode }) {
       }}
       _hover={{
         bg: "rgba(255, 255, 255, 0.1)",
-        color: is80sMode ? "#00ff41" : "#D946EF",
+        color: is80sMode ? "#67e8f9" : "#c896ff",
         transform: "scale(1.1)",
       }}
       transition="all 0.3s ease"

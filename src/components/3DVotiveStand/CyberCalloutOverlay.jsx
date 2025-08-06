@@ -48,22 +48,24 @@ function CyberCalloutOverlay({
     <div
       style={{
         position: 'fixed',
-        left: '40px',
+        left: '20px',
         top: '50%',
         transform: 'translateY(-50%)',
         zIndex: 1000,
         transition: 'all 0.3s ease-in-out',
         opacity: isVisible ? 1 : 0,
         pointerEvents: isVisible ? 'auto' : 'none',
+        maxWidth: 'calc(100vw - 40px)', // Ensure it doesn't overflow viewport
       }}
     >
       <div
         style={{
           position: 'relative',
-          width: '400px',
+          width: '320px',
+          maxWidth: '100%',
           background: 'rgba(0, 0, 0, 0.55)',
           border: `2px solid ${primaryColor}`,
-          padding: '30px',
+          padding: '20px',
           fontFamily: 'Arial, sans-serif',
           color: '#ffffff',
           transform: 'skewX(5deg)',
@@ -117,10 +119,10 @@ function CyberCalloutOverlay({
           {/* Subtitle */}
           <div
             style={{
-              fontSize: '12px',
+              fontSize: 'clamp(10px, 2vw, 12px)',
               color: primaryColor,
-              letterSpacing: '3px',
-              marginBottom: '8px',
+              letterSpacing: '2px',
+              marginBottom: '6px',
               textTransform: 'uppercase',
             }}
           >
@@ -130,12 +132,13 @@ function CyberCalloutOverlay({
           {/* Title */}
           <div
             style={{
-              fontSize: '32px',
+              fontSize: 'clamp(20px, 4vw, 26px)',
               fontWeight: 'bold',
               color: accentColor,
-              marginBottom: '20px',
+              marginBottom: '15px',
               textShadow: `0 0 10px ${accentColor}80`,
               letterSpacing: '1px',
+              lineHeight: '1.2',
             }}
           >
             {title}
@@ -144,9 +147,9 @@ function CyberCalloutOverlay({
           {/* Description */}
           <div
             style={{
-              fontSize: '16px',
-              lineHeight: '1.6',
-              marginBottom: '25px',
+              fontSize: 'clamp(13px, 2.5vw, 14px)',
+              lineHeight: '1.5',
+              marginBottom: '20px',
               color: '#cccccc',
             }}
           >
@@ -168,8 +171,8 @@ function CyberCalloutOverlay({
                 background: accentColor,
                 color: '#000000',
                 border: 'none',
-                padding: '12px 40px',
-                fontSize: '18px',
+                padding: 'clamp(8px, 2vw, 10px) clamp(20px, 4vw, 30px)',
+                fontSize: 'clamp(14px, 2.5vw, 16px)',
                 fontWeight: 'bold',
                 letterSpacing: '2px',
                 cursor: 'pointer',
@@ -197,8 +200,8 @@ function CyberCalloutOverlay({
                   background: 'transparent',
                   color: accentColor,
                   border: `2px solid ${accentColor}`,
-                  padding: '12px 40px',
-                  fontSize: '18px',
+                  padding: 'clamp(8px, 2vw, 10px) clamp(20px, 4vw, 30px)',
+                  fontSize: 'clamp(14px, 2.5vw, 16px)',
                   fontWeight: 'bold',
                   letterSpacing: '2px',
                   cursor: 'pointer',
@@ -269,14 +272,33 @@ function CyberCalloutOverlay({
       <style jsx>{`
         @keyframes scanline {
           0% { transform: translateY(0); }
-          100% { transform: translateY(300px); }
+          100% { transform: translateY(250px); }
         }
         
-        @media (max-width: 768px) {
-          div > div:first-child {
-            width: 320px !important;
-            left: 20px !important;
+        @media (max-width: 480px) {
+          /* Mobile phones */
+          div[style*="width: 320px"] {
+            width: 260px !important;
+            padding: 15px !important;
           }
+          div[style*="gap: 15px"] {
+            flex-direction: column !important;
+            gap: 10px !important;
+          }
+          div[style*="left: 20px"] {
+            left: 10px !important;
+          }
+        }
+        
+        @media (min-width: 481px) and (max-width: 768px) {
+          /* Tablets */
+          div[style*="width: 320px"] {
+            width: 300px !important;
+          }
+        }
+        
+        @media (min-width: 769px) and (max-width: 1024px) {
+          /* Small laptops - use default 320px */
         }
       `}</style>
     </div>

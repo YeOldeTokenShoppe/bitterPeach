@@ -31,6 +31,7 @@ const SimpleMusicPlayer = ({
   // Track lists with BPM data
   const non80sTracks = [
     { name: "Lifetimes", path: "audio/192k/07-lifetimes.m4a", bpm: 115 }, // Mid-tempo pop
+    { name: "Magnetic", path: "audio/320k/01-magnetic.m4a", bpm: 130 },
     { name: "Rocket Man - Steven Drozd", path: "audio/192k/rocket-man---steven-drozd.m4a", bpm: 75 } // Slower ballad
   ];
   
@@ -39,7 +40,7 @@ const SimpleMusicPlayer = ({
     { name: "Dirty Cash - The Adventures of Stevie V", path: "audio/320k/dirty-cash.m4a", bpm: 100 }, // Dance
     { name: "Sweet Dreams - Eurythmics", path: "audio/320k/sweet-dreams-eurythmics.m4a", bpm: 85 }, // Synth-pop
     { name: "Intergalactic - Beastie Boys", path: "audio/320k/intergalactic-beastie-boys.m4a", bpm: 108 }, // Hip hop
-    { name: "1984 - Van Halen", path: "audio/192k/vanhalen---1984.mp3", bpm: 75 }, // Rock instrumental
+    // { name: "1984 - Van Halen", path: "audio/192k/vanhalen---1984.mp3", bpm: 75 }, // Rock instrumental
     { name: "Good Life - Inner City", path: "audio/320k/good-life-inner-city.m4a", bpm: 120 }, // House/dance
     { name: "Like A Prayer - Madonna", path: "audio/320k/like-a-prayer-madonna.m4a", bpm: 85 }, // Dance pop
     { name: "99 Luftballoons - Nena", path: "audio/320k/99-luftballoons-nena.m4a", bpm: 85 } // Upbeat pop

@@ -542,7 +542,7 @@
 
     return (
       <>
-        <group ref={candleRef} scale={1.5}>
+        <group ref={candleRef} scale={1.5} >
           <primitive object={scene} />
         </group>
 
