@@ -175,13 +175,13 @@ const PostProcessingEffects = ({ is80sMode = false }) => {
         modulationOffset={0.5}     // Increased modulation
       />
       <Scanline
-        density={11.0}             // More visible scanlines
-        opacity={0.6}             // Doubled opacity
+        density={20.0}             // Much more visible scanlines
+        opacity={0.8}             // Increased opacity for stronger effect
         blendFunction={BlendFunction.OVERLAY}
       />
       <Glitch
-        delay={[0.5, 1.5]}        // Random glitch every 1.5-3.5 seconds
-        chromaticAberrationOffset={[0.00005, 0.00001]}
+        delay={[3.0, 5.0]}        // Less frequent glitches (every 3-5 seconds)
+        chromaticAberrationOffset={[0.00002, 0.000005]}  // Reduced intensity
         // delay={[1.5, 2.5]}        // Random glitch every 1.5-3.5 seconds
         // duration={[0.1, 0.3]}     // Quick glitches
         // strength={[0.00005, 0.00001]}     // Moderate strength

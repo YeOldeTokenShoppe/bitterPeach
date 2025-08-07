@@ -167,7 +167,7 @@ export default function CathedralPage({ is80sMode, setIs80sMode }) {
             <circle cx="18" cy="16" r="3"/>
           </svg>
         }
-        color={is80sMode ? "#D946EF" : "#ffff00"}
+        color={is80sMode ? "#67e8f9" : "#ffffff"}
         bg="transparent"
         size="md"
         onClick={() => {
@@ -183,8 +183,8 @@ export default function CathedralPage({ is80sMode, setIs80sMode }) {
           }, 200);
         }}
         _hover={{
-          bg: "rgba(255, 255, 255, 0.1)",
-          color: is80sMode ? "#67e8f9" : "#c896ff",
+          bg: "rgba(255, 255, 255, 0)",
+          color: "#c896ff",
           transform: "scale(1.1)",
         }}
       />
@@ -322,7 +322,7 @@ export default function CathedralPage({ is80sMode, setIs80sMode }) {
           <circle cx="12" cy="7" r="4"/>
         </svg>
       }
-      color={is80sMode ? "#D946EF" : "#ffff00"}
+      color={is80sMode ? "#67e8f9" : "#ffffff"}
       bg="transparent"
       size="md"
       onClick={() => {
@@ -330,8 +330,8 @@ export default function CathedralPage({ is80sMode, setIs80sMode }) {
         // console.log("User account clicked");
       }}
       _hover={{
-        bg: "rgba(255, 255, 255, 0.1)",
-        color: is80sMode ? "#67e8f9" : "#c896ff",
+        bg: "rgba(255, 255, 255, 0)",
+        color: "#c896ff",
         transform: "scale(1.1)",
       }}
       transition="all 0.3s ease"
@@ -355,19 +355,19 @@ export default function CathedralPage({ is80sMode, setIs80sMode }) {
             fontSize="10" 
             fontWeight="bold"
             fontFamily="'Rajdhani', sans-serif"
-            fill={is80sMode ? (is80sMode === "#00ff41" ? "#000" : "#000") : "currentColor"}
+            fill={is80sMode ? "#000" : "currentColor"}
           >
             80s
           </text>
         </svg>
       }
-      color={is80sMode ? "#D946EF" : "#ffff00"}
+      color={is80sMode ? "#c896ff" : "#ffffff"}
       bg="transparent"
       size="md"
       onClick={() => setIs80sMode(!is80sMode)}
       _hover={{
-        bg: "rgba(255, 255, 255, 0.1)",
-        color: is80sMode ? "#67e8f9" : "#c896ff",
+        bg: "rgba(255, 255, 255, 0)",
+        color: "#c896ff",
         transform: "scale(1.1)",
       }}
       transition="all 0.3s ease"
@@ -388,13 +388,13 @@ export default function CathedralPage({ is80sMode, setIs80sMode }) {
           </g>
         </svg>
       }
-      color={is80sMode ? (showAnnotations ? "#D946EF" : "#67e8f9") : (showAnnotations ? "#ffff00" : "#c896ff")}
+      color={is80sMode ? "#67e8f9" : (showAnnotations ? "#ffff00" : "#ffffff")}
       bg="transparent"
       size="md"
       onClick={() => setShowAnnotations(!showAnnotations)}
       _hover={{
-        bg: "rgba(255, 255, 255, 0.1)",
-        color: is80sMode ? "#67e8f9" : "#c896ff",
+        bg: "rgba(255, 255, 255, 0)",
+        color: "#c896ff",
         transform: "scale(1.1)",
       }}
     />
@@ -415,7 +415,7 @@ export default function CathedralPage({ is80sMode, setIs80sMode }) {
           <path d="M9 13v2"/>
         </svg>
       }
-      color={is80sMode ? "#D946EF" : "#ffff00"}
+      color={is80sMode ? "#67e8f9" : "#ffffff"}
       bg="transparent"
       size="md"
       onClick={() => {
@@ -423,8 +423,8 @@ export default function CathedralPage({ is80sMode, setIs80sMode }) {
         console.log("AI assistant clicked");
       }}
       _hover={{
-        bg: "rgba(255, 255, 255, 0.1)",
-        color: is80sMode ? "#67e8f9" : "#c896ff",
+        bg: "rgba(255, 255, 255, 0)",
+        color: "#c896ff",
         transform: "scale(1.1)",
       }}
       transition="all 0.3s ease"

@@ -208,9 +208,9 @@ const CyberNav = ({ is80sMode = false }) => {
                   <Text
                     display="block"
                     textAlign="left"
-                    color={isHovered || isActive ? '#000000' : (is80sMode ? '#D946EF' : '#ffff00')}
+                    color={isHovered || isActive ? '#000000' : (is80sMode ? '#D946EF' : '#ffffff')}
                     fontSize="16px"
-                    fontWeight="400"
+                    fontWeight="600"
                     textTransform="none"
                     lineHeight="20px"
                     fontFamily="'Rajdhani', sans-serif"

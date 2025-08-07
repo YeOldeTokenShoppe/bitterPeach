@@ -338,6 +338,9 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
   const gltf = useGLTF(`/cathedral.glb?v=${MODEL_VERSION}`);
   const modelRef = useRef();
   const groupRef = useRef();
+  const pivotRef = useRef();
+  const [modelCenter, setModelCenter] = useState([0, 0, 0]);
+  const [enableRotation, setEnableRotation] = useState(false);
   const { actions, mixer } = useAnimations(gltf.animations, modelRef);
   const danceTimeoutRef = useRef(null);
   const isInitializedRef = useRef(false);
@@ -554,13 +557,18 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
 
   useEffect(() => {
     if (gltf.scene && modelRef.current) {
+      // Calculate the bounding box center for proper rotation
+      const boundingBox = new THREE.Box3().setFromObject(gltf.scene);
+      const boxCenter = boundingBox.getCenter(new THREE.Vector3());
+      setModelCenter([boxCenter.x, boxCenter.y, boxCenter.z]);
+      
       // Enable shadows selectively for better performance
       gltf.scene.traverse((child) => {
         if (child.isMesh) {
           // Find the video walls
-          if (child.name === 'pPlane3_Walls_0' || child.name === 'pPlane4_Walls_0') {
+          if (child.name === 'pPlane3_Walls_0' || child.name === 'pPlane3_Walls2') {
      
-            // console.log('Found video wall:', child.name);
+            console.log('Found video wall:', child.name);
             originalMaterialsRef.current.set(child.name, child.material);
             child.userData.isVideoWall = true;
             videoWallsRef.current.push(child);
@@ -750,7 +758,7 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
       return;
     }
 
-    console.log('Applying user data to candles. Results:', results);
+    // console.log('Applying user data to candles. Results:', results);
 
     // Sort results by burnedAmount (descending) and createdAt (descending)
     const sortedByBurnedAmount = [...results].sort((a, b) => (b.burnedAmount || 0) - (a.burnedAmount || 0));
@@ -985,7 +993,7 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
   useEffect(() => {
     if (spotlightsRef.current.length === 0) return;
     
-    console.log('Nightclub lighting effect triggered. isPlaying:', isPlaying, 'Lights:', spotlightsRef.current.length);
+    // console.log('Nightclub lighting effect triggered. isPlaying:', isPlaying, 'Lights:', spotlightsRef.current.length);
     
     // Control StageLight visibility based on music playing
     if (stageLightRef.current && stageLightOriginalY.current !== null) {
@@ -996,12 +1004,12 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
         stageLightLoweringProgress.current = 0;
         isRaisingStageLight.current = false;
         stageLightRaisingProgress.current = 0;
-        console.log(`StageLight starting descent from Y: ${stageLightRef.current.position.y}`);
+        // console.log(`StageLight starting descent from Y: ${stageLightRef.current.position.y}`);
       } else if (!isRaisingStageLight.current && stageLightRef.current.visible) {
         // Start raising animation when music stops
         isRaisingStageLight.current = true;
         stageLightRaisingProgress.current = 0;
-        console.log('StageLight starting to raise');
+        // console.log('StageLight starting to raise');
       }
     }
     
@@ -1033,7 +1041,7 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
                 light.userData.pointLight.intensity = 5.0;
               }
               clearInterval(fadeIn);
-              console.log(`Light ${i} fully faded in with intensity:`, light.intensity);
+              // console.log(`Light ${i} fully faded in with intensity:`, light.intensity);
             }
           }, 50);
         }, i * 200);
@@ -1190,12 +1198,15 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
           });
         }
         
-        // Apply video material to all walls with fade effect
+        // Apply video material to walls (replacing their texture)
+        console.log(`Total walls found: ${videoWallsRef.current.length}`);
         videoWallsRef.current.forEach((wall, index) => {
           // Stagger wall activation for extra effect
           setTimeout(() => {
-            console.log(`Applying video to wall: ${wall.name}`);
+            console.log(`Applying video to wall ${index + 1}/${videoWallsRef.current.length}: ${wall.name}`);
+            // Simply replace the material
             wall.material = videoMaterial;
+            console.log(`Successfully applied video material to: ${wall.name}`);
           }, index * 100); // 100ms between each wall
         });
         
@@ -1224,12 +1235,12 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
         }
       }
       
-      // Restore original materials to all walls
+      // Restore original materials to walls
       videoWallsRef.current.forEach(wall => {
         const originalMaterial = originalMaterialsRef.current.get(wall.name);
         if (originalMaterial) {
           wall.material = originalMaterial;
-          // console.log(`Restored original material to wall: ${wall.name}`);
+          console.log(`Restored original material for wall: ${wall.name}`);
         }
       });
       
@@ -1868,18 +1879,27 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
     }
   });
 
+  // Add rotation animation
+  useFrame((state, delta) => {
+    if (enableRotation && pivotRef.current) {
+      pivotRef.current.rotation.y += delta * 0.2; // Adjust speed as needed
+    }
+  });
+
   return (
     <group ref={groupRef}>
-      <primitive 
-        ref={modelRef}
-        object={gltf.scene} 
-        scale={0.7} 
-        position={[0, -60, -15]}
-        rotation={[0, Math.PI / 1.2, 0]}
-        onClick={handleCandleClick}
-        castShadow
-        receiveShadow
-      />
+      <group ref={pivotRef} position={modelCenter}>
+        <primitive 
+          ref={modelRef}
+          object={gltf.scene} 
+          scale={0.7} 
+          position={[-modelCenter[0], -60 - modelCenter[1], -15 - modelCenter[2]]}
+          rotation={[0, Math.PI / 1.2, 0]}
+          onClick={handleCandleClick}
+          castShadow
+          receiveShadow
+        />
+      </group>
       {/* <StatueSpotlights scene={gltf.scene} isPlaying={isPlaying} /> */}
     </group>
   );
@@ -1976,7 +1996,7 @@ function CathedralWithMusic({ isPlaying = false, showAnnotations = true, is80sMo
         />
         {/* Fog effect for nightclub atmosphere - enhanced for volumetric effect */}
         {isPlaying && <fog attach="fog" args={['#050505', 5, 120]} />}
-    <PostProcessingEffects is80sMode={false} />
+    <PostProcessingEffects is80sMode={is80sMode} />
         <Suspense fallback={null}>
           {/* Cinematic camera - set enableLogging to true for debugging */}
           <CinematicCamera 
@@ -1994,7 +2014,7 @@ function CathedralWithMusic({ isPlaying = false, showAnnotations = true, is80sMo
             device={device}
             currentTrackBPM={currentTrackBPM}
           />
-          <TickerCanvasTextureApplier is80sMode={false} />
+          <TickerCanvasTextureApplier is80sMode={is80sMode} />
           <Object2Replacer />
           <RoundWindowEffects isPlaying={isPlaying} />
           {cinematicComplete && showAnnotations && (
@@ -2143,7 +2163,7 @@ function CathedralWithoutMusic({ isPlaying = false, showAnnotations = true, is80
           
         
         {/* Minimal ambient light - much darker when music plays */}
-        <ambientLight intensity={isPlaying ? 0.1 : 0.2} />
+        <ambientLight intensity={isPlaying ? 0.2 : 0.2} />
         {/* <directionalLight 
           position={[10, 10, 5]} 
           intensity={1} 
@@ -2158,7 +2178,7 @@ function CathedralWithoutMusic({ isPlaying = false, showAnnotations = true, is80
         /> */}
         {/* Fog effect for nightclub atmosphere - enhanced for volumetric effect */}
         {isPlaying && <fog attach="fog" args={['#050505', 5, 120]} />}
-    <PostProcessingEffects is80sMode={false} />
+    <PostProcessingEffects is80sMode={is80sMode} />
         <Suspense fallback={null}>
           {/* Cinematic camera - set enableLogging to true for debugging */}
           <CinematicCamera 
@@ -2175,7 +2195,7 @@ function CathedralWithoutMusic({ isPlaying = false, showAnnotations = true, is80
             device={device}
             currentTrackBPM={currentTrackBPM}
           />
-          <TickerCanvasTextureApplier is80sMode={false} />
+          <TickerCanvasTextureApplier is80sMode={is80sMode} />
           <Object2Replacer />
           <RoundWindowEffects isPlaying={isPlaying} />
           {cinematicComplete && showAnnotations && (
