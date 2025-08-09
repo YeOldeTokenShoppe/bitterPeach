@@ -24,6 +24,7 @@ export const MusicProvider = ({ children }) => {
   const [currentTrackUrl, setCurrentTrackUrl] = useState('');
   const [currentTrackPath, setCurrentTrackPath] = useState(''); // Add path tracking
   const [currentTrackBPM, setCurrentTrackBPM] = useState(100); // Add BPM tracking
+  const [currentTrackShader, setCurrentTrackShader] = useState(null); // Add shader tracking
   const audioRef = React.useRef(null);
   const [audioElement, setAudioElement] = useState(null);
   
@@ -226,6 +227,8 @@ export const MusicProvider = ({ children }) => {
     setCurrentTrackPath,
     currentTrackBPM,
     setCurrentTrackBPM,
+    currentTrackShader,
+    setCurrentTrackShader,
     audioElement: audioRef.current,
     audioRef,
   };

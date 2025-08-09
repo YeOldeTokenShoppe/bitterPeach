@@ -2,7 +2,6 @@ import React, { useRef, Suspense, useEffect, useState, useCallback, useMemo, use
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Environment, OrbitControls, useGLTF, useAnimations, useHelper, Html } from '@react-three/drei';
 import * as THREE from 'three';
-import { useControls, folder } from 'leva';
 import TickerCanvasTextureApplier from './TickerCanvasTextureApplier';
 import ConstellationModel from '../components/3DVotiveStand/ConstellationModel';
 import StarField from '../components/3DVotiveStand/StarField';
@@ -16,6 +15,7 @@ import { useMusic, MusicContext } from '../contexts/MusicContext';
 import CinematicCamera from './CinematicCamera';
 import RoundWindowEffects from './RoundWindowEffects';
 import PrismaticOverlay from '../components/PrismaticOverlay';
+import { createShaderMaterial, getShaderByIndex } from './shaders/ShaderCollection';
 // Version string for cache busting - update this when model changes
 const MODEL_VERSION = '1.0.1';
 
@@ -66,282 +66,307 @@ function StatueSpotlight({ position, targetPosition, intensity, angle, penumbra,
   );
 }
 
-// Component to add spotlights to statues with GUI controls
-// function StatueSpotlights({ scene, isPlaying }) {
-//   const [statuePositions, setStatuePositions] = useState([]);
+// Spotlight with Helper for debugging
+function SpotlightWithHelper({ position, targetPosition, intensity, angle, penumbra, distance, color, helperColor, showHelper = true }) {
+  const lightRef = useRef();
+  const targetRef = useRef();
   
-//   // GUI Controls for spotlight configuration
-//   const controls = useControls('Statue Spotlights', {
-//     showHelpers: true,
-//     globalSettings: folder({
-//       modelOffsetY: { value: 7, min: -100, max: 100, step: 1 },
-//       lightScale: { value: 1.2, min: 0.1, max: 3, step: 0.1 },
-//       enableAll: {
-//         value: 'Enable All',
-//         onChange: () => {
-//           // This will trigger a re-render with all lights enabled
-//         }
-//       },
-//       disableAll: {
-//         value: 'Disable All',
-//         onChange: () => {
-//           // This will trigger a re-render with all lights disabled
-//         }
-//       },
-//     }),
-//     statue1: folder({
-//       main1: folder({
-//         enabled1: true,
-//         posX1: { value: 0, min: -20, max: 20, step: 0.5 },
-//         posY1: { value: 2, min: -20, max: 20, step: 0.5 },
-//         posZ1: { value: -20, min: -30, max: 20, step: 0.5 },
-//         targetX1: { value: -0.5, min: -20, max: 20, step: 0.5 },
-//         targetY1: { value: -19, min: -30, max: 20, step: 0.5 },
-//         targetZ1: { value: 19.5, min: -20, max: 30, step: 0.5 },
-//         intensity1: { value: 1.2, min: 0, max: 5, step: 0.1 },
-//         angle1: { value: 10, min: 10, max: 90, step: 5 },
-//         distance1: { value: 22, min: 5, max: 50, step: 1 },
-//         color1: '#ffe4d6',
-//       }),
-//       accent1: folder({
-//         enabled1a: true,
-//         posX1a: { value: -2, min: -20, max: 20, step: 0.5 },
-//         posY1a: { value: -2, min: -20, max: 20, step: 0.5 },
-//         posZ1a: { value: 6, min: -20, max: 20, step: 0.5 },
-//         targetX1a: { value: 0, min: -20, max: 20, step: 0.5 },
-//         targetY1a: { value: 0, min: -20, max: 20, step: 0.5 },
-//         targetZ1a: { value: 0, min: -20, max: 20, step: 0.5 },
-//         intensity1a: { value: 0.3, min: 0, max: 5, step: 0.1 },
-//         angle1a: { value: 45, min: 10, max: 90, step: 5 },
-//         distance1a: { value: 15, min: 5, max: 50, step: 1 },
-//         color1a: '#ffd4ba',
-//       }),
-//     }),
-//     statue2: folder({
-//       main2: folder({
-//         enabled2: true,
-//         posX2: { value: 2, min: -20, max: 20, step: 0.5 },
-//         posY2: { value: 5, min: -20, max: 20, step: 0.5 },
-//         posZ2: { value: 8, min: -20, max: 20, step: 0.5 },
-//         targetX2: { value: 0, min: -20, max: 20, step: 0.5 },
-//         targetY2: { value: 0, min: -20, max: 20, step: 0.5 },
-//         targetZ2: { value: 0, min: -20, max: 20, step: 0.5 },
-//         intensity2: { value: 1.2, min: 0, max: 5, step: 0.1 },
-//         angle2: { value: 30, min: 10, max: 90, step: 5 },
-//         distance2: { value: 20, min: 5, max: 50, step: 1 },
-//         color2: '#ffe4d6',
-//       }),
-//       accent2: folder({
-//         enabled2a: true,
-//         posX2a: { value: -2, min: -20, max: 20, step: 0.5 },
-//         posY2a: { value: -2, min: -20, max: 20, step: 0.5 },
-//         posZ2a: { value: 6, min: -20, max: 20, step: 0.5 },
-//         targetX2a: { value: 0, min: -20, max: 20, step: 0.5 },
-//         targetY2a: { value: 0, min: -20, max: 20, step: 0.5 },
-//         targetZ2a: { value: 0, min: -20, max: 20, step: 0.5 },
-//         intensity2a: { value: 0.3, min: 0, max: 5, step: 0.1 },
-//         angle2a: { value: 45, min: 10, max: 90, step: 5 },
-//         distance2a: { value: 15, min: 5, max: 50, step: 1 },
-//         color2a: '#ffd4ba',
-//       }),
-//     }),
-//     statue3: folder({
-//       main3: folder({
-//         enabled3: true,
-//         posX3: { value: 2, min: -20, max: 20, step: 0.5 },
-//         posY3: { value: 5, min: -20, max: 20, step: 0.5 },
-//         posZ3: { value: 8, min: -20, max: 20, step: 0.5 },
-//         targetX3: { value: 0, min: -20, max: 20, step: 0.5 },
-//         targetY3: { value: 0, min: -20, max: 20, step: 0.5 },
-//         targetZ3: { value: 0, min: -20, max: 20, step: 0.5 },
-//         intensity3: { value: 1.2, min: 0, max: 5, step: 0.1 },
-//         angle3: { value: 30, min: 10, max: 90, step: 5 },
-//         distance3: { value: 20, min: 5, max: 50, step: 1 },
-//         color3: '#ffe4d6',
-//       }),
-//       accent3: folder({
-//         enabled3a: true,
-//         posX3a: { value: -2, min: -20, max: 20, step: 0.5 },
-//         posY3a: { value: -2, min: -20, max: 20, step: 0.5 },
-//         posZ3a: { value: 6, min: -20, max: 20, step: 0.5 },
-//         targetX3a: { value: 0, min: -20, max: 20, step: 0.5 },
-//         targetY3a: { value: 0, min: -20, max: 20, step: 0.5 },
-//         targetZ3a: { value: 0, min: -20, max: 20, step: 0.5 },
-//         intensity3a: { value: 0.3, min: 0, max: 5, step: 0.1 },
-//         angle3a: { value: 45, min: 10, max: 90, step: 5 },
-//         distance3a: { value: 15, min: 5, max: 50, step: 1 },
-//         color3a: '#ffd4ba',
-//       }),
-//     }),
-//     statue4: folder({
-//       main4: folder({
-//         enabled4: true,
-//         posX4: { value: 2, min: -20, max: 20, step: 0.5 },
-//         posY4: { value: 5, min: -20, max: 20, step: 0.5 },
-//         posZ4: { value: 8, min: -20, max: 20, step: 0.5 },
-//         targetX4: { value: 0, min: -20, max: 20, step: 0.5 },
-//         targetY4: { value: 0, min: -20, max: 20, step: 0.5 },
-//         targetZ4: { value: 0, min: -20, max: 20, step: 0.5 },
-//         intensity4: { value: 1.2, min: 0, max: 5, step: 0.1 },
-//         angle4: { value: 30, min: 10, max: 90, step: 5 },
-//         distance4: { value: 20, min: 5, max: 50, step: 1 },
-//         color4: '#ffe4d6',
-//       }),
-//       accent4: folder({
-//         enabled4a: true,
-//         posX4a: { value: -2, min: -20, max: 20, step: 0.5 },
-//         posY4a: { value: -2, min: -20, max: 20, step: 0.5 },
-//         posZ4a: { value: 6, min: -20, max: 20, step: 0.5 },
-//         targetX4a: { value: 0, min: -20, max: 20, step: 0.5 },
-//         targetY4a: { value: 0, min: -20, max: 20, step: 0.5 },
-//         targetZ4a: { value: 0, min: -20, max: 20, step: 0.5 },
-//         intensity4a: { value: 0.3, min: 0, max: 5, step: 0.1 },
-//         angle4a: { value: 45, min: 10, max: 90, step: 5 },
-//         distance4a: { value: 15, min: 5, max: 50, step: 1 },
-//         color4a: '#ffd4ba',
-//       }),
-//     }),
-//     exportSettings: {
-//       value: 'Copy Settings',
-//       onChange: () => {
-//         // Export current settings to console for saving
-//         console.log('Current Spotlight Settings:', controls);
-//       }
-//     }
-//   });
+  // Show helper for debugging
+  useHelper(showHelper && lightRef, THREE.SpotLightHelper, helperColor);
   
-//   // Define unique colors for each statue helper
-//   const statueColors = {
-//     'Statue1': { main: '#ff0000', accent: '#ff6666' },
-//     'Statue2': { main: '#00ff00', accent: '#66ff66' },
-//     'Statue3': { main: '#0066ff', accent: '#6699ff' },
-//     'Statue4': { main: '#ff00ff', accent: '#ff66ff' }
-//   };
+  useEffect(() => {
+    if (lightRef.current && targetRef.current) {
+      lightRef.current.target = targetRef.current;
+    }
+  }, []);
   
-//   useEffect(() => {
-//     if (!scene) return;
-    
-//     const positions = [];
-    
-//     scene.traverse((child) => {
-//       if (child.name && child.name.match(/^Statue[1-4]$/)) {
-//         const box = new THREE.Box3().setFromObject(child);
-//         const center = box.getCenter(new THREE.Vector3());
-//         const size = box.getSize(new THREE.Vector3());
-        
-//         // Use simpler world position calculation
-//         // Just use the center as-is since the model transformation is handled by the group
-//         positions.push({
-//           name: child.name,
-//           center: center,
-//           height: size.y,
-//           position: child.position.clone()
-//         });
-        
-//         console.log(`Found ${child.name} at:`, {
-//           position: [center.x.toFixed(2), center.y.toFixed(2), center.z.toFixed(2)],
-//           height: size.y.toFixed(2)
-//         });
-//       }
-//     });
-    
-//     setStatuePositions(positions);
-//   }, [scene]);
-  
-//   const getControlsForStatue = (statueName, isMain) => {
-//     const num = statueName.replace('Statue', '');
-//     const suffix = isMain ? '' : 'a';
-    
-//     return {
-//       enabled: controls[`enabled${num}${suffix}`],
-//       position: [
-//         controls[`posX${num}${suffix}`],
-//         controls[`posY${num}${suffix}`] + controls.modelOffsetY,
-//         controls[`posZ${num}${suffix}`]
-//       ],
-//       target: [
-//         controls[`targetX${num}${suffix}`],
-//         controls[`targetY${num}${suffix}`] + controls.modelOffsetY,
-//         controls[`targetZ${num}${suffix}`]
-//       ],
-//       intensity: controls[`intensity${num}${suffix}`],
-//       angle: (controls[`angle${num}${suffix}`] * Math.PI) / 180,
-//       distance: controls[`distance${num}${suffix}`],
-//       color: controls[`color${num}${suffix}`]
-//     };
-//   };
-  
-//   return (
-//     <>
-//       {statuePositions.map((statue) => {
-//         const colors = statueColors[statue.name] || { main: '#ffffff', accent: '#cccccc' };
-//         const mainControls = getControlsForStatue(statue.name, true);
-//         const accentControls = getControlsForStatue(statue.name, false);
-        
-//         return (
-//           <React.Fragment key={statue.name}>
-//             {/* Main spotlight - only render if enabled */}
-//             {mainControls.enabled && (
-//               <StatueSpotlight
-//                 position={[
-//                   statue.center.x + mainControls.position[0] * controls.lightScale,
-//                   statue.center.y + mainControls.position[1] * controls.lightScale,
-//                   statue.center.z + mainControls.position[2] * controls.lightScale
-//                 ]}
-//                 targetPosition={[
-//                   statue.center.x + mainControls.target[0] * controls.lightScale,
-//                   statue.center.y + mainControls.target[1] * controls.lightScale,
-//                   statue.center.z + mainControls.target[2] * controls.lightScale
-//                 ]}
-//                 intensity={isPlaying ? mainControls.intensity * 2 : mainControls.intensity}
-//                 angle={mainControls.angle}
-//                 penumbra={0.5}
-//                 distance={mainControls.distance}
-//                 color={isPlaying ? "#c896ff" : mainControls.color}
-//                 showHelper={controls.showHelpers}
-//                 helperColor={colors.main}
-//                 label={`${statue.name} Main`}
-//               />
-//             )}
-            
-//             {/* Accent light - only render if enabled */}
-//             {accentControls.enabled && (
-//               <StatueSpotlight
-//                 position={[
-//                   statue.center.x + accentControls.position[0] * controls.lightScale,
-//                   statue.center.y + accentControls.position[1] * controls.lightScale,
-//                   statue.center.z + accentControls.position[2] * controls.lightScale
-//                 ]}
-//                 targetPosition={[
-//                   statue.center.x + accentControls.target[0] * controls.lightScale,
-//                   statue.center.y + accentControls.target[1] * controls.lightScale,
-//                   statue.center.z + accentControls.target[2] * controls.lightScale
-//                 ]}
-//                 intensity={isPlaying ? accentControls.intensity * 2 : accentControls.intensity}
-//                 angle={accentControls.angle}
-//                 penumbra={0.8}
-//                 distance={accentControls.distance}
-//                 color={isPlaying ? "#67e8f9" : accentControls.color}
-//                 showHelper={controls.showHelpers}
-//                 helperColor={colors.accent}
-//                 label={`${statue.name} Accent`}
-//               />
-//             )}
-//           </React.Fragment>
-//         );
-//       })}
-//     </>
-//   );
-// }
+  return (
+    <>
+      <spotLight
+        ref={lightRef}
+        position={position}
+        intensity={intensity}
+        angle={angle}
+        penumbra={penumbra}
+        distance={distance}
+        color={color}
+        castShadow
+      />
+      <object3D ref={targetRef} position={targetPosition} />
+      
+      {/* Visual debug markers */}
+      {showHelper && (
+        <>
+          {/* Light source position marker */}
+          <mesh position={position}>
+            <sphereGeometry args={[0.3, 16, 16]} />
+            <meshBasicMaterial color={helperColor} />
+          </mesh>
+          
+          {/* Target position marker */}
+          <mesh position={targetPosition}>
+            <boxGeometry args={[0.5, 0.5, 0.5]} />
+            <meshBasicMaterial color={helperColor} wireframe />
+          </mesh>
+          
+          {/* Line from light to target */}
+          <line>
+            <bufferGeometry>
+              <bufferAttribute
+                attach="attributes-position"
+                count={2}
+                array={new Float32Array([...position, ...targetPosition])}
+                itemSize={3}
+              />
+            </bufferGeometry>
+            <lineBasicMaterial color={helperColor} />
+          </line>
+        </>
+      )}
+    </>
+  );
+}
 
-function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClick, showFloatingViewer, device, currentTrackBPM = 100 }) {
-  const gltf = useGLTF(`/cathedral.glb?v=${MODEL_VERSION}`);
+// Component to add spotlights to statues - hard-coded values
+function StatueSpotlights({ scene, isPlaying }) {
+  const [statuePositions, setStatuePositions] = useState([]);
+  
+  // Hard-coded spotlight configurations - using absolute world positions
+  const spotlightConfigs = {
+    showHelpers: false,
+    lightScale: 1.2,
+    statue1: {
+      enabled: true,
+      position: [-1, -26, -20],
+      target: [10, -44, 19.5],
+      intensity: 2000,
+      angle: 6, // degrees
+      distance: 50,
+      color: '#ff00ff'
+    },
+    statue2: {
+      enabled: true,
+      position: [-1, -26, -20],
+      target: [0, -44, 19.5],
+      intensity: 2000,
+      angle: 7, // degrees
+      distance: 50,
+      color: '#00ff00'
+    },
+    statue3: {
+      enabled: true,
+      position: [-2, -30, -22.5],
+      target: [-9.0, -33, -14.5],
+      intensity: 2000,
+      angle: 9, // degrees
+      distance: 50,
+      color: '#ff0000'
+    },
+    statue4: {
+      enabled: true,
+      position: [-2, -30, -25.5],
+      target: [-14, -34, -15],
+      intensity: 2000,
+      angle: 8, // degrees
+      distance: 50,
+      color: '#0000ff'
+    }
+  };
+  
+   // Define unique colors for each statue helper
+   const statueColors = {
+     'Statue1': { main: '#ff0000', accent: '#ff6666' },
+     'Statue2': { main: '#00ff00', accent: '#66ff66' },
+     'Statue3': { main: '#0066ff', accent: '#6699ff' },
+     'Statue4': { main: '#ff00ff', accent: '#ff66ff' }
+   };
+  
+   useEffect(() => {
+     if (!scene) {
+       console.log('⚠️ No scene provided to StatueSpotlights');
+       return;
+     }
+    
+     const positions = [];
+    
+     // Debug: Log all object names to find statues
+     console.log('🔍 Looking for statues in scene...', scene);
+     const allNames = [];
+     scene.traverse((child) => {
+       if (child.name) {
+         allNames.push(child.name);
+       }
+     });
+     console.log('📋 All object names in scene:', allNames);
+    
+     scene.traverse((child) => {
+       // Also look for objects with "statue" in the name (case insensitive)
+       if (child.name && (child.name.match(/^Statue[1-4]$/) || child.name.toLowerCase().includes('statue'))) {
+         const box = new THREE.Box3().setFromObject(child);
+         const center = box.getCenter(new THREE.Vector3());
+         const size = box.getSize(new THREE.Vector3());
+        
+         // Use simpler world position calculation
+         // Just use the center as-is since the model transformation is handled by the group
+         positions.push({
+           name: child.name,
+           center: center,
+           height: size.y,
+           position: child.position.clone()
+         });
+        
+         console.log(`✅ Found statue: ${child.name} at:`, {
+           position: [center.x.toFixed(2), center.y.toFixed(2), center.z.toFixed(2)],
+           height: size.y.toFixed(2)
+         });
+       }
+     });
+    
+     if (positions.length === 0) {
+       console.log('⚠️ No statues found in the scene. The Leva panel may not appear.');
+       console.log('💡 Looking for objects named Statue1, Statue2, Statue3, Statue4 or containing "statue"');
+     } else {
+       console.log(`🎯 Found ${positions.length} statue(s) for spotlight controls`);
+     }
+    
+     setStatuePositions(positions);
+   }, [scene]);
+  
+   const getControlsForStatue = (statueName) => {
+     const num = statueName.replace('Statue', '').toLowerCase();
+     const config = spotlightConfigs[`statue${num}`];
+     
+     if (!config) return null;
+     
+     return {
+       enabled: config.enabled,
+       position: config.position,
+       target: config.target,
+       intensity: config.intensity,
+       angle: (config.angle * Math.PI) / 180,
+       distance: config.distance,
+       color: config.color
+     };
+   };
+  
+   // Always create some test spotlights to ensure they're visible
+   const testSpotlights = statuePositions.length === 0;
+  
+   console.log('🔍 StatueSpotlights render:', {
+     statuePositions: statuePositions.length,
+     testSpotlights,
+     statueNames: statuePositions.map(s => s.name),
+     spotlightConfigs
+   });
+  
+   return (
+     <>
+   {/* // correct spotlight positions
+       {testSpotlights && (
+         <>
+           <spotLight
+             position={[0, 10, 10]}
+             target-position={[0, 0, 0]}
+             intensity={2000}
+             angle={0.3}
+             penumbra={0.5}
+             distance={50}
+             color="#ff00ff"
+             castShadow={false}
+           />
+           <spotLight
+             position={[10, 10, 0]}
+             target-position={[0, 0, 0]}
+             intensity={2000}
+             angle={0.3}
+             penumbra={0.5}
+             distance={50}
+             color="#00ff00"
+             castShadow={false}
+           />
+           <spotLight
+             position={[-10, 10, 0]}
+             target-position={[0, 0, 0]}
+             intensity={2000}
+             angle={0.3}
+             penumbra={0.5}
+             distance={50}
+             color="#ff0000"
+             castShadow={false}
+           />
+           <spotLight
+             position={[0, 10, -10]}
+             target-position={[0, 0, 0]}
+             intensity={2000}
+             angle={0.3}
+             penumbra={0.5}
+             distance={50}
+             color="#0066ff"
+             castShadow={false}
+           />
+         </>
+       )} */}
+      
+       {statuePositions.map((statue) => {
+         const colors = statueColors[statue.name] || { main: '#ffffff', accent: '#cccccc' };
+         const mainControls = getControlsForStatue(statue.name);
+        
+         console.log(`🎯 Processing ${statue.name}:`, {
+           mainControls,
+           colors,
+           statueCenter: statue.center
+         });
+        
+         if (!mainControls) return null;
+         
+         return (
+           <React.Fragment key={statue.name}>
+             {/* Main spotlight - only render if enabled */}
+             {mainControls.enabled && (
+               <SpotlightWithHelper
+                 position={mainControls.position}
+                 targetPosition={mainControls.target}
+                 intensity={isPlaying ? mainControls.intensity * 2 : mainControls.intensity}
+                 angle={mainControls.angle}
+                 penumbra={0.5}
+                 distance={mainControls.distance}
+                 color={isPlaying ? "#c896ff" : mainControls.color}
+                 showHelper={false}
+                 helperColor={colors.main}
+               />
+             )}
+            
+           </React.Fragment>
+         );
+       })}
+     </>
+   );
+ }
+
+function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClick, showFloatingViewer, device, currentTrackBPM = 100, currentTrackIndex = 0, currentTrackShader = null }) {
+  const gltf = useGLTF(`/cathedral3.glb?v=${MODEL_VERSION}`);
   const modelRef = useRef();
   const groupRef = useRef();
   const pivotRef = useRef();
   const [modelCenter, setModelCenter] = useState([0, 0, 0]);
   const [enableRotation, setEnableRotation] = useState(false);
   const { actions, mixer } = useAnimations(gltf.animations, modelRef);
+  
+  // Debug: Check what's in the loaded model
+  useEffect(() => {
+    if (gltf.scene) {
+      console.log('🏛️ Cathedral model loaded. Checking for statues...');
+      const statueObjects = [];
+      gltf.scene.traverse((child) => {
+        if (child.name) {
+          if (child.name.match(/^Statue[1-4]$/) || child.name.toLowerCase().includes('statue')) {
+            statueObjects.push(child.name);
+          }
+        }
+      });
+      console.log('🗿 Found statue objects in model:', statueObjects);
+    }
+  }, [gltf.scene]);
   const danceTimeoutRef = useRef(null);
   const isInitializedRef = useRef(false);
   const cyborg3SequenceRef = useRef(['SitIdle2', 'SitIdle2', 'SitIdle2', 'SitClap2']); // Cyborg3: 3x SitIdle2, then 1x SitClap2
@@ -364,17 +389,12 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
   const spotlightsRef = useRef([]);
   const lightGroupRef = useRef();
   
-  // Video screen refs
-  const videoRef = useRef();
-  const videoTextureRef = useRef();
-  const videoWallsRef = useRef([]); // Store multiple walls
+  // Shader wall refs
+  const shaderWallsRef = useRef([]); // Store multiple walls
   const originalMaterialsRef = useRef(new Map()); // Store original materials for each wall
-  const videoPoolRef = useRef({
-    video: null,
-    texture: null,
-    material: null,
-    isPreloaded: false
-  });
+  const shaderMaterialRef = useRef(null);
+  const currentShaderTypeRef = useRef(null);
+  const lastTrackIndexRef = useRef(-1);
 
   // Calculate animation speed multiplier based on BPM
   // Base BPM of 100 = 1.0 speed multiplier
@@ -565,13 +585,22 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
       // Enable shadows selectively for better performance
       gltf.scene.traverse((child) => {
         if (child.isMesh) {
-          // Find the video walls
-          if (child.name === 'pPlane3_Walls_0' || child.name === 'pPlane3_Walls2') {
+          
+          // Only target specific video walls (the ones that should have shaders)
+          // Based on your logs, it looks like pPlane3_Walls_0_1 and pPlane3_Walls_0_2 are the main walls
+          const videoWallNames = [
+            'pPlane3_Walls_0_1',
+            'pPlane3_Walls_0_2',
+            'pPlane_Walls3_0.001'  // Your new joined wall from Blender
+          ];
+          
+          // Check if this mesh is one of the video walls
+          if (videoWallNames.includes(child.name)) {
      
-            console.log('Found video wall:', child.name);
+            console.log('✅ Found shader wall:', child.name, child.material);
             originalMaterialsRef.current.set(child.name, child.material);
-            child.userData.isVideoWall = true;
-            videoWallsRef.current.push(child);
+            child.userData.isShaderWall = true;
+            shaderWallsRef.current.push(child);
           }
           // Make GodsRay objects non-clickable
           if (child.name && (child.name.includes('GodsRay') || child.name.includes('Godsray') || 
@@ -1072,200 +1101,388 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
     }
   }, [isPlaying]);
 
-  // Preload video during component mount for better performance
+  // Initialize and switch shaders based on track changes
   useEffect(() => {
-    if (device.isLowEnd) return; // Skip on low-end devices
+    console.log('🎵 Shader track change effect triggered:', {
+      currentTrackIndex,
+      currentTrackShader,
+      lastTrackIndex: lastTrackIndexRef.current,
+      currentShaderType: currentShaderTypeRef.current,
+      hasShaderMaterial: !!shaderMaterialRef.current,
+      wallCount: shaderWallsRef.current.length,
+      isPlaying
+    });
     
-    const preloadVideo = () => {
-      console.log('Preloading video for nightclub walls...');
-      const video = document.createElement('video');
-      video.src = '/83.mov';
-      video.loop = true;
-      video.muted = true;
-      video.playsInline = true;
-      video.setAttribute('playsinline', '');
-      video.preload = 'auto'; // Full preload for instant playback
+    const initializeShader = () => {
+      // Use track-specific shader if available, otherwise use index-based selection
+      const shaderType = currentTrackShader || getShaderByIndex(currentTrackIndex);
+      console.log(`🎨 Initializing ${shaderType} shader for track ${currentTrackIndex}${currentTrackShader ? ' (track-specific)' : ' (index-based)'}`);
       
-      // Create texture but don't apply yet
-      const videoTexture = new THREE.VideoTexture(video);
-      videoTexture.minFilter = THREE.LinearFilter;
-      videoTexture.magFilter = THREE.LinearFilter;
-      videoTexture.format = THREE.RGBFormat;
-      videoTexture.encoding = THREE.sRGBEncoding;
+      // Create shader material from collection
+      const shaderMaterial = createShaderMaterial(shaderType);
       
-      // Rotate video 90 degrees
-      videoTexture.center.set(0.5, 0.5);
-      videoTexture.rotation = Math.PI / 2; // 90 degrees in radians
+      shaderMaterialRef.current = shaderMaterial;
+      currentShaderTypeRef.current = shaderType;
+      lastTrackIndexRef.current = currentTrackIndex;
+      console.log(`✅ ${shaderType} shader initialized`);
+    };
+    
+    // Check if track has changed (after initial load)
+    if (lastTrackIndexRef.current !== -1 && lastTrackIndexRef.current !== currentTrackIndex && shaderMaterialRef.current) {
+      console.log(`🔄 Track changed from ${lastTrackIndexRef.current} to ${currentTrackIndex}`);
       
-      // Pre-create the material with z-fighting prevention
-      const videoMaterial = new THREE.MeshBasicMaterial({
-        map: videoTexture,
+      // Dispose old shader material
+      if (shaderMaterialRef.current) {
+        shaderMaterialRef.current.dispose();
+      }
+      
+      // Use track-specific shader if available, otherwise use index-based selection
+      const shaderType = currentTrackShader || getShaderByIndex(currentTrackIndex);
+      console.log(`🎨 Switching to ${shaderType} shader for track ${currentTrackIndex}${currentTrackShader ? ' (track-specific)' : ' (index-based)'}`);
+      console.log(`📊 Shader rotation: Track ${currentTrackIndex} → ${shaderType} shader`);
+      
+      const newShaderMaterial = createShaderMaterial(shaderType);
+      shaderMaterialRef.current = newShaderMaterial;
+      currentShaderTypeRef.current = shaderType;
+      
+      // Update walls with new shader immediately if music is playing
+      if (isPlaying && shaderWallsRef.current.length > 0) {
+        console.log(`🔄 Updating ${shaderWallsRef.current.length} walls with new shader`);
+        shaderWallsRef.current.forEach((wall, index) => {
+          wall.material = newShaderMaterial;
+          console.log(`  Updated wall ${index + 1}: ${wall.name}`);
+        });
+      }
+      
+      lastTrackIndexRef.current = currentTrackIndex;
+      return; // Don't run initialization timeout
+    }
+    
+    // Initialize shader on first load
+    if (!shaderMaterialRef.current) {
+      const timer = setTimeout(initializeShader, 1000);
+      return () => clearTimeout(timer);
+    }
+    
+    // Old shader code cleanup - removing inline shader definition
+    /* vertexShader: `
+          varying vec2 vUv;
+          void main() {
+            // Rotate UV coordinates 90 degrees clockwise and flip on Y-axis
+            vUv = vec2(1.0 - uv.y, 1.0 - uv.x);
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          }
+        `,
+        fragmentShader: `
+          uniform vec2 iResolution;
+          uniform float iTime;
+          uniform vec2 iMouse;
+          uniform float opacity;
+          
+          varying vec2 vUv;
+          
+          const float zoomSpeed = 1.0;
+          const float zoomScale = 0.1;
+          const int recursionCount = 5;
+          const float recursionFadeDepth = 3.0;
+          const int glyphSize = 5;
+          const int glyphCount = 2;
+          const float glyphMargin = 0.5;
+          const int glyphs[10] = int[](
+            0x01110, 0x01110, 
+            0x11011, 0x11110,
+            0x11011, 0x01110, 
+            0x11011, 0x01110,
+            0x01110, 0x11111
+          );
+          
+          const float glyphSizeF = float(glyphSize) + 2.0*glyphMargin;
+          const float glyphSizeLog = log(glyphSizeF);
+          const int powTableCount = 10;
+          const float gsfi = 1.0 / glyphSizeF;
+          const float powTable[10] = float[](
+            1.0, gsfi, pow(gsfi,2.0), pow(gsfi,3.0), pow(gsfi,4.0), 
+            pow(gsfi,5.0), pow(gsfi,6.0), pow(gsfi,7.0), pow(gsfi,8.0), pow(gsfi,9.0)
+          );
+          const float e = 2.718281828459;
+          const float pi = 3.14159265359;
+          
+          float RandFloat(int i) { 
+            return fract(sin(float(i)) * 43758.5453); 
+          }
+          
+          int RandInt(int i) { 
+            return int(100000.0 * RandFloat(i)); 
+          }
+          
+          float GetRecursionFade(int r, float timePercent) {
+            if (r > recursionCount)
+              return timePercent;
+            
+            float rt = max(float(r) - timePercent - recursionFadeDepth, 0.0);
+            float rc = float(recursionCount) - recursionFadeDepth;
+            return rt / rc;
+          }
+          
+          vec3 InitPixelColor() { 
+            return vec3(0.0); 
+          }
+          
+          vec3 CombinePixelColor(vec3 color, float timePercent, int i, int r, vec2 pos, ivec2 glyphPos, ivec2 glyphPosLast) {
+            vec3 myColor = vec3(0.6);
+            
+            myColor.r *= mix(0.0, 0.7, RandFloat(i + r + 11*glyphPosLast.x + 13*glyphPosLast.y));
+            myColor.b *= mix(0.0, 0.7, RandFloat(i + r + 17*glyphPosLast.x + 19*glyphPosLast.y));
+            myColor *= mix(0.3, 1.0, RandFloat(i + r + 31*glyphPosLast.x + 37*glyphPosLast.y));
+            
+            float f = GetRecursionFade(r, timePercent);
+            color += myColor * f;
+            return color;
+          }
+          
+          vec3 FinishPixel(vec3 color, vec2 uv) {
+            // Remove brighten to keep background darker
+            // color += vec3(0.07);
+            
+            // Simple noise simulation without texture
+            vec3 noise = vec3(1.0);
+            float n1 = sin(uv.x * 111.0 + iTime * 23.3) * sin(uv.y * 97.0 - iTime * 37.5);
+            float n2 = sin(uv.x * 182.0 - iTime * 13.1) * sin(uv.y * 143.0 + iTime * 20.1);
+            noise += mix(-0.2, 0.4, fract(n1));
+            noise += mix(-0.2, 0.4, fract(n2));
+            color *= noise;
+            
+            // make green but keep darker
+            color *= vec3(0.4, 0.6, 0.4);
+            return color;
+          }
+          
+          vec2 InitUV(vec2 uv) {
+            // wave
+            uv.x += 0.1 * sin(2.0 * uv.y + 1.0 * iTime);
+            uv.y += 0.1 * sin(2.0 * uv.x + 0.8 * iTime);
+            return uv;
+          }
+          
+          int GetFocusGlyph(int i) { 
+            return RandInt(i) % glyphCount; 
+          }
+          
+          int GetGlyphPixelRow(int y, int g) { 
+            return glyphs[g + (glyphSize - 1 - y) * glyphCount]; 
+          }
+          
+          int GetGlyphPixel(ivec2 pos, int g) {
+            if (pos.x >= glyphSize || pos.y >= glyphSize)
+              return 0;
+            
+            int glyphRow = GetGlyphPixelRow(pos.y, g);
+            return 1 & (glyphRow >> ((glyphSize - 1 - pos.x) * 4));
+          }
+          
+          ivec2 focusList[12]; // max(powTableCount, recursionCount) + 2
+          
+          ivec2 GetFocusPos(int i) { 
+            return focusList[i + 2]; 
+          }
+          
+          ivec2 CalculateFocusPos(int iterations) {
+            int g = GetFocusGlyph(iterations - 1);
+            int c = 18; // Both glyphs have 18 pixels
+            
+            c -= RandInt(iterations) % c;
+            for (int y = glyphCount * (glyphSize - 1); y >= 0; y -= glyphCount) {
+              int glyphRow = glyphs[g + y];
+              for (int x = 0; x < glyphSize; ++x) {
+                c -= (1 & (glyphRow >> (4 * x)));
+                if (c == 0)
+                  return ivec2(glyphSize - 1 - x, glyphSize - 1 - y / glyphCount);
+              }
+            }
+            return ivec2(0);
+          }
+          
+          int GetGlyph(int iterations, ivec2 glyphPos, int glyphLast, ivec2 glyphPosLast, ivec2 focusPos) {
+            if (glyphPos == focusPos)
+              return GetFocusGlyph(iterations);
+            
+            int seed = iterations + glyphPos.x * 313 + glyphPos.y * 411 + glyphPosLast.x * 557 + glyphPosLast.y * 121;
+            return RandInt(seed) % glyphCount;
+          }
+          
+          vec3 GetPixelFractal(vec2 pos, int iterations, float timePercent) {
+            int glyphLast = GetFocusGlyph(iterations - 1);
+            ivec2 glyphPosLast = GetFocusPos(-2);
+            ivec2 glyphPos = GetFocusPos(-1);
+            
+            bool isFocus = true;
+            ivec2 focusPos = glyphPos;
+            
+            vec3 color = InitPixelColor();
+            for (int r = 0; r <= recursionCount + 1; ++r) {
+              color = CombinePixelColor(color, timePercent, iterations, r, pos, glyphPos, glyphPosLast);
+              
+              if (r > recursionCount)
+                return color;
+              
+              pos -= vec2(glyphMargin * gsfi);
+              pos *= glyphSizeF;
+              
+              glyphPosLast = glyphPos;
+              glyphPos = ivec2(pos);
+              
+              int glyphValue = GetGlyphPixel(glyphPos, glyphLast);
+              if (glyphValue == 0 || pos.x < 0.0 || pos.y < 0.0)
+                return color;
+              
+              pos -= vec2(floor(pos));
+              focusPos = isFocus ? GetFocusPos(r) : ivec2(-10);
+              glyphLast = GetGlyph(iterations + r, glyphPos, glyphLast, glyphPosLast, focusPos);
+              isFocus = isFocus && (glyphPos == focusPos);
+            }
+            return color;
+          }
+          
+          void main() {
+            vec2 uv = vUv - 0.5;
+            uv.x *= iResolution.x / iResolution.y;
+            uv = InitUV(uv);
+            
+            float timePercent = iTime * zoomSpeed;
+            int iterations = int(floor(timePercent));
+            timePercent -= float(iterations);
+            
+            float zoom = pow(e, -glyphSizeLog * timePercent);
+            zoom *= zoomScale;
+            
+            for(int i = 0; i < powTableCount + 2; ++i)
+              focusList[i] = CalculateFocusPos(iterations + i - 2);
+            
+            vec2 offset = vec2(0.0);
+            for (int i = 0; i < powTableCount; ++i)
+              offset += ((vec2(GetFocusPos(i)) + vec2(glyphMargin)) * gsfi) * powTable[i];
+            
+            vec2 uvFractal = uv * zoom + offset;
+            
+            vec3 pixelFractalColor = GetPixelFractal(uvFractal, iterations, timePercent);
+            pixelFractalColor = FinishPixel(pixelFractalColor, uv);
+            
+            // Apply blur for glow effect
+            float blurSize = 1.0 / 512.0;
+            float blurIntensity = 0.2;
+            vec3 blurColor = pixelFractalColor * blurIntensity;
+            
+            gl_FragColor = vec4(pixelFractalColor + blurColor * 0.5, opacity);
+          }
+        `,
         side: THREE.DoubleSide,
-        toneMapped: false,
+        transparent: true,
         depthWrite: false,
         depthTest: true,
         polygonOffset: true,
         polygonOffsetFactor: -5,
         polygonOffsetUnits: -5
-      });
-      
-      videoPoolRef.current = {
-        video,
-        texture: videoTexture,
-        material: videoMaterial,
-        isPreloaded: true
-      };
-      
-      // Preload by setting up metadata
-      video.load();
-      console.log('Video preload initiated');
-    };
+      }); */
     
-    // Preload after a short delay to avoid blocking initial render
-    const timer = setTimeout(preloadVideo, 2000);
-    
+    // Cleanup on unmount
     return () => {
-      clearTimeout(timer);
-      // Cleanup on unmount
-      if (videoPoolRef.current.video) {
-        videoPoolRef.current.video.src = '';
-        videoPoolRef.current.video.load();
-      }
-      if (videoPoolRef.current.texture) {
-        videoPoolRef.current.texture.dispose();
-      }
-      if (videoPoolRef.current.material) {
-        videoPoolRef.current.material.dispose();
+      if (shaderMaterialRef.current) {
+        shaderMaterialRef.current.dispose();
       }
     };
-  }, [device.isLowEnd]);
+  }, [device.isLowEnd, currentTrackIndex, currentTrackShader, isPlaying]);
 
-  // Handle video screen effect when music plays - with staggered activation
+  // Handle shader wall effect when music plays - with staggered activation
   useEffect(() => {
-    if (!gltf.scene || videoWallsRef.current.length === 0) return;
+    console.log('Shader wall activation effect:', {
+      hasScene: !!gltf.scene,
+      wallCount: shaderWallsRef.current.length,
+      isPlaying,
+      hasShaderMaterial: !!shaderMaterialRef.current
+    });
     
-    let videoActivationTimeout;
+    if (!gltf.scene || shaderWallsRef.current.length === 0) {
+      console.log('No scene or walls found, skipping shader activation');
+      return;
+    }
+    
+    let shaderActivationTimeout;
     
     if (isPlaying) {
-      console.log('Preparing staggered nightclub effects...');
+      console.log('Music is playing, preparing staggered nightclub effects...');
       
-      // Stagger activation: lights first (immediate), then video after delay
-      videoActivationTimeout = setTimeout(() => {
-        console.log(`Activating video on ${videoWallsRef.current.length} walls (staggered)`);
+      // Stagger activation: lights first (immediate), then shader after delay
+      shaderActivationTimeout = setTimeout(() => {
+        console.log(`Activating shader on ${shaderWallsRef.current.length} walls (staggered)`);
         
-        const pool = videoPoolRef.current;
-        let video, videoMaterial;
+        // Use the pre-initialized shader material
+        const shaderMaterial = shaderMaterialRef.current;
         
-        if (pool.isPreloaded) {
-          console.log('Using preloaded video resources');
-          // Use preloaded resources
-          video = pool.video;
-          videoRef.current = video;
-          videoTextureRef.current = pool.texture;
-          videoMaterial = pool.material;
-        } else {
-          console.log('Creating video resources on demand');
-          // Fallback: Create on demand
-          video = document.createElement('video');
-          video.src = '/83.mov';
-          video.loop = true;
-          video.muted = true;
-          video.playsInline = true;
-          video.setAttribute('playsinline', '');
-          videoRef.current = video;
-          
-          const videoTexture = new THREE.VideoTexture(video);
-          videoTexture.minFilter = THREE.LinearFilter;
-          videoTexture.magFilter = THREE.LinearFilter;
-          videoTexture.format = THREE.RGBFormat;
-          videoTexture.encoding = THREE.sRGBEncoding;
-          
-          // Rotate video 90 degrees
-          videoTexture.center.set(0.5, 0.5);
-          videoTexture.rotation = Math.PI / 2; // 90 degrees in radians
-          
-          videoTextureRef.current = videoTexture;
-          
-          videoMaterial = new THREE.MeshBasicMaterial({
-            map: videoTexture,
-            side: THREE.DoubleSide,
-            toneMapped: false,
-            depthWrite: false,
-            depthTest: true,
-            polygonOffset: true,
-            polygonOffsetFactor: -5,
-            polygonOffsetUnits: -5
-          });
+        if (!shaderMaterial) {
+          console.error('ERROR: Shader material not initialized! Cannot apply to walls.');
+          return;
         }
         
-        // Apply video material to walls (replacing their texture)
-        console.log(`Total walls found: ${videoWallsRef.current.length}`);
-        videoWallsRef.current.forEach((wall, index) => {
+        console.log('Shader material found, applying to walls...');
+        
+        // Apply shader material to walls (replacing their texture)
+        console.log(`Total walls found: ${shaderWallsRef.current.length}`);
+        shaderWallsRef.current.forEach((wall, index) => {
           // Stagger wall activation for extra effect
           setTimeout(() => {
-            console.log(`Applying video to wall ${index + 1}/${videoWallsRef.current.length}: ${wall.name}`);
+            console.log(`Applying shader to wall ${index + 1}/${shaderWallsRef.current.length}: ${wall.name}`);
             // Simply replace the material
-            wall.material = videoMaterial;
-            console.log(`Successfully applied video material to: ${wall.name}`);
+            wall.material = shaderMaterial;
+            console.log(`Successfully applied shader material to: ${wall.name}`);
           }, index * 100); // 100ms between each wall
         });
         
-        // Start playing
-        video.play().catch(err => console.error('Error playing video:', err));
-        
-      }, 500); // Start video 500ms after lights
+      }, 500); // Start shader 500ms after lights
       
     } else {
-      console.log('Stopping video on walls');
+      console.log('Stopping shader on walls');
       
       // Clear any pending activation
-      if (videoActivationTimeout) {
-        clearTimeout(videoActivationTimeout);
-      }
-      
-      // Stop video but keep preloaded resources
-      if (videoRef.current) {
-        videoRef.current.pause();
-        // Don't destroy preloaded video, just pause it
-        if (!videoPoolRef.current.isPreloaded) {
-          // Only clean up non-preloaded resources
-          videoRef.current.src = '';
-          videoRef.current.load();
-          videoRef.current = null;
-        }
+      if (shaderActivationTimeout) {
+        clearTimeout(shaderActivationTimeout);
       }
       
       // Restore original materials to walls
-      videoWallsRef.current.forEach(wall => {
+      shaderWallsRef.current.forEach(wall => {
         const originalMaterial = originalMaterialsRef.current.get(wall.name);
         if (originalMaterial) {
           wall.material = originalMaterial;
           console.log(`Restored original material for wall: ${wall.name}`);
         }
       });
-      
-      // Don't dispose of preloaded textures
-      if (videoTextureRef.current && !videoPoolRef.current.isPreloaded) {
-        videoTextureRef.current.dispose();
-        videoTextureRef.current = null;
-      }
     }
     
     // Cleanup function
     return () => {
-      if (videoActivationTimeout) {
-        clearTimeout(videoActivationTimeout);
-      }
-      if (videoRef.current && !videoPoolRef.current.isPreloaded) {
-        videoRef.current.pause();
-        videoRef.current.src = '';
-        videoRef.current.load();
-      }
-      if (videoTextureRef.current && !videoPoolRef.current.isPreloaded) {
-        videoTextureRef.current.dispose();
+      if (shaderActivationTimeout) {
+        clearTimeout(shaderActivationTimeout);
       }
     };
   }, [isPlaying, gltf.scene]);
+
+  // Update shader animation
+  useFrame((state, delta) => {
+    if (shaderMaterialRef.current && shaderMaterialRef.current.uniforms && isPlaying) {
+      // Safely update time uniform
+      if (shaderMaterialRef.current.uniforms.iTime) {
+        shaderMaterialRef.current.uniforms.iTime.value += delta * 0.5; // Slow animation speed
+      }
+      
+      // Safely update mouse position
+      if (shaderMaterialRef.current.uniforms.iMouse && state.mouse) {
+        const mouse = state.mouse;
+        shaderMaterialRef.current.uniforms.iMouse.value.set(
+          (mouse.x + 1) * 0.5,
+          (mouse.y + 1) * 0.5
+        );
+      }
+    }
+  });
 
   // Handle animation switching when isPlaying changes
   useEffect(() => {
@@ -1900,22 +2117,32 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
           receiveShadow
         />
       </group>
-      {/* <StatueSpotlights scene={gltf.scene} isPlaying={isPlaying} /> */}
+      <StatueSpotlights scene={gltf.scene} isPlaying={isPlaying} />
     </group>
   );
 }
 
 // Preload the model
-useGLTF.preload(`/cathedral.glb?v=${MODEL_VERSION}`);
+useGLTF.preload(`/cathedral3.glb?v=${MODEL_VERSION}`);
 
 // Inner component that uses music context
 function CathedralWithMusic({ isPlaying = false, showAnnotations = true, is80sMode = false }) {
   const [showFloatingViewer, setShowFloatingViewer] = useState(false);
   const [selectedCandleData, setSelectedCandleData] = useState(null);
   const [cinematicComplete, setCinematicComplete] = useState(false);
+  const [spotlightsReady, setSpotlightsReady] = useState(false);
   const device = useMemo(() => detectDevice(), []);
   const sceneSettings = useMemo(() => getSceneSettings(device), [device]);
-  const { currentTrackBPM } = useMusic();
+  const { currentTrackBPM, currentTrackIndex, currentTrackShader } = useMusic();
+
+  // Enable spotlights after a delay to ensure scene is ready
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSpotlightsReady(true);
+      console.log('Statue spotlights enabled');
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleCandleClick = useCallback((candleData) => {
     setSelectedCandleData(candleData);
@@ -1979,12 +2206,12 @@ function CathedralWithMusic({ isPlaying = false, showAnnotations = true, is80sMo
             autoRotate={false}
             makeDefault
             />
-          
+                  {/* <Environment preset="sunset" /> */}
         
-        {/* Directional light - much dimmer when music plays */}
+        {/* Directional light - dimmer when music plays */}
         <directionalLight 
           position={[10, 10, 5]} 
-          intensity={isPlaying ? 0.05 : 1} 
+          intensity={isPlaying ? 0.1 : 0.5} 
           castShadow={sceneSettings.shadowsEnabled}
           shadow-mapSize={[sceneSettings.shadowMapSize, sceneSettings.shadowMapSize]}
           shadow-camera-far={150}
@@ -1994,6 +2221,10 @@ function CathedralWithMusic({ isPlaying = false, showAnnotations = true, is80sMo
           shadow-camera-bottom={-50}
           shadow-bias={-0.001}
         />
+        
+
+        {/* Spotlights handled by StatueSpotlights component */}
+        
         {/* Fog effect for nightclub atmosphere - enhanced for volumetric effect */}
         {isPlaying && <fog attach="fog" args={['#050505', 5, 120]} />}
     <PostProcessingEffects is80sMode={is80sMode} />
@@ -2013,6 +2244,8 @@ function CathedralWithMusic({ isPlaying = false, showAnnotations = true, is80sMo
             showFloatingViewer={showFloatingViewer}
             device={device}
             currentTrackBPM={currentTrackBPM}
+            currentTrackIndex={currentTrackIndex}
+            currentTrackShader={currentTrackShader}
           />
           <TickerCanvasTextureApplier is80sMode={is80sMode} />
           <Object2Replacer />
@@ -2059,8 +2292,8 @@ function CathedralWithMusic({ isPlaying = false, showAnnotations = true, is80sMo
             />
           )}
         </Suspense>
-        {/* Environment light - dimmed when music plays */}
-        {!isPlaying && <Environment preset="sunset" intensity={0.2} />}
+        {/* Environment light - disabled to prevent washing out statue spotlights */}
+        {!isPlaying && <Environment preset="sunset" />}
       </Canvas>
       {isPlaying && <PrismaticOverlay />}
       {/* FloatingCandleViewer outside the Canvas */}
@@ -2143,7 +2376,7 @@ function CathedralWithoutMusic({ isPlaying = false, showAnnotations = true, is80
           <ConstellationModel  groupScale={[10, 10, 10]} groupPosition={[0, 15, -80]}    isVisible={true} />
         <OrbitControls 
             target={[-5.63, -47.71, -7.57]}
-            zoomToCursor={true}
+            // zoomToCursor={true}
             enablePan={false} 
             enableRotate={!showFloatingViewer} 
             enableZoom={!showFloatingViewer}
@@ -2162,8 +2395,8 @@ function CathedralWithoutMusic({ isPlaying = false, showAnnotations = true, is80
             />
           
         
-        {/* Minimal ambient light - much darker when music plays */}
-        <ambientLight intensity={isPlaying ? 0.2 : 0.2} />
+        {/* Ambient light - darker when music plays */}
+        <ambientLight intensity={isPlaying ? 0.1 : 0.3} />
         {/* <directionalLight 
           position={[10, 10, 5]} 
           intensity={1} 
@@ -2194,6 +2427,8 @@ function CathedralWithoutMusic({ isPlaying = false, showAnnotations = true, is80
             showFloatingViewer={showFloatingViewer}
             device={device}
             currentTrackBPM={currentTrackBPM}
+            currentTrackIndex={currentTrackIndex}
+            currentTrackShader={currentTrackShader}
           />
           <TickerCanvasTextureApplier is80sMode={is80sMode} />
           <Object2Replacer />

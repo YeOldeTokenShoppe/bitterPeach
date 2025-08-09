@@ -26,24 +26,25 @@ const SimpleMusicPlayer = ({
   const prevModeRef = useRef(is80sMode);
   
   // Use shared audio from MusicContext
-  const { audioRef, setCurrentTrackBPM } = useMusic();
+  const { audioRef, setCurrentTrackBPM, setCurrentTrackIndex: setContextTrackIndex, setCurrentTrackShader } = useMusic();
   
-  // Track lists with BPM data
+  // Track lists with BPM data and shader assignments
+  // Available shaders: 'matrix', 'colorfulDots', 'wavePattern', 'plasma', 'swirlPattern', 'cyberpunkGrid'
   const non80sTracks = [
-    { name: "Lifetimes", path: "audio/192k/07-lifetimes.m4a", bpm: 115 }, // Mid-tempo pop
-    { name: "Magnetic", path: "audio/320k/01-magnetic.m4a", bpm: 130 },
-    { name: "Rocket Man - Steven Drozd", path: "audio/192k/rocket-man---steven-drozd.m4a", bpm: 75 } // Slower ballad
+    { name: "Lifetimes", path: "audio/192k/07-lifetimes.m4a", bpm: 115, shader: 'swirlPattern' }, // Soothing swirls for mid-tempo pop
+    { name: "Magnetic", path: "audio/320k/01-magnetic.m4a", bpm: 130, shader: 'plasma' }, // Energetic plasma for faster track
+    { name: "Rocket Man - Steven Drozd", path: "audio/192k/rocket-man---steven-drozd.m4a", bpm: 75, shader: 'wavePattern' } // Gentle waves for ballad
   ];
   
   const eightyTracks = [
-    { name: "For Those About To Rock - AC/DC", path: "audio/320k/for-those-about-to-rock-ac-dc.m4a", bpm: 75 }, // Medium tempo rock
-    { name: "Dirty Cash - The Adventures of Stevie V", path: "audio/320k/dirty-cash.m4a", bpm: 100 }, // Dance
-    { name: "Sweet Dreams - Eurythmics", path: "audio/320k/sweet-dreams-eurythmics.m4a", bpm: 85 }, // Synth-pop
-    { name: "Intergalactic - Beastie Boys", path: "audio/320k/intergalactic-beastie-boys.m4a", bpm: 108 }, // Hip hop
+    { name: "For Those About To Rock - AC/DC", path: "audio/320k/for-those-about-to-rock-ac-dc.m4a", bpm: 75, shader: 'matrix' }, // Digital rain for rock
+    { name: "Dirty Cash - The Adventures of Stevie V", path: "audio/320k/dirty-cash.m4a", bpm: 100, shader: 'colorfulDots' }, // Party dots for dance
+    { name: "Sweet Dreams - Eurythmics", path: "audio/320k/sweet-dreams-eurythmics.m4a", bpm: 85, shader: 'synthwaveSunset' }, // Epic synthwave visuals!
+    { name: "Intergalactic - Beastie Boys", path: "audio/320k/intergalactic-beastie-boys.m4a", bpm: 108, shader: 'plasma' }, // Space plasma for hip hop
     // { name: "1984 - Van Halen", path: "audio/192k/vanhalen---1984.mp3", bpm: 75 }, // Rock instrumental
-    { name: "Good Life - Inner City", path: "audio/320k/good-life-inner-city.m4a", bpm: 120 }, // House/dance
-    { name: "Like A Prayer - Madonna", path: "audio/320k/like-a-prayer-madonna.m4a", bpm: 85 }, // Dance pop
-    { name: "99 Luftballoons - Nena", path: "audio/320k/99-luftballoons-nena.m4a", bpm: 85 } // Upbeat pop
+    { name: "Good Life - Inner City", path: "audio/320k/good-life-inner-city.m4a", bpm: 120, shader: 'colorfulDots' }, // Dots for house/dance
+    { name: "Like A Prayer - Madonna", path: "audio/320k/like-a-prayer-madonna.m4a", bpm: 85, shader: 'cyberpunkGrid' }, // 80s grid for Madonna
+    { name: "99 Luftballoons - Nena", path: "audio/320k/99-luftballoons-nena.m4a", bpm: 85, shader: 'wavePattern' } // Waves for Nena
   ];
   
   // Get current playlist based on mode
@@ -81,7 +82,15 @@ const SimpleMusicPlayer = ({
       
       setCurrentTrackIndex(index);
       currentTrackIndexRef.current = index; // Update ref too
+      setContextTrackIndex(index); // Update context for shader switching
       setCurrentTrackBPM(playlist[index].bpm || 100); // Set BPM for current track
+      
+      // Set shader if specified for this track, otherwise use default based on index
+      if (setCurrentTrackShader) {
+        const shader = playlist[index].shader || null;
+        setCurrentTrackShader(shader);
+        console.log(`🎨 Track "${playlist[index].name}" shader: ${shader || 'default (by index)'}`);
+      }
       setIsLoading(false);
       
       // Auto-play if requested (use parameter if provided, otherwise use prop)
@@ -230,6 +239,7 @@ const SimpleMusicPlayer = ({
       // Always reset to track 0 when switching modes
       setCurrentTrackIndex(0);
       currentTrackIndexRef.current = 0;
+      setContextTrackIndex(0); // Update context for shader switching
       
       // Force reload from the new playlist
       if (isVisible && audioRef.current) {

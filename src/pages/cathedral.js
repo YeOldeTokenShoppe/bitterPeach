@@ -43,11 +43,10 @@ function RightAlignedCyberCallout({ children, ...props }) {
 export default function CathedralPage({ is80sMode, setIs80sMode }) {
   const [isMobileView, setIsMobileView] = useState(false);
   const [showMobileMusicPlayer, setShowMobileMusicPlayer] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
   const [musicPlayerVisible, setMusicPlayerVisible] = useState(false);
   const [showAnnotations, setShowAnnotations] = useState(true);
   const [showCyberOverlay, setShowCyberOverlay] = useState(true);
-  const { setIsPlaying: setContextIsPlaying, setShowSpotify: setContextShowSpotify } = useMusic();
+  const { isPlaying, setIsPlaying: setContextIsPlaying, setShowSpotify: setContextShowSpotify, showSpotify } = useMusic();
   const musicControlsRef = useRef(null);
 
   // Check if mobile on mount
@@ -213,14 +212,13 @@ export default function CathedralPage({ is80sMode, setIs80sMode }) {
         }}
         onPlayingStateChange={(playing) => {
           console.log('🎵 Music state changed:', playing, 'from SimpleMusicPlayer');
-          setIsPlaying(playing);
           setContextIsPlaying(playing);
         }}
         onClose={() => {
           setShowMobileMusicPlayer(false);
           setMusicPlayerVisible(false);
           setContextShowSpotify(false);
-          setIsPlaying(false);
+          setContextIsPlaying(false);
         }}
       />
     </Box>
@@ -299,7 +297,6 @@ export default function CathedralPage({ is80sMode, setIs80sMode }) {
             if (musicControlsRef.current?.pause) {
               musicControlsRef.current.pause();
             }
-            setIsPlaying(false);
             setContextIsPlaying(false);
             setShowMobileMusicPlayer(false);
             setMusicPlayerVisible(false);
@@ -432,6 +429,7 @@ export default function CathedralPage({ is80sMode, setIs80sMode }) {
     
     {/* Buy Token FAB - Only show after overlay is closed */}
     {!showCyberOverlay && <BuyTokenFAB is80sMode={is80sMode} />}
+    
     
     </Box>
   );

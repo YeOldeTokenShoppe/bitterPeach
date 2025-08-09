@@ -144,7 +144,7 @@ function RoundWindowEffects({ isPlaying = false }) {
     
     // Add a small delay to ensure the model is fully loaded
     const searchTimeout = setTimeout(() => {
-      console.log('RoundWindowEffects: Starting search for RoundWindows...');
+      // console.log('RoundWindowEffects: Starting search for RoundWindows...');
       
       // Find all RoundWindow objects in the scene
       const roundWindows = [];
@@ -168,22 +168,22 @@ function RoundWindowEffects({ isPlaying = false }) {
             (child.material && (child.material.name === 'RoundWindow' || child.material.name === 'RoundWindow2')) ||
             (child.isMesh && (child.name.includes('RoundWindow')))) {
           roundWindows.push(child);
-          console.log('Found window:', child.name, child);
+          // console.log('Found window:', child.name, child);
         }
       });
       
-      console.log('Objects with Window/Round in name:', foundObjects);
-      console.log(`Found ${roundWindows.length} RoundWindow object(s)`);
+      // console.log('Objects with Window/Round in name:', foundObjects);
+      // console.log(`Found ${roundWindows.length} RoundWindow object(s)`);
       
       if (roundWindows.length === 0) {
-        console.log('No RoundWindow objects found');
+        // console.log('No RoundWindow objects found');
         return;
       }
       
       // Process each window
       roundWindows.forEach((roundWindow, index) => {
         if (!roundWindow.material) {
-          console.log(`Window ${roundWindow.name} has no material`);
+          // console.log(`Window ${roundWindow.name} has no material`);
           return;
         }
         
@@ -194,13 +194,13 @@ function RoundWindowEffects({ isPlaying = false }) {
         const originalTexture = roundWindow.material.map || roundWindow.material.emissiveMap;
         
         if (!originalTexture) {
-          console.log(`Window ${roundWindow.name} has no texture to apply effects to`);
+          // console.log(`Window ${roundWindow.name} has no texture to apply effects to`);
           return;
         }
         
-        console.log(`Processing window ${index + 1}:`, roundWindow.name);
-        console.log('Original material:', roundWindow.material);
-        console.log('Original texture:', originalTexture);
+        // console.log(`Processing window ${index + 1}:`, roundWindow.name);
+        // console.log('Original material:', roundWindow.material);
+        // console.log('Original texture:', originalTexture);
         
         // Create custom shader material
         const customMaterial = new THREE.ShaderMaterial({
@@ -224,10 +224,10 @@ function RoundWindowEffects({ isPlaying = false }) {
         roundWindow.material = customMaterial;
         windowMaterialsRef.current.push({ window: roundWindow, material: customMaterial });
         
-        console.log(`Effects applied to ${roundWindow.name}`);
+        // console.log(`Effects applied to ${roundWindow.name}`);
       });
       
-      console.log('RoundWindowEffects setup complete');
+      // console.log('RoundWindowEffects setup complete');
       
     }, 1000); // 1 second delay to ensure model is loaded
     

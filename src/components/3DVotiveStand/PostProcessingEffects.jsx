@@ -175,7 +175,7 @@ const PostProcessingEffects = ({ is80sMode = false }) => {
         modulationOffset={0.5}     // Increased modulation
       />
       <Scanline
-        density={20.0}             // Much more visible scanlines
+        density={35.0}             // Much more visible scanlines
         opacity={0.8}             // Increased opacity for stronger effect
         blendFunction={BlendFunction.OVERLAY}
       />

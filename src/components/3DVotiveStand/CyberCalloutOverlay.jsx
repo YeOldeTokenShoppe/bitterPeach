@@ -100,6 +100,7 @@ function CyberCalloutOverlay({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            zIndex: 1001,
           }}
           onMouseEnter={(e) => {
             e.target.style.background = primaryColor;
