@@ -19,32 +19,32 @@ function CinematicCamera({
   const keyframes = [
     {
       time: 0,
-      position: new THREE.Vector3(-5.41, -47.69, -8.00), // Very close to statue
-      lookAt: new THREE.Vector3(-5.63, -47.71, -7.57), // Looking at statue base
-      fov: 45 // Narrower FOV for close-up
+      position: new THREE.Vector3(0.78, 15.88, -10.34), // Very close to statue (scaled)
+      lookAt: new THREE.Vector3(0.78, 15.88, -10.36), // Looking at statue base
+      fov: 35 // Narrower FOV for close-up
     },
     {
-      time: 1,
-      position: new THREE.Vector3(11.35, -55.59, -36.25), // Start pulling back
-      lookAt: new THREE.Vector3(-0.58, -49.70, -10.19), // Still focused on statue
-      fov: 55
+      time: 0.5,
+      position: new THREE.Vector3(0.91, 5.36, 29.49), // Start pulling back (scaled)
+      lookAt: new THREE.Vector3(-1.33, 13.46, 0.58),// Still focused on statue
+      fov: 45
     },
     // {
-    //   time: 0.5,
-    //   position: new THREE.Vector3(-10, -45, -30), // Pull back and start moving to side
-    //   lookAt: new THREE.Vector3(0, -50, -10), // Start looking at wider scene
-    //   fov: 35
+    //   time: 0.7,
+    //   position: new THREE.Vector3(26.13, 12.44, 53.43), // Pull back and start moving to side
+    //   lookAt: new THREE.Vector3(-2.47, 24.84, 0.14), // Start looking at wider scene
+    //   fov: 50
     // },
-    // {
-    //   time: 0.8,
-    //   position: new THREE.Vector3(-15, -44, -40), // Further to the side
-    //   lookAt: new THREE.Vector3(0, -50, -5), // Look at cathedral center
-    //   fov: 38
-    // },
+    {
+      time: 1,
+      position: new THREE.Vector3(44.55, 33.36, 39.23), // Further to the side
+      lookAt: new THREE.Vector3(-2.47, 24.84, 0.14), // Look at cathedral center
+      fov: 50
+    },
     // {
     //   time: 1,
-    //   position: new THREE.Vector3(0.37, -52.12, -50.52), // Final position
-    //   lookAt: new THREE.Vector3(0.00, -50.00, -5.00), // Final look at
+    //   position: new THREE.Vector3(0.37, 7.88, -50.52), // Final position
+    //   lookAt: new THREE.Vector3(0.00, 10.00, -5.00), // Final look at
     //   fov: 60 // Original FOV
     // }
   ];
@@ -72,8 +72,8 @@ function CinematicCamera({
       } : 'N/A'
     };
     
-    // console.log(`📸 ${label}:`, state);
-    // console.log(`Copy for keyframe: { position: new THREE.Vector3(${state.position.x}, ${state.position.y}, ${state.position.z}), lookAt: new THREE.Vector3(${state.lookingAt?.x || 0}, ${state.lookingAt?.y || 0}, ${state.lookingAt?.z || 0}), fov: ${state.fov} }`);
+    console.log(`📸 ${label}:`, state);
+    console.log(`Copy for keyframe: { position: new THREE.Vector3(${state.position.x}, ${state.position.y}, ${state.position.z}), lookAt: new THREE.Vector3(${state.lookingAt?.x || 0}, ${state.lookingAt?.y || 0}, ${state.lookingAt?.z || 0}), fov: ${state.fov} }`);
   };
   
   // Get interpolated values between keyframes

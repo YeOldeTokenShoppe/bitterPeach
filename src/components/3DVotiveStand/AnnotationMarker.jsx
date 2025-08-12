@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Html, Billboard } from '@react-three/drei';
 import * as THREE from 'three';
@@ -16,8 +16,20 @@ function AnnotationMarker({
   textScale = null
 }) {
   const meshRef = useRef();
-  const { camera } = useThree();
+  const { camera, invalidate } = useThree();
   const [hovered, setHovered] = useState(false);
+  const [forceUpdate, setForceUpdate] = useState(0);
+  
+  // Force initial render of HTML elements
+  useEffect(() => {
+    // Force a re-render after mount to ensure HTML elements appear
+    const timer = setTimeout(() => {
+      setForceUpdate(prev => prev + 1);
+      invalidate(); // Force three.js to re-render
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, [invalidate]);
   
   // Pulse animation for active state
   useFrame((state) => {
@@ -91,6 +103,7 @@ function AnnotationMarker({
         
         {/* Eye icon instead of number */}
         <Html
+          key={`eye-${forceUpdate}`} // Force re-render with key change
           position={[0, 0, 0.002]}
           center
           distanceFactor={1}
@@ -142,6 +155,7 @@ function AnnotationMarker({
               borderRadius: `${4 * effectiveTextScale}px`,
               padding: `${12 * effectiveTextScale}px ${16 * effectiveTextScale}px`,
               color: '#ffffff',
+              width: "15rem",
               fontSize: `${14 * effectiveTextScale}px`,
               fontFamily: 'Arial, sans-serif',
               maxWidth: `${200 * effectiveTextScale}px`,

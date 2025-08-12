@@ -130,7 +130,7 @@ export default function CathedralPage({ is80sMode, setIs80sMode }) {
       
       
       <CyberNav is80sMode={is80sMode} />
-      <Cathedral isPlaying={isPlaying} showAnnotations={showAnnotations} is80sMode={is80sMode} />
+      <Cathedral isPlaying={isPlaying} showAnnotations={showAnnotations} is80sMode={is80sMode} onAnnotationClick={() => setShowCyberOverlay(false)} />
       
       {/* Right-aligned CyberCalloutOverlay */}
       <CyberCalloutOverlay

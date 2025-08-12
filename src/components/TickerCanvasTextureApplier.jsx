@@ -193,7 +193,7 @@ const TickerCanvasTextureApplier = ({ is80sMode = false }) => {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     // Update scroll position (slower speed)
-    scrollPos.current = (scrollPos.current + 0.5) % canvas.width;
+    scrollPos.current = (scrollPos.current + 1.5) % canvas.width;
 
     const allData = [
       ...marketData,

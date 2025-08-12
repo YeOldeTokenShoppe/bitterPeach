@@ -6,9 +6,9 @@ import { useFrame, useThree } from "@react-three/fiber";
 
 function HolographicStatue2({ 
   onLoad, 
-  position = [-0.3, 4.6, -0.3],  // Default position if not provided
-  rotation = [0, -Math.PI*2, 0],  // Default rotation if not provided
-  scale = [18, 18, 18],  // Default scale if not provided
+  position = [1.1, 14.5, -20.3],  // Default position if not provided
+  rotation = [0, -Math.PI*1.95, 0],  // Default rotation if not provided
+  scale = [13, 13, 13],  // Default scale if not provided
   hover = false,  // Disable hover animation by default
   rotate = true  // Disable rotation animation by default
 }) {
@@ -480,7 +480,7 @@ function HolographicStatue2({
       animatedMaterialsRef.current = [];
     };
   // }, [scene, holographicMaterial, heartHolographicMaterial, flameHolographicMaterial, loader, onLoad, position, rotation, scale, hover, rotate]);
-}, [scene, holographicMaterial, loader, onLoad, position, rotation, scale, hover, rotate]);
+}, [scene, holographicMaterial, loader]); // Only re-load if scene or core materials change
 
 
   useFrame((state, delta) => {

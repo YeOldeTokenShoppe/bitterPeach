@@ -135,8 +135,8 @@ const PostProcessingEffects = ({ is80sMode = false }) => {
         />
       )} */}
       <Bloom
-        intensity={1.2}           // Increased from 0.8
-        luminanceThreshold={0.3}  // Lowered from 0.4 to catch more of the sunset colors
+        intensity={1}           // Increased from 0.8
+        luminanceThreshold={0.8}  // Lowered from 0.4 to catch more of the sunset colors
         luminanceSmoothing={0.7}  // Adjusted from 0.9 for sharper bloom edges
         height={400}              // Increased from 300 for more detail
         blendFunction={BlendFunction.SCREEN} // Use SCREEN blend mode for a more natural glow

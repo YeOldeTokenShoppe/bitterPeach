@@ -31,9 +31,9 @@ const SimpleMusicPlayer = ({
   // Track lists with BPM data and shader assignments
   // Available shaders: 'matrix', 'colorfulDots', 'wavePattern', 'plasma', 'swirlPattern', 'cyberpunkGrid'
   const non80sTracks = [
-    { name: "Lifetimes", path: "audio/192k/07-lifetimes.m4a", bpm: 115, shader: 'swirlPattern' }, // Soothing swirls for mid-tempo pop
-    { name: "Magnetic", path: "audio/320k/01-magnetic.m4a", bpm: 130, shader: 'plasma' }, // Energetic plasma for faster track
-    { name: "Rocket Man - Steven Drozd", path: "audio/192k/rocket-man---steven-drozd.m4a", bpm: 75, shader: 'wavePattern' } // Gentle waves for ballad
+    { name: "Lifetimes", path: "audio/192k/07-lifetimes.m4a", bpm: 135 }, // Soothing swirls for mid-tempo pop
+    { name: "Magnetic", path: "audio/320k/01-magnetic.m4a", bpm: 130 }, // Energetic plasma for faster track
+    { name: "Rocket Man - Steven Drozd", path: "audio/192k/rocket-man---steven-drozd.m4a", bpm: 75 } // Gentle waves for ballad
   ];
   
   const eightyTracks = [

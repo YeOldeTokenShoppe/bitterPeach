@@ -1,7 +1,8 @@
 import React, { useRef, Suspense, useEffect, useState, useCallback, useMemo, useContext } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Environment, OrbitControls, useGLTF, useAnimations, useHelper, Html } from '@react-three/drei';
+import { Environment, OrbitControls, useGLTF, useAnimations, useHelper, Html, Sky } from '@react-three/drei';
 import * as THREE from 'three';
+// import DebugCyborg3Position from './DebugCyborg3Position'; // Commented out after coordinate fix
 import TickerCanvasTextureApplier from './TickerCanvasTextureApplier';
 import ConstellationModel from '../components/3DVotiveStand/ConstellationModel';
 import StarField from '../components/3DVotiveStand/StarField';
@@ -14,12 +15,229 @@ import { detectDevice, getSceneSettings, optimizeTexture, texturePool } from '..
 import { useMusic, MusicContext } from '../contexts/MusicContext';
 import CinematicCamera from './CinematicCamera';
 import RoundWindowEffects from './RoundWindowEffects';
+import VideoWallEffects from './VideoWallEffects';
 import PrismaticOverlay from '../components/PrismaticOverlay';
-import { createShaderMaterial, getShaderByIndex } from './shaders/ShaderCollection';
+import HolographicStatue2 from './3DVotiveStand/HolographicStatue2';
+// import { createShaderMaterial, getShaderByIndex } from './shaders/ShaderCollection'; // Replaced with video system
 // Version string for cache busting - update this when model changes
 const MODEL_VERSION = '1.0.1';
 
+
+// Character configuration with position-appropriate animations
+const POSITION_CONFIGS = [
+  { 
+    id: 'wall_left',
+    position: [-12, 0, 0], 
+    rotation: [0, Math.PI/2, 0],
+    idleAnimations: ['Leaning', 'StandDrink', 'Stand'],
+    danceAnimations: ['GUITAR', 'BBOYHIPHOP', 'SALSA'],
+    requiresWall: true
+  },
+  { 
+    id: 'wall_right',
+    position: [12, 0, 0], 
+    rotation: [0, -Math.PI/2, 0],
+    idleAnimations: ['Leaning', 'StandDrink'],
+    danceAnimations: ['GUITAR', 'SALSA'],
+    requiresWall: true
+  },
+  { 
+    id: 'altar_front',
+    position: [0, 0, 8], 
+    rotation: [0, Math.PI, 0],
+    idleAnimations: ['Pray', 'Kneel', 'Stand'],
+    danceAnimations: ['StandClap', 'SAMBA0', 'Cheer'],
+    requiresAltar: true
+  },
+  { 
+    id: 'center_stage',
+    position: [0, 0, 3], 
+    rotation: [0, 0, 0],
+    idleAnimations: ['Stand', 'Idle', 'Wave'],
+    danceAnimations: ['SAMBA0', 'SAMBA2', 'BBOYHIPHOP', 'SALSA'],
+    requiresSpace: true
+  },
+  { 
+    id: 'corner_sit_left',
+    position: [-8, 0, -5], 
+    rotation: [0, Math.PI/4, 0],
+    idleAnimations: ['Sit', 'SitIdle2'],
+    danceAnimations: ['SitClap', 'SitClap2', 'Sit_CyborgDJ'],
+    requiresSeat: true
+  },
+  { 
+    id: 'corner_sit_right',
+    position: [8, 0, -5], 
+    rotation: [0, -Math.PI/4, 0],
+    idleAnimations: ['Sit', 'SitIdle2'],
+    danceAnimations: ['SitClap', 'SitClap2'],
+    requiresSeat: true
+  },
+  { 
+    id: 'mid_left',
+    position: [-6, 0, 0], 
+    rotation: [0, Math.PI/6, 0],
+    idleAnimations: ['Stand', 'Idle', 'LookAround'],
+    danceAnimations: ['SAMBA2', 'Cheer', 'Dance'],
+    requiresSpace: false
+  },
+  { 
+    id: 'mid_right',
+    position: [6, 0, 0], 
+    rotation: [0, -Math.PI/6, 0],
+    idleAnimations: ['Stand', 'Idle', 'Wave'],
+    danceAnimations: ['SALSA', 'Cheer', 'Dance'],
+    requiresSpace: false
+  },
+  { 
+    id: 'back_center',
+    position: [0, 0, -8], 
+    rotation: [0, 0, 0],
+    idleAnimations: ['Stand', 'Idle'],
+    danceAnimations: ['SAMBA0', 'StandClap'],
+    requiresSpace: false
+  },
+  { 
+    id: 'dj_booth',
+    position: [10, 0, 5], 
+    rotation: [0, -Math.PI*3/4, 0],
+    idleAnimations: ['Sit', 'Sit_CyborgDJ'],
+    danceAnimations: ['Sit_CyborgDJ', 'SitClap'],
+    requiresDJBooth: true
+  }
+];
+
+// Character models available
+const CHARACTER_MODELS = [
+  'Cyborg0', 'Cyborg2', 'Cyborg3', 'Cyborg4', 'Armature', 'Armature1', 'Armature2', 'Armature3', 'CyborgDJ'
+];
+
+// Function to generate random animation setup for fixed characters
+function generateRandomCharacterSetup() {
+  // Map each character to their possible animations
+  const characterAnimationMap = {
+    'Cyborg0': {
+      idle: ['Pray', 'Stand', 'Idle'],
+      dance: ['SAMBA0', 'SALSA', 'Cheer']
+    },
+    'Cyborg2': {
+      idle: ['Sit', 'SitIdle2'],
+      dance: ['SitClap', 'SitClap2', 'Cheer']
+    },
+    'Cyborg3': {
+      idle: ['SitIdle2', 'SitClap2'], // Will be handled by sequence
+      dance: ['SitClap', 'StandClap']
+    },
+    'Cyborg4': {
+      idle: ['Leaning', 'Stand'],
+      dance: ['BBOYHIPHOP', 'SALSA']
+    },
+    'Armature': {
+      idle: ['SitIdle'],
+      dance: ['SitToStand', 'LISTEN']
+    },
+    'Armature1': {
+      idle: ['DRINKING'],
+      dance: ['GUITAR']
+    },
+    'Armature2': {
+      idle: ['SITIDLE'],
+      dance: ['Stand2Clap', 'Stand2Sit', 'SITIDLE']
+    },
+    'CyborgDJ': {
+      idle: ['Sit', 'Sit_CyborgDJ'],
+      dance: ['Sit_CyborgDJ', 'SitClap']
+    }
+  };
+  
+  const characterConfigs = [];
+  
+  // Create configs for each known character
+  Object.entries(characterAnimationMap).forEach(([charName, anims]) => {
+    const idleAnim = anims.idle[Math.floor(Math.random() * anims.idle.length)];
+    const danceAnim = anims.dance[Math.floor(Math.random() * anims.dance.length)];
+    
+    characterConfigs.push({
+      characterModel: charName,
+      idleAnimation: idleAnim,
+      danceAnimation: danceAnim,
+      uniqueId: charName
+    });
+  });
+  
+  return characterConfigs;
+}
+
 // Individual spotlight with helper
+// Dusk atmosphere component - always rendered but visibility controlled
+function DuskAtmosphere({ isActive }) {
+  const { scene } = useThree();
+  const gridRef = useRef();
+  const groupRef = useRef();
+  
+  useEffect(() => {
+    if (isActive) {
+      // Set dusk fog - lighter and more colorful
+      scene.fog = new THREE.Fog('#ff9966', 30, 200); // Warm orange-pink fog
+    } else {
+      // Clear outdoor effects
+      scene.fog = null;
+    }
+  }, [isActive, scene]);
+  
+  // Always render but control visibility for better performance
+  return (
+    <group ref={groupRef} visible={isActive}>
+      {/* Sky component from drei for sunset effect */}
+      <Sky 
+        distance={250000}
+        sunPosition={[-1, 0.01, -1]}  // Sun at horizon for sunset
+        inclination={0.49}  // Sun inclination (0.5 = horizon)
+        azimuth={0.25}  // Sun rotation
+        mieCoefficient={0.005}  // Haze amount
+        mieDirectionalG={0.6}  // Sun size
+        rayleigh={2}  // Sky color intensity
+        turbidity={10}  // Atmosphere haziness
+      />
+      
+      {/* Brighter dusk lighting */}
+      <ambientLight intensity={0.4} color="#ffa366" />
+      {/* Main sunset light - brighter and warmer */}
+      <directionalLight 
+        position={[-50, 40, -50]} 
+        intensity={0.8} 
+        color="#ff7f50"
+        castShadow={false}
+      />
+      {/* Sky light for overall brightness */}
+      <hemisphereLight 
+        skyColor="#87ceeb"
+        groundColor="#8b7355"
+        intensity={0.5}
+      />
+      {/* Rim light for dramatic effect */}
+      <directionalLight 
+        position={[50, 20, -80]} 
+        intensity={0.4} 
+        color="#dda0dd"
+        castShadow={false}
+      />
+      {/* Single grid plane with wireframe */}
+      <mesh 
+        ref={gridRef}
+        rotation={[-Math.PI / 2, 0, 0]} 
+        position={[0, -2, -40]}
+      >
+        <planeGeometry args={[200, 200, 40, 40]} />
+        <meshBasicMaterial 
+          color="#00ff00"
+          wireframe={true}
+        />
+      </mesh>
+    </group>
+  );
+}
+
 function StatueSpotlight({ position, targetPosition, intensity, angle, penumbra, distance, color, showHelper, helperColor, label }) {
   const lightRef = useRef();
   
@@ -51,7 +269,7 @@ function StatueSpotlight({ position, targetPosition, intensity, angle, penumbra,
             <div style={{
               background: helperColor,
               color: 'white',
-              padding: '2px 6px',
+              padding: '2px 2px',
               borderRadius: '3px',
               fontSize: '10px',
               fontFamily: 'monospace',
@@ -139,37 +357,50 @@ function StatueSpotlights({ scene, isPlaying }) {
       enabled: true,
       position: [-1, -26, -20],
       target: [10, -44, 19.5],
-      intensity: 2000,
+      // intensity: 2000,
+      intensity: 500,
       angle: 6, // degrees
       distance: 50,
-      color: '#ff00ff'
+      // color: '#0000ff'
+            color: '#ffffff',
+            accent: '#cccccc'
     },
     statue2: {
       enabled: true,
       position: [-1, -26, -20],
       target: [0, -44, 19.5],
-      intensity: 2000,
+      // intensity: 2000,
+      intensity: 500,
       angle: 7, // degrees
       distance: 50,
-      color: '#00ff00'
+      // color: '#00ff00'
+                  color: '#ffffff',
+            accent: '#cccccc'
+      
     },
     statue3: {
       enabled: true,
       position: [-2, -30, -22.5],
       target: [-9.0, -33, -14.5],
-      intensity: 2000,
+      // intensity: 2000,
+      intensity: 500,
       angle: 9, // degrees
       distance: 50,
-      color: '#ff0000'
+      // color: '#ff0000'
+                  color: '#ffffff',
+            accent: '#cccccc'
     },
     statue4: {
       enabled: true,
       position: [-2, -30, -25.5],
       target: [-14, -34, -15],
-      intensity: 2000,
+      // intensity: 2000,
+      intensity: 500,
       angle: 8, // degrees
       distance: 50,
-      color: '#0000ff'
+      // color: '#0000ff'
+                  color: '#ffffff',
+            accent: '#cccccc'
     }
   };
   
@@ -261,51 +492,7 @@ function StatueSpotlights({ scene, isPlaying }) {
   
    return (
      <>
-   {/* // correct spotlight positions
-       {testSpotlights && (
-         <>
-           <spotLight
-             position={[0, 10, 10]}
-             target-position={[0, 0, 0]}
-             intensity={2000}
-             angle={0.3}
-             penumbra={0.5}
-             distance={50}
-             color="#ff00ff"
-             castShadow={false}
-           />
-           <spotLight
-             position={[10, 10, 0]}
-             target-position={[0, 0, 0]}
-             intensity={2000}
-             angle={0.3}
-             penumbra={0.5}
-             distance={50}
-             color="#00ff00"
-             castShadow={false}
-           />
-           <spotLight
-             position={[-10, 10, 0]}
-             target-position={[0, 0, 0]}
-             intensity={2000}
-             angle={0.3}
-             penumbra={0.5}
-             distance={50}
-             color="#ff0000"
-             castShadow={false}
-           />
-           <spotLight
-             position={[0, 10, -10]}
-             target-position={[0, 0, 0]}
-             intensity={2000}
-             angle={0.3}
-             penumbra={0.5}
-             distance={50}
-             color="#0066ff"
-             castShadow={false}
-           />
-         </>
-       )} */}
+ 
       
        {statuePositions.map((statue) => {
          const colors = statueColors[statue.name] || { main: '#ffffff', accent: '#cccccc' };
@@ -343,8 +530,516 @@ function StatueSpotlights({ scene, isPlaying }) {
    );
  }
 
-function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClick, showFloatingViewer, device, currentTrackBPM = 100, currentTrackIndex = 0, currentTrackShader = null }) {
-  const gltf = useGLTF(`/cathedral3.glb?v=${MODEL_VERSION}`);
+// CharacterGroup component - randomly loads Group1.glb or Group2.glb
+function CharacterGroup({ isPlaying = false, currentTrackBPM = 100, position = [0, 0, 0], rotation = [0, 0, 0], scale = [1, 1, 1] }) {
+  const [selectedGroup] = useState(() => {
+    // Randomly select Group1 or Group2
+    const groupNumber = Math.random() < 0.5 ? 1 : 2;
+    console.log(`🎭 Selected character group: Group${groupNumber}.glb`);
+    return groupNumber;
+  });
+  
+  const groupPath = `/Group${selectedGroup}.glb`;
+  const gltf = useGLTF(groupPath);
+  const { scene, animations } = gltf;
+  const { actions, mixer } = useAnimations(animations, scene);
+  const wrapperRef = useRef();
+  
+  // Refs for managing animation transitions
+  const cyborg0ListenerRef = useRef(null);
+  const cyborg2ListenerRef = useRef(null);
+  const cyborg3ListenerRef = useRef(null);
+  const danceTimeoutRef = useRef(null);
+  
+  // Refs for Armature2 alternating sequence
+  const armature2SequenceRef = useRef({ 
+    currentAnim: 'Stand2Clap', 
+    loopCount: 0,
+    targetLoops: 1  // Start with 1 loop of Stand2Clap
+  });
+  const armature2ListenerRef = useRef(null);
+  const armature3ListenerRef = useRef(null);
+  const armatureListenerRef = useRef(null);
+  
+  // Helper function for animation speed based on BPM
+  const getAnimationSpeedFromBPM = useCallback((baseBPM = 100) => {
+    const speed = currentTrackBPM / baseBPM;
+    console.log(`🎵 Animation speed calculation: BPM=${currentTrackBPM}, Speed multiplier=${speed}`);
+    return speed;
+  }, [currentTrackBPM]);
+  
+  // Initial setup - play idle animations
+  useEffect(() => {
+    if (!actions || !mixer) {
+      console.log('⚠️ No actions or mixer available');
+      return;
+    }
+    
+    const actionList = Object.keys(actions);
+    console.log(`🎬 Available animations for Group${selectedGroup}:`, actionList);
+    
+    // Debug all expected animations
+    const expectedAnimations = ['Pray', 'Sit', 'SitIdle', 'SitIdle2', 'DRINKING', 'GUITAR', 
+                               'SITIDLE', 'Stand2Clap', 'Stand2Sit', 'Pray2Stand', 'Samba', 'Leaning'];
+    expectedAnimations.forEach(animName => {
+      if (actions[animName]) {
+        console.log(`✅ ${animName} animation found`);
+      } else {
+        console.log(`❌ ${animName} animation NOT found`);
+      }
+    });
+    
+    if (actionList.length > 0) {
+      console.log('🎮 Starting idle animations...');
+      // Play initial idle animations
+      if (actions['Pray']) {
+        console.log('▶️ Playing Pray idle animation');
+        actions['Pray'].reset().play();
+        actions['Pray'].setLoop(THREE.LoopRepeat);
+      }
+      if (actions['Sit']) {
+        console.log('▶️ Playing Sit idle animation');
+        actions['Sit'].reset().play();
+        actions['Sit'].setLoop(THREE.LoopRepeat);
+      }
+      if (actions['SitIdle'] || actions['SitIdle2']) {
+        const sitIdle = actions['SitIdle'] || actions['SitIdle2'];
+        console.log(`▶️ Playing ${actions['SitIdle'] ? 'SitIdle' : 'SitIdle2'} idle animation`);
+        sitIdle.reset().play();
+        sitIdle.setLoop(THREE.LoopRepeat);
+      }
+      if (actions['DRINKING']) {
+        console.log('▶️ Playing DRINKING idle animation for Armature1');
+        actions['DRINKING'].reset();
+        actions['DRINKING'].timeScale = 0.5; // Half speed
+        actions['DRINKING'].setLoop(THREE.LoopRepeat);
+        actions['DRINKING'].play();
+      }
+      if (actions['SITIDLE']) {
+        console.log('▶️ Playing SITIDLE idle animation for Armature2');
+        actions['SITIDLE'].reset().play();
+        actions['SITIDLE'].setLoop(THREE.LoopRepeat);
+      }
+      if (actions['Leaning']) {
+        console.log('▶️ Playing Leaning idle animation');
+        actions['Leaning'].reset().play();
+        actions['Leaning'].setLoop(THREE.LoopRepeat);
+      }
+    }
+  }, [actions, mixer, selectedGroup]);
+  
+  // Handle music playing state changes
+  useEffect(() => {
+    if (!actions || !mixer) return;
+    
+    if (isPlaying) {
+      console.log('🎵 Music started - transitioning to dance animations');
+      
+      // Clear any existing timeout
+      if (danceTimeoutRef.current) {
+        clearTimeout(danceTimeoutRef.current);
+      }
+      
+      // Delay before starting dance animations
+      danceTimeoutRef.current = setTimeout(() => {
+        // Handle Cyborg0's transition: PrayToStand -> SAMBA0
+        if (actions['PrayToStand'] && actions['SAMBA0']) {
+          if (actions['Pray']) {
+            actions['Pray'].stop();
+          }
+          
+          actions['PrayToStand'].reset();
+          actions['PrayToStand'].setLoop(THREE.LoopOnce, 1);
+          actions['PrayToStand'].clampWhenFinished = true;
+          actions['PrayToStand'].play();
+          
+          const onTransitionFinished = (e) => {
+            if (e.action === actions['PrayToStand']) {
+              mixer.removeEventListener('finished', onTransitionFinished);
+              cyborg0ListenerRef.current = null;
+              actions['PrayToStand'].stop();
+              
+              if (isPlaying && actions['SAMBA0']) {
+                actions['SAMBA0'].reset();
+                actions['SAMBA0'].timeScale = 0.5 * getAnimationSpeedFromBPM();
+                actions['SAMBA0'].setLoop(THREE.LoopRepeat);
+                actions['SAMBA0'].play();
+              }
+            }
+          };
+          cyborg0ListenerRef.current = onTransitionFinished;
+          mixer.addEventListener('finished', onTransitionFinished);
+        }
+        
+        // Handle Cyborg2's transition: SitToStand -> Cheer
+        if (actions['SitToStand'] && actions['Cheer'] && actions['Sit']) {
+          actions['Sit'].stop();
+          
+          actions['SitToStand'].reset();
+          actions['SitToStand'].setLoop(THREE.LoopOnce, 1);
+          actions['SitToStand'].clampWhenFinished = true;
+          actions['SitToStand'].play();
+          
+          const onCyborg2TransitionFinished = (e) => {
+            if (e.action === actions['SitToStand']) {
+              mixer.removeEventListener('finished', onCyborg2TransitionFinished);
+              cyborg2ListenerRef.current = null;
+              actions['SitToStand'].stop();
+              
+              if (isPlaying && actions['Cheer']) {
+                actions['Cheer'].reset();
+                actions['Cheer'].timeScale = 0.5 * getAnimationSpeedFromBPM();
+                actions['Cheer'].setLoop(THREE.LoopRepeat);
+                actions['Cheer'].play();
+              }
+            }
+          };
+          cyborg2ListenerRef.current = onCyborg2TransitionFinished;
+          mixer.addEventListener('finished', onCyborg2TransitionFinished);
+        }
+        
+        // Handle Cyborg4's BBOYHIPHOP animation
+        if (actions['BBOYHIPHOP'] && actions['Leaning']) {
+          actions['Leaning'].stop();
+          actions['BBOYHIPHOP'].reset();
+          actions['BBOYHIPHOP'].timeScale = 0.5 * getAnimationSpeedFromBPM();
+          actions['BBOYHIPHOP'].setLoop(THREE.LoopRepeat);
+          actions['BBOYHIPHOP'].play();
+        }
+        
+        // Handle Armature1's GUITAR animation
+        if (actions['GUITAR'] && actions['DRINKING']) {
+          const animSpeed = 0.5 * getAnimationSpeedFromBPM();
+          console.log(`🎸 Starting GUITAR animation for Armature1 with timeScale=${animSpeed} (BPM=${currentTrackBPM})`);
+          actions['DRINKING'].stop();
+          actions['GUITAR'].reset();
+          actions['GUITAR'].timeScale = animSpeed;
+          actions['GUITAR'].setLoop(THREE.LoopRepeat);
+          actions['GUITAR'].play();
+        }
+        
+        // Handle Armature2's sequence: Stand2Clap -> Stand2Sit -> SITIDLE (x5) -> repeat
+        if (actions['Stand2Clap'] && actions['Stand2Sit'] && actions['SITIDLE']) {
+          console.log('🎭 Starting Armature2 sequence: Stand2Clap → Stand2Sit → SITIDLE(x5)');
+          // Stop the idle SITIDLE animation
+          if (actions['SITIDLE'].isRunning()) {
+            actions['SITIDLE'].stop();
+          }
+          
+          // Reset sequence state - sequence is Stand2Clap -> Stand2Sit -> SittingClap(x5)
+          armature2SequenceRef.current = { 
+            currentAnim: 'Stand2Clap', 
+            loopCount: 0,
+            targetLoops: 1,
+            sequencePosition: 0  // 0=Stand2Clap, 1=Stand2Sit, 2=SITIDLE
+          };
+          
+          // Function to play next animation in sequence
+          const playArmature2Animation = () => {
+            const sequence = armature2SequenceRef.current;
+            const animSpeed = 0.5 * getAnimationSpeedFromBPM();
+            
+            console.log(`🎭 Playing ${sequence.currentAnim} (${sequence.loopCount + 1}/${sequence.targetLoops})`);
+            
+            if (actions[sequence.currentAnim]) {
+              // Use crossfade for smoother transitions
+              if (sequence.currentAnim === 'SITIDLE' && actions['Stand2Sit'] && actions['Stand2Sit'].isRunning()) {
+                // Crossfade from Stand2Sit to SITIDLE over 0.3 seconds
+                actions['SITIDLE'].reset();
+                actions['SITIDLE'].timeScale = animSpeed;
+                actions['SITIDLE'].setLoop(THREE.LoopOnce, 1);
+                actions['SITIDLE'].fadeIn(0.3);
+                actions['SITIDLE'].play();
+                actions['Stand2Sit'].fadeOut(0.3);
+                console.log('  ↔️ Crossfading from Stand2Sit to SITIDLE');
+              } else if (sequence.currentAnim === 'Stand2Clap' && sequence.sequencePosition === 0 && 
+                         actions['SITIDLE'] && actions['SITIDLE'].isRunning()) {
+                // Crossfade from SITIDLE back to Stand2Clap when sequence repeats
+                actions['Stand2Clap'].reset();
+                actions['Stand2Clap'].timeScale = animSpeed;
+                actions['Stand2Clap'].setLoop(THREE.LoopOnce, 1);
+                actions['Stand2Clap'].fadeIn(0.3);
+                actions['Stand2Clap'].play();
+                actions['SITIDLE'].fadeOut(0.3);
+                console.log('  ↔️ Crossfading from SITIDLE to Stand2Clap');
+              } else {
+                // Normal play for other animations
+                actions[sequence.currentAnim].reset();
+                actions[sequence.currentAnim].timeScale = animSpeed;
+                actions[sequence.currentAnim].setLoop(THREE.LoopOnce, 1);
+                actions[sequence.currentAnim].play();
+              }
+            }
+          };
+          
+          // Set up listener for animation completion
+          const onArmature2AnimFinished = (e) => {
+            if ((e.action === actions['Stand2Clap'] || e.action === actions['Stand2Sit'] || e.action === actions['SITIDLE']) && isPlaying) {
+              const sequence = armature2SequenceRef.current;
+              sequence.loopCount++;
+              
+              // Check if we've completed the target loops for current animation
+              if (sequence.loopCount >= sequence.targetLoops) {
+                // Move to next animation in sequence
+                sequence.loopCount = 0;
+                
+                if (sequence.sequencePosition === 0) {
+                  // After Stand2Clap, go to Stand2Sit
+                  sequence.currentAnim = 'Stand2Sit';
+                  sequence.targetLoops = 1;
+                  sequence.sequencePosition = 1;
+                } else if (sequence.sequencePosition === 1) {
+                  // After Stand2Sit, go to SittingClap
+                  sequence.currentAnim = 'SITIDLE';
+                  sequence.targetLoops = 5;
+                  sequence.sequencePosition = 2;
+                } else {
+                  // After SittingClap x5, restart sequence with Stand2Clap
+                  sequence.currentAnim = 'Stand2Clap';
+                  sequence.targetLoops = 1;
+                  sequence.sequencePosition = 0;
+                }
+              }
+              
+              // Play next animation
+              playArmature2Animation();
+            }
+          };
+          
+          // Store listener ref and add to mixer
+          armature2ListenerRef.current = onArmature2AnimFinished;
+          mixer.addEventListener('finished', onArmature2AnimFinished);
+          
+          // Start the sequence
+          playArmature2Animation();
+        }
+        
+        // Handle Armature's SitToStand -> LISTEN sequence
+        if (actions['SitToStand'] && actions['LISTEN'] && actions['SitIdle']) {
+          console.log('🪑 Starting Armature sequence: SitToStand → LISTEN');
+          actions['SitIdle'].stop();
+          
+          const animSpeed = 0.5 * getAnimationSpeedFromBPM();
+          
+          // Play SitToStand transition once
+          actions['SitToStand'].reset();
+          actions['SitToStand'].timeScale = animSpeed;
+          actions['SitToStand'].setLoop(THREE.LoopOnce, 1);
+          actions['SitToStand'].clampWhenFinished = true;
+          actions['SitToStand'].play();
+          
+          // Set up listener for when SitToStand finishes
+          const onSitToStandFinished = (e) => {
+            if (e.action === actions['SitToStand']) {
+              mixer.removeEventListener('finished', onSitToStandFinished);
+              armatureListenerRef.current = null;
+              actions['SitToStand'].stop();
+              
+              // Start LISTEN loops
+              if (isPlaying && actions['LISTEN']) {
+                console.log('👂 Starting LISTEN loops for Armature');
+                actions['LISTEN'].reset();
+                actions['LISTEN'].timeScale = animSpeed;
+                actions['LISTEN'].setLoop(THREE.LoopRepeat);
+                actions['LISTEN'].play();
+              }
+            }
+          };
+          
+          armatureListenerRef.current = onSitToStandFinished;
+          mixer.addEventListener('finished', onSitToStandFinished);
+        }
+        
+        // Handle Armature3's Pray2Stand -> Samba sequence
+        if (actions['Pray2Stand'] && actions['Samba'] && actions['Pray']) {
+          console.log('🙏 Starting Armature3 sequence: Pray2Stand → Samba');
+          actions['Pray'].stop();
+          
+          const animSpeed = 0.5 * getAnimationSpeedFromBPM();
+          
+          // Play Pray2Stand transition once
+          actions['Pray2Stand'].reset();
+          actions['Pray2Stand'].timeScale = animSpeed;
+          actions['Pray2Stand'].setLoop(THREE.LoopOnce, 1);
+          actions['Pray2Stand'].clampWhenFinished = true;
+          actions['Pray2Stand'].play();
+          
+          // Set up listener for when Pray2Stand finishes
+          const onPray2StandFinished = (e) => {
+            if (e.action === actions['Pray2Stand']) {
+              mixer.removeEventListener('finished', onPray2StandFinished);
+              armature3ListenerRef.current = null;
+              actions['Pray2Stand'].stop();
+              
+              // Start Samba loops
+              if (isPlaying && actions['Samba']) {
+                console.log('💃 Starting Samba loops for Armature3');
+                actions['Samba'].reset();
+                actions['Samba'].timeScale = animSpeed;
+                actions['Samba'].setLoop(THREE.LoopRepeat);
+                actions['Samba'].play();
+              }
+            }
+          };
+          
+          armature3ListenerRef.current = onPray2StandFinished;
+          mixer.addEventListener('finished', onPray2StandFinished);
+        }
+        
+        // Handle Cyborg3's StandClap -> SitClap sequence
+        if (actions['StandClap'] && actions['SitClap']) {
+          // Stop any idle animations for Cyborg3
+          ['SitIdle', 'SitIdle2'].forEach(animName => {
+            if (actions[animName]) {
+              actions[animName].stop();
+            }
+          });
+          
+          actions['StandClap'].reset();
+          actions['StandClap'].setLoop(THREE.LoopOnce, 1);
+          actions['StandClap'].play();
+          
+          const onStandClapFinished = (e) => {
+            if (e.action === actions['StandClap']) {
+              mixer.removeEventListener('finished', onStandClapFinished);
+              cyborg3ListenerRef.current = null;
+              
+              if (isPlaying && actions['SitClap']) {
+                actions['SitClap'].reset();
+                actions['SitClap'].setLoop(THREE.LoopRepeat);
+                actions['SitClap'].play();
+              }
+            }
+          };
+          cyborg3ListenerRef.current = onStandClapFinished;
+          mixer.addEventListener('finished', onStandClapFinished);
+        }
+        
+        // Play other SAMBA animations
+        if (actions['SAMBA2']) {
+          actions['SAMBA2'].reset();
+          actions['SAMBA2'].timeScale = 0.5 * getAnimationSpeedFromBPM();
+          actions['SAMBA2'].setLoop(THREE.LoopRepeat);
+          actions['SAMBA2'].play();
+        }
+        
+      }, 2000); // 2 second delay before starting dance animations
+      
+    } else {
+      // Music stopped - return to idle animations
+      console.log('🎵 Music stopped - returning to idle animations');
+      
+      // Clear timeout
+      if (danceTimeoutRef.current) {
+        clearTimeout(danceTimeoutRef.current);
+        danceTimeoutRef.current = null;
+      }
+      
+      // Remove event listeners
+      if (cyborg0ListenerRef.current && mixer) {
+        mixer.removeEventListener('finished', cyborg0ListenerRef.current);
+        cyborg0ListenerRef.current = null;
+      }
+      if (cyborg2ListenerRef.current && mixer) {
+        mixer.removeEventListener('finished', cyborg2ListenerRef.current);
+        cyborg2ListenerRef.current = null;
+      }
+      if (cyborg3ListenerRef.current && mixer) {
+        mixer.removeEventListener('finished', cyborg3ListenerRef.current);
+        cyborg3ListenerRef.current = null;
+      }
+      if (armature2ListenerRef.current && mixer) {
+        mixer.removeEventListener('finished', armature2ListenerRef.current);
+        armature2ListenerRef.current = null;
+      }
+      if (armature3ListenerRef.current && mixer) {
+        mixer.removeEventListener('finished', armature3ListenerRef.current);
+        armature3ListenerRef.current = null;
+      }
+      if (armatureListenerRef.current && mixer) {
+        mixer.removeEventListener('finished', armatureListenerRef.current);
+        armatureListenerRef.current = null;
+      }
+      
+      // Stop all dance animations
+      ['SAMBA0', 'SAMBA2', 'Cheer', 'BBOYHIPHOP', 'GUITAR', 'StandClap', 'SitClap', 'PrayToStand', 'SitToStand', 'Stand2Clap', 'Stand2Sit', 'SITIDLE', 'Pray2Stand', 'Samba', 'SitToStand', 'LISTEN'].forEach(animName => {
+        if (actions[animName]) {
+          actions[animName].stop();
+        }
+      });
+      
+      // Restart idle animations
+      setTimeout(() => {
+        if (actions['Pray']) {
+          actions['Pray'].reset().play();
+          actions['Pray'].setLoop(THREE.LoopRepeat);
+        }
+        if (actions['Sit']) {
+          actions['Sit'].reset().play();
+          actions['Sit'].setLoop(THREE.LoopRepeat);
+        }
+        if (actions['SitIdle'] || actions['SitIdle2']) {
+          const sitIdle = actions['SitIdle'] || actions['SitIdle2'];
+          sitIdle.reset().play();
+          sitIdle.setLoop(THREE.LoopRepeat);
+        }
+        if (actions['DRINKING']) {
+          actions['DRINKING'].reset();
+          actions['DRINKING'].timeScale = 0.5; // Half speed
+          actions['DRINKING'].setLoop(THREE.LoopRepeat);
+          actions['DRINKING'].play();
+        }
+        if (actions['SITIDLE']) {
+          console.log('🎭 Returning to SITIDLE idle animation for Armature2');
+          actions['SITIDLE'].reset().play();
+          actions['SITIDLE'].setLoop(THREE.LoopRepeat);
+        }
+        if (actions['Leaning']) {
+          actions['Leaning'].reset().play();
+          actions['Leaning'].setLoop(THREE.LoopRepeat);
+        }
+      }, 100);
+    }
+    
+    // Cleanup
+    return () => {
+      if (danceTimeoutRef.current) {
+        clearTimeout(danceTimeoutRef.current);
+      }
+    };
+  }, [isPlaying, actions, mixer, getAnimationSpeedFromBPM]);
+
+  // Update animation speeds when BPM changes for already playing animations
+  useEffect(() => {
+    if (!actions || !isPlaying) return;
+    
+    const animSpeed = 0.3 * getAnimationSpeedFromBPM();
+    console.log(`🎵 Updating animation speeds for BPM change: ${currentTrackBPM}, speed=${animSpeed}`);
+    
+    // Update speed for any currently playing dance animations
+    const danceAnimations = ['GUITAR', 'SAMBA0', 'SAMBA2', 'Cheer', 'BBOYHIPHOP', 'SitClap', 'Stand2Clap', 'Stand2Sit', 'SITIDLE', 'Samba', 'LISTEN'];
+    danceAnimations.forEach(animName => {
+      if (actions[animName] && actions[animName].isRunning()) {
+        actions[animName].timeScale = animSpeed;
+        console.log(`  Updated ${animName} speed to ${animSpeed}`);
+      }
+    });
+  }, [currentTrackBPM, isPlaying, actions, getAnimationSpeedFromBPM]);
+  
+  // Update animation mixer
+  useFrame((state, delta) => {
+    if (mixer) {
+      mixer.update(delta);
+    }
+  });
+  
+  return <primitive object={scene} />;
+}
+
+
+
+function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClick, showFloatingViewer, device, currentTrackBPM = 100, currentTrackIndex = 0, currentTrackShader = null, controlsRef }) {
+  const gltf = useGLTF(`/CATHEDRAL_ONLY2.glb?v=${MODEL_VERSION}`);
   const modelRef = useRef();
   const groupRef = useRef();
   const pivotRef = useRef();
@@ -352,21 +1047,40 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
   const [enableRotation, setEnableRotation] = useState(false);
   const { actions, mixer } = useAnimations(gltf.animations, modelRef);
   
-  // Debug: Check what's in the loaded model
+  // Generate random character setup once on mount
+  const [characterSetup] = useState(() => generateRandomCharacterSetup());
+  const activeCharactersRef = useRef({});
+  
+  // Apply random character setup to the scene
   useEffect(() => {
-    if (gltf.scene) {
-      console.log('🏛️ Cathedral model loaded. Checking for statues...');
+    if (gltf.scene && characterSetup && characterSetup.length > 0) {
+      console.log('🎭 Applying randomized character setup:', characterSetup);
+      
+      // Debug: Log all objects in the scene
+      const allObjects = [];
+      gltf.scene.traverse((child) => {
+        if (child.name) {
+          allObjects.push({ name: child.name, type: child.type, visible: child.visible });
+        }
+      });
+      console.log('All named objects in scene:', allObjects);
+      
+     
+      
+      // Also check for statues
       const statueObjects = [];
       gltf.scene.traverse((child) => {
         if (child.name) {
-          if (child.name.match(/^Statue[1-4]$/) || child.name.toLowerCase().includes('statue')) {
+          if (child.name.match(/^Statue[1-4]$/) || (child.name.toLowerCase().includes('statue') && !child.name.toLowerCase().includes('cyborg'))) {
             statueObjects.push(child.name);
           }
         }
       });
-      console.log('🗿 Found statue objects in model:', statueObjects);
+      if (statueObjects.length > 0) {
+        console.log('🗿 Found statue objects:', statueObjects);
+      }
     }
-  }, [gltf.scene]);
+  }, [gltf.scene, characterSetup]);
   const danceTimeoutRef = useRef(null);
   const isInitializedRef = useRef(false);
   const cyborg3SequenceRef = useRef(['SitIdle2', 'SitIdle2', 'SitIdle2', 'SitClap2']); // Cyborg3: 3x SitIdle2, then 1x SitClap2
@@ -374,9 +1088,11 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
   const cyborg3ListenerRef = useRef(null); // Store the event listener for cleanup
   const cyborg0ListenerRef = useRef(null); // Store Cyborg0's transition listener
   const cyborg2ListenerRef = useRef(null); // Store Cyborg2's transition listener
-  const { camera } = useThree();
+  const { camera, scene } = useThree();
   const results = useFirestoreResults();
   const textureLoader = useRef(new THREE.TextureLoader());
+  const orbitControlsRef = useRef();
+  const [isOutdoor, setIsOutdoor] = useState(false);
   
   // Stage lighting refs
   const stageLightRef = useRef(null);
@@ -389,7 +1105,8 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
   const spotlightsRef = useRef([]);
   const lightGroupRef = useRef();
   
-  // Shader wall refs
+  
+  // Video wall refs (replacing shader system)
   const shaderWallsRef = useRef([]); // Store multiple walls
   const originalMaterialsRef = useRef(new Map()); // Store original materials for each wall
   const shaderMaterialRef = useRef(null);
@@ -400,46 +1117,42 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
   // Base BPM of 100 = 1.0 speed multiplier
   // Slower songs (85 BPM) = 0.85 speed
   // Faster songs (120 BPM) = 1.2 speed
-  const getAnimationSpeedFromBPM = useCallback((baseBPM = 100) => {
-    return currentTrackBPM / baseBPM;
-  }, [currentTrackBPM]);
-
-  // Batch animation changes for better performance
-  const batchAnimationChanges = useCallback((changes) => {
-    if (!actions || !mixer) return;
-    
-    // Group operations to minimize state changes
-    const toStop = [];
-    const toStart = [];
-    
-    changes.forEach(({ action, operation, ...params }) => {
-      if (operation === 'stop') {
-        toStop.push(action);
-      } else if (operation === 'start') {
-        toStart.push({ action, ...params });
+ // Batch animation changes for better performance
+ const batchAnimationChanges = useCallback((changes) => {
+  if (!actions || !mixer) return;
+  
+  // Group operations to minimize state changes
+  const toStop = [];
+  const toStart = [];
+  
+  changes.forEach(({ action, operation, ...params }) => {
+    if (operation === 'stop') {
+      toStop.push(action);
+    } else if (operation === 'start') {
+      toStart.push({ action, ...params });
+    }
+  });
+  
+  // Stop all at once
+  toStop.forEach(actionName => {
+    if (actions[actionName]) {
+      actions[actionName].stop();
+      actions[actionName].reset(); // Ensure clean state
+    }
+  });
+  
+  // Small delay before starting new animations
+  setTimeout(() => {
+    toStart.forEach(({ action, timeScale = 1, loop = THREE.LoopRepeat }) => {
+      if (actions[action]) {
+        actions[action].reset();
+        actions[action].timeScale = timeScale;
+        actions[action].setLoop(loop);
+        actions[action].play();
       }
     });
-    
-    // Stop all at once
-    toStop.forEach(actionName => {
-      if (actions[actionName]) {
-        actions[actionName].stop();
-        actions[actionName].reset(); // Ensure clean state
-      }
-    });
-    
-    // Small delay before starting new animations
-    setTimeout(() => {
-      toStart.forEach(({ action, timeScale = 1, loop = THREE.LoopRepeat }) => {
-        if (actions[action]) {
-          actions[action].reset();
-          actions[action].timeScale = timeScale;
-          actions[action].setLoop(loop);
-          actions[action].play();
-        }
-      });
-    }, 50);
-  }, [actions, mixer]);
+  }, 50);
+}, [actions, mixer]);
 
   // Function to optimize texture loading
   const loadOptimizedTexture = useCallback((url, onLoad) => {
@@ -461,6 +1174,16 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
     );
   }, []);
 
+  // Calculate animation speed multiplier based on BPM
+  // Base BPM of 100 = 1.0 speed multiplier
+  // Slower songs (85 BPM) = 0.85 speed
+  // Faster songs (120 BPM) = 1.2 speed
+  const getAnimationSpeedFromBPM = useCallback((baseBPM = 100) => {
+    return currentTrackBPM / baseBPM;
+  }, [currentTrackBPM]);
+
+  // Batch animation changes for better performance
+  
   // Function to apply user image to candle labels
   const applyUserImageToLabel = useCallback((candle, user) => {
     if (!user?.image) return;
@@ -506,9 +1229,112 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
     });
   }, [loadOptimizedTexture]);
 
-  // Handle candle clicks
+  // Handle candle and door clicks
   const handleCandleClick = useCallback((event) => {
     event.stopPropagation();
+    
+    // Check if the clicked object is a door or BackDoor
+    const clickedObject = event.object;
+    
+    // Check the object and its parents for door names
+    let objectToCheck = clickedObject;
+    let isDoor = false;
+    let isBackDoor = false;
+    
+    // Debug: Log clicked object name
+    console.log('Clicked object:', clickedObject.name);
+    
+    // Check up to 3 levels of parent hierarchy
+    for (let i = 0; i < 3 && objectToCheck; i++) {
+      if (objectToCheck.name === 'BackDoor') {
+        isBackDoor = true;
+        console.log('BackDoor clicked!');
+        break;
+      }
+      if (objectToCheck.name === 'SM_Bld_Castle_Door_Single_01' || 
+          objectToCheck.name === 'SM_Bld_Castle_Door_Single_01001') {
+        isDoor = true;
+        console.log('Front door clicked:', objectToCheck.name);
+        break;
+      }
+      objectToCheck = objectToCheck.parent;
+    }
+    
+    // Handle BackDoor click - return to main view
+    if (isBackDoor) {
+      // Animate camera back to main indoor position
+      const mainPosition = new THREE.Vector3(0, 15, 30);
+      const mainTarget = new THREE.Vector3(0, 12, -10);
+      
+      // Set indoor state
+      setIsOutdoor(false);
+      
+      // Animate camera position
+      const startPos = camera.position.clone();
+      const duration = 2000; // 2 seconds
+      const startTime = Date.now();
+      
+      const animateCamera = () => {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3); // Ease out cubic
+        
+        camera.position.lerpVectors(startPos, mainPosition, eased);
+        
+        // Update OrbitControls target
+        if (controlsRef && controlsRef.current) {
+          const currentTarget = controlsRef.current.target.clone();
+          currentTarget.lerp(mainTarget, eased);
+          controlsRef.current.target.copy(currentTarget);
+          controlsRef.current.update();
+        }
+        
+        if (progress < 1) {
+          requestAnimationFrame(animateCamera);
+        }
+      };
+      
+      animateCamera();
+      return;
+    }
+    
+    // Handle front door clicks - go to outdoor view
+    if (isDoor) {
+      // Animate camera to outdoor position
+      const outdoorPosition = new THREE.Vector3(-5.6, 5.79, -45.905);
+      const outdoorTarget = new THREE.Vector3(-3.6, 5.79, -35); // Look further back
+      
+      // Set outdoor state
+      setIsOutdoor(true);
+      
+      // Animate camera position
+      const startPos = camera.position.clone();
+      const duration = 2000; // 2 seconds
+      const startTime = Date.now();
+      
+      const animateCamera = () => {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3); // Ease out cubic
+        
+        camera.position.lerpVectors(startPos, outdoorPosition, eased);
+        
+        // Update OrbitControls target
+        if (controlsRef && controlsRef.current) {
+          const currentTarget = new THREE.Vector3(0, 18, -6);
+          currentTarget.lerp(outdoorTarget, eased);
+          controlsRef.current.target.copy(currentTarget);
+          controlsRef.current.update();
+        }
+        
+        if (progress < 1) {
+          requestAnimationFrame(animateCamera);
+        }
+      };
+      
+      animateCamera();
+      return;
+    }
 
     // Only handle clicks on VCANDLEs
     const getEventCoordinates = () => {
@@ -586,6 +1412,86 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
       gltf.scene.traverse((child) => {
         if (child.isMesh) {
           
+          // // Apply video texture to Circle object
+          // if (child.name === 'Circle') {
+          //   console.log('🎯 Found Circle object, applying video texture');
+            
+          //   // Check if loop.gif exists as a video file (mp4/webm)
+          //   // If you have loop.gif, you'll need to convert it to mp4 or webm
+          //   const video = document.createElement('video');
+            
+          //   // Try multiple formats
+          //   const videoSources = ['/loop.mp4'];
+            
+          //   video.loop = true;
+          //   video.muted = true;
+          //   video.playsInline = true;
+          //   video.autoplay = true;
+          //   video.crossOrigin = 'anonymous';
+            
+          //   // Try to load the video
+          //   let videoLoaded = false;
+          //   for (const src of videoSources) {
+          //     video.src = src;
+          //     video.load();
+              
+          //     video.addEventListener('loadeddata', () => {
+          //       if (!videoLoaded) {
+          //         videoLoaded = true;
+          //         console.log(`✅ Video loaded from ${src}`);
+          //         video.play();
+                  
+          //         // Create video texture
+          //         const videoTexture = new THREE.VideoTexture(video);
+          //         videoTexture.minFilter = THREE.LinearFilter;
+          //         videoTexture.magFilter = THREE.LinearFilter;
+          //         videoTexture.format = THREE.RGBFormat;
+          //         videoTexture.wrapS = THREE.RepeatWrapping;
+          //         videoTexture.wrapT = THREE.RepeatWrapping;
+                  
+          //         // Apply material with video texture
+          //         child.material = new THREE.MeshStandardMaterial({
+          //           map: videoTexture,
+          //           emissive: new THREE.Color(0xffffff),
+          //           emissiveMap: videoTexture,
+          //           emissiveIntensity: 0.5,
+          //           side: THREE.DoubleSide
+          //         });
+                  
+          //         // Store reference for potential cleanup
+          //         child.userData.video = video;
+          //         child.userData.videoTexture = videoTexture;
+                  
+          //         console.log('✅ Applied video texture to Circle object');
+          //       }
+          //     });
+              
+          //     video.addEventListener('error', () => {
+          //       console.log(`❌ Could not load video from ${src}`);
+          //     });
+          //   }
+            
+          //   // Fallback to static image if no video found
+          //   if (!videoLoaded) {
+          //     setTimeout(() => {
+          //       if (!videoLoaded) {
+          //         console.log('⚠️ No video found, falling back to static image');
+          //         const textureLoader = new THREE.TextureLoader();
+          //         textureLoader.load('/loop.gif', (texture) => {
+          //           child.material = new THREE.MeshStandardMaterial({
+          //             map: texture,
+          //             emissive: new THREE.Color(0xffffff),
+          //             emissiveMap: texture,
+          //             emissiveIntensity: 0.5,
+          //             side: THREE.DoubleSide
+          //           });
+          //           console.log('✅ Applied static loop.gif to Circle object');
+          //         });
+          //       }
+          //     }, 2000);
+          //   }
+          // }
+          
           // Only target specific video walls (the ones that should have shaders)
           // Based on your logs, it looks like pPlane3_Walls_0_1 and pPlane3_Walls_0_2 are the main walls
           const videoWallNames = [
@@ -595,13 +1501,13 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
           ];
           
           // Check if this mesh is one of the video walls
-          if (videoWallNames.includes(child.name)) {
-     
-            console.log('✅ Found shader wall:', child.name, child.material);
-            originalMaterialsRef.current.set(child.name, child.material);
-            child.userData.isShaderWall = true;
-            shaderWallsRef.current.push(child);
-          }
+          // Video walls are now handled by VideoWallEffects component
+          // if (videoWallNames.includes(child.name)) {
+          //   console.log('✅ Found shader wall:', child.name, child.material);
+          //   originalMaterialsRef.current.set(child.name, child.material);
+          //   child.userData.isShaderWall = true;
+          //   shaderWallsRef.current.push(child);
+          // }
           // Make GodsRay objects non-clickable
           if (child.name && (child.name.includes('GodsRay') || child.name.includes('Godsray') || 
               child.name.includes('godray') || child.name.includes('GodRay'))) {
@@ -1017,7 +1923,9 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
       });
     }
   }, [currentTrackBPM, isPlaying, actions, getAnimationSpeedFromBPM]);
+  
 
+ 
   // Handle nightclub lighting effects when music plays
   useEffect(() => {
     if (spotlightsRef.current.length === 0) return;
@@ -1101,777 +2009,49 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
     }
   }, [isPlaying]);
 
-  // Initialize and switch shaders based on track changes
-  useEffect(() => {
-    console.log('🎵 Shader track change effect triggered:', {
-      currentTrackIndex,
-      currentTrackShader,
-      lastTrackIndex: lastTrackIndexRef.current,
-      currentShaderType: currentShaderTypeRef.current,
-      hasShaderMaterial: !!shaderMaterialRef.current,
-      wallCount: shaderWallsRef.current.length,
-      isPlaying
-    });
-    
-    const initializeShader = () => {
-      // Use track-specific shader if available, otherwise use index-based selection
-      const shaderType = currentTrackShader || getShaderByIndex(currentTrackIndex);
-      console.log(`🎨 Initializing ${shaderType} shader for track ${currentTrackIndex}${currentTrackShader ? ' (track-specific)' : ' (index-based)'}`);
-      
-      // Create shader material from collection
-      const shaderMaterial = createShaderMaterial(shaderType);
-      
-      shaderMaterialRef.current = shaderMaterial;
-      currentShaderTypeRef.current = shaderType;
-      lastTrackIndexRef.current = currentTrackIndex;
-      console.log(`✅ ${shaderType} shader initialized`);
-    };
-    
-    // Check if track has changed (after initial load)
-    if (lastTrackIndexRef.current !== -1 && lastTrackIndexRef.current !== currentTrackIndex && shaderMaterialRef.current) {
-      console.log(`🔄 Track changed from ${lastTrackIndexRef.current} to ${currentTrackIndex}`);
-      
-      // Dispose old shader material
-      if (shaderMaterialRef.current) {
-        shaderMaterialRef.current.dispose();
-      }
-      
-      // Use track-specific shader if available, otherwise use index-based selection
-      const shaderType = currentTrackShader || getShaderByIndex(currentTrackIndex);
-      console.log(`🎨 Switching to ${shaderType} shader for track ${currentTrackIndex}${currentTrackShader ? ' (track-specific)' : ' (index-based)'}`);
-      console.log(`📊 Shader rotation: Track ${currentTrackIndex} → ${shaderType} shader`);
-      
-      const newShaderMaterial = createShaderMaterial(shaderType);
-      shaderMaterialRef.current = newShaderMaterial;
-      currentShaderTypeRef.current = shaderType;
-      
-      // Update walls with new shader immediately if music is playing
-      if (isPlaying && shaderWallsRef.current.length > 0) {
-        console.log(`🔄 Updating ${shaderWallsRef.current.length} walls with new shader`);
-        shaderWallsRef.current.forEach((wall, index) => {
-          wall.material = newShaderMaterial;
-          console.log(`  Updated wall ${index + 1}: ${wall.name}`);
-        });
-      }
-      
-      lastTrackIndexRef.current = currentTrackIndex;
-      return; // Don't run initialization timeout
-    }
-    
-    // Initialize shader on first load
-    if (!shaderMaterialRef.current) {
-      const timer = setTimeout(initializeShader, 1000);
-      return () => clearTimeout(timer);
-    }
-    
-    // Old shader code cleanup - removing inline shader definition
-    /* vertexShader: `
-          varying vec2 vUv;
-          void main() {
-            // Rotate UV coordinates 90 degrees clockwise and flip on Y-axis
-            vUv = vec2(1.0 - uv.y, 1.0 - uv.x);
-            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-          }
-        `,
-        fragmentShader: `
-          uniform vec2 iResolution;
-          uniform float iTime;
-          uniform vec2 iMouse;
-          uniform float opacity;
-          
-          varying vec2 vUv;
-          
-          const float zoomSpeed = 1.0;
-          const float zoomScale = 0.1;
-          const int recursionCount = 5;
-          const float recursionFadeDepth = 3.0;
-          const int glyphSize = 5;
-          const int glyphCount = 2;
-          const float glyphMargin = 0.5;
-          const int glyphs[10] = int[](
-            0x01110, 0x01110, 
-            0x11011, 0x11110,
-            0x11011, 0x01110, 
-            0x11011, 0x01110,
-            0x01110, 0x11111
-          );
-          
-          const float glyphSizeF = float(glyphSize) + 2.0*glyphMargin;
-          const float glyphSizeLog = log(glyphSizeF);
-          const int powTableCount = 10;
-          const float gsfi = 1.0 / glyphSizeF;
-          const float powTable[10] = float[](
-            1.0, gsfi, pow(gsfi,2.0), pow(gsfi,3.0), pow(gsfi,4.0), 
-            pow(gsfi,5.0), pow(gsfi,6.0), pow(gsfi,7.0), pow(gsfi,8.0), pow(gsfi,9.0)
-          );
-          const float e = 2.718281828459;
-          const float pi = 3.14159265359;
-          
-          float RandFloat(int i) { 
-            return fract(sin(float(i)) * 43758.5453); 
-          }
-          
-          int RandInt(int i) { 
-            return int(100000.0 * RandFloat(i)); 
-          }
-          
-          float GetRecursionFade(int r, float timePercent) {
-            if (r > recursionCount)
-              return timePercent;
-            
-            float rt = max(float(r) - timePercent - recursionFadeDepth, 0.0);
-            float rc = float(recursionCount) - recursionFadeDepth;
-            return rt / rc;
-          }
-          
-          vec3 InitPixelColor() { 
-            return vec3(0.0); 
-          }
-          
-          vec3 CombinePixelColor(vec3 color, float timePercent, int i, int r, vec2 pos, ivec2 glyphPos, ivec2 glyphPosLast) {
-            vec3 myColor = vec3(0.6);
-            
-            myColor.r *= mix(0.0, 0.7, RandFloat(i + r + 11*glyphPosLast.x + 13*glyphPosLast.y));
-            myColor.b *= mix(0.0, 0.7, RandFloat(i + r + 17*glyphPosLast.x + 19*glyphPosLast.y));
-            myColor *= mix(0.3, 1.0, RandFloat(i + r + 31*glyphPosLast.x + 37*glyphPosLast.y));
-            
-            float f = GetRecursionFade(r, timePercent);
-            color += myColor * f;
-            return color;
-          }
-          
-          vec3 FinishPixel(vec3 color, vec2 uv) {
-            // Remove brighten to keep background darker
-            // color += vec3(0.07);
-            
-            // Simple noise simulation without texture
-            vec3 noise = vec3(1.0);
-            float n1 = sin(uv.x * 111.0 + iTime * 23.3) * sin(uv.y * 97.0 - iTime * 37.5);
-            float n2 = sin(uv.x * 182.0 - iTime * 13.1) * sin(uv.y * 143.0 + iTime * 20.1);
-            noise += mix(-0.2, 0.4, fract(n1));
-            noise += mix(-0.2, 0.4, fract(n2));
-            color *= noise;
-            
-            // make green but keep darker
-            color *= vec3(0.4, 0.6, 0.4);
-            return color;
-          }
-          
-          vec2 InitUV(vec2 uv) {
-            // wave
-            uv.x += 0.1 * sin(2.0 * uv.y + 1.0 * iTime);
-            uv.y += 0.1 * sin(2.0 * uv.x + 0.8 * iTime);
-            return uv;
-          }
-          
-          int GetFocusGlyph(int i) { 
-            return RandInt(i) % glyphCount; 
-          }
-          
-          int GetGlyphPixelRow(int y, int g) { 
-            return glyphs[g + (glyphSize - 1 - y) * glyphCount]; 
-          }
-          
-          int GetGlyphPixel(ivec2 pos, int g) {
-            if (pos.x >= glyphSize || pos.y >= glyphSize)
-              return 0;
-            
-            int glyphRow = GetGlyphPixelRow(pos.y, g);
-            return 1 & (glyphRow >> ((glyphSize - 1 - pos.x) * 4));
-          }
-          
-          ivec2 focusList[12]; // max(powTableCount, recursionCount) + 2
-          
-          ivec2 GetFocusPos(int i) { 
-            return focusList[i + 2]; 
-          }
-          
-          ivec2 CalculateFocusPos(int iterations) {
-            int g = GetFocusGlyph(iterations - 1);
-            int c = 18; // Both glyphs have 18 pixels
-            
-            c -= RandInt(iterations) % c;
-            for (int y = glyphCount * (glyphSize - 1); y >= 0; y -= glyphCount) {
-              int glyphRow = glyphs[g + y];
-              for (int x = 0; x < glyphSize; ++x) {
-                c -= (1 & (glyphRow >> (4 * x)));
-                if (c == 0)
-                  return ivec2(glyphSize - 1 - x, glyphSize - 1 - y / glyphCount);
-              }
-            }
-            return ivec2(0);
-          }
-          
-          int GetGlyph(int iterations, ivec2 glyphPos, int glyphLast, ivec2 glyphPosLast, ivec2 focusPos) {
-            if (glyphPos == focusPos)
-              return GetFocusGlyph(iterations);
-            
-            int seed = iterations + glyphPos.x * 313 + glyphPos.y * 411 + glyphPosLast.x * 557 + glyphPosLast.y * 121;
-            return RandInt(seed) % glyphCount;
-          }
-          
-          vec3 GetPixelFractal(vec2 pos, int iterations, float timePercent) {
-            int glyphLast = GetFocusGlyph(iterations - 1);
-            ivec2 glyphPosLast = GetFocusPos(-2);
-            ivec2 glyphPos = GetFocusPos(-1);
-            
-            bool isFocus = true;
-            ivec2 focusPos = glyphPos;
-            
-            vec3 color = InitPixelColor();
-            for (int r = 0; r <= recursionCount + 1; ++r) {
-              color = CombinePixelColor(color, timePercent, iterations, r, pos, glyphPos, glyphPosLast);
-              
-              if (r > recursionCount)
-                return color;
-              
-              pos -= vec2(glyphMargin * gsfi);
-              pos *= glyphSizeF;
-              
-              glyphPosLast = glyphPos;
-              glyphPos = ivec2(pos);
-              
-              int glyphValue = GetGlyphPixel(glyphPos, glyphLast);
-              if (glyphValue == 0 || pos.x < 0.0 || pos.y < 0.0)
-                return color;
-              
-              pos -= vec2(floor(pos));
-              focusPos = isFocus ? GetFocusPos(r) : ivec2(-10);
-              glyphLast = GetGlyph(iterations + r, glyphPos, glyphLast, glyphPosLast, focusPos);
-              isFocus = isFocus && (glyphPos == focusPos);
-            }
-            return color;
-          }
-          
-          void main() {
-            vec2 uv = vUv - 0.5;
-            uv.x *= iResolution.x / iResolution.y;
-            uv = InitUV(uv);
-            
-            float timePercent = iTime * zoomSpeed;
-            int iterations = int(floor(timePercent));
-            timePercent -= float(iterations);
-            
-            float zoom = pow(e, -glyphSizeLog * timePercent);
-            zoom *= zoomScale;
-            
-            for(int i = 0; i < powTableCount + 2; ++i)
-              focusList[i] = CalculateFocusPos(iterations + i - 2);
-            
-            vec2 offset = vec2(0.0);
-            for (int i = 0; i < powTableCount; ++i)
-              offset += ((vec2(GetFocusPos(i)) + vec2(glyphMargin)) * gsfi) * powTable[i];
-            
-            vec2 uvFractal = uv * zoom + offset;
-            
-            vec3 pixelFractalColor = GetPixelFractal(uvFractal, iterations, timePercent);
-            pixelFractalColor = FinishPixel(pixelFractalColor, uv);
-            
-            // Apply blur for glow effect
-            float blurSize = 1.0 / 512.0;
-            float blurIntensity = 0.2;
-            vec3 blurColor = pixelFractalColor * blurIntensity;
-            
-            gl_FragColor = vec4(pixelFractalColor + blurColor * 0.5, opacity);
-          }
-        `,
-        side: THREE.DoubleSide,
-        transparent: true,
-        depthWrite: false,
-        depthTest: true,
-        polygonOffset: true,
-        polygonOffsetFactor: -5,
-        polygonOffsetUnits: -5
-      }); */
-    
-    // Cleanup on unmount
-    return () => {
-      if (shaderMaterialRef.current) {
-        shaderMaterialRef.current.dispose();
-      }
-    };
-  }, [device.isLowEnd, currentTrackIndex, currentTrackShader, isPlaying]);
 
-  // Handle shader wall effect when music plays - with staggered activation
-  useEffect(() => {
-    console.log('Shader wall activation effect:', {
-      hasScene: !!gltf.scene,
-      wallCount: shaderWallsRef.current.length,
-      isPlaying,
-      hasShaderMaterial: !!shaderMaterialRef.current
-    });
-    
-    if (!gltf.scene || shaderWallsRef.current.length === 0) {
-      console.log('No scene or walls found, skipping shader activation');
-      return;
-    }
-    
-    let shaderActivationTimeout;
-    
-    if (isPlaying) {
-      console.log('Music is playing, preparing staggered nightclub effects...');
-      
-      // Stagger activation: lights first (immediate), then shader after delay
-      shaderActivationTimeout = setTimeout(() => {
-        console.log(`Activating shader on ${shaderWallsRef.current.length} walls (staggered)`);
-        
-        // Use the pre-initialized shader material
-        const shaderMaterial = shaderMaterialRef.current;
-        
-        if (!shaderMaterial) {
-          console.error('ERROR: Shader material not initialized! Cannot apply to walls.');
-          return;
-        }
-        
-        console.log('Shader material found, applying to walls...');
-        
-        // Apply shader material to walls (replacing their texture)
-        console.log(`Total walls found: ${shaderWallsRef.current.length}`);
-        shaderWallsRef.current.forEach((wall, index) => {
-          // Stagger wall activation for extra effect
-          setTimeout(() => {
-            console.log(`Applying shader to wall ${index + 1}/${shaderWallsRef.current.length}: ${wall.name}`);
-            // Simply replace the material
-            wall.material = shaderMaterial;
-            console.log(`Successfully applied shader material to: ${wall.name}`);
-          }, index * 100); // 100ms between each wall
-        });
-        
-      }, 500); // Start shader 500ms after lights
-      
-    } else {
-      console.log('Stopping shader on walls');
-      
-      // Clear any pending activation
-      if (shaderActivationTimeout) {
-        clearTimeout(shaderActivationTimeout);
-      }
-      
-      // Restore original materials to walls
-      shaderWallsRef.current.forEach(wall => {
-        const originalMaterial = originalMaterialsRef.current.get(wall.name);
-        if (originalMaterial) {
-          wall.material = originalMaterial;
-          console.log(`Restored original material for wall: ${wall.name}`);
-        }
-      });
-    }
-    
-    // Cleanup function
-    return () => {
-      if (shaderActivationTimeout) {
-        clearTimeout(shaderActivationTimeout);
-      }
-    };
-  }, [isPlaying, gltf.scene]);
 
-  // Update shader animation
-  useFrame((state, delta) => {
-    if (shaderMaterialRef.current && shaderMaterialRef.current.uniforms && isPlaying) {
-      // Safely update time uniform
-      if (shaderMaterialRef.current.uniforms.iTime) {
-        shaderMaterialRef.current.uniforms.iTime.value += delta * 0.5; // Slow animation speed
-      }
-      
-      // Safely update mouse position
-      if (shaderMaterialRef.current.uniforms.iMouse && state.mouse) {
-        const mouse = state.mouse;
-        shaderMaterialRef.current.uniforms.iMouse.value.set(
-          (mouse.x + 1) * 0.5,
-          (mouse.y + 1) * 0.5
-        );
-      }
-    }
-  });
-
-  // Handle animation switching when isPlaying changes
-  useEffect(() => {
-    if (!actions || Object.keys(actions).length === 0 || !isInitializedRef.current) {
-      // console.log('[Cathedral] Animation switching skipped - not ready');
-      return;
-    }
+ 
+  
+  // Helper function to transform old coordinates to new coordinate system
+  // Old: scale=0.7, position=[0, -60, -15], rotation=[0, Math.PI/1.2, 0]
+  // New: scale=1, position=[0, 0, 0], rotation=[0, 0, 0]
+  const transformOldToNew = (oldPos) => {
+    // First, account for the rotation (Math.PI/1.2 = 150 degrees around Y)
+    const rotationAngle = -Math.PI / 1.2; // Negative to reverse the rotation
+    const cosR = Math.cos(rotationAngle);
+    const sinR = Math.sin(rotationAngle);
     
-    // console.log('[Cathedral] Switching animations. isPlaying:', isPlaying);
-    // console.log('[Cathedral] Available animations:', Object.keys(actions));
+    // Rotate around Y axis
+    const rotatedX = oldPos[0] * cosR - oldPos[2] * sinR;
+    const rotatedZ = oldPos[0] * sinR + oldPos[2] * cosR;
     
-    if (isPlaying) {
-      // console.log('[Cathedral] Music started, characters will start dancing in 2 seconds...');
-      
-      // Clear any existing timeout
-      if (danceTimeoutRef.current) {
-        clearTimeout(danceTimeoutRef.current);
-      }
-      
-      // Delay the dance animations by 2 seconds
-      danceTimeoutRef.current = setTimeout(() => {
-        // console.log('[Cathedral] Starting dance animations after delay...');
-        
-        // Prepare batch animation changes
-        const animationChanges = [];
-        
-        // First, identify which animations have corresponding SAMBA/SALSA versions
-        const hasDanceVersion = {};
-        Object.keys(actions).forEach(name => {
-          const upperName = name.toUpperCase();
-          if (upperName.includes('SAMBA') || upperName.includes('SALSA')) {
-            hasDanceVersion[name] = true;
-          }
-        });
-        
-        // Collect animations to stop
-        Object.entries(actions).forEach(([name, action]) => {
-          const upperName = name.toUpperCase();
-          // Only stop if this isn't a dance animation AND we have dance animations available
-          if (!upperName.includes('SAMBA') && !upperName.includes('SALSA') && action.isRunning()) {
-            animationChanges.push({ action: name, operation: 'stop' });
-          }
-        });
-        
-        // Apply batch stop first
-        batchAnimationChanges(animationChanges);
-        
-        // Handle Cyborg0's transition: PrayToStand -> SAMBA0
-        if (actions['PrayToStand'] && actions['SAMBA0']) {
-          // Stop Pray animation
-          if (actions['Pray']) {
-            actions['Pray'].stop();
-            // console.log('Stopped Pray animation for Cyborg0');
-          }
-          
-          // Debug info
-          // console.log('PrayToStand duration:', actions['PrayToStand'].getClip().duration);
-          
-          // Play PrayToStand transition once
-          actions['PrayToStand'].reset();
-          actions['PrayToStand'].setLoop(THREE.LoopOnce, 1);
-          actions['PrayToStand'].clampWhenFinished = true; // Keep last frame to avoid T-pose
-          actions['PrayToStand'].play();
-          // console.log('Playing PrayToStand transition for Cyborg0');
-          
-          // Set up listener to play SAMBA0 after transition
-          const onTransitionFinished = (e) => {
-            // console.log('Transition finished event fired for:', e.action === actions['PrayToStand'] ? 'PrayToStand' : 'other');
-            if (e.action === actions['PrayToStand']) {
-              mixer.removeEventListener('finished', onTransitionFinished);
-              cyborg0ListenerRef.current = null;
-              
-              // Ensure PrayToStand is fully stopped
-              actions['PrayToStand'].stop();
-              
-              if (isPlaying && actions['SAMBA0']) {
-                // Start SAMBA0
-                actions['SAMBA0'].reset();
-                actions['SAMBA0'].timeScale = 0.5 * getAnimationSpeedFromBPM(); // Half speed adjusted by BPM
-                actions['SAMBA0'].setLoop(THREE.LoopRepeat);
-                actions['SAMBA0'].play();
-                // console.log('Started SAMBA0 for Cyborg0 after transition');
-              } else {
-                // console.log('Cannot start SAMBA0 - isPlaying:', isPlaying, 'has SAMBA0:', !!actions['SAMBA0']);
-                // Fallback to Pray if something went wrong
-                if (actions['Pray']) {
-                  actions['Pray'].reset();
-                  actions['Pray'].play();
-                }
-              }
-            }
-          };
-          cyborg0ListenerRef.current = onTransitionFinished;
-          mixer.addEventListener('finished', onTransitionFinished);
-        }
-        
-        // Handle Cyborg2's transition: SitToStand -> Cheer
-        if (actions['SitToStand'] && actions['Cheer'] && actions['Sit']) {
-          // Stop Sit animation
-          actions['Sit'].stop();
-          // console.log('Stopped Sit animation for Cyborg2');
-          
-          // Play SitToStand transition once
-          actions['SitToStand'].reset();
-          actions['SitToStand'].setLoop(THREE.LoopOnce, 1);
-          actions['SitToStand'].clampWhenFinished = true; // Keep last frame to avoid T-pose
-          actions['SitToStand'].play();
-          // console.log('Playing SitToStand transition for Cyborg2');
-          
-          // Set up listener to play Cheer after transition
-          const onCyborg2TransitionFinished = (e) => {
-            if (e.action === actions['SitToStand']) {
-              mixer.removeEventListener('finished', onCyborg2TransitionFinished);
-              cyborg2ListenerRef.current = null;
-              
-              // Ensure SitToStand is fully stopped
-              actions['SitToStand'].stop();
-              
-              if (isPlaying && actions['Cheer']) {
-                // Start Cheer at half speed
-                actions['Cheer'].reset();
-                actions['Cheer'].timeScale = 0.5 * getAnimationSpeedFromBPM(); // Half speed adjusted by BPM
-                actions['Cheer'].setLoop(THREE.LoopRepeat);
-                actions['Cheer'].play();
-                // console.log('Started Cheer for Cyborg2 after transition (half speed)');
-              }
-            }
-          };
-          cyborg2ListenerRef.current = onCyborg2TransitionFinished;
-          mixer.addEventListener('finished', onCyborg2TransitionFinished);
-        }
-        
-        // Handle Cyborg4's BBOYHIPHOP animation
-        if (actions['BBOYHIPHOP'] && actions['Leaning']) {
-          // Stop Leaning animation
-          actions['Leaning'].stop();
-          // console.log('Stopped Leaning animation for Cyborg4');
-          
-          // Debug info
-          const clip = actions['BBOYHIPHOP'].getClip();
-          // console.log('BBOYHIPHOP animation info:', {
-          //   duration: clip.duration,
-          //   tracks: clip.tracks.length,
-          //   fps: clip.fps || 'default'
-          // });
-          
-          // Play BBOYHIPHOP animation
-          actions['BBOYHIPHOP'].reset();
-          actions['BBOYHIPHOP'].timeScale = 0.5 * getAnimationSpeedFromBPM(); // Half speed adjusted by BPM
-          actions['BBOYHIPHOP'].setLoop(THREE.LoopRepeat);
-          actions['BBOYHIPHOP'].clampWhenFinished = false; // Don't clamp to avoid hitches
-          actions['BBOYHIPHOP'].play();
-          // console.log('Playing BBOYHIPHOP animation for Cyborg4 (half speed)');
-        }
-        
-        // Handle CyborgInAlley's GUITAR animation
-        if (actions['GUITAR'] && actions['StandDrink']) {
-          // Stop StandDrink animation
-          actions['StandDrink'].stop();
-          // console.log('Stopped StandDrink animation for CyborgInAlley');
-          
-          // Play GUITAR animation
-          actions['GUITAR'].reset();
-          actions['GUITAR'].timeScale = 0.5 * getAnimationSpeedFromBPM(); // Half speed adjusted by BPM
-          actions['GUITAR'].setLoop(THREE.LoopRepeat);
-          actions['GUITAR'].play();
-          // console.log('Playing GUITAR animation for CyborgInAlley (half speed)');
-        }
-        
-        // Handle CyborgDJ's Sit animation - keep sitting during music
-        if (actions['Sit_CyborgDJ'] || actions['Sit']) {
-          const djSitAction = actions['Sit_CyborgDJ'] || actions['Sit'];
-          // Make sure DJ keeps sitting during music
-          if (!djSitAction.isRunning()) {
-            djSitAction.reset();
-            djSitAction.setLoop(THREE.LoopRepeat);
-            djSitAction.play();
-            // console.log('CyborgDJ continues sitting during music');
-          }
-        }
-        
-        // Collect other SAMBA/SALSA animations to start (excluding SAMBA0 which is handled above)
-        const danceAnimationsToStart = [];
-        
-        Object.entries(actions).forEach(([name, action]) => {
-          const upperName = name.toUpperCase();
-          // Check for SAMBA, SALSA, or any dance-related animation (exclude SAMBA0 and SAMBA2)
-          if ((upperName.includes('SAMBA') || upperName.includes('SALSA')) && 
-              name !== 'SAMBA0' && 
-              name !== 'SAMBA2') {
-            danceAnimationsToStart.push({
-              action: name,
-              operation: 'start',
-              timeScale: 0.5 * getAnimationSpeedFromBPM(),
-              loop: THREE.LoopRepeat
-            });
-          }
-        });
-        
-        // Batch start all dance animations
-        if (danceAnimationsToStart.length > 0) {
-          console.log(`Starting ${danceAnimationsToStart.length} dance animations in batch`);
-          batchAnimationChanges(danceAnimationsToStart);
-        }
-        
-        // Stop Cyborg3's sequence when music plays
-        const cyborg3Animations = ['SitClap', 'SitIdle2', 'StandClap'];
-        cyborg3Animations.forEach(animName => {
-          if (actions[animName] && actions[animName].isRunning()) {
-            actions[animName].stop();
-            // console.log(`Stopped Cyborg3 animation: ${animName}`);
-          }
-        });
-        
-        // Play StandClap once, then switch to SitClap for Cyborg3 during music
-        if (actions['StandClap'] && actions['SitClap'] && !actions['SAMBA_Cyborg3']) {
-          actions['StandClap'].reset();
-          actions['StandClap'].setLoop(THREE.LoopOnce, 1);
-          actions['StandClap'].clampWhenFinished = false;
-          actions['StandClap'].play();
-          // console.log('Playing StandClap once for Cyborg3 during music');
-          
-          // Set up listener to switch to SitClap after StandClap finishes
-          const onStandClapFinished = (e) => {
-            if (e.action === actions['StandClap']) {
-              mixer.removeEventListener('finished', onStandClapFinished);
-              cyborg3ListenerRef.current = null; // Clear the reference
-              // Only play SitClap if music is still playing
-              if (isPlaying) {
-                actions['SitClap'].reset();
-                actions['SitClap'].setLoop(THREE.LoopRepeat);
-                actions['SitClap'].play();
-                // console.log('Switched to looping SitClap for Cyborg3');
-              }
-            }
-          };
-          cyborg3ListenerRef.current = onStandClapFinished; // Store the listener
-          mixer.addEventListener('finished', onStandClapFinished);
-        }
-        
-        // Log dance animation status based on what we found
-        if (danceAnimationsToStart.length > 0) {
-          console.log(`✅ Playing ${danceAnimationsToStart.length} dance animation(s)`);
-        } else {
-          console.log('❌ No SAMBA/SALSA animations found. Available:', Object.keys(actions));
-        }
-      }, 2000); // 2 second delay
-      
-    } else {
-      // Switch back to idle animations
-      // console.log('[Cathedral] Switching back to idle animations');
-      
-      // Clear any pending dance timeout
-      if (danceTimeoutRef.current) {
-        clearTimeout(danceTimeoutRef.current);
-        danceTimeoutRef.current = null;
-      }
-      
-      // Collect all animations to stop and start for batch processing
-      const stopAnimations = [];
-      const startAnimations = [];
-      
-      // Collect dance animations to stop
-      Object.entries(actions).forEach(([name, action]) => {
-        if (name.toUpperCase().includes('SAMBA') || 
-            name === 'PrayToStand' || 
-            name === 'Cheer' ||
-            name === 'BBOYHIPHOP' ||
-            name === 'GUITAR') {
-          stopAnimations.push({ action: name, operation: 'stop' });
-        }
-      });
-      
-      // Batch stop all dance animations
-      batchAnimationChanges(stopAnimations);
-      
-      // First, immediately stop all Cyborg3 animations to prevent any brief playback
-      ['StandClap', 'SitClap', 'SitIdle2'].forEach(animName => {
-        if (actions[animName]) {
-          actions[animName].stop();
-          actions[animName].reset();
-        }
-      });
-      
-      // Clean up any pending event listeners
-      if (cyborg3ListenerRef.current && mixer) {
-        mixer.removeEventListener('finished', cyborg3ListenerRef.current);
-        cyborg3ListenerRef.current = null;
-        // console.log('Removed pending Cyborg3 listener');
-      }
-      
-      if (cyborg0ListenerRef.current && mixer) {
-        mixer.removeEventListener('finished', cyborg0ListenerRef.current);
-        cyborg0ListenerRef.current = null;
-        // console.log('Removed pending Cyborg0 listener');
-      }
-      
-      // Double-check and stop any Cyborg3 music animations again
-      ['StandClap', 'SitClap'].forEach(animName => {
-        if (actions[animName] && actions[animName].isRunning()) {
-          actions[animName].stop();
-          // console.log(`Stopped ${animName} for Cyborg3`);
-        }
-      });
-      
-      // Resume Cyborg3's sequence with a small delay to ensure clean transition
-      cyborg3IndexRef.current = 0; // Reset to start of sequence
-      setTimeout(() => {
-        playNextCyborg3Animation();
-      }, 50); // Small delay to ensure all animations are fully stopped
-      // console.log('Resumed Cyborg3 animation sequence');
-      
-      // Collect idle animations to restart
-      const idleAnimations = [
-        { action: 'Pray', operation: 'start', loop: THREE.LoopRepeat },
-        { action: 'Sit', operation: 'start', loop: THREE.LoopRepeat },
-        { action: 'Leaning', operation: 'start', loop: THREE.LoopRepeat },
-        { action: 'StandDrink', operation: 'start', loop: THREE.LoopRepeat }
-      ].filter(anim => actions[anim.action]); // Only include animations that exist
-      
-      // Batch start all idle animations
-      setTimeout(() => {
-        batchAnimationChanges(idleAnimations);
-      }, 100); // Small delay to ensure stops are complete
-      
-      // Resume all other non-SAMBA/dance animations
-      const cyborg3Animations = cyborg3SequenceRef.current;
-      const transitionAnimations = ['PrayToStand', 'StandToPray', 'SitToStand']; // Animations that shouldn't loop
-      
-      Object.entries(actions).forEach(([name, action]) => {
-        const upperName = name.toUpperCase();
-        // Skip dance animations, Cyborg3's sequence animations, transition animations, and specifically handled animations
-        if (!upperName.includes('SAMBA') && 
-            !upperName.includes('SALSA') && 
-            !cyborg3Animations.includes(name) &&
-            !transitionAnimations.includes(name) &&
-            name !== 'Pray' &&
-            name !== 'Sit' &&
-            name !== 'Cheer' &&
-            name !== 'Leaning' &&
-            name !== 'BBOYHIPHOP' &&
-            name !== 'StandDrink' &&
-            name !== 'GUITAR') {
-          action.reset();
-          // Maintain half speed for flame animation
-          if (name === 'Take 001') {
-            action.timeScale = 0.2;
-          }
-          action.play();
-          // console.log(`Resumed animation: ${name}`);
-        }
-      });
-      
-      // Ensure CyborgDJ resumes sitting when music stops
-      if (actions['Sit_CyborgDJ'] || actions['Sit']) {
-        const djSitAction = actions['Sit_CyborgDJ'] || actions['Sit'];
-        if (!djSitAction.isRunning()) {
-          djSitAction.reset();
-          djSitAction.setLoop(THREE.LoopRepeat);
-          djSitAction.play();
-          // console.log('CyborgDJ resumes sitting after music stops');
-        }
-      }
-    }
+    // Scale up (1/0.7 = 1.43)
+    const scaled = [
+      rotatedX / 0.7,
+      (oldPos[1] + 60) / 0.7, // Add 60 to Y before scaling
+      (rotatedZ + 15) / 0.7  // Add 15 to Z before scaling
+    ];
     
-    // Cleanup function
-    return () => {
-      if (danceTimeoutRef.current) {
-        clearTimeout(danceTimeoutRef.current);
-        danceTimeoutRef.current = null;
-      }
-    };
-  }, [isPlaying]);
+    return scaled;
+  };
 
   useEffect(() => {
     if (groupRef.current) {
-      // Create grid ground - scaled up to match cathedral size
-      const gridHelper = new THREE.GridHelper(200, 50, 0x00ff41, 0x00ff41);
-      gridHelper.material.opacity = 0.3;
-      gridHelper.material.transparent = true;
-      gridHelper.position.y = -60.2; // Position relative to cathedral base
-      groupRef.current.add(gridHelper);
+      // Grid is now handled by DuskAtmosphere component for outdoor scene
+      // Commenting out to avoid duplicate grids
+      // const gridHelper = new THREE.GridHelper(200, 100, 0x00ff41, 0x00ff41);
+      // gridHelper.material.opacity = 0.3;
+      // gridHelper.material.transparent = true;
+      // gridHelper.position.y = 0; // Floor level
+      // groupRef.current.add(gridHelper);
       
       // Add a shadow-receiving ground plane
-      const groundGeometry = new THREE.PlaneGeometry(200, 200);
+      const groundGeometry = new THREE.PlaneGeometry(500, 500); // Scaled up
       const groundMaterial = new THREE.ShadowMaterial({ opacity: 0.3 });
       const ground = new THREE.Mesh(groundGeometry, groundMaterial);
       ground.rotation.x = -Math.PI / 2;
-      ground.position.y = -60.2;
+      ground.position.y = 0; // Slightly below floor
       ground.receiveShadow = true;
       groupRef.current.add(ground);
       
@@ -1880,14 +2060,14 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
       lightGroupRef.current = lightGroup;
       groupRef.current.add(lightGroup);
       
-      // Create spotlights for nightclub effect - positioned relative to cathedral
-      // Cathedral is at position [0, -60, -15] with rotation [0, Math.PI / 1.2, 0]
+      // Create spotlights for nightclub effect - properly scaled for new coordinate system
+      // Cathedral was at scale 0.7, now at scale 1 (1.43x larger)
       const spotlightColors = [0xff00ff, 0x00ffff, 0xff0080, 0x00ff80]; // Purple, Cyan, Pink, Teal
       const spotlightPositions = [
-        [10, -40, 0],     // Front right (raised and centered)
-        [-10, -40, 0],    // Front left
-        [15, -40, -20],   // Back right
-        [-15, -40, -20]   // Back left
+        [14, 28, 15],     // Front right (scaled and adjusted)
+        [-14, 28, 15],    // Front left
+        [21, 28, -13],    // Back right
+        [-21, 28, -13]    // Back left
       ];
       
       console.log('Creating nightclub spotlights...');
@@ -1905,7 +2085,7 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
         
         // Create target for spotlight
         const target = new THREE.Object3D();
-        target.position.set(0, -60, -15); // Point towards cathedral center (same as model position)
+        target.position.set(0, 0, 0); // Point towards cathedral center
         lightGroup.add(target);
         spotlight.target = target;
         
@@ -2104,36 +2284,55 @@ function CathedralModel({ onModelLoad, children, isPlaying = false, onCandleClic
   });
 
   return (
-    <group ref={groupRef}>
-      <group ref={pivotRef} position={modelCenter}>
-        <primitive 
-          ref={modelRef}
-          object={gltf.scene} 
-          scale={0.7} 
-          position={[-modelCenter[0], -60 - modelCenter[1], -15 - modelCenter[2]]}
-          rotation={[0, Math.PI / 1.2, 0]}
-          onClick={handleCandleClick}
-          castShadow
-          receiveShadow
-        />
+    <>
+      <group ref={groupRef}>
+        <group ref={pivotRef} position={[0, 0, 0]}>
+          <primitive 
+            ref={modelRef}
+            object={gltf.scene} 
+            scale={1} 
+            position={[0, 0, 0]}
+            rotation={[0, 0, 0]}
+            onClick={handleCandleClick}
+            castShadow
+            receiveShadow
+            // onUpdate={(self) => {
+            //   console.log('🏛️ CATHEDRAL TRANSFORM:');
+            //   console.log('  Scale:', 0.7);
+            //   console.log('  Position:', [-modelCenter[0], -60 - modelCenter[1], -15 - modelCenter[2]]);
+            //   console.log('  Rotation Y:', (Math.PI / 1.2 * 180 / Math.PI) + ' degrees');
+            //   console.log('  ModelCenter:', modelCenter);
+            // }}
+          />
+          {/* Randomly selected character group */}
+          <CharacterGroup isPlaying={isPlaying} currentTrackBPM={currentTrackBPM} />
+        </group>
+        <StatueSpotlights scene={gltf.scene} isPlaying={isPlaying} />
+        
+        {/* Debug component to show Cyborg3 position - commented out after coordinate fix */}
+        {/* <DebugCyborg3Position /> */}
       </group>
-      <StatueSpotlights scene={gltf.scene} isPlaying={isPlaying} />
-    </group>
+      {/* Dusk atmosphere when outdoor */}
+      <DuskAtmosphere isActive={isOutdoor} />
+    </>
   );
 }
 
-// Preload the model
-useGLTF.preload(`/cathedral3.glb?v=${MODEL_VERSION}`);
+// Preload the models
+useGLTF.preload(`/CATHEDRAL_ONLY2.glb?v=${MODEL_VERSION}`);
+useGLTF.preload('/Group1.glb');
+useGLTF.preload('/Group2.glb');
 
 // Inner component that uses music context
-function CathedralWithMusic({ isPlaying = false, showAnnotations = true, is80sMode = false }) {
+function CathedralWithMusic({ isPlaying = false, showAnnotations = true, is80sMode = false, onAnnotationClick }) {
   const [showFloatingViewer, setShowFloatingViewer] = useState(false);
   const [selectedCandleData, setSelectedCandleData] = useState(null);
-  const [cinematicComplete, setCinematicComplete] = useState(false);
+  const [cinematicComplete, setCinematicComplete] = useState(true);
   const [spotlightsReady, setSpotlightsReady] = useState(false);
   const device = useMemo(() => detectDevice(), []);
   const sceneSettings = useMemo(() => getSceneSettings(device), [device]);
   const { currentTrackBPM, currentTrackIndex, currentTrackShader } = useMusic();
+  const controlsRef = useRef();
 
   // Enable spotlights after a delay to ensure scene is ready
   useEffect(() => {
@@ -2174,7 +2373,8 @@ function CathedralWithMusic({ isPlaying = false, showAnnotations = true, is80sMo
       
       <Canvas 
         shadows={sceneSettings.shadowsEnabled}
-        camera={{ position: [-5.41, -47.69, -8.00], fov: 45, near: 0.01, far: 200 }}
+        // camera={{ position: [-5.41, 12.31, -8.00], fov: 45, near: 0.01, far: 200 }}
+        camera={{ position: [0, 5, -0], fov: 75, near: 0.01, far: 100 }}
         gl={{ 
           antialias: sceneSettings.antialias,
           pixelRatio: sceneSettings.pixelRatio,
@@ -2184,11 +2384,13 @@ function CathedralWithMusic({ isPlaying = false, showAnnotations = true, is80sMo
           depth: true
         }}
         dpr={sceneSettings.pixelRatio}>
-      <StarField radius={150} count1={device.isLowEnd ? 200 : 500} count2={device.isLowEnd ? 100 : 300} />
+      {/* <StarField radius={200} count1={device.isLowEnd ? 200 : 500} count2={device.isLowEnd ? 100 : 300} /> */}
              {/* <StarrySky /> */}
-          <ConstellationModel  groupScale={[10, 10, 10]} groupPosition={[0, 15, -80]}    isVisible={true} />
+          {/* <ConstellationModel  groupScale={[15, 15, 15]} groupPosition={[0, 30, -80]}    isVisible={true} /> */}
         <OrbitControls 
-            target={[-5.63, -47.71, -7.57]}
+            ref={controlsRef}
+            // target={[-5.63, 12.29, -7.57]}
+            target={[0, 18, -6]}
             zoomToCursor={true}
             enablePan={false} 
             enableRotate={!showFloatingViewer} 
@@ -2199,19 +2401,21 @@ function CathedralWithMusic({ isPlaying = false, showAnnotations = true, is80sMo
             rotateSpeed={0.5}
             enableDamping={true}
             dampingFactor={0.1}
-            minDistance={0.1}
-            maxDistance={60}
-            maxPolarAngle={Math.PI * 0.85}
+            minDistance={0.01}
+            maxDistance={15}
+            maxPolarAngle={Math.PI / 2}
             minPolarAngle={0}
+            // minAzimuthAngle={-Math.PI/5}  // -60°
+            // maxAzimuthAngle={Math.PI/5}    // +60°
             autoRotate={false}
             makeDefault
             />
-                  {/* <Environment preset="sunset" /> */}
+<Environment preset="sunset" environmentIntensity={.1} />
         
         {/* Directional light - dimmer when music plays */}
         <directionalLight 
           position={[10, 10, 5]} 
-          intensity={isPlaying ? 0.1 : 0.5} 
+          intensity={isPlaying ? 0.2 : 0.3} 
           castShadow={sceneSettings.shadowsEnabled}
           shadow-mapSize={[sceneSettings.shadowMapSize, sceneSettings.shadowMapSize]}
           shadow-camera-far={150}
@@ -2229,15 +2433,15 @@ function CathedralWithMusic({ isPlaying = false, showAnnotations = true, is80sMo
         {isPlaying && <fog attach="fog" args={['#050505', 5, 120]} />}
     <PostProcessingEffects is80sMode={is80sMode} />
         <Suspense fallback={null}>
-          {/* Cinematic camera - set enableLogging to true for debugging */}
-          <CinematicCamera 
-            onComplete={handleCinematicComplete}
-            duration={12000}
-            startDelay={0}
-            enableLogging={true}
-            autoStart={true}
-          />
-      
+          {/* Cinematic camera - set enableLogging to true for debugging    
+            <CinematicCamera 
+              onComplete={handleCinematicComplete}
+              duration={12000}
+              startDelay={0}
+              enableLogging={true}
+              autoStart={true}
+            />
+    */} 
           <CathedralModel 
             isPlaying={isPlaying} 
             onCandleClick={handleCandleClick}
@@ -2246,54 +2450,116 @@ function CathedralWithMusic({ isPlaying = false, showAnnotations = true, is80sMo
             currentTrackBPM={currentTrackBPM}
             currentTrackIndex={currentTrackIndex}
             currentTrackShader={currentTrackShader}
+            controlsRef={controlsRef}
           />
           <TickerCanvasTextureApplier is80sMode={is80sMode} />
-          <Object2Replacer />
+          {/* <Object2Replacer /> */}
+          <HolographicStatue2 />
+          
+          {/* Spotlights for cabinet areas on either side of HolographicStatue2 */}
+          <SpotlightWithHelper
+            position={[-12, 17, -15.3]}  // Left side spotlight
+            targetPosition={[-14, 3, -19.3]}  // Pointing down
+            intensity={80}
+            color="#ff9d00"
+            angle={Math.PI / 4}
+            penumbra={0.4}
+            distance={20}
+            showHelper={false}
+            helperColor="#ff9d00"
+          />
+          <SpotlightWithHelper
+            position={[15, 17, -15.3]}  // Right side spotlight
+            targetPosition={[16, 5, -19.3]}  // Pointing down
+            intensity={80}
+            color="#ff9d00"
+            angle={Math.PI / 4}
+            penumbra={0.4}
+            distance={20}
+            showHelper={false}
+            helperColor="#ff9d00"
+          />
+               <StatueSpotlight
+            position={[-8.6, 11.71, -27]}  //Back Door
+            targetPosition={[-9, 0, -26.7]}  // Pointing down
+            intensity={10}
+            color="#ffffff"
+            angle={Math.PI / 1.7}
+            penumbra={0.2}
+            distance={50}
+            showHelper={false}
+            helperColor="#ffffff"
+            label="Right Cabinet Spotlight"
+          />
+          
           <RoundWindowEffects isPlaying={isPlaying} />
+          {/* <VideoWallEffects 
+            isPlaying={isPlaying} 
+            currentTrackIndex={currentTrackIndex}
+            is80sMode={is80sMode}
+          /> */}
           {cinematicComplete && showAnnotations && (
             <AnnotationSystem 
               is80sMode={is80sMode}
               showFloatingViewer={showFloatingViewer}
+              onAnnotationClick={onAnnotationClick}
               annotations={[
                 {
-                  position: [-9.5, -48, -4], // Main altar area
-                  text: "Sacred Digital Altar\nWhere prayers become code",
+                  position: [4, 16, -18] ,// Main altar area (adjusted for y=0 floor)
+                  text: "The virtual virgin is now onchain and online",
                   customCamera: {
-                    position: [-7.14, -48.21, -4.87], // Camera position
-                    lookAt: [-7.82, -47.77, -3.50], // Look at the altar
-           
+                    position: [0.78, 15.88, -10.34], // Camera position
+                    lookAt: [0.78, 15.88, -10.36], // Look at the altar
+                    distance: 1
+                  }
+                
+                },
+                {
+                  position: [-9, 12, -18], // Left side
+                  text: "The candles of the Illuminati - click to view close-up",
+                  customCamera: {
+                    position: [-10.90, 13.23, -10.32], // Camera at annotation position
+                    lookAt: [-11.53, 12.75, -13.21], // Look in opposite direction
+                    distance: 3
                   }
                 },
                 {
-                  position: [0, -51, -1], // Right side
-                  text: "Quantum Confessional\nConfess to the algorithm",
-                  // customCamera: {
-                  //   position: [8, -49, 5], // Camera position
-                  //   lookAt: [1, -51, 1], // Look at the confessional
-        
-                  // }
-                },
-                {
-                  position: [-16, -51, -11], // Left side
-                  text: "Neural Nave\nProcessing faithful data"
-                },
-                {
-                  position: [-3.5, -56, -15], // Upper area
-                  text: "Holographic Heavens\nCloud computing the divine",
+                  position: [18, 12, -15], // Left side
+                  text: "The candles of the Illuminati - click to view close-up",
                   customCamera: {
-                    position: [-11.54, -48.46, -7.78], // Camera at annotation position
-                    lookAt: [-4.68, -50.84, -12.67], // Look in opposite direction
+                    position: [14.27, 12.50, -6.59], // Camera at annotation position
+                    lookAt: [14.30, 12.22, -8.95], // Look in opposite direction
+                    distance: 3
+                  }
+                },
+                {
+                  position: [3, 9, -1] ,// Main altar area (adjusted for y=0 floor)
+                  text: "The believers and the dreamers gather to request her favor",
+                  customCamera: {
+                    position: [7.51, 11.93, -17.20], // Camera position
+                    lookAt: [3.66, 9.51, -3.29], // Look at the altar
                     distance: 10
                   }
-                }
+                
+                },
+                {
+                  position: [-12, 29, 15] ,// Main altar area (adjusted for y=0 floor)
+                  text: "The faithful and the hopeful gather to request her favor",
+                  customCamera: {
+                    position: [-17.76, 32.77, 21.63], // Camera position
+                    lookAt: [-10.96, 27.07, -2.21], // Look at the altar
+                    distance: 5
+                  }
+                
+                },
               ]}
-              scale={4}
-              textScale={1.5}
+              scale={5}
+              textScale={2}
             />
           )}
         </Suspense>
         {/* Environment light - disabled to prevent washing out statue spotlights */}
-        {!isPlaying && <Environment preset="sunset" />}
+        {!isPlaying && <Environment preset="sunset" environmentIntensity={.4} />}
       </Canvas>
       {isPlaying && <PrismaticOverlay />}
       {/* FloatingCandleViewer outside the Canvas */}
@@ -2324,10 +2590,10 @@ function Cathedral(props) {
 }
 
 // Version without music context for standalone usage
-function CathedralWithoutMusic({ isPlaying = false, showAnnotations = true, is80sMode = false }) {
+function CathedralWithoutMusic({ isPlaying = false, showAnnotations = true, is80sMode = false, onAnnotationClick }) {
   const [showFloatingViewer, setShowFloatingViewer] = useState(false);
   const [selectedCandleData, setSelectedCandleData] = useState(null);
-  const [cinematicComplete, setCinematicComplete] = useState(false);
+  const [cinematicComplete, setCinematicComplete] = useState(true);
   const device = useMemo(() => detectDevice(), []);
   const sceneSettings = useMemo(() => getSceneSettings(device), [device]);
   const currentTrackBPM = 100; // Default BPM
@@ -2361,7 +2627,7 @@ function CathedralWithoutMusic({ isPlaying = false, showAnnotations = true, is80
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
       <Canvas 
         shadows={sceneSettings.shadowsEnabled}
-        camera={{ position: [-5.41, -47.69, -8.00], fov: 45, near: 0.01, far: 200 }}
+        camera={{ position: [0, 5, -0], fov: 75, near: 0.01, far: 100 }}
         gl={{ 
           antialias: sceneSettings.antialias,
           pixelRatio: sceneSettings.pixelRatio,
@@ -2371,12 +2637,12 @@ function CathedralWithoutMusic({ isPlaying = false, showAnnotations = true, is80
           depth: true
         }}
         dpr={sceneSettings.pixelRatio}>
-      <StarField radius={150} count1={device.isLowEnd ? 200 : 500} count2={device.isLowEnd ? 100 : 300} />
+      {/* <StarField radius={150} count1={device.isLowEnd ? 200 : 500} count2={device.isLowEnd ? 100 : 300} /> */}
              {/* <StarrySky /> */}
-          <ConstellationModel  groupScale={[10, 10, 10]} groupPosition={[0, 15, -80]}    isVisible={true} />
+          {/* <ConstellationModel  groupScale={[10, 10, 10]} groupPosition={[0, 15, -80]}    isVisible={true} /> */}
         <OrbitControls 
-            target={[-5.63, -47.71, -7.57]}
-            // zoomToCursor={true}
+            target={[0, 18, -6]}
+            zoomToCursor={true}
             enablePan={false} 
             enableRotate={!showFloatingViewer} 
             enableZoom={!showFloatingViewer}
@@ -2386,9 +2652,11 @@ function CathedralWithoutMusic({ isPlaying = false, showAnnotations = true, is80
             rotateSpeed={0.5}
             enableDamping={true}
             dampingFactor={0.9}
-            minDistance={0.1}
-            maxDistance={60}
-            maxPolarAngle={Math.PI * 0.85}
+            minDistance={0.01}
+            maxDistance={15}
+            maxPolarAngle={Math.PI / 2}
+            minAzimuthAngle={-Math.PI/5}  // -60°
+            // maxAzimuthAngle={Math.PI/5}    // +60°
             minPolarAngle={0}
             autoRotate={false}
             makeDefault
@@ -2396,7 +2664,7 @@ function CathedralWithoutMusic({ isPlaying = false, showAnnotations = true, is80
           
         
         {/* Ambient light - darker when music plays */}
-        <ambientLight intensity={isPlaying ? 0.1 : 0.3} />
+        <ambientLight intensity={isPlaying ? 0.5 : 0.2} />
         {/* <directionalLight 
           position={[10, 10, 5]} 
           intensity={1} 
@@ -2413,7 +2681,7 @@ function CathedralWithoutMusic({ isPlaying = false, showAnnotations = true, is80
         {isPlaying && <fog attach="fog" args={['#050505', 5, 120]} />}
     <PostProcessingEffects is80sMode={is80sMode} />
         <Suspense fallback={null}>
-          {/* Cinematic camera - set enableLogging to true for debugging */}
+          {/* Cinematic camera - set enableLogging to true for debugging       */}
           <CinematicCamera 
             onComplete={handleCinematicComplete}
             duration={12000}
@@ -2421,6 +2689,7 @@ function CathedralWithoutMusic({ isPlaying = false, showAnnotations = true, is80
             enableLogging={true}
             autoStart={true}
           />
+    
           <CathedralModel 
             isPlaying={isPlaying} 
             onCandleClick={handleCandleClick}
@@ -2437,48 +2706,65 @@ function CathedralWithoutMusic({ isPlaying = false, showAnnotations = true, is80
             <AnnotationSystem 
               is80sMode={is80sMode}
               showFloatingViewer={showFloatingViewer}
+              onAnnotationClick={onAnnotationClick}
               annotations={[
                 {
-                  position: [-9.5, -48, -4], // Main altar area
-                  text: "Sacred Digital Altar\nWhere prayers become code",
+                  position: [4, 16, -18] ,// Main altar area (adjusted for y=0 floor)
+                  text: "The virtual virgin is now onchain and online",
                   customCamera: {
-                    position: [-7.14, -48.21, -4.87], // Camera position
-                    lookAt: [-7.82, -47.77, -3.50], // Look at the altar
-         
+                    position: [0.78, 15.88, -10.34], // Camera position
+                    lookAt: [0.78, 15.88, -10.36], // Look at the altar
+                    distance: 1
                   }
                 
                 },
                 {
-                  position: [0, -51, -1], // Right side
-                  text: "Quantum Confessional\nConfess to the algorithm",
-                  // customCamera: {
-                  //   position: [8, -49, 5], // Camera position
-                  //   lookAt: [1, -51, 1], // Look at the confessional
-   
-                  // }
-                },
-                {
-                  position: [-16, -51, -11], // Left side
-                  text: "Neural Nave\nProcessing faithful data"
-                },
-                {
-                  position: [-3.5, -56, -15], // Upper area
-                  text: "Holographic Heavens\nCloud computing the divine",
+                  position: [-9, 12, -18], // Left side
+                  text: "The candles of the Illuminati - click to view close-up",
                   customCamera: {
-                    position: [-3.5, -56, -15], // Camera at annotation position
-                    lookAt: [3.5, -56, 15], // Look in opposite direction
+                    position: [-10.90, 13.23, -10.32], // Camera at annotation position
+                    lookAt: [-11.53, 12.75, -13.21], // Look in opposite direction
+                    distance: 3
+                  }
+                },
+                {
+                  position: [18, 12, -15], // Left side
+                  text: "The candles of the Illuminati - click to view close-up",
+                  customCamera: {
+                    position: [14.27, 12.50, -6.59], // Camera at annotation position
+                    lookAt: [14.30, 12.22, -8.95], // Look in opposite direction
+                    distance: 3
+                  }
+                },
+                {
+                  position: [3, 9, -1] ,// Main altar area (adjusted for y=0 floor)
+                  text: "The faithful and the hopeful gather to request her favor",
+                  customCamera: {
+                    position: [7.51, 11.93, -17.20], // Camera position
+                    lookAt: [3.66, 9.51, -3.29], // Look at the altar
                     distance: 10
                   }
-                }
+                
+                },
+                {
+                  position: [-12, 29, 15] ,// Main altar area (adjusted for y=0 floor)
+                  text: "The faithful and the hopeful gather to request her favor",
+                  customCamera: {
+                    position: [-17.76, 32.77, 21.63], // Camera position
+                    lookAt: [-10.96, 27.07, -2.21], // Look at the altar
+                    distance: 5
+                  }
+                
+                },
               ]}
-              scale={4}
-              textScale={1.5}
+              scale={7}
+              textScale={2}
             />
           )}
         </Suspense>
         {/* <Environment preset="sunset" /> */}
       </Canvas>
-      
+   
       {/* FloatingCandleViewer outside the Canvas */}
       {showFloatingViewer && selectedCandleData && (
         <FloatingCandleViewer

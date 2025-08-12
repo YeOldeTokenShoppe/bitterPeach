@@ -29,6 +29,7 @@ export default function CyborgTemple({ is80sMode, setIs80sMode }) {
   const { setIsPlaying: setContextIsPlaying, setShowSpotify: setContextShowSpotify } = useMusic();
   const [musicControls, setMusicControls] = useState(null);
   const [paginationControls, setPaginationControls] = useState(null);
+  const [showCalloutOverlay, setShowCalloutOverlay] = useState(true);
 
   // Check if mobile on mount
   useEffect(() => {
@@ -107,8 +108,10 @@ export default function CyborgTemple({ is80sMode, setIs80sMode }) {
         buttonText="ENTER"
         is80sMode={is80sMode}
         autoHide={false}
+        show={showCalloutOverlay}
         onButtonClick={() => {
           console.log('Entering the temple...');
+          setShowCalloutOverlay(false);
           // Add any temple entry logic here
         }}
       />
@@ -221,6 +224,7 @@ export default function CyborgTemple({ is80sMode, setIs80sMode }) {
             onLoad={handleSceneLoad}
             isPlaying={isPlaying}
             is80sMode={is80sMode}
+            onAnnotationClick={() => setShowCalloutOverlay(false)}
             candleData={[
               // Sample candle data - replace with actual user data
               // { name: "User 1", image: "/path/to/image1.jpg", burnAmount: 0.5 },

@@ -167,7 +167,7 @@ const PalmsScene = () => {
     
     // Auto-play when controls are ready and music player is visible
     if (controls && controls.play && !contextIsPlaying && showMobileMusicPlayer) {
-      console.log('🎵 Auto-playing music when controls ready');
+      // console.log('🎵 Auto-playing music when controls ready');
       setTimeout(() => {
         controls.play();
       }, 500); // Increased delay to ensure track is loaded
@@ -176,11 +176,11 @@ const PalmsScene = () => {
   
   // Music player close handler
   const handleMusicPlayerClose = useCallback(() => {
-    console.log('🎵 Closing music player');
+    // console.log('🎵 Closing music player');
     
     // Stop the music first
     if (musicPlayerControls && musicPlayerControls.pause) {
-      console.log('🎵 Pausing music');
+      // console.log('🎵 Pausing music');
       musicPlayerControls.pause();
     }
     
@@ -629,12 +629,12 @@ const PalmsScene = () => {
     let modelsLoaded = 0;
     
     loadingManager.onStart = () => {
-      console.log('Loading started');
+      // console.log('Loading started');
       modelsToLoad++;
     };
     
     loadingManager.onLoad = () => {
-      console.log('All assets loaded');
+      // console.log('All assets loaded');
       // Wait a bit to ensure everything is rendered
       setTimeout(() => {
         setIsSceneLoading(false);
@@ -642,7 +642,7 @@ const PalmsScene = () => {
     };
     
     loadingManager.onProgress = (url, itemsLoaded, itemsTotal) => {
-      console.log(`Loading: ${url} - ${itemsLoaded}/${itemsTotal}`);
+      // console.log(`Loading: ${url} - ${itemsLoaded}/${itemsTotal}`);
     };
     
     loadingManager.onError = (url) => {
@@ -667,43 +667,43 @@ const PalmsScene = () => {
       const palmModel = gltf.scene;
       
       // Debug: Log model structure
-      console.log('=== Palm Tree Model Debug ===');
-      console.log('Model loaded:', palmModel);
-      console.log('Model children:', palmModel.children);
+      // console.log('=== Palm Tree Model Debug ===');
+      // console.log('Model loaded:', palmModel);
+      // console.log('Model children:', palmModel.children);
       
       // Find all meshes for debugging
       const allMeshes = [];
       palmModel.traverse((child) => {
-        console.log('Child:', {
-          name: child.name,
-          type: child.type,
-          isMesh: child.isMesh,
-          visible: child.visible,
-          position: child.position,
-          scale: child.scale,
-          material: child.material,
-          geometry: child.geometry
-        });
+        // console.log('Child:', {
+        //   name: child.name,
+        //   type: child.type,
+        //   isMesh: child.isMesh,
+        //   visible: child.visible,
+        //   position: child.position,
+        //   scale: child.scale,
+        //   material: child.material,
+        //   geometry: child.geometry
+        // });
         if (child.isMesh) {
           allMeshes.push(child);
         }
       });
       
-      console.log('Total meshes found:', allMeshes.length);
+      // console.log('Total meshes found:', allMeshes.length);
       
       // Use the first mesh or try to use the whole scene
       let palmMesh = allMeshes[0];
       
-      if (!palmMesh) {
-        console.error('No mesh found in palm GLB model');
-        // Try using the entire scene as fallback
-        if (palmModel.children.length > 0) {
-          console.log('Trying to use entire model scene');
-          palmMesh = palmModel;
-        } else {
-          return;
-        }
-      }
+      // if (!palmMesh) {
+      //   console.error('No mesh found in palm GLB model');
+      //   // Try using the entire scene as fallback
+      //   if (palmModel.children.length > 0) {
+      //     console.log('Trying to use entire model scene');
+      //     palmMesh = palmModel;
+      //   } else {
+      //     return;
+      //   }
+      // }
       
       // Get geometry and material from the loaded model
       let palmGeometry, palmMaterial;
@@ -713,13 +713,13 @@ const PalmsScene = () => {
         palmMaterial = palmMesh.material.clone();
         
         // Check material properties
-        console.log('Material properties:', {
-          type: palmMaterial.type,
-          transparent: palmMaterial.transparent,
-          opacity: palmMaterial.opacity,
-          side: palmMaterial.side,
-          visible: palmMaterial.visible
-        });
+        // console.log('Material properties:', {
+        //   type: palmMaterial.type,
+        //   transparent: palmMaterial.transparent,
+        //   opacity: palmMaterial.opacity,
+        //   side: palmMaterial.side,
+        //   visible: palmMaterial.visible
+        // });
         
         // Ensure material is visible
         palmMaterial.transparent = false;
@@ -740,12 +740,12 @@ const PalmsScene = () => {
       // Debug geometry bounds
       palmGeometry.computeBoundingBox();
       const bbox = palmGeometry.boundingBox;
-      console.log('Geometry bounds:', {
-        min: bbox.min,
-        max: bbox.max,
-        size: new THREE.Vector3().subVectors(bbox.max, bbox.min),
-        center: new THREE.Vector3().addVectors(bbox.max, bbox.min).multiplyScalar(0.5)
-      });
+      // console.log('Geometry bounds:', {
+      //   min: bbox.min,
+      //   max: bbox.max,
+      //   size: new THREE.Vector3().subVectors(bbox.max, bbox.min),
+      //   center: new THREE.Vector3().addVectors(bbox.max, bbox.min).multiplyScalar(0.5)
+      // });
       
       // Create instanced mesh
       const instanceCount = palmPositions.length / 3;
@@ -761,7 +761,7 @@ const PalmsScene = () => {
       const targetHeight = 14; // Desired height for palm trees
       const scaleFactor = targetHeight / maxDimension;
       
-      console.log('Scale factor:', scaleFactor);
+      // console.log('Scale factor:', scaleFactor);
       
       for (let i = 0; i < instanceCount; i++) {
         const x = palmPositions[i * 3];
@@ -824,7 +824,7 @@ const PalmsScene = () => {
       scene.add(palms);
     }, 
     (progress) => {
-      console.log('Loading palm tree:', (progress.loaded / progress.total * 100) + '%');
+      // console.log('Loading palm tree:', (progress.loaded / progress.total * 100) + '%');
     },
     (error) => {
       console.error('Error loading palm tree model:', error);
@@ -944,15 +944,15 @@ const PalmsScene = () => {
       scene.add(signs);
       
       // Debug info
-      console.log('Road signs loaded successfully:', {
-        count: signCount,
-        positions: signPositions,
-        geometry: signGeometry,
-        material: signMaterial
-      });
+      // console.log('Road signs loaded successfully:', {
+      //   count: signCount,
+      //   positions: signPositions,
+      //   geometry: signGeometry,
+      //   material: signMaterial
+      // });
     },
     (progress) => {
-      console.log('Loading road sign:', (progress.loaded / progress.total * 100) + '%');
+      // console.log('Loading road sign:', (progress.loaded / progress.total * 100) + '%');
     },
     (error) => {
       console.error('Error loading road sign model:', error);
@@ -1018,8 +1018,8 @@ const PalmsScene = () => {
       const carScene = gltf.scene;
       
       // Enhanced logging for model contents
-      console.log('=== Model Loading Debug ===');
-      console.log('Total objects in scene:', carScene.children.length);
+      // console.log('=== Model Loading Debug ===');
+      // console.log('Total objects in scene:', carScene.children.length);
       
       // Track UFO-related objects
       const ufoObjects = [];
@@ -1028,20 +1028,20 @@ const PalmsScene = () => {
       
       // Log all objects in the scene hierarchy
       carScene.traverse((child) => {
-        console.log('Object:', {
-          name: child.name,
-          type: child.type,
-          visible: child.visible,
-          position: child.position,
-          parent: child.parent?.name,
-          isMesh: child.isMesh,
-          material: child.material ? {
-            type: child.material.type,
-            color: child.material.color?.getHexString(),
-            transparent: child.material.transparent,
-            opacity: child.material.opacity
-          } : 'No material'
-        });
+        // console.log('Object:', {
+        //   name: child.name,
+        //   type: child.type,
+        //   visible: child.visible,
+        //   position: child.position,
+        //   parent: child.parent?.name,
+        //   isMesh: child.isMesh,
+        //   material: child.material ? {
+        //     type: child.material.type,
+        //     color: child.material.color?.getHexString(),
+        //     transparent: child.material.transparent,
+        //     opacity: child.material.opacity
+        //   } : 'No material'
+        // });
         
         // More intelligent object detection
         const lowerName = child.name.toLowerCase();
@@ -1053,7 +1053,7 @@ const PalmsScene = () => {
             lowerName.includes('brake') ||
             lowerName.includes('suspension') ||
             lowerName.includes('axle')) {
-          console.log('Found car part:', child.name);
+          // console.log('Found car part:', child.name);
           carParts.push(child);
           // Ensure car parts are visible
           child.visible = true;
@@ -1081,7 +1081,7 @@ const PalmsScene = () => {
         
         // Look for Mary specifically and ensure she's visible
         if (child.name.toLowerCase().includes('mary')) {
-          console.log('Found Mary object:', child);
+          // console.log('Found Mary object:', child);
           // Make sure Mary is visible
           child.visible = true;
           // If it's a mesh, ensure material is properly set
@@ -1102,16 +1102,16 @@ const PalmsScene = () => {
         }
       });
       
-      console.log('=== Model Loading Summary ===');
-      console.log(`Hidden ${ufoObjects.length} UFO-related objects`);
-      console.log(`Found ${carParts.length} car parts`);
-      console.log(`Found ${unknownObjects.length} unknown objects that might be car parts`);
+      // console.log('=== Model Loading Summary ===');
+      // console.log(`Hidden ${ufoObjects.length} UFO-related objects`);
+      // console.log(`Found ${carParts.length} car parts`);
+      // console.log(`Found ${unknownObjects.length} unknown objects that might be car parts`);
       
       // Log details of unknown objects
       if (unknownObjects.length > 0) {
-        console.log('Unknown objects that were kept visible:');
+        // console.log('Unknown objects that were kept visible:');
         unknownObjects.forEach(obj => {
-          console.log(`- ${obj.name} at position (${obj.position.x.toFixed(2)}, ${obj.position.y.toFixed(2)}, ${obj.position.z.toFixed(2)})`);
+          // console.log(`- ${obj.name} at position (${obj.position.x.toFixed(2)}, ${obj.position.y.toFixed(2)}, ${obj.position.z.toFixed(2)})`);
         });
       }
       
@@ -1125,10 +1125,10 @@ const PalmsScene = () => {
       const animationMixers = [];
       
       if (gltf.animations && gltf.animations.length > 0) {
-        console.log('Found animations:', gltf.animations.map(a => a.name));
-        console.log('Animation details:');
+        // console.log('Found animations:', gltf.animations.map(a => a.name));
+        // console.log('Animation details:');
         gltf.animations.forEach(anim => {
-          console.log(`- ${anim.name}: duration=${anim.duration}s, tracks=${anim.tracks.length}`);
+          // console.log(`- ${anim.name}: duration=${anim.duration}s, tracks=${anim.tracks.length}`);
         });
         
         // Create mixer for the scene
@@ -1137,13 +1137,13 @@ const PalmsScene = () => {
         // Play ALL animations on a loop
         const actions = [];
         gltf.animations.forEach((clip, index) => {
-          console.log(`Setting up animation ${index}: ${clip.name}`);
+          // console.log(`Setting up animation ${index}: ${clip.name}`);
           
           // Handle Armature/Mixamo character animations
           if (clip.name.toLowerCase().includes('armature') && 
               !clip.name.toLowerCase().includes('wheel') &&
               clip.name !== 'ArmatureAction.001') { // Don't skip UFO animation
-            console.log(`Setting character to rest pose: ${clip.name}`);
+            // console.log(`Setting character to rest pose: ${clip.name}`);
             const action = mixer.clipAction(clip);
             action.play();
             action.paused = true; // Play but immediately pause to hold the first frame
@@ -1156,7 +1156,7 @@ const PalmsScene = () => {
           
           // Check if this is the halo animation
           if (clip.name.toLowerCase().includes('halorotation.001')) {
-            console.log(`Playing halo animation: ${clip.name}`);
+            // console.log(`Playing halo animation: ${clip.name}`);
             action.loop = THREE.LoopRepeat;
             action.play();
             actions.push(action);
@@ -1173,19 +1173,19 @@ const PalmsScene = () => {
             // Adjust speed as needed (1.0 = normal speed, negative = reverse)
             action.timeScale = -9.0; // Increased from -3.0 to match the tripled speed
             action.play();
-            console.log(`Playing wheel animation: ${clip.name}, duration: ${clip.duration}s, frames: ~${Math.round(clip.duration * 30)}, speed: -9x (reversed)`);
+            // console.log(`Playing wheel animation: ${clip.name}, duration: ${clip.duration}s, frames: ~${Math.round(clip.duration * 30)}, speed: -9x (reversed)`);
           } else if (clip.name === 'ArmatureAction.001') {
             // UFO animation - handle separately for scroll-based trigger
             action.clampWhenFinished = true;
             action.loop = THREE.LoopOnce;
             action.setEffectiveWeight(1);
 
-            console.log('UFO animation ready:', clip.name);
+            // console.log('UFO animation ready:', clip.name);
           } else {
             // Play any other animations on loop
             action.loop = THREE.LoopRepeat;
             action.play();
-            console.log(`Playing animation on loop: ${clip.name}`);
+            // console.log(`Playing animation on loop: ${clip.name}`);
           }
           
           actions.push(action);
@@ -1221,7 +1221,7 @@ const PalmsScene = () => {
       // Keep original car materials and add emissive to halo
       carScene.traverse((child) => {
         if (child.isMesh) {
-          console.log('Processing mesh:', child.name); // Debug log
+          // console.log('Processing mesh:', child.name); // Debug log
           child.castShadow = true;
           child.receiveShadow = true;
           
@@ -1231,7 +1231,7 @@ const PalmsScene = () => {
           
           // Add video texture to Display mesh
           if (child.name === 'Display') { // Exact match
-            console.log('Found Display mesh, applying video texture'); // Debug log
+            // console.log('Found Display mesh, applying video texture'); 
             child.material = new THREE.MeshBasicMaterial({
               map: videoTexture,
               emissiveMap: videoTexture,
@@ -1247,7 +1247,7 @@ const PalmsScene = () => {
       
       // Start playing the video
       video.play().catch(error => {
-        console.warn('Video autoplay failed:', error);
+        // console.warn('Video autoplay failed:', error);
         // Add click handler to start video on user interaction
         const startVideo = () => {
           video.play();
@@ -1507,7 +1507,7 @@ const PalmsScene = () => {
             }
           };
 
-          console.log('Current Light Settings:', JSON.stringify(settings, null, 2));
+          // console.log('Current Light Settings:', JSON.stringify(settings, null, 2));
           
           // Create a text area with the settings
           const textArea = document.createElement('textarea');
@@ -1551,7 +1551,7 @@ const PalmsScene = () => {
     }, 
     // Progress callback (optional)
     (progress) => {
-      console.log('Loading car:', (progress.loaded / progress.total * 100) + '%');
+      // console.log('Loading car:', (progress.loaded / progress.total * 100) + '%');
     },
     // Error callback
     (error) => {
@@ -1602,7 +1602,7 @@ const PalmsScene = () => {
     
     // Keyboard controls for cinematic design mode
     const handleKeyPress = (e) => {
-      console.log('Key pressed:', e.key, 'Ctrl:', e.ctrlKey, 'Current mode:', cinematicMode);
+      // console.log('Key pressed:', e.key, 'Ctrl:', e.ctrlKey, 'Current mode:', cinematicMode);
       
       if (e.key === 'c' && e.ctrlKey) {
         // Toggle cinematic design mode with Ctrl+C
@@ -1613,24 +1613,24 @@ const PalmsScene = () => {
         
         if (newMode === 'design') {
           // Entering design mode
-          console.log('Controls ref exists:', !!controlsRef.current);
+          // console.log('Controls ref exists:', !!controlsRef.current);
           if (controlsRef.current) {
             controlsRef.current.enabled = true; // Enable controls
-            console.log('Controls enabled:', controlsRef.current.enabled);
-            console.log('Controls object:', controlsRef.current);
+            // console.log('Controls enabled:', controlsRef.current.enabled);
+            // console.log('Controls object:', controlsRef.current);
           }
           setIsCinematicComplete(true); // Skip cinematic
-          console.log('Entered cinematic design mode - controls should be active');
+          // console.log('Entered cinematic design mode - controls should be active');
         } else {
           // Exiting design mode
           if (controlsRef.current) {
             controlsRef.current.enabled = !isCinematicComplete; // Disable if cinematic isn't complete
           }
-          console.log('Exited cinematic design mode');
+          // console.log('Exited cinematic design mode');
         }
       } else if (e.key === 'k' && cinematicModeRef.current === 'design') {
-        // Add keyframe at current camera position with 'K'
-        console.log('K pressed in design mode');
+        // // Add keyframe at current camera position with 'K'
+        // console.log('K pressed in design mode');
         if (!cameraRef.current || !controlsRef.current) {
           console.error('Camera or controls not available');
           return;
@@ -1645,11 +1645,11 @@ const PalmsScene = () => {
           fov: cameraRef.current.fov
         };
         
-        console.log('Adding keyframe:', {
-          position: newKeyframe.position.toArray(),
-          target: newKeyframe.target.toArray(),
-          fov: newKeyframe.fov
-        });
+        // console.log('Adding keyframe:', {
+        //   position: newKeyframe.position.toArray(),
+        //   target: newKeyframe.target.toArray(),
+        //   fov: newKeyframe.fov
+        // });
         
         newKeyframes.push(newKeyframe);
         
@@ -1680,13 +1680,13 @@ const PalmsScene = () => {
       } else if (e.key === 'r' && cinematicModeRef.current === 'design') {
         // Reset keyframes with 'R'
         recordedKeyframesRef.current = [];
-        setRecordedKeyframes([]);
+        // setRecordedKeyframes([]);
         console.log('Keyframes cleared');
       } else if (e.key === 'l' && cinematicModeRef.current === 'design') {
         // Log current keyframes with 'L'
         const keyframesToLog = recordedKeyframesRef.current.length > 0 ? recordedKeyframesRef.current : defaultCinematicKeyframes;
-        console.log('Current keyframes:', JSON.stringify(keyframesToLog, null, 2));
-        console.log('Recorded keyframes count:', recordedKeyframesRef.current.length);
+        // console.log('Current keyframes:', JSON.stringify(keyframesToLog, null, 2));
+        // console.log('Recorded keyframes count:', recordedKeyframesRef.current.length);
       } else if (e.key === 'v') {
         // Toggle reverse mode with 'V'
         setCinematicReverse(prev => !prev);
@@ -1707,23 +1707,23 @@ const PalmsScene = () => {
           const target = controlsRef.current.target;
           const fov = cameraRef.current.fov;
           
-          console.log('=== Current Camera Info ===');
-          console.log('Position:', `(${pos.x.toFixed(4)}, ${pos.y.toFixed(4)}, ${pos.z.toFixed(4)})`);
-          console.log('Target:', `(${target.x.toFixed(4)}, ${target.y.toFixed(4)}, ${target.z.toFixed(4)})`);
-          console.log('FOV:', fov);
-          console.log('Distance to target:', pos.distanceTo(target).toFixed(4));
+          // console.log('=== Current Camera Info ===');
+          // console.log('Position:', `(${pos.x.toFixed(4)}, ${pos.y.toFixed(4)}, ${pos.z.toFixed(4)})`);
+          // console.log('Target:', `(${target.x.toFixed(4)}, ${target.y.toFixed(4)}, ${target.z.toFixed(4)})`);
+          // console.log('FOV:', fov);
+          // console.log('Distance to target:', pos.distanceTo(target).toFixed(4));
           
           // Also log as copy-pasteable code
-          console.log('\n// Copy this to set camera position:');
-          console.log(`camera.position.set(${pos.x.toFixed(4)}, ${pos.y.toFixed(4)}, ${pos.z.toFixed(4)});`);
-          console.log(`camera.lookAt(${target.x.toFixed(4)}, ${target.y.toFixed(4)}, ${target.z.toFixed(4)});`);
-          console.log(`camera.fov = ${fov};`);
-          console.log(`camera.updateProjectionMatrix();`);
+          // console.log('\n// Copy this to set camera position:');
+          // console.log(`camera.position.set(${pos.x.toFixed(4)}, ${pos.y.toFixed(4)}, ${pos.z.toFixed(4)});`);
+          // console.log(`camera.lookAt(${target.x.toFixed(4)}, ${target.y.toFixed(4)}, ${target.z.toFixed(4)});`);
+          // console.log(`camera.fov = ${fov};`);
+          // console.log(`camera.updateProjectionMatrix();`);
           
           // Log as Three.js Vector3 format
-          console.log('\n// Or as Vector3:');
-          console.log(`new THREE.Vector3(${pos.x.toFixed(4)}, ${pos.y.toFixed(4)}, ${pos.z.toFixed(4)})`);
-          console.log(`new THREE.Vector3(${target.x.toFixed(4)}, ${target.y.toFixed(4)}, ${target.z.toFixed(4)})`);
+          // console.log('\n// Or as Vector3:');
+          // console.log(`new THREE.Vector3(${pos.x.toFixed(4)}, ${pos.y.toFixed(4)}, ${pos.z.toFixed(4)})`);
+          // console.log(`new THREE.Vector3(${target.x.toFixed(4)}, ${target.y.toFixed(4)}, ${target.z.toFixed(4)})`);
         }
       }
     };
@@ -1765,11 +1765,11 @@ const PalmsScene = () => {
           
           // Create and animate a blue point light for Mary
           if (maryMeshRef.current) {
-            console.log('Creating Mary glow effect!');
+            // console.log('Creating Mary glow effect!');
             // Get Mary's world position
             const maryWorldPos = new THREE.Vector3();
             maryMeshRef.current.getWorldPosition(maryWorldPos);
-            console.log('Mary world position:', maryWorldPos);
+            // console.log('Mary world position:', maryWorldPos);
             
             // Create a bright blue point light with larger radius
             const maryLight = new THREE.PointLight(0x00ffff, 0, 10); // Cyan blue, larger radius
@@ -1962,11 +1962,11 @@ const PalmsScene = () => {
     const maxScroll = 2000; // Less sensitive - requires more scrolling
     
     const handleScroll = (event) => {
-      console.log('Scroll event detected!', {
-        cameraExists: !!cameraRef.current,
-        scrollEnabled: scrollCameraEnabledRef.current,
-        deltaY: event.deltaY
-      });
+      // console.log('Scroll event detected!', {
+      //   cameraExists: !!cameraRef.current,
+      //   scrollEnabled: scrollCameraEnabledRef.current,
+      //   deltaY: event.deltaY
+      // });
       
       if (!cameraRef.current || !scrollCameraEnabledRef.current) return;
       
@@ -2008,12 +2008,12 @@ const PalmsScene = () => {
           const scrollForce = Math.abs(clampedDelta / maxScroll);
           if (scrollForce < breakAwayForce) {
             newProgress = point; // Stay stuck
-            console.log(`Stuck at ${point * 100}% - need more scroll force to break free`);
+            // console.log(`Stuck at ${point * 100}% - need more scroll force to break free`);
           } else {
             // Break free with enough distance to escape sticky zone
             const direction = clampedDelta > 0 ? 1 : -1;
             newProgress = point + (direction * escapeDistance);
-            console.log(`Breaking free from ${point * 100}%`);
+            // console.log(`Breaking free from ${point * 100}%`);
           }
           break;
         }
@@ -2022,7 +2022,7 @@ const PalmsScene = () => {
         if (newDistance < stickyThreshold && currentDistance > escapeDistance) {
           // Always snap when within threshold, regardless of direction
           newProgress = point;
-          console.log(`Snapping to ${point * 100}%`);
+          // console.log(`Snapping to ${point * 100}%`);
           break;
         }
       }
@@ -2045,16 +2045,16 @@ const PalmsScene = () => {
       else currentStage = 4;
       
       // Enhanced debug logging
-      console.log('Scroll event:', {
-        deltaY: event.deltaY,
-        rawProgress: rawProgress.toFixed(3),
-        scrollProgress: scrollProgressRef.current.toFixed(3),
-        isAtStickyPoint: isAtStickyPoint,
-        currentStage: currentStage,
-        enabled: scrollCameraEnabledRef.current,
-        controlsEnabled: controlsRef.current ? controlsRef.current.enabled : 'N/A',
-        cameraActualPos: cameraRef.current ? `(${cameraRef.current.position.x.toFixed(2)}, ${cameraRef.current.position.y.toFixed(2)}, ${cameraRef.current.position.z.toFixed(2)})` : 'N/A'
-      });
+      // console.log('Scroll event:', {
+      //   deltaY: event.deltaY,
+      //   rawProgress: rawProgress.toFixed(3),
+      //   scrollProgress: scrollProgressRef.current.toFixed(3),
+      //   isAtStickyPoint: isAtStickyPoint,
+      //   currentStage: currentStage,
+      //   enabled: scrollCameraEnabledRef.current,
+      //   controlsEnabled: controlsRef.current ? controlsRef.current.enabled : 'N/A',
+      //   cameraActualPos: cameraRef.current ? `(${cameraRef.current.position.x.toFixed(2)}, ${cameraRef.current.position.y.toFixed(2)}, ${cameraRef.current.position.z.toFixed(2)})` : 'N/A'
+      // });
       
       // Define camera path keyframes - six stages
       const startPos = new THREE.Vector3(2.4564, 1.2084, 24.3895); // Close-up Mary position
@@ -2144,8 +2144,8 @@ const PalmsScene = () => {
       if (controlsRef.current) {
         controlsRef.current.enabled = !scrollCameraEnabledRef.current;
       }
-      console.log('Scroll camera:', scrollCameraEnabledRef.current ? 'ENABLED' : 'DISABLED');
-      console.log('Orbit controls:', !scrollCameraEnabledRef.current ? 'ENABLED' : 'DISABLED');
+      // console.log('Scroll camera:', scrollCameraEnabledRef.current ? 'ENABLED' : 'DISABLED');
+      // console.log('Orbit controls:', !scrollCameraEnabledRef.current ? 'ENABLED' : 'DISABLED');
     };
     
     // Add scroll listener to multiple elements to ensure it's captured
@@ -2290,7 +2290,7 @@ const PalmsScene = () => {
     
     // Handle click on Mary
     const handleClick = (event) => {
-      console.log('Click event - maryGlowing:', maryGlowingRef.current);
+      // console.log('Click event - maryGlowing:', maryGlowingRef.current);
       if (!maryGlowingRef.current || !mountRef.current) return;
       
       const rect = mountRef.current.getBoundingClientRect();
@@ -2302,9 +2302,9 @@ const PalmsScene = () => {
       
       // Check for intersection with Mary or the entire car (as fallback)
       if (maryMeshRef.current) {
-        console.log('Checking Mary intersection, mesh exists:', !!maryMeshRef.current);
+        // console.log('Checking Mary intersection, mesh exists:', !!maryMeshRef.current);
         const intersects = raycaster.current.intersectObject(maryMeshRef.current, true);
-        console.log('Mary intersects found:', intersects.length);
+        // console.log('Mary intersects found:', intersects.length);
         
         // if (intersects.length > 0) {
         //   console.log('Mary clicked! Navigating to cyborg temple...');
@@ -2317,16 +2317,16 @@ const PalmsScene = () => {
       // Fallback: check intersection with entire car model
       if (carModelRef.current) {
         const carIntersects = raycaster.current.intersectObject(carModelRef.current, true);
-        console.log('Car intersects found:', carIntersects.length);
+        // console.log('Car intersects found:', carIntersects.length);
         
         // Check if any of the intersected objects is near Mary's position
         if (carIntersects.length > 0) {
           const maryPos = new THREE.Vector3(1.1811263369229998, 0.9999999999999805, 12.355272021071679);
           for (const intersect of carIntersects) {
             const distance = intersect.point.distanceTo(maryPos);
-            console.log('Intersection distance from Mary position:', distance);
+            // console.log('Intersection distance from Mary position:', distance);
             if (distance < 2) { // Within 2 units of Mary's position
-              console.log('Close to Mary! Navigating to gallery...');
+              // console.log('Close to Mary! Navigating to gallery...');
               routerRef.current.push('/cyborg-temple');
               return;
             }
@@ -2519,7 +2519,7 @@ const PalmsScene = () => {
               onClick={() => {
                 if (controlsRef.current) {
                   controlsRef.current.enabled = !controlsRef.current.enabled;
-                  console.log('Toggled controls:', controlsRef.current.enabled);
+                  // console.log('Toggled controls:', controlsRef.current.enabled);
                 }
               }}
               style={{
@@ -2645,7 +2645,7 @@ const PalmsScene = () => {
             
             if (contextShowSpotify && contextIsPlaying) {
               // Music is already playing, just show the UI
-              console.log('🎵 Music already playing, showing UI');
+              // console.log('🎵 Music already playing, showing UI');
               setShowMobileMusicPlayer(true);
               setMusicPlayerVisible(true);
             } else {
@@ -2657,10 +2657,10 @@ const PalmsScene = () => {
               // Trigger auto-play after a delay to ensure player and track are ready
               setTimeout(() => {
                 if (musicPlayerControls && musicPlayerControls.play) {
-                  console.log('🎵 Auto-playing music after icon click');
+                  // console.log('🎵 Auto-playing music after icon click');
                   musicPlayerControls.play();
                 } else {
-                  console.log('🎵 Controls not ready yet, will auto-play when ready');
+                  // console.log('🎵 Controls not ready yet, will auto-play when ready');
                 }
               }, 500); // Increased delay to ensure track is loaded
             }
@@ -2750,13 +2750,13 @@ const PalmsScene = () => {
               zIndex="10000"
               pointerEvents="auto"
               onClick={() => {
-                console.log('🎵 Skip button clicked');
+                // console.log('🎵 Skip button clicked');
                 
                 if (musicPlayerControls && musicPlayerControls.skipTrack) {
-                  console.log('🎵 Using music player controls to skip');
+                  // console.log('🎵 Using music player controls to skip');
                   musicPlayerControls.skipTrack();
                 } else {
-                  console.log('⚠️ No skip controls available');
+                  // console.log('⚠️ No skip controls available');
                   window.postMessage({ type: 'SKIP_TRACK' }, '*');
                 }
               }}
@@ -2787,13 +2787,13 @@ const PalmsScene = () => {
                 transform: "scale(1.1)",
               }}
               onClick={(e) => {
-                console.log('🎵 Close button clicked!');
+                // console.log('🎵 Close button clicked!');
                 e.stopPropagation();
                 e.preventDefault();
                 handleMusicPlayerClose();
               }}
               onTouchEnd={(e) => {
-                console.log('🎵 Close button touch end!');
+                // console.log('🎵 Close button touch end!');
                 e.stopPropagation();
                 e.preventDefault();
                 handleMusicPlayerClose();
@@ -2817,7 +2817,7 @@ const PalmsScene = () => {
             autoPlay={true}
             onControlsReady={handleMusicControlsReady}
             onPlayingStateChange={(playing) => {
-              console.log('🎵 Music state changed:', playing);
+              // console.log('🎵 Music state changed:', playing);
               setIsPlaying(playing);
               setContextIsPlaying(playing);
             }}

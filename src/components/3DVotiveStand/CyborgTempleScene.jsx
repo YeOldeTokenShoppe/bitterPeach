@@ -21,7 +21,8 @@ function CyborgTempleScene({
   is80sMode = false,
   candleData = [], // Array of user data for candles
   onCandleClick = null, // Callback when candle is clicked
-  onPaginationReady = null // Callback to expose pagination controls
+  onPaginationReady = null, // Callback to expose pagination controls
+  onAnnotationClick = null // Callback when annotation is clicked
 }) {
   // console.log('[CyborgTempleScene] Component rendered with isPlaying:', isPlaying);
   const sceneRef = useRef();
@@ -553,7 +554,7 @@ function CyborgTempleScene({
       {modelLoaded && <TickerDisplay3 is80sMode={is80sMode} />}
       {modelLoaded && <VideoScreens />}
       {modelLoaded && <SimpleGlitchTint />}
-      {modelLoaded && <AnnotationSystem annotations={annotations} is80sMode={is80sMode} />}
+      {modelLoaded && <AnnotationSystem annotations={annotations} is80sMode={is80sMode} onAnnotationClick={onAnnotationClick} />}
     </>
   );
 }

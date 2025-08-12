@@ -3,7 +3,7 @@ import { useThree, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import AnnotationMarker from './AnnotationMarker';
 
-function AnnotationSystem({ annotations = [], is80sMode = false, scale = 1, textScale = null, showFloatingViewer = false }) {
+function AnnotationSystem({ annotations = [], is80sMode = false, scale = 1, textScale = null, showFloatingViewer = false, onAnnotationClick = null }) {
   const { camera, controls, gl } = useThree();
   const [activeAnnotation, setActiveAnnotation] = useState(null);
   const targetPosition = useRef(new THREE.Vector3());
@@ -19,23 +19,29 @@ function AnnotationSystem({ annotations = [], is80sMode = false, scale = 1, text
   const originalAutoRotate = useRef(false);
   const hasStoredOriginal = useRef(false);
   
-  // Store original camera position on first render
-  useFrame(() => {
-    if (!hasStoredOriginal.current) {
-      originalCameraPosition.current.copy(camera.position);
-      if (controls) {
+  // Store original camera position on mount, with a small delay to ensure controls are initialized
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!hasStoredOriginal.current && camera && controls) {
+        // Store the initial camera position and target
+        originalCameraPosition.current.copy(camera.position);
         originalControlsTarget.current.copy(controls.target);
         originalAutoRotate.current = controls.autoRotate;
+        hasStoredOriginal.current = true;
+        
+        console.log('Stored original camera position:', camera.position.toArray());
+        console.log('Stored original target:', controls.target.toArray());
+        
+        // Ensure camera near plane is set properly
+        if (camera.near > 0.1) {
+          camera.near = 0.1;
+          camera.updateProjectionMatrix();
+        }
       }
-      hasStoredOriginal.current = true;
-      
-      // Ensure camera near plane is set properly
-      if (camera.near > 0.1) {
-        camera.near = 0.1;
-        camera.updateProjectionMatrix();
-      }
-    }
-  });
+    }, 100); // Small delay to ensure controls are fully initialized
+    
+    return () => clearTimeout(timer);
+  }, [camera, controls]);
   
   const handleFocus = (position, index) => {
     
@@ -45,6 +51,11 @@ function AnnotationSystem({ annotations = [], is80sMode = false, scale = 1, text
     } else {
       // Focus on new annotation
       setActiveAnnotation(index);
+      
+      // Call the callback to hide overlay when annotation is clicked
+      if (onAnnotationClick) {
+        onAnnotationClick();
+      }
       
       // Disable autoRotate when focusing on annotation
       if (controls && controls.autoRotate) {
@@ -94,8 +105,12 @@ function AnnotationSystem({ annotations = [], is80sMode = false, scale = 1, text
         }
         
         // Position camera at a fixed distance from the annotation
-        const distance = 7; // Adjust this value: smaller = closer zoom, larger = farther zoom
+        const distance = 5; // Adjust this value: smaller = closer zoom, larger = farther zoom
         targetPosition.current.copy(annotationPos).add(direction.multiplyScalar(distance));
+        
+        // Add upward offset to position camera higher
+        targetPosition.current.y += 2; // Adjust this value to control how much higher the camera is
+        targetPosition.current.x -=1;
         targetLookAt.current.copy(annotationPos);
       }
       
@@ -117,7 +132,7 @@ function AnnotationSystem({ annotations = [], is80sMode = false, scale = 1, text
       controls.autoRotate = originalAutoRotate.current;
     }
     
-    // Animate back to original position
+    // Animate back to original position and target
     targetPosition.current.copy(originalCameraPosition.current);
     targetLookAt.current.copy(originalControlsTarget.current);
     
