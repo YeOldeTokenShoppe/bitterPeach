@@ -191,7 +191,7 @@ function Cathedral() {
     <>
       <primitive object={cathedralModel} />
       
-      {/* Development tool to find spawn points */}
+      {/* Development tool to find spawn points *//*}
       {process.env.NODE_ENV === 'development' && showLocationFinder && (
         <CathedralLocationFinder />
       )}

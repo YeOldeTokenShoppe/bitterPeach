@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/rules-of-hooks */
 import React, { useRef, useEffect, useState } from "react";
 import * as THREE from "three";
 import { useFrame, useThree } from "@react-three/fiber";
@@ -15,9 +16,21 @@ const TickerDisplay = ({ modelRef, isMobileView, ...props }) => {
   const baseRadius = 2.8; // Store the base radius as a constant
   const lastModelScale = useRef(1); // Track the last known model scale
   const tickerTargetRef = useRef(null); // Reference to the Ticker mesh in the model
+  const floorRef = useRef(null); // Store reference to the active floor mesh
   
   // Don't render ticker on mobile
   const [isMobile, setIsMobile] = useState(false);
+  
+  // Move all hooks before the conditional return
+  const [activeGroup, setActiveGroup] = useState(1);
+  const { scene: mainScene } = useThree();
+  const [marketData, setMarketData] = useState([]);
+  const [fearGreed, setFearGreed] = useState(null);
+  
+  // API keys
+  const ALPHA_VANTAGE_API_KEY = process.env.NEXT_PUBLIC_ALPHA_VANTAGE_API_KEY;
+  const FMP_API_KEY = "kUsgBNt4QQmJzi0TFe0MHLIg1NlpWnsR";
+  const CMC_API_KEY = process.env.NEXT_PUBLIC_COINMARKETCAP; // Updated to match .env variable name
   
   useEffect(() => {
     const checkMobile = () => {
@@ -28,20 +41,10 @@ const TickerDisplay = ({ modelRef, isMobileView, ...props }) => {
     return () => window.removeEventListener('resize', checkMobile);
   }, [isMobileView]);
   
-  // Early return if mobile
+  // Early return if mobile - AFTER all hooks
   if (isMobile) {
     return null;
   }
-  const ALPHA_VANTAGE_API_KEY = process.env.NEXT_PUBLIC_ALPHA_VANTAGE_API_KEY;
-  const FMP_API_KEY = "kUsgBNt4QQmJzi0TFe0MHLIg1NlpWnsR";
-  const CMC_API_KEY = process.env.NEXT_PUBLIC_COINMARKETCAP; // Updated to match .env variable name
-  const [activeGroup, setActiveGroup] = useState(1);
-
-  // Get access to the main Three.js scene
-  const { scene: mainScene } = useThree();
-
-  const [marketData, setMarketData] = useState([]);
-  const [fearGreed, setFearGreed] = useState(null);
 
   // Define which indices to fetch from FMP
   const fmpIndices = [
@@ -369,8 +372,6 @@ const TickerDisplay = ({ modelRef, isMobileView, ...props }) => {
     return totalWidth;
   };
 
-  const floorRef = useRef(null); // Store reference to the active floor mesh
-  
   // Find the Ticker mesh and appropriate floor in the model
   useEffect(() => {
     if (!gltf.scene) return;

@@ -374,10 +374,10 @@ function Cathedral() {
         />
       ))}
       
-      {/* Development only: Visual location editor */}
-      {process.env.NODE_ENV === 'development' && (
-        <LocationEditor onSave={(locs) => console.log('Save these:', locs)} />
-      )}
+      // Development only: Visual location editor
+      // {process.env.NODE_ENV === 'development' && (
+      //   <LocationEditor onSave={(locs) => console.log('Save these:', locs)} />
+      // )}
     </>
   );
 }

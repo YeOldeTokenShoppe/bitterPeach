@@ -1881,7 +1881,7 @@ const PalmsScene = () => {
         duration: 0.15,
         ease: "power2.inOut"
       })
-      // Penultimate close-up: Approaching Mary
+      // Final close-up: Face to face with Mary
       .to(cameraPath, {
         x: 2.4696,
         y: 1.1750,
@@ -1889,21 +1889,10 @@ const PalmsScene = () => {
         targetX: 2.9739,
         targetY: 0.9938,
         targetZ: 21.3748,
-        fov: 22,
-        duration: 0.15,
-        ease: "power2.inOut"
-      })
-      // Final close-up: Face to face with Mary
-      .to(cameraPath, {
-        x: 2.4881,
-        y: 1.1993,
-        z: 24.5801,
-        targetX: 2.5510,
-        targetY: 0.8969,
-        targetZ: 21.0514,
-        fov: 23.1616,
-        duration: 0.2,  // Smooth final transition
-        ease: "power2.out"
+        fov: 33,
+        duration: 0.25,  // Longer duration for final position
+        ease: "none"  // Linear easing to ensure exact final position
+
       });
   
       // Single onUpdate for the entire timeline
