@@ -1,7 +1,62 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useCallback } from "react";
 
 const CoinLoader = ({ size = "small", showText = true, withSparkle = true, isLoading = true }) => {
   const sparkleRef = useRef(null);
+  const animationRef = useRef(null);
+  const starsRef = useRef([]);
+
+  // Memoize constants
+  const CONSTANTS = {
+    MAX_STARS: 40,
+    STAR_INTERVAL: 16,
+    MAX_STAR_LIFE: 3000, // Convert to ms
+    MIN_STAR_LIFE: 1000,
+    MAX_STAR_SIZE: 40,
+    MIN_STAR_SIZE: 20,
+    MIN_STAR_TRAVEL_X: 120,
+    MIN_STAR_TRAVEL_Y: 150,
+  };
+
+  // Pre-defined color palette to avoid HSL calculations
+  const STAR_COLORS = [
+    '#00ff80', '#40ff40', '#80ff00', // Blues/Greens
+    '#8040ff', '#a040ff', '#c040ff', // Purples
+    '#ffff40', '#ffd040', '#ffb040', // Yellows/Golds
+  ];
+
+  const getRandomColor = useCallback(() => {
+    return STAR_COLORS[Math.floor(Math.random() * STAR_COLORS.length)];
+  }, []);
+
+  const random = useCallback((max, min) => {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }, []);
+
+  const randomDirection = useCallback(() => {
+    return Math.random() > 0.5 ? 1 : -1;
+  }, []);
+
+  // Object pool for star elements
+  const starPool = useRef([]);
+  
+  const getStarElement = useCallback(() => {
+    if (starPool.current.length > 0) {
+      return starPool.current.pop();
+    }
+    
+    const star = document.createElement("div");
+    star.className = "star";
+    return star;
+  }, []);
+
+  const returnStarElement = useCallback((star) => {
+    if (star.parentNode) {
+      star.parentNode.removeChild(star);
+    }
+    // Reset styles
+    star.style.cssText = '';
+    starPool.current.push(star);
+  }, []);
 
   useEffect(() => {
     if (!withSparkle || typeof window === "undefined" || !sparkleRef.current) {
@@ -9,132 +64,109 @@ const CoinLoader = ({ size = "small", showText = true, withSparkle = true, isLoa
     }
 
     const sparkle = sparkleRef.current;
+    const stars = starsRef.current;
+    let lastStarTime = 0;
+    let animationId;
 
-    const MAX_STARS = 40;
-    const STAR_INTERVAL = 16;
+    const createStar = () => {
+      if (stars.length >= CONSTANTS.MAX_STARS) return;
 
-    const MAX_STAR_LIFE = 3;
-    const MIN_STAR_LIFE = 1;
+      const size = random(CONSTANTS.MAX_STAR_SIZE, CONSTANTS.MIN_STAR_SIZE);
+      
+      const startX = random(
+        sparkle.offsetWidth * 0.75,
+        sparkle.offsetWidth * 0.25
+      );
+      const startY = sparkle.offsetHeight / 2 - size / 2;
 
-    const MAX_STAR_SIZE = 40;
-    const MIN_STAR_SIZE = 20;
+      const xDir = randomDirection();
+      const yDir = randomDirection();
 
-    const MIN_STAR_TRAVEL_X = 120;
-    const MIN_STAR_TRAVEL_Y = 150;
+      const xMaxTravel = xDir === -1 ? startX : sparkle.offsetWidth - startX - size;
+      const yMaxTravel = sparkle.offsetHeight / 2 - size;
 
-    const randomLimitedColor = () => {
-      const randomHue = (() => {
-        const ranges = [
-          { min: 120, max: 150 }, // Blues
-          { min: 270, max: 290 }, // Violets/Purples
-          { min: 45, max: 60 }, // Yellows and Golds
-        ];
-        const range = ranges[Math.floor(Math.random() * ranges.length)];
-        return (
-          Math.floor(Math.random() * (range.max - range.min + 1)) + range.min
-        );
-      })();
+      const xTravelDist = random(xMaxTravel, CONSTANTS.MIN_STAR_TRAVEL_X);
+      const yTravelDist = random(yMaxTravel, CONSTANTS.MIN_STAR_TRAVEL_Y);
 
-      return `hsla(${randomHue}, 100%, 50%, 1)`;
-    };
+      const endX = startX + xTravelDist * xDir;
+      const endY = startY + yTravelDist * yDir;
 
-    const Star = class {
-      constructor() {
-        this.size = this.random(MAX_STAR_SIZE, MIN_STAR_SIZE);
+      const life = random(CONSTANTS.MAX_STAR_LIFE, CONSTANTS.MIN_STAR_LIFE);
 
-        this.x = this.random(
-          sparkle.offsetWidth * 0.75,
-          sparkle.offsetWidth * 0.25
-        );
-        this.y = sparkle.offsetHeight / 2 - this.size / 2;
+      const starElement = getStarElement();
+      
+      // Set all styles at once with cssText for better performance
+      starElement.style.cssText = `
+        --start-left: ${startX}px;
+        --start-top: ${startY}px;
+        --end-left: ${endX}px;
+        --end-top: ${endY}px;
+        --star-life: ${life}ms;
+        --star-life-num: ${life / 1000};
+        --star-size: ${size}px;
+        --star-color: ${getRandomColor()};
+      `;
 
-        this.x_dir = this.randomMinus();
-        this.y_dir = this.randomMinus();
+      const star = {
+        element: starElement,
+        life,
+        startTime: Date.now()
+      };
 
-        this.x_max_travel =
-          this.x_dir === -1 ? this.x : sparkle.offsetWidth - this.x - this.size;
-        this.y_max_travel = sparkle.offsetHeight / 2 - this.size;
+      stars.push(star);
+      sparkle.appendChild(starElement);
 
-        this.x_travel_dist = this.random(this.x_max_travel, MIN_STAR_TRAVEL_X);
-        this.y_travel_dist = this.random(this.y_max_travel, MIN_STAR_TRAVEL_Y);
-
-        this.x_end = this.x + this.x_travel_dist * this.x_dir;
-        this.y_end = this.y + this.y_travel_dist * this.y_dir;
-
-        this.life = this.random(MAX_STAR_LIFE, MIN_STAR_LIFE);
-
-        this.star = document.createElement("div");
-        this.star.classList.add("star");
-
-        this.star.style.setProperty("--start-left", this.x + "px");
-        this.star.style.setProperty("--start-top", this.y + "px");
-
-        this.star.style.setProperty("--end-left", this.x_end + "px");
-        this.star.style.setProperty("--end-top", this.y_end + "px");
-
-        this.star.style.setProperty("--star-life", this.life + "s");
-        this.star.style.setProperty("--star-life-num", this.life);
-
-        this.star.style.setProperty("--star-size", this.size + "px");
-        this.star.style.setProperty("--star-color", randomLimitedColor());
-      }
-
-      draw() {
-        sparkle.appendChild(this.star);
-      }
-
-      pop() {
-        sparkle.removeChild(this.star);
-      }
-
-      random(max, min) {
-        return Math.floor(Math.random() * (max - min + 1)) + min;
-      }
-
-      randomMinus() {
-        return Math.random() > 0.5 ? 1 : -1;
-      }
-    };
-
-    let current_star_count = 0;
-    const intervalId = setInterval(() => {
-      if (current_star_count >= MAX_STARS) {
-        return;
-      }
-
-      current_star_count++;
-
-      const newStar = new Star();
-      newStar.draw();
-
+      // Schedule removal
       setTimeout(() => {
-        current_star_count--;
-        newStar.pop();
-      }, newStar.life * 1000);
-    }, STAR_INTERVAL);
+        const index = stars.indexOf(star);
+        if (index > -1) {
+          stars.splice(index, 1);
+          returnStarElement(star.element);
+        }
+      }, life);
+    };
+
+    const animate = (currentTime) => {
+      // Throttle star creation
+      if (currentTime - lastStarTime >= CONSTANTS.STAR_INTERVAL) {
+        createStar();
+        lastStarTime = currentTime;
+      }
+
+      animationId = requestAnimationFrame(animate);
+    };
+
+    animationId = requestAnimationFrame(animate);
 
     return () => {
-      clearInterval(intervalId);
+      if (animationId) {
+        cancelAnimationFrame(animationId);
+      }
+      
+      // Clean up all stars
+      stars.forEach(star => returnStarElement(star.element));
+      stars.length = 0;
     };
-  }, [withSparkle]);
+  }, [withSparkle, getRandomColor, random, randomDirection, getStarElement, returnStarElement]);
 
-  // If isLoading is passed and false, don't render anything
+  // Early return for non-loading state
   if (!isLoading && isLoading !== undefined) {
     return null;
   }
 
-  // Size presets
+  // Memoize size calculation
   const sizeMap = {
     small: "4rem",
-    medium: "6rem",
+    medium: "6rem", 
     large: "9rem",
     fullscreen: "9rem"
   };
 
   const coinSize = sizeMap[size] || size;
+  const isFullscreen = size === "fullscreen";
 
   return (
-    <div className={`coin-loader-page-wrapper ${size === "fullscreen" ? "fullscreen" : ""}`}>
+    <div className={`coin-loader-page-wrapper ${isFullscreen ? "fullscreen" : ""}`}>
       <div className="coin-loader-wrapper">
         <div 
           ref={sparkleRef}
@@ -157,9 +189,7 @@ const CoinLoader = ({ size = "small", showText = true, withSparkle = true, isLoa
             </div>
           </div>
         </div>
-        {showText && (
-          <div className="coin-loader-text">Loading...</div>
-        )}
+      
       </div>
     </div>
   );

@@ -32,6 +32,7 @@ import styles from "../../styles/MusicPlayer.module.css";
 import { useEffect, useState } from "react";
 import { ClerkProvider } from "@clerk/nextjs";
 import { MusicProvider } from "../contexts/MusicContext";
+import GlobalMusicControl from "../components/GlobalMusicControl";
 
 function MyApp({ Component, pageProps }) {
   const router = useRouter();
@@ -193,6 +194,8 @@ function MyApp({ Component, pageProps }) {
                 <Component {...pageProps} is80sMode={is80sMode} setIs80sMode={setIs80sMode} />
               </ThemeProvider>
             </div>
+            {/* Global Music Control - disabled, using page-specific controls */}
+            {/* <GlobalMusicControl /> */}
             </MusicProvider>
           </ChakraProvider>
         </ThirdwebProvider>

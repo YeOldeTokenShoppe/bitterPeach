@@ -21,10 +21,8 @@ const MusicPlayer3 = React.forwardRef(
     const currentTrackIndexRef = useRef(0);
     const isInitializedRef = useRef(false);
     const lastModeRef = useRef(is80sMode);
-    const audioRef = useRef(null);
-    
-    // Get context functions but not the audio element
-    const { setCurrentTrackBPM, setCurrentTrackIndex: setContextTrackIndex } = useMusic();
+    // Get shared audio element and context functions from MusicContext
+    const { audioRef, setCurrentTrackBPM, setCurrentTrackIndex: setContextTrackIndex, setIsPlaying: setContextIsPlaying, isPlaying: contextIsPlaying } = useMusic();
     
     // Track lists
     const non80sTracks = [
@@ -220,25 +218,14 @@ const MusicPlayer3 = React.forwardRef(
       }
     };
     
-    // Create audio element once on mount
+    // Update volume when it changes
     useEffect(() => {
-      if (!audioRef.current) {
-        const audio = new Audio();
-        audio.volume = volume;
-        audio.preload = 'metadata';
-        audioRef.current = audio;
+      if (audioRef.current) {
+        audioRef.current.volume = volume;
       }
-      
-      return () => {
-        // Clean up on unmount
-        if (audioRef.current) {
-          audioRef.current.pause();
-          audioRef.current.src = '';
-        }
-      };
-    }, []);
+    }, [volume, audioRef]);
     
-    // Initialize first track
+    // Initialize first track - but only if music isn't already playing
     useEffect(() => {
       if (lastModeRef.current !== is80sMode) {
         lastModeRef.current = is80sMode;
@@ -247,11 +234,22 @@ const MusicPlayer3 = React.forwardRef(
         isInitializedRef.current = false;
       }
       
-      if (isVisible && currentPlaylist.length > 0 && !isInitializedRef.current) {
+      // Check if audio is already playing from another page
+      const isAudioAlreadyPlaying = audioRef.current && audioRef.current.src && !audioRef.current.paused;
+      
+      // If audio is already playing, sync our state with it
+      if (isAudioAlreadyPlaying) {
+        setIsPlaying(true);
+        isInitializedRef.current = true;
+        return; // Don't load a new track
+      }
+      
+      // Only load track if not already initialized and autoPlay is true
+      if (isVisible && currentPlaylist.length > 0 && !isInitializedRef.current && autoPlay) {
         isInitializedRef.current = true;
         loadTrack(0);
       }
-    }, [isVisible, currentPlaylist.length, loadTrack, is80sMode]);
+    }, [isVisible, currentPlaylist.length, loadTrack, is80sMode, autoPlay, audioRef]);
     
     // Handle track end
     useEffect(() => {
@@ -263,10 +261,12 @@ const MusicPlayer3 = React.forwardRef(
       
       const handlePlay = () => {
         setIsPlaying(true);
+        if (setContextIsPlaying) setContextIsPlaying(true);
       };
       
       const handlePause = () => {
         setIsPlaying(false);
+        if (setContextIsPlaying) setContextIsPlaying(false);
       };
       
       const handleTimeUpdate = () => {

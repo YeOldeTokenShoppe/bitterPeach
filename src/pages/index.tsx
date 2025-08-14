@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import SkullMirrorViewer from "../components/3DVotiveStand/MirrorView";
 import SynthRoad from "../components/3DVotiveStand/SynthRoad";
 import PalmTreeDrive from "../components/PalmTreeDrive";
@@ -6,6 +6,7 @@ import NoiseParticleEffect from "../components/NoiseParticleEffect";
 import BookAnimation from "../components/Book";
 import Synthwave from "../components/Synthwave";
 import PalmTreeIsland from "../components/PalmTreeIsland";
+import AppLoader from "../components/AppLoader";
 import Link from "next/link";
 
 
@@ -15,7 +16,9 @@ import Link from "next/link";
 export default function SamplePage() {
 
   const [isLoading, setIsLoading] = useState(true);
+  const [isSceneLoading, setIsSceneLoading] = useState(true);
   const [isMobileView, setIsMobileView] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
     // Detect if device is actually a phone (not tablet or desktop)
     const detectMobileDevice = useCallback(() => {
@@ -75,16 +78,26 @@ export default function SamplePage() {
         
         return isMobile;
       }, []);
+
+  // Track initial load - set to false after first scene load completes
+  useEffect(() => {
+    if (!isSceneLoading && isInitialLoad) {
+      setIsInitialLoad(false);
+    }
+  }, [isSceneLoading, isInitialLoad]);
+
   return (
     <div style={{ width: '100vw', minHeight: '100vh' }}>
-         <div className="textLight" id="textLight" style={{
-          position: "absolute",
+         <div style={{
+          position: "fixed",
           top: "20px", 
           left: "20px",
-          zIndex: 100, // Ensure it's above the scene if opaque
+          zIndex: 10000, // Increased to ensure it stays on top
           borderRadius: "8px",
           padding: "10px",
-          pointerEvents: "auto"
+          pointerEvents: "auto",
+          opacity: isSceneLoading ? 0 : 1,
+          transition: "opacity 0.5s ease-in-out"
         }}>
           <div 
             id="text"
@@ -131,7 +144,31 @@ export default function SamplePage() {
       {/* <NoiseParticleEffect /> */}
       {/* <BookAnimation /> */}
       {/* <PalmTreeIsland /> */}
-      <PalmTreeDrive />
+      
+      {/* Show AppLoader when scene is loading */}
+      {isSceneLoading && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: '#000',
+          zIndex: 9999
+        }}>
+          <AppLoader 
+            isInitialLoad={isInitialLoad}
+            size="large"
+            showText={true}
+            withSparkle={!isInitialLoad}
+          />
+        </div>
+      )}
+      
+      <PalmTreeDrive onLoadingChange={setIsSceneLoading} />
     
     </div>
   );

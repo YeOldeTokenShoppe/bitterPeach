@@ -464,12 +464,12 @@ export default function GalleryPage() {
       {/* Loader with progress */}
       {isLoading && <CoinLoader size="fullscreen" showText={false} withSparkle={true} />}
 
-      {/* Main content */}
-      <div className="textLight" id="textLight" style={{
-          position: "absolute",
+      {/* Main content - RL80 Logo */}
+      <div style={{
+          position: "fixed",
           top: "20px", 
           left: "20px",
-          zIndex: 100, // Ensure it's above the scene if opaque
+          zIndex: 10000, // Increased z-index to ensure it stays on top
           borderRadius: "8px",
           padding: "10px",
           pointerEvents: "auto"
@@ -594,7 +594,7 @@ export default function GalleryPage() {
         </div>
       )}
       
-      {/* Desktop controls for Music and 80s Mode - matching mobile UI exactly */}
+      {/* Desktop controls for Music and 80s Mode */}
       {!isMobileView && !isLoading && (
         <>
           {/* Music toggle button OR compact player */}
@@ -783,14 +783,14 @@ export default function GalleryPage() {
       )}
       
       
-      {/* Music Player for Desktop (hidden audio) - matching mobile exactly */}
-      {!isMobileView && showSpotify && (
+      {/* Music Player for Desktop (hidden audio) - controlled by music button */}
+      {!isMobileView && (
         <div style={{ display: "none" }}>
           <MusicPlayer3
             ref={musicPlayerRef}
-            isVisible={showSpotify}
+            isVisible={true}
             onClose={() => setShowSpotify(false)}
-            autoPlay={true}
+            autoPlay={false}
             is80sMode={is80sMode}
           />
         </div>

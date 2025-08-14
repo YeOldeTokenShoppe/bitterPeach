@@ -7,11 +7,12 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import NoiseParticleEffect from './NoiseParticleEffect';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import CoinLoader from './CoinLoader';
 import dynamic from 'next/dynamic';
 import { useMusic } from '../contexts/MusicContext';
 import { IconButton, Box } from '@chakra-ui/react';
 import { useRouter } from 'next/router';
+import Link from 'next/link';
+
 
 // Dynamically import the Mobile Music Player component
 const SimpleMusicPlayer = dynamic(() => import('./SimpleMusicPlayer'), {
@@ -70,17 +71,28 @@ const textBlocks = [
   ]
 ];
 
-const PalmsScene = () => {
+const PalmsScene = ({ onLoadingChange }) => {
   const mountRef = useRef(null);
   const sceneRef = useRef(null);
   const rendererRef = useRef(null);
   const materialShadersRef = useRef([]);
   const clockRef = useRef(new THREE.Clock());
   // Cinematic states removed for production
-  const [isSceneLoading, setIsSceneLoading] = useState(true); // Loading state
+  const [isSceneLoadingInternal, setIsSceneLoadingInternal] = useState(true); // Loading state
+  
+  // Wrapper to update both internal state and parent
+  const setIsSceneLoading = useCallback((loading) => {
+    setIsSceneLoadingInternal(loading);
+    if (onLoadingChange) {
+      onLoadingChange(loading);
+    }
+  }, [onLoadingChange]);
+  
+  const isSceneLoading = isSceneLoadingInternal; // Use internal state for reading
   // Cinematic reverse removed
   const scrollCameraActive = true; // Scroll camera always active
   const [currentCameraStage, setCurrentCameraStage] = useState(0); // Track which camera position we're at
+  const [showEnterButton, setShowEnterButton] = useState(false); // Show "Take me there" button
   // Music player states
   const [showMobileMusicPlayer, setShowMobileMusicPlayer] = useState(false);
   const [musicPlayerVisible, setMusicPlayerVisible] = useState(false);
@@ -89,6 +101,9 @@ const PalmsScene = () => {
   const [musicPlayerControls, setMusicPlayerControls] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
   const audioRef = useRef(null);
+  
+  // Performance detection for loader optimization
+  const [isLowEndDevice, setIsLowEndDevice] = useState(false);
   
   // Get music context
   const { 
@@ -127,21 +142,130 @@ const PalmsScene = () => {
   const scrollCameraEnabledRef = useRef(true); // Initialize as true to match state
   const scrollProgressRef = useRef(0); // Start at 0 for aerial view
 
-  // Force initial scroll position on mount
+  // Force initial scroll position on mount and page load
   useEffect(() => {
+    // Scroll to top immediately
     window.scrollTo(0, 0);
+    
+    // Also handle page refresh/reload
+    if ('scrollRestoration' in history) {
+      history.scrollRestoration = 'manual';
+    }
+    
+    // Force scroll to top after a small delay to ensure DOM is ready
+    const resetScroll = () => {
+      window.scrollTo(0, 0);
+      setCurrentCameraStage(0);
+      scrollProgressRef.current = 0;
+    };
+    
+    // Reset on component mount
+    resetScroll();
+    
+    // Also reset after a small delay to catch any browser restoration
+    setTimeout(resetScroll, 10);
+    setTimeout(resetScroll, 100);
+    
+    // Handle page visibility changes (tab switching back)
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        resetScroll();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      // Re-enable scroll restoration on unmount
+      if ('scrollRestoration' in history) {
+        history.scrollRestoration = 'auto';
+      }
+    };
   }, []);
   
   // Check if mobile on mount and resize
   useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth <= 768);
+      // Check if it's a phone specifically (not just narrow screen)
+      const userAgent = navigator.userAgent.toLowerCase();
+      const isPhone = /iphone|android.*mobile/.test(userAgent);
+      const isNarrowScreen = window.innerWidth <= 768;
+      setIsMobile(isPhone && isNarrowScreen);
     };
     
     checkMobile();
     window.addEventListener('resize', checkMobile);
     
     return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+  
+  // Detect device performance capabilities
+  useEffect(() => {
+    const detectDevicePerformance = () => {
+      let isLowEnd = false;
+      
+      // Check for mobile device
+      const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      
+      // Check hardware concurrency (number of CPU cores)
+      const cores = navigator.hardwareConcurrency || 1;
+      if (cores <= 2) isLowEnd = true;
+      
+      // Check device memory if available
+      if ('deviceMemory' in navigator) {
+        // @ts-ignore - deviceMemory might not be in TypeScript definitions
+        if (navigator.deviceMemory <= 4) isLowEnd = true;
+      }
+      
+      // Check connection speed if available
+      if ('connection' in navigator) {
+        // @ts-ignore - connection might not be in TypeScript definitions
+        const connection = navigator.connection;
+        if (connection && connection.effectiveType) {
+          if (connection.effectiveType === 'slow-2g' || 
+              connection.effectiveType === '2g' || 
+              connection.effectiveType === '3g') {
+            isLowEnd = true;
+          }
+        }
+      }
+      
+      // Check screen size for very small devices
+      if (window.screen.width < 400 || window.screen.height < 400) {
+        isLowEnd = true;
+      }
+      
+      // For iOS devices, check older models
+      if (/iPhone/.test(navigator.userAgent)) {
+        // Check for older iPhone models (rough detection)
+        const canvas = document.createElement('canvas');
+        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+        if (gl) {
+          const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+          if (debugInfo) {
+            const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+            // Older PowerVR GPUs indicate older iPhones
+            if (renderer.includes('PowerVR')) isLowEnd = true;
+          }
+        }
+      }
+      
+      // Combine mobile + limited resources
+      if (isMobileDevice && cores <= 4) isLowEnd = true;
+      
+      setIsLowEndDevice(isLowEnd);
+      
+      // Log detection results for debugging
+      console.log('Device Performance Detection:', {
+        isLowEnd,
+        cores,
+        isMobile: isMobileDevice,
+        screenSize: { width: window.screen.width, height: window.screen.height }
+      });
+    };
+    
+    detectDevicePerformance();
   }, []);
   
   // Handle text transitions when camera stage changes
@@ -215,7 +339,6 @@ const PalmsScene = () => {
   const [maryGlowing, setMaryGlowing] = useState(false);
   const maryGlowingRef = useRef(false);
   const router = useRouter();
-  const routerRef = useRef(router);
   const raycaster = useRef(new THREE.Raycaster());
   const mouse = useRef(new THREE.Vector2());
   const previousCameraStage = useRef(0);
@@ -363,9 +486,24 @@ const PalmsScene = () => {
     // camera.position.copy(initialKeyframes[0].position);
     // camera.lookAt(initialKeyframes[0].target);
     
-    // Start camera at aerial view position
-    camera.position.set(16.2711, 5.8264, 40.5498);
-    camera.lookAt(4.3726, 2.1681, 20.7525);
+    // Detect if device is mobile for initial camera position
+    const isMobileDevice = (() => {
+      const userAgent = navigator.userAgent.toLowerCase();
+      const isIPhone = /iphone/i.test(userAgent);
+      const isAndroid = /android/i.test(userAgent) && /mobile/i.test(userAgent);
+      const hasSmallScreen = window.innerWidth < 600 || window.innerHeight < 600;
+      const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      return (isIPhone || isAndroid) && hasSmallScreen && hasTouch;
+    })();
+    
+    // Start camera at aerial view position based on device type
+    if (isMobileDevice) {
+      camera.position.set(17.5605, 12.0910, 55.1540);  // Mobile aerial view
+      camera.lookAt(3.0669, 6.0868, 20.1252);           // Mobile initial target
+    } else {
+      camera.position.set(16.2711, 5.8264, 40.5498);    // Desktop aerial view
+      camera.lookAt(4.3726, 2.1681, 20.7525);           // Desktop initial target
+    }
     camera.fov = 45;
     camera.updateProjectionMatrix();
     cameraRef.current = camera;
@@ -395,7 +533,11 @@ const PalmsScene = () => {
     
     const gradientTexture = new THREE.CanvasTexture(gradientCanvas);
     scene.background = gradientTexture;
-    scene.fog = new THREE.Fog(0xff7f50, 35, 60); // Coral fog for sunset atmosphere
+    // Adjustable fog settings - increase distances to reduce white-out effect
+    // Parameters: (color, near distance, far distance)
+    // Near: where fog starts to appear
+    // Far: where fog becomes fully opaque
+    scene.fog = new THREE.Fog(0xff7f50, 50, 100); // Increased distances for less white-out
     
     // Sunset environment lighting
     // Warm ambient light with orange/pink tones
@@ -436,16 +578,30 @@ const PalmsScene = () => {
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
     controls.screenSpacePanning = true; // Allow panning in screen space
-    controls.minDistance = 0.001;
-    controls.maxDistance = 80;
+    controls.minDistance = 0.1;
+    controls.maxDistance = 0;
     controls.maxPolarAngle = Math.PI * 0.5; // Initial limit - will be dynamic
     controls.minPolarAngle = 0; // Prevent camera from flipping
-    controls.target.set(2.5729, 1.0383, 22.2069); // Target from user coordinates
+    // Set initial target to match the camera's lookAt position based on device
+    if (isMobileDevice) {
+      controls.target.set(3.0669, 6.0868, 20.1252); // Mobile initial target
+    } else {
+      controls.target.set(4.3726, 2.1681, 20.7525); // Desktop initial target
+    }
     controls.zoomToCursor = true;
-    controls.enabled = !scrollCameraEnabledRef.current; // Disable controls if scroll camera is enabled
-    controls.update();
+    controls.enabled = false; // Start with controls disabled since scroll camera is active
+    // Don't call controls.update() here - it repositions the camera even when disabled
     controlsRef.current = controls; // Store ref for access in event handlers
     
+    // Re-set camera position after OrbitControls creation to ensure it stays at aerial view
+    if (isMobileDevice) {
+      camera.position.set(17.5605, 12.0910, 55.1540);  // Mobile aerial view
+      camera.lookAt(3.0669, 6.0868, 20.1252);           // Mobile initial target
+    } else {
+      camera.position.set(16.2711, 5.8264, 40.5498);    // Desktop aerial view
+      camera.lookAt(4.3726, 2.1681, 20.7525);           // Desktop initial target
+    }
+    camera.updateProjectionMatrix();
 
     // Ground and road
     const planeGeom = new THREE.PlaneGeometry(100, 100, 200, 200);
@@ -579,7 +735,7 @@ const PalmsScene = () => {
       return t * t * (3 - 2 * t);
     }
 
-    // Load Palm Tree GLB
+    // Load Palm Tree GLB with error handling
     loader.load('/palm2.glb', (gltf) => {
       const palmModel = gltf.scene;
       
@@ -1788,9 +1944,27 @@ const PalmsScene = () => {
       scrollProgressRef.current = 0;
       setCurrentCameraStage(0);
       
-      // Set initial camera position explicitly to aerial view
-      const initialPos = { x: 16.2711, y: 5.8264, z: 40.5498 };
-      const initialTarget = { x: 4.3726, y: 2.1681, z: 20.7525 };
+      // Detect if device is mobile (phone, not tablet)
+      const isMobile = (() => {
+        const userAgent = navigator.userAgent.toLowerCase();
+        const isIPhone = /iphone/i.test(userAgent);
+        const isAndroid = /android/i.test(userAgent) && /mobile/i.test(userAgent);
+        const hasSmallScreen = window.innerWidth < 600 || window.innerHeight < 600;
+        const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        return (isIPhone || isAndroid) && hasSmallScreen && hasTouch;
+      })();
+      
+      console.log('Mobile device detected:', isMobile);
+      
+      // Set initial camera position based on device type
+      const initialPos = isMobile 
+        ? { x: 17.5605, y: 12.0910, z: 55.1540 }  // Mobile aerial view
+        : { x: 16.2711, y: 5.8264, z: 40.5498 };   // Desktop aerial view
+      
+      const initialTarget = isMobile
+        ? { x: 3.0669, y: 6.0868, z: 20.1252 }     // Mobile initial target
+        : { x: 4.3726, y: 2.1681, z: 20.7525 };    // Desktop initial target
+      
       const initialFov = 45;
       
       cameraRef.current.position.set(initialPos.x, initialPos.y, initialPos.z);
@@ -1805,7 +1979,8 @@ const PalmsScene = () => {
       
       // Create a simple timeline for camera movement
       const tl = gsap.timeline({
-        defaults: { ease: "none" }
+        defaults: { ease: "none" },
+        paused: true // Ensure timeline doesn't auto-play
       });
       
       // Define camera path from aerial to Mary's face
@@ -1820,121 +1995,272 @@ const PalmsScene = () => {
         fov: initialFov
       };
       
-      // Your custom camera path with smooth transitions
-      // Waypoint 1: Behind and above (first movement from aerial)
-      tl.to(cameraPath, {
-        x: 0.8114,
-        y: 3.8097,
-        z: 36.9146,
-        targetX: 0.6379,
-        targetY: 1.7031,
-        targetZ: 23.6150,
-        fov: 42.106054,
-        duration: 0.2,
-        ease: "power2.inOut"
-      })
-      // Waypoint 2: Side view at car level
-      .to(cameraPath, {
-        x: -12.6434,
-        y: 3.9412,
-        z: 20.5192,
-        targetX: 0.6205,
-        targetY: 1.7849,
-        targetZ: 23.5889,
-        fov: 42.106054,
-        duration: 0.2,
-        ease: "power2.inOut"
-      })
-      // Waypoint 3: Low front angle
-      .to(cameraPath, {
-        x: -0.7692,
-        y: 3.9049,
-        z: 10.1399,
-        targetX: 0.6226,
-        targetY: 1.7644,
-        targetZ: 23.5831,
-        fov: 42.106054,
-        duration: 0.15,
-        ease: "power2.inOut"
-      })
-      // Waypoint 4: Approaching car from behind
-      .to(cameraPath, {
-        x: 3.2883,
-        y: 1.7877,
-        z: 26.5226,
-        targetX: 1.4980,
-        targetY: 1.3718,
-        targetZ: 22.9299,
-        fov: 38,
-        duration: 0.15,
-        ease: "power2.inOut"
-      })
-      // Waypoint 5: Close to dashboard
-      .to(cameraPath, {
-        x: 2.3730,
-        y: 1.1926,
-        z: 26.0807,
-        targetX: 1.6639,
-        targetY: 1.3046,
-        targetZ: 22.9043,
-        fov: 30,
-        duration: 0.15,
-        ease: "power2.inOut"
-      })
-      // Final close-up: Face to face with Mary
-      .to(cameraPath, {
-        x: 2.4696,
-        y: 1.1750,
-        z: 24.3635,
-        targetX: 2.9739,
-        targetY: 0.9938,
-        targetZ: 21.3748,
-        fov: 33,
-        duration: 0.25,  // Longer duration for final position
-        ease: "none"  // Linear easing to ensure exact final position
-
-      });
+      // Use different camera paths for mobile vs desktop
+      if (isMobile) {
+        // Mobile camera sequence - smooth flow without reversals
+        // Mobile waypoint 1: Approach from above
+        tl.to(cameraPath, {
+          x: 1.0987,
+          y: 4.8203,
+          z: 36.7389,
+          targetX: 1.1492,
+          targetY: 2.2977,
+          targetZ: 23.3133,
+          fov: 44.995111,
+          duration: 0.2,
+          ease: "power2.inOut"
+        })
+        // Mobile waypoint 2: Dramatic side angle
+        .to(cameraPath, {
+          x: -7.7565,
+          y: 3.4606,
+          z: 9.1109,
+          targetX: 0.3402,
+          targetY: 0.9371,
+          targetZ: 22.4996,
+          fov: 44.833105,
+          duration: 0.2,
+          ease: "power2.inOut"
+        })
+        // Mobile waypoint 3: Move closer to interior
+        .to(cameraPath, {
+          x: 2.8016,
+          y: 1.3315,
+          z: 19.6750,
+          targetX: 2.3361,
+          targetY: 1.5058,
+          targetZ: 22.1126,
+          fov: 44.832617,
+          duration: 0.15,
+          ease: "power2.inOut"
+        })
+        // Mobile waypoint 4: Pull back for wider view
+        .to(cameraPath, {
+          x: 2.8681, y: 2.2216, z: 27.6469, targetX: 2.0688, targetY: 1.2227, targetZ: 24.1144,
+          fov: 44.832617,
+          duration: 0.15,
+          ease: "power2.inOut"
+        })
+        // Mobile final: Close-up Mary - smoother transition
+        .to(cameraPath, {
+          x: 2.5423, y: 1.3140, z: 25.2827, targetX: 2.4213, targetY: 1.2304, targetZ: 24.0603,
+          fov: 44.832617,
+          duration: 0.15,
+          ease: "power2.inOut"  // Smoother easing for the final approach
+        })
+        .to(cameraPath, {
+          x: 2.4853, y: 1.1738, z: 24.3400, targetX: 2.4593, targetY: 1.1558, targetZ: 24.0773,
+          fov: 44.832617,
+          duration: 0.25,
+          ease: "power2.inOut"  // Smoother easing for the final approach
+        });
+        
+        
+        ;
+      } else {
+        // Desktop camera sequence - original path
+        // Waypoint 1: Behind and above (first movement from aerial)
+        tl.to(cameraPath, {
+          x: 0.8114,
+          y: 3.8097,
+          z: 36.9146,
+          targetX: 0.6379,
+          targetY: 1.7031,
+          targetZ: 23.6150,
+          fov: 42.106054,
+          duration: 0.2,
+          ease: "power2.inOut"
+        })
+        // Waypoint 2: Side view at car level
+        .to(cameraPath, {
+          x: -12.6434,
+          y: 3.9412,
+          z: 20.5192,
+          targetX: 0.6205,
+          targetY: 1.7849,
+          targetZ: 23.5889,
+          fov: 42.106054,
+          duration: 0.2,
+          ease: "power2.inOut"
+        })
+        // Waypoint 3: Low front angle
+        .to(cameraPath, {
+          x: -0.7692,
+          y: 3.9049,
+          z: 10.1399,
+          targetX: 0.6226,
+          targetY: 1.7644,
+          targetZ: 23.5831,
+          fov: 42.106054,
+          duration: 0.15,
+          ease: "power2.inOut"
+        })
+        // Waypoint 4: Approaching car from behind
+        .to(cameraPath, {
+          x: 3.2883,
+          y: 1.7877,
+          z: 26.5226,
+          targetX: 1.4980,
+          targetY: 1.3718,
+          targetZ: 22.9299,
+          fov: 38,
+          duration: 0.15,
+          ease: "power2.inOut"
+        })
+        // Waypoint 5: Close to dashboard
+        .to(cameraPath, {
+          x: 2.3730,
+          y: 1.1926,
+          z: 26.0807,
+          targetX: 1.6639,
+          targetY: 1.3046,
+          targetZ: 22.9043,
+          fov: 30,
+          duration: 0.15,
+          ease: "power2.inOut"
+        })
+        // Final close-up: Face to face with Mary
+        .to(cameraPath, {
+          x: 2.5268,
+          y: 1.1644,
+          z: 24.4943,
+          targetX: 2.4119,
+          targetY: 1.1506,
+          targetZ: 22.2732,
+          fov: 31.2576,
+          duration: 0.25,  // Longer duration for final position
+          ease: "none"  // Linear easing to ensure exact final position
+        });
+      }
   
       // Single onUpdate for the entire timeline
       tl.eventCallback("onUpdate", () => {
-        if (cameraRef.current && !controlsRef.current.enabled) {
+        if (cameraRef.current) {
+          // Always update camera during scroll animation, regardless of controls state
           cameraRef.current.position.set(cameraPath.x, cameraPath.y, cameraPath.z);
           cameraRef.current.lookAt(cameraPath.targetX, cameraPath.targetY, cameraPath.targetZ);
           cameraRef.current.fov = cameraPath.fov;
           cameraRef.current.updateProjectionMatrix();
           
           if (controlsRef.current) {
+            // Keep controls disabled during scroll animation
+            controlsRef.current.enabled = false;
             controlsRef.current.target.set(cameraPath.targetX, cameraPath.targetY, cameraPath.targetZ);
+            // Don't call update() during animation to prevent interference
+            // controlsRef.current.update();
           }
         }
+      });
+      
+      // Add completion callback to ensure final position is set
+      tl.eventCallback("onComplete", () => {
+        console.log('Timeline complete! Setting final camera position...');
+        if (cameraRef.current) {
+          // Force final position - matching the last waypoint for each platform
+          const finalPos = isMobile 
+            ? { x: 2.4853, y: 1.1738, z: 24.3400 }
+            : { x: 2.5268, y: 1.1644, z: 24.4943 };
+          
+          const finalTarget = isMobile
+            ? { x: 2.4593, y: 1.1558, z: 24.0773 }
+            : { x: 2.4119, y: 1.1506, z: 22.2732 };
+          
+          const finalFov = isMobile ? 44.832617 : 31.2576;
+          
+          cameraRef.current.position.set(finalPos.x, finalPos.y, finalPos.z);
+          cameraRef.current.lookAt(finalTarget.x, finalTarget.y, finalTarget.z);
+          cameraRef.current.fov = finalFov;
+          cameraRef.current.updateProjectionMatrix();
+          
+          if (controlsRef.current) {
+            controlsRef.current.target.set(finalTarget.x, finalTarget.y, finalTarget.z);
+            // Don't call update() here as controls should stay disabled
+          }
+        }
+        
+        // Show the "Take me there" button after a short delay
+        console.log('Timeline complete! Showing button in 1.5 seconds...');
+        setTimeout(() => {
+          console.log('Setting showEnterButton to true');
+          setShowEnterButton(true);
+        }, 1500); // 1.5 second delay after reaching Mary
       });
       
       // Create ScrollTrigger - use document scrolling
       const st = ScrollTrigger.create({
         trigger: document.body,
         start: "top top",
-        end: "+=3000", // 3000px of scrolling
-        scrub: true, // Smooth scrubbing
+        end: isMobile ? "bottom bottom" : "bottom bottom", // Use full document height
+        scrub: isMobile ? 2 : 0.5, // Increased scrub value for smoother touch scrolling
         animation: tl,
         markers: false, // Hide markers for cleaner view
         immediateRender: false, // Don't jump to end
+        normalizeScroll: false, // Disable - can interfere with native touch scrolling
+        anticipatePin: 0, // Reduce this to see if it helps
+        preventOverlaps: true, // Prevent scroll conflicts
+        fastScrollEnd: false, // Disable for better touch response
         onUpdate: (self) => {
           scrollProgressRef.current = self.progress;
           
-          // Update camera stage based on progress for text changes (5 text blocks)
+          // Debug logging for mobile
+          if (isMobile && (self.progress > 0.9 || self.progress === 1)) {
+            console.log(`Mobile scroll progress: ${self.progress.toFixed(3)}, Stage: ${currentCameraStage}`);
+          }
+          
+          // Update camera stage based on progress for text changes
           let stage = 0;
-          if (self.progress < 0.2) stage = 0;
-          else if (self.progress < 0.4) stage = 1;
-          else if (self.progress < 0.6) stage = 2;
-          else if (self.progress < 0.8) stage = 3;
-          else stage = 4; // Final text block for the ultimate close-up
+          if (isMobile) {
+            // Mobile has 5 waypoints (plus initial = 6 positions)
+            // Distribute 5 text blocks evenly across the journey
+            if (self.progress < 0.2) stage = 0;        // Initial to first waypoint
+            else if (self.progress < 0.4) stage = 1;   // First to second waypoint
+            else if (self.progress < 0.6) stage = 2;   // Second to third waypoint
+            else if (self.progress < 0.8) stage = 3;   // Third to fourth waypoint
+            else stage = 4;                             // Fourth to final waypoint
+          } else {
+            // Desktop has 6 waypoints, 5 text blocks
+            if (self.progress < 0.2) stage = 0;
+            else if (self.progress < 0.4) stage = 1;
+            else if (self.progress < 0.6) stage = 2;
+            else if (self.progress < 0.8) stage = 3;
+            else stage = 4; // Final text block for the ultimate close-up
+          }
           
           setCurrentCameraStage(stage);
-          // console.log('Scroll progress:', self.progress, 'Stage:', stage);
+          
+          // Show button when we reach final stage on mobile
+          if (isMobile && stage === 4 && !window.mobileButtonTriggered) {
+            console.log('Mobile reached final stage, showing button');
+            window.mobileButtonTriggered = true;
+            setTimeout(() => {
+              console.log('Setting showEnterButton to true for mobile');
+              setShowEnterButton(true);
+            }, 1500);
+          }
+          
+          // Show button when we're very close to the end (desktop)
+          if (!isMobile && self.progress >= 0.95 && !window.buttonTriggered) {
+            console.log('Desktop progress >= 95%, triggering button show');
+            window.buttonTriggered = true;
+            setTimeout(() => {
+              console.log('Setting showEnterButton to true from progress check');
+              setShowEnterButton(true);
+            }, 1500);
+          }
         }
       });
       
       console.log('ScrollTrigger created:', st);
+      
+      // Force timeline to start at beginning
+      tl.progress(0);
+      tl.pause();
+      
+      // Force camera back to initial position after ScrollTrigger creation
+      cameraRef.current.position.set(initialPos.x, initialPos.y, initialPos.z);
+      cameraRef.current.lookAt(initialTarget.x, initialTarget.y, initialTarget.z);
+      cameraRef.current.fov = initialFov;
+      cameraRef.current.updateProjectionMatrix();
       
       // Force refresh to ensure proper initialization
       st.refresh();
@@ -1943,6 +2269,41 @@ const PalmsScene = () => {
     
     // Set up scroll animation after a short delay to ensure scene is ready
     setTimeout(() => {
+      // Enable ScrollTrigger for mobile with better touch handling
+      ScrollTrigger.config({
+        ignoreMobileResize: true,
+        autoRefreshEvents: "visibilitychange,DOMContentLoaded,load,resize",
+        // Force ScrollTrigger to recognize touch events
+        touch: true, // Enable touch-scrolling (use boolean true)
+        syncInterval: 20, // Sync more frequently for smoother updates
+        force3D: true, // Force hardware acceleration
+        limitCallbacks: true // Optimize performance
+      });
+      
+      // Ensure the page is scrollable on mobile
+      if (isMobile) {
+        // Configure body and html for proper touch scrolling
+        document.body.style.overscrollBehavior = 'auto';
+        document.documentElement.style.overscrollBehavior = 'auto';
+        document.body.style.touchAction = 'manipulation'; // Better than pan-y for general touch
+        document.body.style.webkitOverflowScrolling = 'touch';
+        document.body.style.overflow = 'auto';
+        document.body.style.height = 'auto';
+        document.body.style.position = 'relative';
+        
+        // Also configure HTML element
+        document.documentElement.style.overflow = 'auto';
+        document.documentElement.style.height = 'auto';
+        document.documentElement.style.touchAction = 'manipulation';
+        
+        // Ensure the scroll container is touch-enabled
+        const scrollContainer = document.getElementById('scroll-container');
+        if (scrollContainer) {
+          scrollContainer.style.webkitOverflowScrolling = 'touch';
+          scrollContainer.style.touchAction = 'manipulation';
+        }
+      }
+      
       setupScrollAnimation();
     }, 100);
     
@@ -2125,8 +2486,10 @@ const PalmsScene = () => {
           controls.maxPolarAngle = Math.PI * 0.45; // ~81 degrees
         }
         
-        // Update orbit controls
-        controls.update();
+        // Only update orbit controls if they're enabled (not during scroll animation)
+        if (controls.enabled) {
+          controls.update();
+        }
       }
       
       // Render the scene
@@ -2221,12 +2584,20 @@ const PalmsScene = () => {
         const intersects = raycaster.current.intersectObject(maryMeshRef.current, true);
         // console.log('Mary intersects found:', intersects.length);
         
-        // if (intersects.length > 0) {
-        //   console.log('Mary clicked! Navigating to cyborg temple...');
-        //   // Navigate to gallery
-        //   routerRef.current.push('/cyborg-temple');
-        //   return;
-        // }
+        if (intersects.length > 0) {
+          console.log('Mary clicked! Navigating to gallery...');
+          
+          // Add fade out transition before navigating
+          gsap.to(mountRef.current, {
+            opacity: 0,
+            duration: 1.5,
+            ease: "power2.inOut",
+            onComplete: () => {
+              router.push('/gallery');
+            }
+          });
+          return;
+        }
       }
       
       // Fallback: check intersection with entire car model
@@ -2241,8 +2612,17 @@ const PalmsScene = () => {
             const distance = intersect.point.distanceTo(maryPos);
             // console.log('Intersection distance from Mary position:', distance);
             if (distance < 2) { // Within 2 units of Mary's position
-              // console.log('Close to Mary! Navigating to gallery...');
-              routerRef.current.push('/cyborg-temple');
+              console.log('Close to Mary! Navigating to gallery...');
+              
+              // Add fade out transition before navigating
+              gsap.to(mountRef.current, {
+                opacity: 0,
+                duration: 1.5,
+                ease: "power2.inOut",
+                onComplete: () => {
+                  router.push('/gallery');
+                }
+              });
               return;
             }
           }
@@ -2311,23 +2691,6 @@ const PalmsScene = () => {
         height: '100vh',
         backgroundColor: 'black'
       }}>
-        {/* Loading screen */}
-        {isSceneLoading && (
-          <div style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: 'black',
-            zIndex: 1000
-          }}>
-            <CoinLoader size="large" showText={false} withSparkle={true} />
-          </div>
-        )}
         
         {/* Three.js scene container */}
         <div style={{ 
@@ -2381,7 +2744,8 @@ const PalmsScene = () => {
             position: 'absolute', 
             top: 0, 
             left: 0,
-            pointerEvents: 'auto'
+            pointerEvents: 'none',  // Disabled since clicking Mary is no longer needed
+            zIndex: 1
           }}
         />
         
@@ -2525,16 +2889,44 @@ const PalmsScene = () => {
         )}
       </div>
       
-      {/* Music Player UI - Only show after scene is loaded */}
+      {/* Music Player UI - shows icon then minimal player when clicked */}
       {!isSceneLoading && !showMobileMusicPlayer ? (
-        // Music Icon Button
+        // Music Icon Button wrapped in div for better event handling
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '2rem',
+            right: isMobile ? '20px' : '2rem',
+            zIndex: 99999,
+            pointerEvents: 'auto',
+            cursor: 'pointer'
+          }}
+          onClick={() => {
+            console.log('🎵 Music icon clicked (div wrapper)');
+            setUserClosedMusic(false);
+            
+            if (contextShowSpotify && contextIsPlaying) {
+              // Music is already playing, just show the UI
+              setShowMobileMusicPlayer(true);
+              setMusicPlayerVisible(true);
+            } else {
+              // Start fresh music playback
+              setShowMobileMusicPlayer(true);
+              setMusicPlayerVisible(true);
+              setContextShowSpotify(true);
+              
+              // Trigger auto-play after a delay
+              setTimeout(() => {
+                if (musicPlayerControls && musicPlayerControls.play) {
+                  musicPlayerControls.play();
+                }
+              }, 500);
+            }
+          }}
+        >
         <IconButton
-          position="fixed"
-          // top={isMobile ? "20px" : "auto"}
-          // bottom={isMobile ? "auto" : "2rem"}
-          bottom="2rem"
-          right={isMobile ? "20px" : "2rem"}
-          zIndex="1100"
+          position="relative"
+          zIndex={99999}
           aria-label="Music Player"
           icon={
             <svg width={isMobile ? "24" : "2.5rem"} height={isMobile ? "24" : "2.5rem"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -2546,36 +2938,11 @@ const PalmsScene = () => {
           color="white"
           bg="transparent"
           size="md"
-          onClick={() => {
-            console.log('🎵 Music icon clicked');
-            setUserClosedMusic(false);
-            
-            if (contextShowSpotify && contextIsPlaying) {
-              // Music is already playing, just show the UI
-              // console.log('🎵 Music already playing, showing UI');
-              setShowMobileMusicPlayer(true);
-              setMusicPlayerVisible(true);
-            } else {
-              // Start fresh music playback
-              setShowMobileMusicPlayer(true);
-              setMusicPlayerVisible(true);
-              setContextShowSpotify(true);
-              
-              // Trigger auto-play after a delay to ensure player and track are ready
-              setTimeout(() => {
-                if (musicPlayerControls && musicPlayerControls.play) {
-                  // console.log('🎵 Auto-playing music after icon click');
-                  musicPlayerControls.play();
-                } else {
-                  // console.log('🎵 Controls not ready yet, will auto-play when ready');
-                }
-              }, 500); // Increased delay to ensure track is loaded
-            }
-          }}
           _hover={{
             bg: "rgba(255, 255, 255, 0.1)",
           }}
         />
+        </div>
       ) : !isSceneLoading ? (
         // Minimal Music Player with overlay to block 3D interactions
         <>
@@ -2715,7 +3082,7 @@ const PalmsScene = () => {
         </>
       ) : null}
       
-      {/* Hidden Music Player Component */}
+      {/* Hidden Music Player Component - No auto-start */}
       {showMobileMusicPlayer && (
         <Box display="none">
           <SimpleMusicPlayer
@@ -2798,26 +3165,152 @@ const PalmsScene = () => {
             ))}
           </div>
           
-          {/* Scroll hint */}
-          <div style={{
-            marginTop: '30px',
-            fontSize: '12px',
-            color: 'white',
-            opacity: 0.5,
-            textAlign: 'center',
-            fontFamily: 'monospace',
-            animation: 'pulse 2s ease-in-out infinite',
-          }}>
-            scroll to continue
-          </div>
+          {/* Scroll hint - hide when button appears */}
+          {!showEnterButton && (
+            <div style={{
+              marginTop: '30px',
+              fontSize: '12px',
+              color: 'white',
+              opacity: 0.5,
+              textAlign: 'center',
+              fontFamily: 'monospace',
+              animation: 'pulse 2s ease-in-out infinite',
+            }}>
+              scroll to continue
+            </div>
+          )}
+          
+        </div>
+      )}
+      
+      {/* "Take me there" button - moved outside of text section */}
+      {!isSceneLoading && scrollCameraActive && showEnterButton && (
+        <div style={{
+          position: 'fixed',
+          right: isMobile ? '20px' : '15%',
+          bottom: '100px',
+          width: isMobile ? '70%' : '40%',
+          maxWidth: '600px',
+          opacity: showEnterButton ? 1 : 0,
+          transition: 'opacity 2s ease-in',
+          textAlign: 'center',
+          zIndex: 100000,
+          pointerEvents: 'auto',
+          touchAction: 'auto',
+        }}>
+          <style jsx>{`
+                @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap');
+                
+                .cyberpunk, .cyberpunk::after {
+                  padding: 10px 25px;
+                  text-decoration: none;
+                  font-size: 18px;
+                  font-family: 'Bebas Neue', cursive;
+                  background: linear-gradient(45deg, transparent 5%, #FF013C 5%);
+                  border: 0;
+                  color: #fff;
+                  letter-spacing: 2px;
+                  box-shadow: 4px 0px 0px #00E6F6;
+                  outline: transparent;
+                  position: relative;
+                  cursor: pointer;
+                  z-index: 10001;
+                }
+
+                .cyberpunk::after {
+                  --slice-0: inset(50% 50% 50% 50%);
+                  --slice-1: inset(80% -6px 0 0);
+                  --slice-2: inset(50% -6px 30% 0);
+                  --slice-3: inset(10% -6px 85% 0);
+                  --slice-4: inset(40% -6px 43% 0);
+                  --slice-5: inset(80% -6px 5% 0);
+                  
+                  content: 'Take Me There';
+                  display: block;
+                  position: absolute;
+                  top: 0;
+                  left: 0;
+                  right: 0;
+                  bottom: 0;
+                  background: linear-gradient(45deg, transparent 3%, #00E6F6 3%, #00E6F6 5%, #FF013C 5%);
+                  text-shadow: -2px -2px 0px #F8F005, 2px 2px 0px #00E6F6;
+                  clip-path: var(--slice-0);
+                  pointer-events: none;
+                }
+
+                .cyberpunk:hover::after {
+                  animation: 1s glitch;
+                  animation-timing-function: steps(2, end);
+                }
+
+                @keyframes glitch {
+                  0% {
+                    clip-path: var(--slice-1);
+                    transform: translate(-20px, -10px);
+                  }
+                  10% {
+                    clip-path: var(--slice-3);
+                    transform: translate(10px, 10px);
+                  }
+                  20% {
+                    clip-path: var(--slice-1);
+                    transform: translate(-10px, 10px);
+                  }
+                  30% {
+                    clip-path: var(--slice-3);
+                    transform: translate(0px, 5px);
+                  }
+                  40% {
+                    clip-path: var(--slice-2);
+                    transform: translate(-5px, 0px);
+                  }
+                  50% {
+                    clip-path: var(--slice-3);
+                    transform: translate(5px, 0px);
+                  }
+                  60% {
+                    clip-path: var(--slice-4);
+                    transform: translate(5px, 10px);
+                  }
+                  70% {
+                    clip-path: var(--slice-2);
+                    transform: translate(-10px, 10px);
+                  }
+                  80% {
+                    clip-path: var(--slice-5);
+                    transform: translate(20px, -10px);
+                  }
+                  90% {
+                    clip-path: var(--slice-1);
+                    transform: translate(-10px, 0px);
+                  }
+                  100% {
+                    clip-path: var(--slice-1);
+                    transform: translate(0);
+                  }
+                }
+              `}</style>
+          <Link href="/gallery" style={{ textDecoration: 'none', color: 'inherit', display: 'inline-block' }}>
+            <span className="cyberpunk">Take Me There</span>
+          </Link>
         </div>
       )}
       
       {/* Scroll Camera Indicator removed for production */}
       </div>
       
-      {/* Scroll spacer to enable scrolling */}
-      <div id="scroll-container" style={{ height: '400vh' }} />
+      {/* Scroll spacer to enable scrolling - outside fixed viewport */}
+      <div 
+        id="scroll-container" 
+        style={{ 
+  
+          height: isMobile ? '800vh' : '400vh', // Even more height on mobile to ensure reaching the end
+          position: 'relative',
+          pointerEvents: 'none', // Don't capture any pointer events
+          zIndex: 0, // Lowest z-index
+
+        }} 
+      />
     </div>
   );
 };
