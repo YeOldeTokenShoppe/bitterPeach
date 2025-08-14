@@ -26,13 +26,18 @@ const MusicPlayer = React.forwardRef(
 
     // --- Track List for Non-80s Mode ---
     const non80sTrackNames = [
-      "Rocket Man - Steven Drozd",
+      "Lifetimes", // Soothing swirls for mid-tempo pop
       "Magnetic - Tunde Adebimpe",
+  
+      "Rocket Man - Steven Drozd",
+
       // Add more track names here later
     ];
     const non80sFirebasePaths = [
-      "audio/320k/rocket-man---steven-drozd.m4a", // Ensure this path is correct in your storage
+      "audio/192k/07-lifetimes.m4a",
       "audio/320k/01-magnetic.m4a",
+      "audio/320k/rocket-man---steven-drozd.m4a", // Ensure this path is correct in your storage
+
       // Add corresponding Firebase paths here
     ];
     // --- End Track List ---
@@ -243,6 +248,9 @@ const MusicPlayer = React.forwardRef(
     // Function to change track (using dynamic list)
     const changeTrack = (direction) => {
       const newIndex = getNextTrackIndex(direction);
+      console.log('MusicPlayer2: Changing track from', currentTrackIndex, 'to', newIndex, 'direction:', direction);
+      console.log('Track list length:', trackNames.length);
+      console.log('Is shuffled:', isShuffled);
       setCurrentTrackIndex(newIndex);
       // Don't set isPlaying here, let the loading process handle it
       // setIsPlaying(true);

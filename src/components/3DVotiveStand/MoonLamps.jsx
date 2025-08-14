@@ -170,6 +170,8 @@ const MoonScene = forwardRef(
             scene.environmentIntensity = 0.5; // Adjust this value between 0.0-1.0
           }
 
+
+
           // Clean up
           pmremGenerator.dispose();
 
@@ -195,10 +197,10 @@ const MoonScene = forwardRef(
       controls.autoRotateSpeed = 0.2;
       controls.enableDamping = true;
       controls.enablePan = true;
-      controls.enableZoom = true;
+      controls.enableZoom = !isMobileView; // Disable zoom on mobile to keep candles aligned
       controls.enableRotate = true;
-      controls.minDistance = 1;
-      controls.maxDistance = 100;
+      controls.minDistance = isMobileView ? 0.01 : 1; // Set minimum distance for mobile
+      controls.maxDistance = isMobileView ? 75 : 100; // Lock distance on mobile
       controls.minPolarAngle = 0;
       controls.maxPolarAngle = Math.PI / 2;
       controls.zoomToCursor = true;
@@ -257,7 +259,7 @@ const MoonScene = forwardRef(
           controlsRef.current = null;
         }
       };
-    }, [camera, gl.domElement]); // Only depend on camera and gl.domElement
+    }, [camera, gl.domElement, isMobileView]); // Depend on camera, gl.domElement, and isMobileView
 
     useEffect(() => {
       // ✅ Update controls dynamically when modelCenter changes

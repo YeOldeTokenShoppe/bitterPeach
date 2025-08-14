@@ -571,6 +571,8 @@ function BurnGallery({
               isConstellationsVisible={isConstellationsVisible}
               toggleMoonShots={toggleMoonShots}
               isMoonShotsEnabled={isMoonShotsEnabled}
+              showSpotify={showSpotify}
+              setShowSpotify={setShowSpotify}
             /> */}
           </Box>
         )}

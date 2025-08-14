@@ -46,7 +46,8 @@ const EnhancedVolumetricLight = ({
         );
         
         const rayStart = lightPos.clone().add(new THREE.Vector3(x, 0, z)).add(randomOffset);
-        const rayEnd = targetPos.clone().add(new THREE.Vector3(x * 0.2, -10, z * 0.2));
+        // Extend rays much further down (to -200 instead of -10)
+        const rayEnd = targetPos.clone().add(new THREE.Vector3(x * 0.2, -200, z * 0.2));
         const rayLength = rayStart.distanceTo(rayEnd);
         const rayDirection = rayEnd.clone().sub(rayStart).normalize();
         
@@ -127,33 +128,33 @@ const EnhancedVolumetricLight = ({
         </mesh>
       ))}
       
-      {/* Central bright core ray - extended */}
+      {/* Central bright core ray - extended much further */}
       <mesh
-        position={[position[0], position[1] - 75, position[2]]}
+        position={[position[0], position[1] - 150, position[2]]}
         rotation={[Math.PI, 0, 0]}
       >
-        {/* <cylinderGeometry args={[8, 20, 250, 8, 1, true]} /> */}
+        <cylinderGeometry args={[8, 25, 500, 8, 1, true]} />
         <meshBasicMaterial
           color={color}
           transparent
-          opacity={opacity * 2}
+          opacity={opacity * 1.2}  // Reduced from 2
           side={THREE.DoubleSide}
           depthWrite={false}
           blending={THREE.AdditiveBlending}
         />
       </mesh>
       
-      {/* Atmospheric glow at the source */}
-      <mesh position={position}>
-        {/* <sphereGeometry args={[20, 16, 16]} /> */}
+      {/* Atmospheric glow at the source - commented out to hide sphere */}
+      {/* <mesh position={position}>
+        <sphereGeometry args={[20, 16, 16]} />
         <meshBasicMaterial
           color={color}
           transparent
-          opacity={0.1}
+          opacity={0.05}
           depthWrite={false}
           blending={THREE.AdditiveBlending}
         />
-      </mesh>
+      </mesh> */}
     </group>
   );
 };

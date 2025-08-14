@@ -41,7 +41,7 @@ import { debounce } from "lodash";
 import FloatingCandleViewer from "./CandleInteraction";
 
 import CameraGUI from "./CameraGUI";
-import HolographicStatue from "./HolographicStatue";
+import HolographicStatue3 from "./HolographicStatue3";
 import PostProcessingEffects from "./PostProcessingEffects";
 import ConstellationModel from "./ConstellationModel";
 import StarField from "./StarField";
@@ -319,6 +319,9 @@ const ThreeDVotiveStand = forwardRef(({
   const [isGuiMode, setIsGuiMode] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [guiActive, setGuiActive] = useState(false);
+  
+  // Desktop candle pagination controls
+  const [desktopPaginationControls, setDesktopPaginationControls] = useState(null);
 
   const [isModelLoaded, setIsModelLoaded] = useState(false);
   const [isChildStatueLoaded, setIsChildStatueLoaded] = useState(false); // Added for internal statue tracking
@@ -1670,6 +1673,7 @@ const ThreeDVotiveStand = forwardRef(({
          
             setMainGltfAnimations(animations || []);
           }}
+          onDesktopPaginationReady={setDesktopPaginationControls}
         />
 
         {/* Remove the conditional rendering - don't tie to is80sMode */}
@@ -1729,15 +1733,15 @@ const ThreeDVotiveStand = forwardRef(({
               onSceneSwitch={handleSceneSwitch} 
             />
           ) : !monsterMode ? (
-            <HolographicStatue
-              isInMarkerView={isInMarkerView}
-              isMobileView={isMobileView}
-              isModalOpen={isModalOpen}
-              setIsModalOpen={setIsModalOpen}
-              onSpawnReady={onSpawnReady}
-              is80sMode={is80sMode}
-              userData={userData}
-              onLoad={handleHolographicStatueLoad} // Use the memoized callback
+            <HolographicStatue3
+              // isInMarkerView={isInMarkerView}
+              // isMobileView={isMobileView}
+              // isModalOpen={isModalOpen}
+              // setIsModalOpen={setIsModalOpen}
+              // onSpawnReady={onSpawnReady}
+              // is80sMode={is80sMode}
+              // userData={userData}
+              // onLoad={handleHolographicStatueLoad} // Use the memoized callback
             />
           ) : null}
         </Suspense>
@@ -1869,6 +1873,174 @@ const ThreeDVotiveStand = forwardRef(({
       
       {/* HTML transition overlay */}
       <TransitionOverlay active={showTransition} />
+      
+      {/* Add CSS for neon pulse animation */}
+      <style jsx>{`
+        @keyframes neonPulse {
+          0% {
+            filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.9))
+                    drop-shadow(0 0 16px rgba(255, 255, 255, 0.7))
+                    drop-shadow(0 0 24px rgba(255, 255, 255, 0.5))
+                    drop-shadow(0 0 40px rgba(0, 255, 255, 0.6))
+                    drop-shadow(0 0 60px rgba(255, 0, 255, 0.5));
+          }
+          100% {
+            filter: drop-shadow(0 0 12px rgba(255, 255, 255, 1))
+                    drop-shadow(0 0 20px rgba(255, 255, 255, 0.8))
+                    drop-shadow(0 0 32px rgba(255, 255, 255, 0.6))
+                    drop-shadow(0 0 50px rgba(0, 255, 255, 0.8))
+                    drop-shadow(0 0 70px rgba(255, 0, 255, 0.6));
+          }
+        }
+      `}</style>
+      
+      {/* Desktop Candle Pagination Controls */}
+      {!isMobileView && desktopPaginationControls && !rocketModelVisible && (
+        <div style={{
+          position: 'absolute',
+          bottom: '20px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '10px',
+          zIndex: 100,
+        }}>
+          {/* THE ILLUMIN80 Title */}
+          <div 
+            className={!is80sMode ? "thelma1" : ""}
+            style={is80sMode ? {
+              fontSize: '3rem', // Larger for desktop
+              fontWeight: '900',
+              lineHeight: '0.8',
+              transform: 'rotate(-8deg) skew(-15deg)',
+              background: 'linear-gradient(45deg, #ff00ff, #00ffff, #ff00ff)',
+              backgroundClip: 'text',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              position: 'relative',
+              filter: `
+                drop-shadow(0 0 8px rgba(255, 255, 255, 0.9))
+                drop-shadow(0 0 16px rgba(255, 255, 255, 0.7))
+                drop-shadow(0 0 24px rgba(255, 255, 255, 0.5))
+                drop-shadow(0 0 40px rgba(0, 255, 255, 0.6))
+                drop-shadow(0 0 60px rgba(255, 0, 255, 0.5))
+              `,
+              animation: 'neonPulse 2s ease-in-out infinite alternate',
+            } : {
+              fontSize: '3rem', // Larger for desktop
+              transform: 'rotate(-8deg) skew(-15deg)', // Keep skew in non-80s mode
+            }}
+          >
+            THE ILLUMIN80
+            {is80sMode && (
+              <div style={{
+                content: "'THE ILLUMIN80'",
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                zIndex: -1,
+                color: 'transparent',
+                WebkitTextStroke: '2px white',
+                filter: 'blur(3px)',
+                opacity: 0.7,
+                pointerEvents: 'none',
+              }}>
+                THE ILLUMIN80
+              </div>
+            )}
+          </div>
+          
+          {/* Page info below title */}
+          <div style={{
+            color: '#fff',
+            fontSize: '1rem',
+            marginTop: '-5px',
+            marginBottom: '5px',
+            opacity: 0.8,
+          }}>
+            {desktopPaginationControls.currentPage + 1}-{Math.min((desktopPaginationControls.currentPage + 1) * 8, 26)} of 26
+          </div>
+          
+          {/* Pagination Controls */}
+          <div style={{
+            display: 'flex',
+            gap: '20px',
+            alignItems: 'center',
+            background: 'rgba(0, 0, 0, 0.7)',
+            padding: '10px 20px',
+            borderRadius: '25px',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+          }}>
+          <button
+            onClick={desktopPaginationControls.prevPage}
+            disabled={desktopPaginationControls.isSpinning}
+            style={{
+              background: 'transparent',
+              border: '2px solid #fff',
+              color: '#fff',
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              cursor: desktopPaginationControls.isSpinning ? 'not-allowed' : 'pointer',
+              opacity: desktopPaginationControls.isSpinning ? 0.5 : 1,
+              fontSize: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.3s ease',
+            }}
+            onMouseEnter={(e) => {
+              if (!desktopPaginationControls.isSpinning) {
+                e.target.style.background = 'rgba(255, 255, 255, 0.1)';
+                e.target.style.transform = 'scale(1.1)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.background = 'transparent';
+              e.target.style.transform = 'scale(1)';
+            }}
+          >
+            ←
+          </button>
+          
+          <button
+            onClick={desktopPaginationControls.nextPage}
+            disabled={desktopPaginationControls.isSpinning}
+            style={{
+              background: 'transparent',
+              border: '2px solid #fff',
+              color: '#fff',
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              cursor: desktopPaginationControls.isSpinning ? 'not-allowed' : 'pointer',
+              opacity: desktopPaginationControls.isSpinning ? 0.5 : 1,
+              fontSize: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.3s ease',
+            }}
+            onMouseEnter={(e) => {
+              if (!desktopPaginationControls.isSpinning) {
+                e.target.style.background = 'rgba(255, 255, 255, 0.1)';
+                e.target.style.transform = 'scale(1.1)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.background = 'transparent';
+              e.target.style.transform = 'scale(1)';
+            }}
+          >
+            →
+          </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 });

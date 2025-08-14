@@ -3,7 +3,7 @@ import * as THREE from "three";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 
-const TickerDisplay = ({ modelRef, ...props }) => {
+const TickerDisplay = ({ modelRef, isMobileView, ...props }) => {
   const meshRef = useRef();
   const canvasRef = useRef();
   const textureRef = useRef();
@@ -14,6 +14,24 @@ const TickerDisplay = ({ modelRef, ...props }) => {
   const scene = gltf.scene;
   const baseRadius = 2.8; // Store the base radius as a constant
   const lastModelScale = useRef(1); // Track the last known model scale
+  const tickerTargetRef = useRef(null); // Reference to the Ticker mesh in the model
+  
+  // Don't render ticker on mobile
+  const [isMobile, setIsMobile] = useState(false);
+  
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(isMobileView || window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, [isMobileView]);
+  
+  // Early return if mobile
+  if (isMobile) {
+    return null;
+  }
   const ALPHA_VANTAGE_API_KEY = process.env.NEXT_PUBLIC_ALPHA_VANTAGE_API_KEY;
   const FMP_API_KEY = "kUsgBNt4QQmJzi0TFe0MHLIg1NlpWnsR";
   const CMC_API_KEY = process.env.NEXT_PUBLIC_COINMARKETCAP; // Updated to match .env variable name
@@ -351,6 +369,51 @@ const TickerDisplay = ({ modelRef, ...props }) => {
     return totalWidth;
   };
 
+  const floorRef = useRef(null); // Store reference to the active floor mesh
+  
+  // Find the Ticker mesh and appropriate floor in the model
+  useEffect(() => {
+    if (!gltf.scene) return;
+    
+    let mainFloor = null;
+    let innerFloor = null;
+    
+    gltf.scene.traverse((object) => {
+      if (object.name === 'Ticker' && object.isMesh) {
+        tickerTargetRef.current = object;
+        console.log('Found Ticker target mesh in model:', object);
+        // Hide the original ticker mesh since we'll replace it with our dynamic one
+        object.visible = false;
+      }
+      
+      // Find the floor meshes
+      if (object.isMesh) {
+        if (object.name === 'Floor') {
+          mainFloor = object;
+        } else if (object.name === 'Floor2.002') {
+          innerFloor = object;
+        }
+      }
+    });
+    
+    // Determine which floor to use based on visibility
+    // On mobile, Floor is hidden and Floor2.002 (smaller inner floor) is visible
+    if (mainFloor && mainFloor.visible) {
+      floorRef.current = mainFloor;
+      console.log('Using main Floor for ticker positioning (desktop view)');
+    } else if (innerFloor) {
+      floorRef.current = innerFloor;
+      console.log('Using Floor2.002 (inner floor) for ticker positioning (mobile view)');
+    }
+    
+    if (floorRef.current) {
+      const bbox = new THREE.Box3().setFromObject(floorRef.current);
+      const size = new THREE.Vector3();
+      bbox.getSize(size);
+      console.log(`Active floor: ${floorRef.current.name}, radius: ${Math.max(size.x, size.z) / 2}`);
+    }
+  }, [gltf.scene]);
+
   // Initialize canvas and texture
   useEffect(() => {
     try {
@@ -394,12 +457,39 @@ const TickerDisplay = ({ modelRef, ...props }) => {
 
       textureRef.current = texture;
 
-      // Create a curved cylinder for the ticker display with the same radius but slightly larger
-      // to avoid text overlap at the seam
+      // Get dimensions and position from the Ticker target mesh if available
+      let radius = baseRadius;
+      let height = 1;
+      let position = new THREE.Vector3(0, -8.5, 0);
+      let rotation = new THREE.Euler(0, Math.PI / 2, 0);
+      
+      if (tickerTargetRef.current) {
+        // Get world position of the target mesh
+        tickerTargetRef.current.getWorldPosition(position);
+        
+        // If it's a cylinder, use its parameters
+        if (tickerTargetRef.current.geometry.type === 'CylinderGeometry') {
+          const params = tickerTargetRef.current.geometry.parameters;
+          radius = params.radiusTop || params.radiusBottom || baseRadius;
+          height = params.height || 1;
+        } else {
+          // Calculate dimensions from bounding box
+          const bbox = new THREE.Box3().setFromObject(tickerTargetRef.current);
+          const size = new THREE.Vector3();
+          bbox.getSize(size);
+          radius = Math.max(size.x, size.z) / 2;
+          height = size.y || 1;
+        }
+        
+        // Copy rotation from target
+        rotation.copy(tickerTargetRef.current.rotation);
+      }
+
+      // Create a curved cylinder for the ticker display
       const geometry = new THREE.CylinderGeometry(
-        baseRadius,
-        baseRadius,
-        1,
+        radius,
+        radius,
+        height,
         128,
         1,
         true
@@ -412,8 +502,12 @@ const TickerDisplay = ({ modelRef, ...props }) => {
         opacity: 1.0,
         side: THREE.DoubleSide,
         color: 0xffffff,
-        depthTest: true,
-        depthWrite: false,
+        depthTest: true, // Test depth so it's occluded properly
+        depthWrite: false, // Don't write to depth buffer since it's transparent
+        polygonOffset: true,
+        polygonOffsetFactor: -2, // Small offset to prevent z-fighting
+        polygonOffsetUnits: -1,
+        alphaTest: 0.01, // Discard nearly transparent pixels to help with depth sorting
       });
 
       // Flip the texture to correct the inside-out appearance
@@ -422,10 +516,36 @@ const TickerDisplay = ({ modelRef, ...props }) => {
       // Create the mesh
       const mesh = new THREE.Mesh(geometry, material);
 
-      // Position it lower in the scene where the original 'Ticker' mesh was
-      mesh.position.set(0, -8.5, 0);
-      // Rotate it 90 degrees on the y-axis to make it horizontal
-      mesh.rotation.set(0, Math.PI / 2, 0);
+      // Use position and rotation from target mesh or defaults
+      mesh.position.copy(position);
+      mesh.rotation.copy(rotation);
+      
+      // If we have a floor reference, center the ticker on it
+      if (floorRef.current) {
+        const floorBbox = new THREE.Box3().setFromObject(floorRef.current);
+        const floorCenter = new THREE.Vector3();
+        floorBbox.getCenter(floorCenter);
+        
+        // Use floor center for X and Z, keep ticker's Y position
+        mesh.position.x = floorCenter.x;
+        mesh.position.z = floorCenter.z;
+        
+        console.log('Centering ticker on floor:', {
+          floor: floorRef.current.name,
+          center: floorCenter
+        });
+      }
+      
+      // If we have a target mesh, also copy its scale
+      if (tickerTargetRef.current) {
+        mesh.scale.copy(tickerTargetRef.current.scale);
+      }
+      
+      // Set render order to ensure ticker renders after floor but before other transparent objects
+      mesh.renderOrder = 2;
+      
+      // Keep frustum culling enabled for performance
+      mesh.frustumCulled = true;
 
       // Add it to the main scene
       mainScene.add(mesh);
@@ -446,22 +566,67 @@ const TickerDisplay = ({ modelRef, ...props }) => {
     // Only update if the scale has changed significantly
     if (Math.abs(lastModelScale.current - modelScale) < 0.01) return;
 
-    // Calculate new radius based on model scale
-    const newRadius = baseRadius * modelScale;
-
-    // Create new geometry with updated radius
-    const newGeometry = new THREE.CylinderGeometry(
-      newRadius,
-      newRadius,
-      1,
-      128,
-      1,
-      true
-    );
-
-    // Replace the old geometry
-    meshRef.current.geometry.dispose(); // Clean up old geometry
-    meshRef.current.geometry = newGeometry;
+    // If we have a target mesh, sync with its current transform
+    if (tickerTargetRef.current) {
+      // Update position to match target
+      const worldPos = new THREE.Vector3();
+      tickerTargetRef.current.getWorldPosition(worldPos);
+      
+      // If we have a floor reference, center on it
+      if (floorRef.current) {
+        const floorBbox = new THREE.Box3().setFromObject(floorRef.current);
+        const floorCenter = new THREE.Vector3();
+        floorBbox.getCenter(floorCenter);
+        
+        // Use floor center for X and Z, keep ticker's Y position
+        worldPos.x = floorCenter.x;
+        worldPos.z = floorCenter.z;
+      }
+      
+      meshRef.current.position.copy(worldPos);
+      
+      // Update rotation to match target
+      meshRef.current.rotation.copy(tickerTargetRef.current.rotation);
+      
+      // Update scale to match target
+      meshRef.current.scale.copy(tickerTargetRef.current.scale);
+      
+      // Get the current radius from target if it's a cylinder
+      if (tickerTargetRef.current.geometry.type === 'CylinderGeometry') {
+        const params = tickerTargetRef.current.geometry.parameters;
+        const targetRadius = (params.radiusTop || params.radiusBottom || baseRadius) * modelScale;
+        const targetHeight = params.height || 1;
+        
+        // Only recreate geometry if dimensions changed
+        const currentParams = meshRef.current.geometry.parameters;
+        if (Math.abs(currentParams.radiusTop - targetRadius) > 0.01 ||
+            Math.abs(currentParams.height - targetHeight) > 0.01) {
+          const newGeometry = new THREE.CylinderGeometry(
+            targetRadius,
+            targetRadius,
+            targetHeight,
+            128,
+            1,
+            true
+          );
+          meshRef.current.geometry.dispose();
+          meshRef.current.geometry = newGeometry;
+        }
+      }
+    } else {
+      // Fallback to original behavior if no target mesh
+      const newRadius = baseRadius * modelScale;
+      const newGeometry = new THREE.CylinderGeometry(
+        newRadius,
+        newRadius,
+        1,
+        128,
+        1,
+        true
+      );
+      meshRef.current.geometry.dispose();
+      meshRef.current.geometry = newGeometry;
+    }
 
     // Update the last known scale
     lastModelScale.current = modelScale;

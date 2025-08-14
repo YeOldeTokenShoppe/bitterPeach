@@ -120,7 +120,7 @@ export default function CyborgTemple({ is80sMode, setIs80sMode }) {
       {/* {is80sMode && (
         <video
           ref={videoRef}
-          src="/83.mov"
+          src="/videos/83.mov"
           loop
           muted
           playsInline

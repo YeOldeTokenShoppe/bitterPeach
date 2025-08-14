@@ -12,6 +12,7 @@ import Link from 'next/link';
 import CyberNav from '../components/CyberNav';
 
 
+
 // Dynamic import for SSR compatibility
 const EtherealClouds = dynamic(() => import('../components/EtherealClouds/EtherealClouds'), {
   ssr: false,
@@ -129,7 +130,7 @@ const EtherealCloudsPage = ({ is80sMode, setIs80sMode }) => {
         </div>
       <Canvas
         ref={canvasRef}
-        camera={{ position: [-15, 10, 45], fov: 60 }}
+        camera={{ position: [15, 18, 55], fov: 60 }}
         gl={{ 
           antialias: true, 
           alpha: false,
@@ -152,9 +153,9 @@ const EtherealCloudsPage = ({ is80sMode, setIs80sMode }) => {
             maxPolarAngle={Math.PI * 0.85}
             // autoRotate
             // autoRotateSpeed={0.5}
-            target={[-20, 15, 0]}
+            target={[-5, 10, 0]}
 
-            zoomToCursor
+            // zoomToCursor
           />
           
           {/* Post-processing effects */}
@@ -177,7 +178,8 @@ const EtherealCloudsPage = ({ is80sMode, setIs80sMode }) => {
           </EffectComposer> */}
         </Suspense>
       </Canvas>
-      <CyberNav variant="space" is80sMode={is80sMode} />
+
+      {/* <CyberNav variant="space" is80sMode={is80sMode} /> */}
       {/* Loading indicator */}
       <Suspense
         fallback={

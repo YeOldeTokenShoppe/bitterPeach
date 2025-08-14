@@ -54,6 +54,7 @@ function Model({
   onHoldStateChange,
   onModelDataLoaded,
   isMobileView,
+  onDesktopPaginationReady,
 }) {
   // STATE VARIABLES - consolidated in one place
   const [modelUrl, setModelUrl] = useState("/alligatorStroll3.glb");
@@ -89,7 +90,7 @@ function Model({
   const instancedMeshRef = useRef();
   const [candleInstances, setCandleInstances] = useState([]);
 
-  // Load candle model
+  // Load candle model - using singleCandle instead of XCandle1 which contains Cathedral
   const candle = useGLTF("/XCandle1.glb");
 
   // Add these to your existing state variables
@@ -98,6 +99,12 @@ function Model({
   // Add these state variables to store the sorted users
   const [topBurners, setTopBurners] = useState([]);
   const [recentUsers, setRecentUsers] = useState([]);
+  
+  // Pagination state for desktop candles
+  const [desktopCandlePage, setDesktopCandlePage] = useState(0);
+  const [isSpinning, setIsSpinning] = useState(false);
+  const spinAnimationRef = useRef(null);
+  const CANDLES_PER_PAGE = 8;
 
   // Add this at the top of your component to create a texture cache
   const textureCache = useRef(new Map());
@@ -711,6 +718,7 @@ function Model({
             name.includes('reptile') ||
             name.includes('halotext') ||
             name.includes('alligatorscroll') ||
+            name.includes('ticker') ||
             isFloor ||
             isVCandle ||
             name.includes('pillar')
@@ -946,8 +954,19 @@ function Model({
       anisotropy: 16, // Texture quality at angles (higher = better quality)
       rotation: 0, // Rotation in radians (Math.PI/4 = 45 degrees)
       emissive: true, // Enable emissive effect for neon glow
-      emissiveIntensity: 1.2, // Intensity of the glow (0-1 range)
+      emissiveIntensity: 0.6, // Intensity of the glow (0-1 range)
       // emissiveColor: 0xffffff, // Neutral white to preserve original colors
+    };
+    
+    // Video texture configuration for goldCircuit
+    const videoTextureConfig = {
+      path: "/circuit1.mp4", // Changed to mp4 for smaller file size
+      repeat: { x: 1, y: 1 }, // Single tile to fill the circle
+      offset: { x: 0, y: 0 },
+      anisotropy: 16,
+      rotation: 0,
+      emissive: true,
+      emissiveIntensity: 0.3, // Lower intensity for video
     };
 
     // Function to apply texture with settings
@@ -966,6 +985,9 @@ function Model({
     // Find floor objects in the model
 
     let floorFound = false;
+    let videoElement = null; // Store video element reference
+    let videoTexture = null; // Store video texture reference
+    
     gltf.scene.traverse(child => {
       // Log all mesh names for debugging
       if (child.isMesh) {
@@ -974,6 +996,157 @@ function Model({
         if (child.name.toLowerCase().includes('floor')) {
 
         }
+      }
+      
+      // Handle goldCircuit with video texture
+      if (child.isMesh && (child.name === "goldCircuit" || child.name.includes("goldCircuit"))) {
+        console.log('🎬 Found goldCircuit mesh:', child.name);
+        console.log('🎬 Is 80s mode:', is80sMode);
+        console.log('🎬 Material type:', child.material?.type);
+        
+        // Store original material if not already stored
+        if (!child.userData.originalTexture && child.material) {
+          if (child.material.map) {
+            child.userData.originalTexture = child.material.map;
+          }
+          child.userData.originalMaterial = child.material.clone();
+        }
+        
+        // Always apply video texture
+        console.log('🎬 Creating video texture for goldCircuit');
+        
+        // Create video element
+        videoElement = document.createElement('video');
+        videoElement.src = videoTextureConfig.path;
+        videoElement.loop = true;
+        videoElement.muted = true; // Muted to allow autoplay
+        videoElement.playsInline = true;
+        videoElement.autoplay = true;
+        videoElement.crossOrigin = "anonymous"; // Add CORS support
+          
+        // Add event listeners for debugging
+        videoElement.addEventListener('loadeddata', () => {
+          console.log('🎬 Video loaded successfully');
+          if (videoTexture) {
+            videoTexture.needsUpdate = true;
+          }
+        });
+        
+        videoElement.addEventListener('error', (e) => {
+          console.error('🎬 Video loading error:', e);
+          console.error('🎬 Video src:', videoElement.src);
+          console.error('🎬 Video error code:', videoElement.error?.code);
+          console.error('🎬 Video error message:', videoElement.error?.message);
+        });
+        
+        // Start playing the video
+        videoElement.play().catch(err => {
+          console.warn('🎬 Video autoplay failed:', err);
+        });
+          
+        // Create video texture
+        videoTexture = new THREE.VideoTexture(videoElement);
+        videoTexture.colorSpace = THREE.SRGBColorSpace;
+        // Use ClampToEdgeWrapping to prevent texture from repeating outside UV bounds
+        videoTexture.wrapS = THREE.ClampToEdgeWrapping;
+        videoTexture.wrapT = THREE.ClampToEdgeWrapping;
+        videoTexture.repeat.set(videoTextureConfig.repeat.x, videoTextureConfig.repeat.y);
+        videoTexture.offset.set(videoTextureConfig.offset.x, videoTextureConfig.offset.y);
+        videoTexture.anisotropy = videoTextureConfig.anisotropy;
+        videoTexture.rotation = videoTextureConfig.rotation;
+        videoTexture.needsUpdate = true;
+          
+          // Log UV information for debugging
+          if (child.geometry && child.geometry.attributes.uv) {
+            console.log('🎬 goldCircuit has UV coordinates');
+            const uvArray = child.geometry.attributes.uv.array;
+            console.log('🎬 UV bounds:', {
+              minU: Math.min(...uvArray.filter((_, i) => i % 2 === 0)),
+              maxU: Math.max(...uvArray.filter((_, i) => i % 2 === 0)),
+              minV: Math.min(...uvArray.filter((_, i) => i % 2 === 1)),
+              maxV: Math.max(...uvArray.filter((_, i) => i % 2 === 1))
+            });
+          }
+          
+          // Apply video texture to material
+          const applyVideoMaterial = mat => {
+            // Preserve original material properties first
+            const origMat = child.userData.originalMaterial
+              ? (Array.isArray(child.userData.originalMaterial) 
+                  ? child.userData.originalMaterial[0] 
+                  : child.userData.originalMaterial)
+              : null;
+            
+            // Apply video as the main texture
+            mat.map = videoTexture;
+            mat.emissive = new THREE.Color(0xffffff);
+            mat.emissiveMap = videoTexture;
+            mat.emissiveIntensity = videoTextureConfig.emissiveIntensity;
+            mat.roughness = 0.6;
+            mat.metalness = 0.3;
+            
+            // CRITICAL: Use the original texture as an alpha mask
+            if (origMat && origMat.map) {
+              // The original texture likely has a circular shape with transparent areas
+              // Use it as the alpha map to mask the video
+              mat.alphaMap = origMat.map;
+              mat.transparent = true;
+              mat.alphaTest = 0.1; // Adjust this value if needed (0.0 - 1.0)
+              console.log('🎬 Using original texture as alpha mask for circular shape');
+            } else if (origMat) {
+              // Copy other alpha-related properties
+              if (origMat.alphaMap) {
+                mat.alphaMap = origMat.alphaMap;
+                mat.alphaTest = origMat.alphaTest || 0.5;
+              }
+              if (origMat.transparent !== undefined) {
+                mat.transparent = origMat.transparent;
+              }
+              if (origMat.opacity !== undefined) {
+                mat.opacity = origMat.opacity;
+              }
+            }
+            
+            // Ensure proper rendering
+            mat.side = THREE.DoubleSide;
+            
+            // Check if original has a clipping mask or uses UV bounds
+            if (origMat) {
+              console.log('🎬 Original material properties:', {
+                hasAlphaMap: !!origMat.alphaMap,
+                hasMap: !!origMat.map,
+                transparent: origMat.transparent,
+                opacity: origMat.opacity,
+                alphaTest: origMat.alphaTest,
+                side: origMat.side
+              });
+            }
+            
+            // If the geometry is circular, ensure we're respecting that
+            if (child.geometry) {
+              // Check if it's a circular geometry (like a CircleGeometry or custom circle)
+              const vertexCount = child.geometry.attributes.position?.count;
+              console.log('🎬 Geometry info:', {
+                type: child.geometry.type,
+                vertexCount: vertexCount,
+                hasUV: !!child.geometry.attributes.uv
+              });
+            }
+            
+            mat.needsUpdate = true;
+          };
+          
+          if (Array.isArray(child.material)) {
+            child.material.forEach(applyVideoMaterial);
+          } else {
+            applyVideoMaterial(child.material);
+          }
+          
+        // Store video element for cleanup
+        child.userData.videoElement = videoElement;
+        child.userData.videoTexture = videoTexture;
+        
+        return; // Skip further processing for goldCircuit
       }
       
       // Check for any mesh with "Floor" in its name - now also includes partial matches
@@ -1079,7 +1252,27 @@ function Model({
     if (!floorFound) {
       console.warn('⚠️ Floor2.002 object not found in the model');
     }
-  }, [is80sMode, gltf]);
+    
+    // Cleanup function for video textures
+    return () => {
+      if (gltf && gltf.scene) {
+        gltf.scene.traverse(child => {
+          if (child.userData.videoElement) {
+            console.log('🧹 Cleaning up video element');
+            child.userData.videoElement.pause();
+            child.userData.videoElement.removeAttribute('src');
+            child.userData.videoElement.load(); // Reset the video element
+            child.userData.videoElement = null;
+          }
+          if (child.userData.videoTexture) {
+            console.log('🧹 Disposing video texture');
+            child.userData.videoTexture.dispose();
+            child.userData.videoTexture = null;
+          }
+        });
+      }
+    };
+  }, [gltf]); // REMOVED is80sMode - only depend on gltf so video stays constant
 
   // Modify your applyUserImageToLabel function
   const applyUserImageToLabel = (candle, user) => {
@@ -1153,61 +1346,20 @@ function Model({
     });
   };
 
-  // Then modify the useEffect where we handle the candle assignments
-  useEffect(() => {
-    if (!results || !gltf.scene) return;
+  // Create default users for when we don't have enough results
+  const createDefaultUser = index => ({
+    userName: `Default User ${index}`,
+    id: `default-${index}`,
+    burnedAmount: 0,
+    createdAt: new Date(),
+    image: index % 2 === 0 ? DEFAULT_VVV_IMAGE : DEFAULT_CLOWN_IMAGE,
+  });
 
-    // Create default users for when we don't have enough results
-    const createDefaultUser = index => ({
-      userName: `Default User ${index}`,
-      id: `default-${index}`,
-      burnedAmount: 0,
-      createdAt: new Date(),
-      image: index % 2 === 0 ? DEFAULT_VVV_IMAGE : DEFAULT_CLOWN_IMAGE,
-    });
+  // Function to update candles with paginated data
+  const updateCandlesWithData = useCallback((pageData) => {
+    if (!gltf.scene) return;
 
-    // Sort and prepare the arrays
-    const sortedByBurnedAmount = [...(results || [])].sort(
-      (a, b) => b.burnedAmount - a.burnedAmount
-    );
-
-    const sortedByCreatedAt = [...(results || [])].sort((a, b) => {
-      const getDate = timestamp => {
-        if (!timestamp) return new Date(0);
-        if (timestamp.toDate) return timestamp.toDate();
-        if (timestamp instanceof Date) return timestamp;
-        if (typeof timestamp === "number") return new Date(timestamp);
-        if (typeof timestamp === "string") return new Date(timestamp);
-        return new Date(0);
-      };
-
-      const dateA = getDate(a.createdAt);
-      const dateB = getDate(b.createdAt);
-      return dateB - dateA;
-    });
-
-    // Get top 4 burners, fill with defaults if needed
-    let topBurnersArray = sortedByBurnedAmount.slice(0, 4);
-    while (topBurnersArray.length < 4) {
-      topBurnersArray.push(createDefaultUser(topBurnersArray.length));
-    }
-
-    // Get next 4 most recent users, excluding those already in topBurners
-    let recentUsersArray = sortedByCreatedAt
-      .filter(user => !topBurnersArray.some(topUser => topUser.id === user.id))
-      .slice(0, 4);
-
-    // Fill remaining slots with default users
-    while (recentUsersArray.length < 4) {
-      recentUsersArray.push(createDefaultUser(recentUsersArray.length + 4));
-    }
-
-    // Set the state variables
-    setTopBurners(topBurnersArray);
-    setRecentUsers(recentUsersArray);
-
-    // Apply the users to candles
-    topBurnersArray.forEach((user, index) => {
+    pageData.forEach((user, index) => {
       const candleName = `VCANDLE${String(index + 1).padStart(3, "0")}`;
       const candle = gltf.scene.getObjectByName(candleName);
       if (candle) {
@@ -1226,27 +1378,69 @@ function Model({
         applyUserImageToLabel(candle, user);
       }
     });
+  }, [gltf.scene, applyUserImageToLabel]);
 
-    recentUsersArray.forEach((user, index) => {
-      const candleName = `VCANDLE${String(index + 5).padStart(3, "0")}`;
-      const candle = gltf.scene.getObjectByName(candleName);
-      if (candle) {
-        candle.userData = {
-          ...candle.userData,
-          hasUser: true,
-          userName: user.userName,
-          userId: user.id,
-          createdAt: user.createdAt,
-          image: user.image,
-          message: user.message,
-          burnedAmount: user.burnedAmount,
-        };
-
-        // Apply the image to the candle's labels
-        applyUserImageToLabel(candle, user);
+  // Spin animation function
+  const spinAndChangePage = useCallback((direction) => {
+    if (isSpinning || !modelRef.current || isMobileView) return;
+    
+    setIsSpinning(true);
+    const startRotation = modelRef.current.rotation.y;
+    const targetRotation = startRotation + (Math.PI * 2 * direction);
+    
+    // Use gsap for smooth animation
+    spinAnimationRef.current = gsap.to(modelRef.current.rotation, {
+      y: targetRotation,
+      duration: 1.5,
+      ease: "power2.inOut",
+      onUpdate: () => {
+        // At halfway point, swap the candle data
+        const progress = (modelRef.current.rotation.y - startRotation) / (targetRotation - startRotation);
+        if (progress >= 0.5 && !modelRef.current.userData.dataSwapped) {
+          modelRef.current.userData.dataSwapped = true;
+          
+          // Calculate new page
+          const newPage = desktopCandlePage + direction;
+          const totalPages = Math.ceil(results.length / CANDLES_PER_PAGE);
+          const wrappedPage = ((newPage % totalPages) + totalPages) % totalPages;
+          
+          setDesktopCandlePage(wrappedPage);
+        }
+      },
+      onComplete: () => {
+        setIsSpinning(false);
+        delete modelRef.current.userData.dataSwapped;
       }
     });
-  }, [results, gltf.scene]);
+  }, [isSpinning, modelRef, isMobileView, desktopCandlePage, results, CANDLES_PER_PAGE]);
+
+  // Then modify the useEffect where we handle the candle assignments
+  useEffect(() => {
+    if (!results || !gltf.scene || isMobileView) return;
+
+    // Sort all results by burned amount
+    const sortedByBurnedAmount = [...(results || [])].sort(
+      (a, b) => b.burnedAmount - a.burnedAmount
+    );
+
+    // Add default users if needed to have enough for pagination
+    let allUsers = [...sortedByBurnedAmount];
+    while (allUsers.length < CANDLES_PER_PAGE) {
+      allUsers.push(createDefaultUser(allUsers.length));
+    }
+
+    // Get the current page of users
+    const startIdx = desktopCandlePage * CANDLES_PER_PAGE;
+    const pageData = allUsers.slice(startIdx, startIdx + CANDLES_PER_PAGE);
+    
+    // Fill with defaults if needed
+    while (pageData.length < CANDLES_PER_PAGE) {
+      pageData.push(createDefaultUser(pageData.length));
+    }
+
+    // Update the candles with the current page data
+    updateCandlesWithData(pageData);
+  }, [results, gltf.scene, desktopCandlePage, isMobileView, updateCandlesWithData]);
 
   // Add this effect near the other effects
   useEffect(() => {
@@ -1418,8 +1612,18 @@ function Model({
     }
   }, [is80sMode]);
 
+
   // Add flame flickering animation using useFrame
   useFrame((_, delta) => {
+    // Update video textures
+    if (gltf && gltf.scene) {
+      gltf.scene.traverse(child => {
+        if (child.userData.videoTexture) {
+          child.userData.videoTexture.needsUpdate = true;
+        }
+      });
+    }
+    
     // Create a temporary Box3 for candle melting updates
     const tempBox = new THREE.Box3();
 
@@ -1576,17 +1780,25 @@ function Model({
         object.renderOrder = 10;
 
         // Special handling for goldCircuit mesh
-        if (object.name === "goldCircuit") {
+        if (object.name === "goldCircuit" || object.name.includes("goldCircuit")) {
+          console.log('🔧 Special handling for goldCircuit in depth settings');
           // Ensure goldCircuit renders before other objects
           object.renderOrder = -1; // Changed to negative to ensure it's always first
           if (object.material) {
             const applyFixes = material => {
-              material.depthWrite = true; // Disable depth writing
+              material.depthWrite = true; // Enable depth writing
               material.depthTest = true; // Keep depth testing
               material.transparent = true;
-              material.opacity = 0.9; // More transparent
-              material.blending = THREE.AdditiveBlending; // Add additive blending
+              material.opacity = 1; // Adjust transparency (1.0 = opaque, 0.0 = invisible)
+              material.blending = THREE.NormalBlending
               material.needsUpdate = true;
+              
+              // Don't override the video texture if it exists
+              if (object.userData.videoTexture) {
+                console.log('🔧 Preserving video texture in special handling');
+                material.map = object.userData.videoTexture;
+                material.emissiveMap = object.userData.videoTexture;
+              }
             };
             if (Array.isArray(object.material)) {
               object.material.forEach(applyFixes);
@@ -1674,6 +1886,20 @@ function Model({
     }
   }, [gltf.scene, gltf.animations, setIsModelLoaded, onModelDataLoaded]);
 
+  // Expose pagination controls to parent
+  useEffect(() => {
+    if (onDesktopPaginationReady && !isMobileView) {
+      const totalPages = Math.ceil((results?.length || 0) / CANDLES_PER_PAGE);
+      onDesktopPaginationReady({
+        currentPage: desktopCandlePage,
+        totalPages,
+        nextPage: () => spinAndChangePage(1),
+        prevPage: () => spinAndChangePage(-1),
+        isSpinning,
+      });
+    }
+  }, [onDesktopPaginationReady, desktopCandlePage, results, CANDLES_PER_PAGE, spinAndChangePage, isSpinning, isMobileView]);
+
   return (
     <>
       <primitive
@@ -1719,7 +1945,7 @@ function Model({
 }
 
 // Preload both models
-useGLTF.preload("/catAltar.glb");
+// useGLTF.preload("/catAltar.glb");
 useGLTF.preload("/XCandle1.glb");
 
 export default Model;

@@ -2494,8 +2494,8 @@ const MobileSidePanel = ({
               e.target.src = "/vaporwave-sunset.mp4";
             }}
           >
-            <source src="/83.mov" type="video/quicktime" />
-            <source src="/83.mov" type="video/mp4" />
+            <source src="/videos/83.mov" type="video/quicktime" />
+            <source src="/videos/83.mov" type="video/mp4" />
             {/* Fallback to vaporwave video if .mov doesn't work */}
             <source src="/vaporwave-sunset.mp4" type="video/mp4" />
           </video>

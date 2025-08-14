@@ -315,7 +315,7 @@ export default function ModelViewer() {
           onError={(e) => {
             console.error("Video failed to load:", e);
             // Try fallback to local video if Firebase fails
-            e.target.src = "/83.mov";
+            e.target.src = "/videos/83.mov";
           }}
         >
           {/* Primary source from Firebase Storage */}
@@ -324,8 +324,8 @@ export default function ModelViewer() {
             type="video/mp4" 
           />
           {/* Fallback to local file */}
-          <source src="/83.mov" type="video/quicktime" />
-          <source src="/83.mov" type="video/mp4" />
+          <source src="/videos/83.mov" type="video/quicktime" />
+          <source src="/videos/83.mov" type="video/mp4" />
         </video>
       )}
       

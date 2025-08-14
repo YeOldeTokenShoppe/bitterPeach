@@ -7,13 +7,13 @@ import CoinLoader from "../components/CoinLoader";
 import { useUser } from "@clerk/nextjs";
 import { useMusic } from "../contexts/MusicContext";
 
-// Dynamically import music players (keep for potential 80s mode use)
-// const MusicPlayer3 = dynamic(() => import("../components/MusicPlayer3"), {
-//   ssr: false,
-// });
+// Dynamically import music players
+const MobileMusicPlayer = dynamic(() => import("../components/MobileMusicPlayer"), {
+  ssr: false,
+});
 
-
-// SimplifiedMusicPlayer removed - handled in SidePanelEnhanced
+// Import MusicPlayer3 directly to preserve ref forwarding
+import MusicPlayer3 from "../components/MusicPlayer3";
 
 // const NavBarDynamic = dynamic(() => import("../components/NavBar.client"), {
 //   ssr: false,
@@ -499,7 +499,9 @@ export default function GalleryPage() {
                     zIndex: -1,
                     top: 0,
                     left: 0,
-                    color: `rgba(${255 - index * 2}, ${255 - index * 3}, ${255 - index * 2})`,
+                    color: is80sMode 
+                      ? `rgba(${201 - index * 2}, ${55 - index * 3}, ${256 - index * 2})` 
+                      : `rgba(${255 - index * 2}, ${255 - index * 3}, ${255 - index * 2})`,
                     filter: "blur(0.1rem)",
                     transform: `translate(
                       ${index * 0.1}rem, 
@@ -541,7 +543,266 @@ export default function GalleryPage() {
         )}
       </div>
       
-      {/* Simplified Music Player - Removed from here as it's handled in SidePanelEnhanced */}
+      {/* 80s Mode Video Background for Desktop */}
+      {!isMobileView && is80sMode && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
+            zIndex: 1,
+            pointerEvents: "none",
+          }}
+        >
+          <video
+            autoPlay
+            loop
+            muted
+            playsInline
+            preload="auto"
+            style={{
+              position: "absolute",
+              top: "50%",
+              left: "50%",
+              minWidth: "100%",
+              minHeight: "100%",
+              width: "auto",
+              height: "auto",
+              transform: "translate(-50%, -50%)",
+              objectFit: "cover",
+              opacity: 0.25,
+              filter: "saturate(2) hue-rotate(15deg) brightness(0.8)",
+            }}
+            onLoadedData={(e) => {
+              console.log("Desktop 80s video loaded:", e.target.src);
+              e.target.play().catch(err => console.log("Video autoplay failed:", err));
+            }}
+            onError={(e) => {
+              console.error("Desktop video failed to load:", e);
+              // Try fallback video if main video fails
+              if (e.target.src.includes("83.mov")) {
+                e.target.src = "/vaporwave-sunset.mp4";
+              }
+            }}
+          >
+            <source src="/videos/83.mov" type="video/quicktime" />
+            <source src="/videos/83.mov" type="video/mp4" />
+            <source src="/vaporwave-sunset.mp4" type="video/mp4" />
+          </video>
+        </div>
+      )}
+      
+      {/* Desktop controls for Music and 80s Mode - matching mobile UI exactly */}
+      {!isMobileView && !isLoading && (
+        <>
+          {/* Music toggle button OR compact player */}
+          {!showSpotify ? (
+            // Music Icon Button
+            <button
+              onClick={() => handleMusicToggle(true)}
+              style={{
+                position: "fixed",
+                top: "20px",
+                right: "20px",
+                width: "48px",
+                height: "48px",
+                borderRadius: "50%",
+                backgroundColor: "rgba(0, 0, 0, 0.7)",
+                border: "2px solid rgba(255, 255, 255, 0.2)",
+                color: "#ffffff",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                transition: "all 0.3s ease",
+                backdropFilter: "blur(10px)",
+                boxShadow: "0 2px 8px rgba(0, 0, 0, 0.3)",
+                zIndex: 9999,
+              }}
+              title="Toggle Music"
+            >
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M9 18V5l12-2v13" />
+                <circle cx="6" cy="18" r="3" />
+                <circle cx="18" cy="16" r="3" />
+              </svg>
+            </button>
+          ) : (
+            // Compact Music Player Controls (matching mobile)
+            <div
+              style={{
+                position: "fixed",
+                top: "20px",
+                right: "20px",
+                zIndex: 9999,
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+              }}
+            >
+              {/* Spinning Album Art */}
+              <div
+                style={{
+                  width: "40px",
+                  height: "40px",
+                  borderRadius: "50%",
+                  backgroundImage: "url('/virginRecords.jpg')",
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                  animation: showSpotify ? "spin 3s linear infinite" : "none",
+                }}
+              />
+              
+              {/* Skip Button */}
+              <button
+                onClick={() => {
+                  if (musicPlayerRef.current && musicPlayerRef.current.nextTrack) {
+                    musicPlayerRef.current.nextTrack();
+                  }
+                }}
+                style={{
+                  width: "32px",
+                  height: "32px",
+                  borderRadius: "4px",
+                  backgroundColor: "rgba(255, 255, 255, 0.1)",
+                  border: "none",
+                  color: "white",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  transition: "all 0.3s ease",
+                }}
+                title="Next Track"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="5 4 15 12 5 20 5 4"/>
+                  <line x1="19" y1="5" x2="19" y2="19"/>
+                </svg>
+              </button>
+              
+              {/* Close Button */}
+              <button
+                onClick={() => handleMusicToggle(false)}
+                style={{
+                  width: "28px",
+                  height: "28px",
+                  borderRadius: "4px",
+                  backgroundColor: "rgba(255, 255, 255, 0.1)",
+                  border: "1px solid rgba(255, 255, 255, 0.3)",
+                  color: "white",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  transition: "all 0.3s ease",
+                }}
+                title="Close Music"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/>
+                  <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+          )}
+          
+          {/* 80s Mode Toggle - positioned below music controls */}
+          <div
+            style={{
+              position: "fixed",
+              top: "80px",
+              right: "20px",
+              zIndex: 9999,
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              backgroundColor: "rgba(0, 0, 0, 0.7)",
+              padding: "8px 16px",
+              borderRadius: "24px",
+              backdropFilter: "blur(10px)",
+              border: "1px solid rgba(255, 255, 255, 0.2)",
+            }}
+          >
+            <span style={{ color: "#ffffff", fontSize: "14px", fontWeight: "500" }}>80S MODE</span>
+            <label
+              style={{
+                position: "relative",
+                display: "inline-block",
+                width: "48px",
+                height: "24px",
+                cursor: "pointer",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={is80sMode}
+                onChange={() => toggle80sMode(!is80sMode)}
+                style={{ opacity: 0, width: 0, height: 0 }}
+              />
+              <span
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  backgroundColor: is80sMode ? "#67e8f9" : "rgba(255, 255, 255, 0.2)",
+                  borderRadius: "12px",
+                  transition: "all 0.3s ease",
+                  border: is80sMode ? "1px solid #67e8f9" : "1px solid rgba(255, 255, 255, 0.3)",
+                }}
+              >
+                <span
+                  style={{
+                    position: "absolute",
+                    left: is80sMode ? "26px" : "2px",
+                    top: "2px",
+                    width: "18px",
+                    height: "18px",
+                    backgroundColor: is80sMode ? "#00ff41" : "#ffffff",
+                    borderRadius: "50%",
+                    transition: "all 0.3s ease",
+                  }}
+                />
+              </span>
+            </label>
+          </div>
+        </>
+      )}
+      
+      
+      {/* Music Player for Desktop (hidden audio) - matching mobile exactly */}
+      {!isMobileView && showSpotify && (
+        <div style={{ display: "none" }}>
+          <MusicPlayer3
+            ref={musicPlayerRef}
+            isVisible={showSpotify}
+            onClose={() => setShowSpotify(false)}
+            autoPlay={true}
+            is80sMode={is80sMode}
+          />
+        </div>
+      )}
+      
+      {/* Add CSS for spin animation */}
+      <style jsx>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 }

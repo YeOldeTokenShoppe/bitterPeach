@@ -4,7 +4,7 @@ import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 
 // Individual candle component
-function MarqueeCandle({ position, candleObject, userData, index, onClick, scrollSpeed }) {
+function MarqueeCandle({ position, candleObject, userData, index, onClick }) {
   const groupRef = useRef();
   const candleRef = useRef();
   
@@ -13,7 +13,7 @@ function MarqueeCandle({ position, candleObject, userData, index, onClick, scrol
     if (!candleObject || !groupRef.current) return;
     
     // Scale the candle appropriately
-    candleObject.scale.set(0.3, 0.3, 0.3);
+    candleObject.scale.set(7.5, 7.5, 7.5);
     
     // Center the candle
     const box = new THREE.Box3().setFromObject(candleObject);
@@ -78,7 +78,7 @@ function MarqueeCandle({ position, candleObject, userData, index, onClick, scrol
     if (onClick) {
       onClick({
         ...userData,
-        candleId: `marquee-candle-${index}`,
+        candleId: `horizontal-marquee-candle-${index}`,
         candleTimestamp: Date.now(),
       });
     }
@@ -91,14 +91,13 @@ function MarqueeCandle({ position, candleObject, userData, index, onClick, scrol
   );
 }
 
-// Main marquee component
-export default function MarqueeCandles({ 
+// Main horizontal marquee component
+export default function HorizontalMarqueeCandles({ 
   candleData = [], 
-  onCandleClick, 
-  modelRef,
+  onCandleClick,
   currentPage = 0,
   itemsPerPage = 10,
-  scrollSpeed = 0.5
+  scrollSpeed = 1
 }) {
   const groupRef = useRef();
   const [vcandleObjects, setVcandleObjects] = useState([]);
@@ -113,7 +112,7 @@ export default function MarqueeCandles({
     
     // Create multiple clones of the candle for the marquee
     const extractedCandles = [];
-    const numCandles = Math.max(itemsPerPage, 10); // Ensure we have enough candles
+    const numCandles = Math.max(itemsPerPage * 2, 20); // Double for seamless scrolling
     
     for (let i = 0; i < numCandles; i++) {
       const clonedCandle = candleModel.clone(true);
@@ -145,15 +144,6 @@ export default function MarqueeCandles({
     const startIdx = currentPage * itemsPerPage;
     const endIdx = startIdx + itemsPerPage;
     
-    console.log('MarqueeCandles pagination:', {
-      currentPage,
-      itemsPerPage,
-      startIdx,
-      endIdx,
-      candleDataLength: candleData.length,
-      slicedData: candleData.slice(startIdx, endIdx)
-    });
-    
     if (candleData.length > 0) {
       return candleData.slice(startIdx, endIdx);
     }
@@ -171,14 +161,8 @@ export default function MarqueeCandles({
   const duplicatedData = useMemo(() => {
     if (vcandleObjects.length === 0) return [];
     
-    // Only use currentPageData once to avoid doubling
-    const dataToUse = [...currentPageData];
-    
-    console.log('Creating duplicated data:', {
-      vcandleObjectsLength: vcandleObjects.length,
-      currentPageDataLength: currentPageData.length,
-      dataToUseLength: dataToUse.length
-    });
+    // Duplicate data for seamless loop
+    const dataToUse = [...currentPageData, ...currentPageData];
     
     return dataToUse.map((userData, index) => {
       const vcandleIndex = index % vcandleObjects.length;
@@ -202,7 +186,7 @@ export default function MarqueeCandles({
           burnedAmount: userData.burnedAmount || 0,
         },
         candleObject: clonedCandle,
-        originalName: `${vcandleObjects[vcandleIndex].name}-marquee-${index}`,
+        originalName: `${vcandleObjects[vcandleIndex].name}-horizontal-marquee-${index}`,
       };
     });
   }, [currentPageData, vcandleObjects]);
@@ -215,57 +199,55 @@ export default function MarqueeCandles({
     scrollPositionRef.current = 0;
   }, [currentPage]);
   
-  // Animate the marquee
+  // Animate the horizontal marquee
   useFrame(() => {
     if (duplicatedData.length > 0) {
-      scrollPositionRef.current += scrollSpeed * 0.002;
+      scrollPositionRef.current += scrollSpeed * 0.01;
       
-      // Reset when completed full rotation
-      if (scrollPositionRef.current > Math.PI * 2) {
-        scrollPositionRef.current -= Math.PI * 2;
-      }
+      const spacing = 20; // Space between candles
+      const totalWidth = duplicatedData.length * spacing / 2; // Total width of all candles
       
       // Update positions for all candles
       const newPositions = duplicatedData.map((_, index) => {
-        // Distribute candles evenly around the semi-circle
-        const angleOffset = (index / duplicatedData.length) * Math.PI;
-        const angle = scrollPositionRef.current + angleOffset;
+        // Calculate base position
+        let xPos = (index * spacing) - scrollPositionRef.current;
         
-        // Semi-circle from right (-90°) to left (90°)
-        const adjustedAngle = (angle % Math.PI) - (Math.PI / 2);
+        // Wrap around for seamless scrolling
+        if (xPos < -totalWidth) {
+          xPos += totalWidth * 2;
+        }
         
-        const radius = 4;
-        const xPos = Math.sin(adjustedAngle) * radius;
-        const zPos = Math.cos(adjustedAngle) * radius + radius * 0.5;
-        const rotationY = -adjustedAngle + Math.PI / 2;
+        // Only show candles within visible range
+        const isVisible = xPos > -30 && xPos < 30;
         
-        return { xPos, zPos, rotationY };
+        return { xPos, isVisible };
       });
       
       setAnimatedPositions(newPositions);
+      
+      // Reset scroll when it completes one full cycle
+      if (scrollPositionRef.current > totalWidth) {
+        scrollPositionRef.current -= totalWidth;
+      }
     }
   });
   
   return (
-    <group ref={groupRef} position={[0, -1.2, -3.7]}>
+    <group ref={groupRef} position={[0, 0, 0]}>
       {duplicatedData.map((item, index) => {
-        const pos = animatedPositions[index] || { xPos: 0, zPos: 0, rotationY: 0 };
+        const pos = animatedPositions[index] || { xPos: 0, isVisible: true };
+        
+        if (!pos.isVisible) return null;
         
         return (
-          <group 
-            key={`${currentPage}-${item.originalName || index}`} 
-            position={[pos.xPos, 0, pos.zPos]} 
-            rotation={[0, pos.rotationY, 0]}
-          >
-            <MarqueeCandle
-              position={[0, 0, 0]}
-              candleObject={item.candleObject}
-              userData={item.userData}
-              index={index}
-              onClick={onCandleClick}
-              scrollSpeed={scrollSpeed}
-            />
-          </group>
+          <MarqueeCandle
+            key={`${currentPage}-${item.originalName || index}`}
+            position={[pos.xPos, 0, 0]}
+            candleObject={item.candleObject}
+            userData={item.userData}
+            index={index}
+            onClick={onCandleClick}
+          />
         );
       })}
     </group>

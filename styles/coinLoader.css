@@ -38,8 +38,8 @@
 
 /* Sparkle container */
 .coin-loader-container.sparkle {
-  width: 15rem;
-  height: 15rem;
+  width: 25rem;
+  height: 35rem;
   display: flex;
   align-items: center;
   justify-content: center;

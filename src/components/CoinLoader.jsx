@@ -19,8 +19,8 @@ const CoinLoader = ({ size = "small", showText = true, withSparkle = true, isLoa
     const MAX_STAR_SIZE = 40;
     const MIN_STAR_SIZE = 20;
 
-    const MIN_STAR_TRAVEL_X = 100;
-    const MIN_STAR_TRAVEL_Y = 100;
+    const MIN_STAR_TRAVEL_X = 120;
+    const MIN_STAR_TRAVEL_Y = 150;
 
     const randomLimitedColor = () => {
       const randomHue = (() => {

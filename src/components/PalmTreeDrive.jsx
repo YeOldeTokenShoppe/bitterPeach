@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import GUI from 'lil-gui';
+// GUI removed for production
 import NoiseParticleEffect from './NoiseParticleEffect';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -49,6 +49,24 @@ const textBlocks = [
     "chasing ghosts",
     "in rearview mirrors",
     "of tomorrow"
+  ],
+  [
+    "she watches over",
+    "this endless road",
+    "guardian of lost souls",
+    "in electric twilight",
+    "where faith meets code",
+    "and prayers become",
+    "digital whispers"
+  ],
+  [
+    "here at the end",
+    "or the beginning",
+    "time dissolves",
+    "into pixels and light",
+    "a sacred moment",
+    "forever preserved",
+    "in synthetic amber"
   ]
 ];
 
@@ -58,16 +76,10 @@ const PalmsScene = () => {
   const rendererRef = useRef(null);
   const materialShadersRef = useRef([]);
   const clockRef = useRef(new THREE.Clock());
-  const [cinematicProgress, setCinematicProgress] = useState(0); // 0-1 for intro animation
-  const [isCinematicComplete, setIsCinematicComplete] = useState(false);
-  const [cinematicMode, setCinematicMode] = useState('playback'); // 'playback' or 'design'
-  const [recordedKeyframes, setRecordedKeyframes] = useState([]);
-  const [currentKeyframeLabel, setCurrentKeyframeLabel] = useState('');
-  const cinematicModeRef = useRef('playback'); // Add ref to track mode in useEffect
-  const recordedKeyframesRef = useRef([]); // Add ref for keyframes
+  // Cinematic states removed for production
   const [isSceneLoading, setIsSceneLoading] = useState(true); // Loading state
-  const [cinematicReverse, setCinematicReverse] = useState(false); // Control reverse playback
-  const [scrollCameraActive, setScrollCameraActive] = useState(true); // Track scroll camera state - enabled by default
+  // Cinematic reverse removed
+  const scrollCameraActive = true; // Scroll camera always active
   const [currentCameraStage, setCurrentCameraStage] = useState(0); // Track which camera position we're at
   // Music player states
   const [showMobileMusicPlayer, setShowMobileMusicPlayer] = useState(false);
@@ -96,9 +108,7 @@ const PalmsScene = () => {
   // Add ref for new light
   const carAccentLightRef = useRef(null);
   
-  // Add state for GUI
-  const [showGUI, setShowGUI] = useState(false);
-  const guiRef = useRef(null);
+  // GUI removed for production
   
   // Add ref for controls
   const controlsRef = useRef(null);
@@ -115,8 +125,12 @@ const PalmsScene = () => {
   
   // Refs for scroll camera
   const scrollCameraEnabledRef = useRef(true); // Initialize as true to match state
-  const scrollProgressRef = useRef(0);
+  const scrollProgressRef = useRef(0); // Start at 0 for aerial view
 
+  // Force initial scroll position on mount
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
   
   // Check if mobile on mount and resize
   useEffect(() => {
@@ -209,103 +223,6 @@ const PalmsScene = () => {
   
 
   
-  // Cinematic intro keyframes - camera circles around the car
-  // Car is positioned at (2.5, 0, 15.6)
-  const carPosition = new THREE.Vector3(2.5, 1, 15.6); // Y=1 to focus on car body, not ground
-  const maryPosition = new THREE.Vector3(2.5, 1.2, 15.9); // Mary's approximate position on dashboard
-  
-  const defaultCinematicKeyframes = [
-    {
-      time: 0,
-      position: new THREE.Vector3(23.44316605882281, 10.742572701498755, 46.29070191100235),
-      target: new THREE.Vector3(10.603039680322532, 0.9999999999999947, 13.41155395604783),
-      fov: 75,
-      label: "1. Aerial Overview - High above road, distant view"
-    },
-    // {
-    //   time: 0.75,
-    //   position: new THREE.Vector3(23.44316605882281, 10.742572701498755, 46.29070191100235),
-    //   target: new THREE.Vector3(10.603039680322532, 0.9999999999999947, 13.41155395604783),
-    //   fov: 75,
-    //   label: "1. Aerial Overview - High above road, distant view"
-    // },
-    {
-      time: 0.5,
-      position: new THREE.Vector3(-1.7034359221208604, 5.915379032751001, 40.112551923455506),
-      target: new THREE.Vector3(10.603039680322532, 0.9999999999999947, 13.41155395604783),
-      fov: 75,
-      label: "2. Left Approach - Moving left, still high"
-    },
-    {
-      time: 0.8,
-      position: new THREE.Vector3(-6.0524575042076805, 3.918055946607266, 21.287706152442745),
-      target: new THREE.Vector3(10.603039680322532, 0.9999999999999947, 13.41155395604783),
-      fov: 75,
-      label: "3. Left Side Mid - Lower altitude, left of car"
-    },
-    {
-      time: 1.7,
-      position: new THREE.Vector3(-0.8347882248527965, 0.5164867342836925, 10.240340065709555),
-      target: new THREE.Vector3(2.358770226904321, 1.0000000000000018, 19.503127730061472),
-      fov: 75,
-      label: "4. Low Front Left - Very low, front-left of car"
-    },
-    {
-      time: 2.1,
-      position: new THREE.Vector3(14.838671888126719, 3.659963512752572, 8.264702512977697),
-      target: new THREE.Vector3(2.671321255014452, 1.0000000000000036, 18.7751954699424),
-      fov: 75,
-      label: "5. Right Side Sweep - Swung to right side"
-    },
-    {
-      time: 2.3,
-      position: new THREE.Vector3(2.493884543752368, 1.0425462114376007, 22.350372937532807),
-      target: new THREE.Vector3(2.671321255014452, 1.0000000000000036, 18.7751954699424),
-      fov: 75,
-      label: "6. Behind Car - Moving behind the vehicle"
-    },
-    {
-      time: 2.5,
-      position: new THREE.Vector3(2.565781098685172, 0.9895585295152736, 16.298913118921327),
-      target: new THREE.Vector3(2.5616940175316363, 1.0000000000000033, 16.199543750090882),
-      fov: 75,
-      label: "7. Dashboard Approach - Close to dashboard"
-    },
-    {
-      time: 3.3,
-      position: new THREE.Vector3(2.4038267804124738, 1.2362140136787254, 15.150479396436928),
-      target: new THREE.Vector3(2.561694, 1, 12.199544),
-      fov: 10,
-      label: "8. Mary Focus - Zoomed view of Mary"
-    },
-    // {
-    //   time: 5,
-    //   position: new THREE.Vector3(2.565781098685172, 0.9895585295152736, 16.298913118921327),
-    //   target: new THREE.Vector3(2.5616940175316363, 1.0000000000000033, 16.199543750090882),
-    //   fov: 5,
-    //   label: "8. Mary Zoom - Extreme zoom on Mary (FOV 5)"
-    // },
-    // {
-    //   time: 0.842857142857143,
-    //   position: new THREE.Vector3(7.879961038787648, 1.4593835467216665, 16.90305971927228),
-    //   target: new THREE.Vector3(5.450298986515486, 0.9999999999999898, 15.760547904615681),
-    //   fov: 75
-    // },
-    // {
-    //   time: 0.8571428571428571,
-    //   position: new THREE.Vector3(4.9724071540410995, 1.3987652980980871, 20.29527900870111),
-    //   target: new THREE.Vector3(5.450298986515486, 0.9999999999999898, 15.760547904615681),
-    //   fov: 75
-    // },
-    // {
-    //   time: 1,
-    //   position: new THREE.Vector3(2.494637977454283, 1.1850405090485119, 14.291298141694943),
-    //   target: new THREE.Vector3(1.1811263369229998, 0.9999999999999805, 12.355272021071679),
-    //   fov: 75
-    // }
-  ];
-  
-  // Remove this line - we'll define cinematicKeyframes inside useEffect
   
   // Light settings
   const lightSettings = {
@@ -446,10 +363,10 @@ const PalmsScene = () => {
     // camera.position.copy(initialKeyframes[0].position);
     // camera.lookAt(initialKeyframes[0].target);
     
-    // Start camera at user-specified position
-    camera.position.set(2.4564, 1.2084, 24.3895);
-    camera.lookAt(2.5729, 1.0383, 22.2069);
-    camera.fov = 20;
+    // Start camera at aerial view position
+    camera.position.set(16.2711, 5.8264, 40.5498);
+    camera.lookAt(4.3726, 2.1681, 20.7525);
+    camera.fov = 45;
     camera.updateProjectionMatrix();
     cameraRef.current = camera;
     
@@ -1346,13 +1263,10 @@ const PalmsScene = () => {
       scene.add(carScene);
       carModelRef.current = carScene; // Save reference for potential scroll-based animations
       
-      // Initialize GUI
-      if (!guiRef.current) {
-        guiRef.current = new GUI();
-        guiRef.current.domElement.style.display = 'none'; // Hide GUI by default
-        
-        // Car Spotlight Controls
-        const carSpotlightFolder = guiRef.current.addFolder('Car Spotlight');
+      // GUI initialization removed for production
+      if (false) {
+        // GUI code disabled
+        const carSpotlightFolder = null;
         carSpotlightFolder.addColor(lightSettings.carSpotlight, 'color').onChange((value) => {
           carSpotlightRef.current.color.set(value);
         });
@@ -1458,15 +1372,7 @@ const PalmsScene = () => {
           carAccentLightRef.current.position.z = value;
         });
         
-        // Add keyboard shortcut to toggle GUI
-        window.addEventListener('keydown', (e) => {
-          if (e.key.toLowerCase() === 'g') {
-            setShowGUI(prev => !prev);
-            if (guiRef.current) {
-              guiRef.current.domElement.style.display = showGUI ? 'block' : 'none';
-            }
-          }
-        });
+        // GUI keyboard shortcut removed
 
         // Add Save Settings button
         const saveSettings = () => {
@@ -1600,130 +1506,32 @@ const PalmsScene = () => {
     
 
     
-    // Keyboard controls for cinematic design mode
+    // Keyboard controls for camera tuning
     const handleKeyPress = (e) => {
-      // console.log('Key pressed:', e.key, 'Ctrl:', e.ctrlKey, 'Current mode:', cinematicMode);
-      
-      if (e.key === 'c' && e.ctrlKey) {
-        // Toggle cinematic design mode with Ctrl+C
-        e.preventDefault(); // Prevent default browser behavior
-        const newMode = cinematicMode === 'design' ? 'playback' : 'design';
-        setCinematicMode(newMode);
-        cinematicModeRef.current = newMode; // Update ref for useEffect
-        
-        if (newMode === 'design') {
-          // Entering design mode
-          // console.log('Controls ref exists:', !!controlsRef.current);
-          if (controlsRef.current) {
-            controlsRef.current.enabled = true; // Enable controls
-            // console.log('Controls enabled:', controlsRef.current.enabled);
-            // console.log('Controls object:', controlsRef.current);
-          }
-          setIsCinematicComplete(true); // Skip cinematic
-          // console.log('Entered cinematic design mode - controls should be active');
-        } else {
-          // Exiting design mode
-          if (controlsRef.current) {
-            controlsRef.current.enabled = !isCinematicComplete; // Disable if cinematic isn't complete
-          }
-          // console.log('Exited cinematic design mode');
-        }
-      } else if (e.key === 'k' && cinematicModeRef.current === 'design') {
-        // // Add keyframe at current camera position with 'K'
-        // console.log('K pressed in design mode');
-        if (!cameraRef.current || !controlsRef.current) {
-          console.error('Camera or controls not available');
-          return;
-        }
-        
-        const currentKeyframes = recordedKeyframesRef.current;
-        const newKeyframes = [...currentKeyframes];
-        const newKeyframe = {
-          time: 0, // Will be recalculated
-          position: cameraRef.current.position.clone(),
-          target: controlsRef.current.target.clone(),
-          fov: cameraRef.current.fov
-        };
-        
-        // console.log('Adding keyframe:', {
-        //   position: newKeyframe.position.toArray(),
-        //   target: newKeyframe.target.toArray(),
-        //   fov: newKeyframe.fov
-        // });
-        
-        newKeyframes.push(newKeyframe);
-        
-        // Redistribute times evenly
-        newKeyframes.forEach((kf, i) => {
-          kf.time = i / (newKeyframes.length - 1);
-        });
-        
-        recordedKeyframesRef.current = newKeyframes; // Update ref
-        setRecordedKeyframes(newKeyframes); // Update state for UI
-        console.log('Keyframe added. Total:', newKeyframes.length);
-      } else if (e.key === 'p' && cinematicModeRef.current === 'design') {
-        // Play recorded cinematic with 'P'
-        if (recordedKeyframesRef.current.length < 2) {
-          console.warn('Need at least 2 keyframes to play');
-          return;
-        }
-        setIsCinematicComplete(false);
-        setCinematicProgress(0);
-        setCinematicMode('playback');
-        cinematicModeRef.current = 'playback'; // Update ref
-        if (controlsRef.current) {
-          controlsRef.current.enabled = false;
-        }
-        // Create and play GSAP timeline
-        const timeline = createCinematicTimeline(cinematicReverse);
-        timeline.restart(); // Use restart to ensure it starts from the beginning
-      } else if (e.key === 'r' && cinematicModeRef.current === 'design') {
-        // Reset keyframes with 'R'
-        recordedKeyframesRef.current = [];
-        // setRecordedKeyframes([]);
-        console.log('Keyframes cleared');
-      } else if (e.key === 'l' && cinematicModeRef.current === 'design') {
-        // Log current keyframes with 'L'
-        const keyframesToLog = recordedKeyframesRef.current.length > 0 ? recordedKeyframesRef.current : defaultCinematicKeyframes;
-        // console.log('Current keyframes:', JSON.stringify(keyframesToLog, null, 2));
-        // console.log('Recorded keyframes count:', recordedKeyframesRef.current.length);
-      } else if (e.key === 'v') {
-        // Toggle reverse mode with 'V'
-        setCinematicReverse(prev => !prev);
-        console.log('Cinematic reverse mode:', !cinematicReverse);
-        
-        // If already playing, restart with new direction
-        if (!isCinematicComplete && cinematicModeRef.current === 'playback') {
-          const timeline = createCinematicTimeline(!cinematicReverse);
-          timeline.restart();
-        }
-      } else if (e.key === 's' || e.key === 'S') {
-        // Toggle scroll camera mode with 'S'
-        toggleScrollCamera();
-      } else if (e.key === 'i' || e.key === 'I') {
-        // Log current camera position and target with 'I' (info)
+      if (e.key === 'i' || e.key === 'I') {
+        // Log current camera position for debugging
         if (cameraRef.current && controlsRef.current) {
           const pos = cameraRef.current.position;
           const target = controlsRef.current.target;
           const fov = cameraRef.current.fov;
           
-          // console.log('=== Current Camera Info ===');
-          // console.log('Position:', `(${pos.x.toFixed(4)}, ${pos.y.toFixed(4)}, ${pos.z.toFixed(4)})`);
-          // console.log('Target:', `(${target.x.toFixed(4)}, ${target.y.toFixed(4)}, ${target.z.toFixed(4)})`);
-          // console.log('FOV:', fov);
-          // console.log('Distance to target:', pos.distanceTo(target).toFixed(4));
+          console.log('=== Current Camera Info ===');
+          console.log('Position:', `${pos.x.toFixed(4)}, ${pos.y.toFixed(4)}, ${pos.z.toFixed(4)}`);
+          console.log('Target:', `${target.x.toFixed(4)}, ${target.y.toFixed(4)}, ${target.z.toFixed(4)}`);
+          console.log('FOV:', fov);
+          console.log('Scroll Progress:', scrollProgressRef.current);
           
-          // Also log as copy-pasteable code
-          // console.log('\n// Copy this to set camera position:');
-          // console.log(`camera.position.set(${pos.x.toFixed(4)}, ${pos.y.toFixed(4)}, ${pos.z.toFixed(4)});`);
-          // console.log(`camera.lookAt(${target.x.toFixed(4)}, ${target.y.toFixed(4)}, ${target.z.toFixed(4)});`);
-          // console.log(`camera.fov = ${fov};`);
-          // console.log(`camera.updateProjectionMatrix();`);
-          
-          // Log as Three.js Vector3 format
-          // console.log('\n// Or as Vector3:');
-          // console.log(`new THREE.Vector3(${pos.x.toFixed(4)}, ${pos.y.toFixed(4)}, ${pos.z.toFixed(4)})`);
-          // console.log(`new THREE.Vector3(${target.x.toFixed(4)}, ${target.y.toFixed(4)}, ${target.z.toFixed(4)})`);
+          // Copy-paste ready format
+          console.log('\n// Copy for keyframe:');
+          console.log(`{ x: ${pos.x.toFixed(4)}, y: ${pos.y.toFixed(4)}, z: ${pos.z.toFixed(4)}, targetX: ${target.x.toFixed(4)}, targetY: ${target.y.toFixed(4)}, targetZ: ${target.z.toFixed(4)}, fov: ${fov} }`);
+        }
+      } else if (e.key === 'o' || e.key === 'O') {
+        // Toggle OrbitControls for finding good positions
+        if (controlsRef.current) {
+          controlsRef.current.enabled = !controlsRef.current.enabled;
+          scrollCameraEnabledRef.current = !controlsRef.current.enabled;
+          console.log('OrbitControls:', controlsRef.current.enabled ? 'ENABLED' : 'DISABLED');
+          console.log('ScrollCamera:', scrollCameraEnabledRef.current ? 'ENABLED' : 'DISABLED');
         }
       }
     };
@@ -1755,9 +1563,10 @@ const PalmsScene = () => {
           setCurrentKeyframeLabel(keyframes[0].label || '');
         },
         onComplete: () => {
-          setIsCinematicComplete(true);
-          controls.enabled = true;
-          controls.update();
+          // Cinematic complete - removed
+          // Don't enable controls - scroll camera is always active
+          // controls.enabled = true;
+          // controls.update();
           
           // Start Mary glowing effect
           setMaryGlowing(true);
@@ -1920,7 +1729,7 @@ const PalmsScene = () => {
       // Update progress for UI
       tl.eventCallback("onUpdate", () => {
         const progress = tl.progress();
-        setCinematicProgress(progress);
+        // Cinematic progress removed
         
         // Find current keyframe label based on progress
         const currentTime = progress * keyframes[keyframes.length - 1].time;
@@ -1951,89 +1760,216 @@ const PalmsScene = () => {
     //   timeline.play();
     // }
     
-    // Set cinematic as complete so controls work immediately
-    setIsCinematicComplete(true);
+    // Controls work immediately since cinematic is removed
     
-    // Also trigger Mary glow effect since we're skipping the cinematic
+    // Also trigger Mary glow effect
     setMaryGlowing(true);
     maryGlowingRef.current = true;
     
-    // Scroll-based camera movement (optional - toggle with 'S' key)
-    const maxScroll = 2000; // Less sensitive - requires more scrolling
-    
-    const handleScroll = (event) => {
-      // console.log('Scroll event detected!', {
-      //   cameraExists: !!cameraRef.current,
-      //   scrollEnabled: scrollCameraEnabledRef.current,
-      //   deltaY: event.deltaY
-      // });
+    // Simple scroll-based camera animation using GSAP ScrollTrigger
+    // Create a virtual scroll container for smooth animation
+    const setupScrollAnimation = () => {
+      console.log('Setting up scroll animation...');
+      console.log('Camera exists:', !!cameraRef.current);
+      console.log('Controls exist:', !!controlsRef.current);
+      console.log('Intersection ref exists:', !!intersectionRef.current);
       
-      if (!cameraRef.current || !scrollCameraEnabledRef.current) return;
-      
-      event.preventDefault(); // Prevent page scroll
-      
-      // Update scroll progress with sticky points at first 3 positions
-      // Clamp deltaY to prevent huge jumps from trackpad gestures
-      const clampedDelta = Math.max(-10, Math.min(10, event.deltaY));
-      const scrollDelta = clampedDelta / maxScroll;
-      const rawProgress = scrollProgressRef.current + scrollDelta;
-      
-      // Define exact positions where camera views are perfectly framed
-      // These are the exact scroll percentages where each view is reached
-      const cameraPositions = [
-        { progress: 0.0, name: "Mary Close-up" },      // Starting position
-        { progress: 0.2, name: "Full Interior" },      // End of stage 1
-        { progress: 0.4, name: "License Plate" },      // End of stage 2
-        { progress: 0.6, name: "Behind Car" },         // End of stage 3 (sticky ends here)
-        { progress: 0.8, name: "Aerial View" },        // End of stage 4
-        { progress: 1.0, name: "Final Position" }      // End position
-      ];
-      
-      // Only make first 3 positions sticky (0, 0.2, 0.4)
-      const stickyPositions = cameraPositions.slice(0, 3).map(p => p.progress);
-      const stickyThreshold = 0.02; // How close to stick
-      const breakAwayForce = 0.008; // Balanced for new sensitivity
-      const escapeDistance = 0.03; // Minimum distance to escape sticky zone
-      
-      let newProgress = rawProgress;
-      
-      // Check each sticky point
-      for (const point of stickyPositions) {
-        const currentDistance = Math.abs(scrollProgressRef.current - point);
-        const newDistance = Math.abs(rawProgress - point);
-        
-        // If we're already at a sticky point
-        if (currentDistance < 0.001) {
-          // Need significant scroll to break free
-          const scrollForce = Math.abs(clampedDelta / maxScroll);
-          if (scrollForce < breakAwayForce) {
-            newProgress = point; // Stay stuck
-            // console.log(`Stuck at ${point * 100}% - need more scroll force to break free`);
-          } else {
-            // Break free with enough distance to escape sticky zone
-            const direction = clampedDelta > 0 ? 1 : -1;
-            newProgress = point + (direction * escapeDistance);
-            // console.log(`Breaking free from ${point * 100}%`);
-          }
-          break;
-        }
-        
-        // Only snap if we're approaching from outside the escape zone
-        if (newDistance < stickyThreshold && currentDistance > escapeDistance) {
-          // Always snap when within threshold, regardless of direction
-          newProgress = point;
-          // console.log(`Snapping to ${point * 100}%`);
-          break;
-        }
+      if (!cameraRef.current || !controlsRef.current) {
+        console.log('Camera or controls not ready, retrying...');
+        setTimeout(setupScrollAnimation, 500);
+        return;
       }
       
-      // Clamp between 0 and 1
-      scrollProgressRef.current = Math.max(0, Math.min(1, newProgress));
+      // Kill any existing ScrollTriggers first
+      ScrollTrigger.getAll().forEach(t => t.kill());
       
-      // Check if we're at a sticky point for visual feedback
-      const isAtStickyPoint = stickyPositions.some(point => 
-        Math.abs(scrollProgressRef.current - point) < 0.001
-      );
+      // Reset to initial state - ensure we're at the start
+      window.scrollTo(0, 0);
+      scrollProgressRef.current = 0;
+      setCurrentCameraStage(0);
+      
+      // Set initial camera position explicitly to aerial view
+      const initialPos = { x: 16.2711, y: 5.8264, z: 40.5498 };
+      const initialTarget = { x: 4.3726, y: 2.1681, z: 20.7525 };
+      const initialFov = 45;
+      
+      cameraRef.current.position.set(initialPos.x, initialPos.y, initialPos.z);
+      cameraRef.current.lookAt(initialTarget.x, initialTarget.y, initialTarget.z);
+      cameraRef.current.fov = initialFov;
+      cameraRef.current.updateProjectionMatrix();
+      
+      if (controlsRef.current) {
+        controlsRef.current.target.set(initialTarget.x, initialTarget.y, initialTarget.z);
+        controlsRef.current.update();
+      }
+      
+      // Create a simple timeline for camera movement
+      const tl = gsap.timeline({
+        defaults: { ease: "none" }
+      });
+      
+      // Define camera path from aerial to Mary's face
+      const cameraPath = {
+        // Starting values (aerial view) - must match initialPos/Target above
+        x: initialPos.x,
+        y: initialPos.y,
+        z: initialPos.z,
+        targetX: initialTarget.x,
+        targetY: initialTarget.y,
+        targetZ: initialTarget.z,
+        fov: initialFov
+      };
+      
+      // Your custom camera path with smooth transitions
+      // Waypoint 1: Behind and above (first movement from aerial)
+      tl.to(cameraPath, {
+        x: 0.8114,
+        y: 3.8097,
+        z: 36.9146,
+        targetX: 0.6379,
+        targetY: 1.7031,
+        targetZ: 23.6150,
+        fov: 42.106054,
+        duration: 0.2,
+        ease: "power2.inOut"
+      })
+      // Waypoint 2: Side view at car level
+      .to(cameraPath, {
+        x: -12.6434,
+        y: 3.9412,
+        z: 20.5192,
+        targetX: 0.6205,
+        targetY: 1.7849,
+        targetZ: 23.5889,
+        fov: 42.106054,
+        duration: 0.2,
+        ease: "power2.inOut"
+      })
+      // Waypoint 3: Low front angle
+      .to(cameraPath, {
+        x: -0.7692,
+        y: 3.9049,
+        z: 10.1399,
+        targetX: 0.6226,
+        targetY: 1.7644,
+        targetZ: 23.5831,
+        fov: 42.106054,
+        duration: 0.15,
+        ease: "power2.inOut"
+      })
+      // Waypoint 4: Approaching car from behind
+      .to(cameraPath, {
+        x: 3.2883,
+        y: 1.7877,
+        z: 26.5226,
+        targetX: 1.4980,
+        targetY: 1.3718,
+        targetZ: 22.9299,
+        fov: 38,
+        duration: 0.15,
+        ease: "power2.inOut"
+      })
+      // Waypoint 5: Close to dashboard
+      .to(cameraPath, {
+        x: 2.3730,
+        y: 1.1926,
+        z: 26.0807,
+        targetX: 1.6639,
+        targetY: 1.3046,
+        targetZ: 22.9043,
+        fov: 30,
+        duration: 0.15,
+        ease: "power2.inOut"
+      })
+      // Penultimate close-up: Approaching Mary
+      .to(cameraPath, {
+        x: 2.4696,
+        y: 1.1750,
+        z: 24.3635,
+        targetX: 2.9739,
+        targetY: 0.9938,
+        targetZ: 21.3748,
+        fov: 22,
+        duration: 0.15,
+        ease: "power2.inOut"
+      })
+      // Final close-up: Face to face with Mary
+      .to(cameraPath, {
+        x: 2.4881,
+        y: 1.1993,
+        z: 24.5801,
+        targetX: 2.5510,
+        targetY: 0.8969,
+        targetZ: 21.0514,
+        fov: 23.1616,
+        duration: 0.2,  // Smooth final transition
+        ease: "power2.out"
+      });
+  
+      // Single onUpdate for the entire timeline
+      tl.eventCallback("onUpdate", () => {
+        if (cameraRef.current && !controlsRef.current.enabled) {
+          cameraRef.current.position.set(cameraPath.x, cameraPath.y, cameraPath.z);
+          cameraRef.current.lookAt(cameraPath.targetX, cameraPath.targetY, cameraPath.targetZ);
+          cameraRef.current.fov = cameraPath.fov;
+          cameraRef.current.updateProjectionMatrix();
+          
+          if (controlsRef.current) {
+            controlsRef.current.target.set(cameraPath.targetX, cameraPath.targetY, cameraPath.targetZ);
+          }
+        }
+      });
+      
+      // Create ScrollTrigger - use document scrolling
+      const st = ScrollTrigger.create({
+        trigger: document.body,
+        start: "top top",
+        end: "+=3000", // 3000px of scrolling
+        scrub: true, // Smooth scrubbing
+        animation: tl,
+        markers: false, // Hide markers for cleaner view
+        immediateRender: false, // Don't jump to end
+        onUpdate: (self) => {
+          scrollProgressRef.current = self.progress;
+          
+          // Update camera stage based on progress for text changes (5 text blocks)
+          let stage = 0;
+          if (self.progress < 0.2) stage = 0;
+          else if (self.progress < 0.4) stage = 1;
+          else if (self.progress < 0.6) stage = 2;
+          else if (self.progress < 0.8) stage = 3;
+          else stage = 4; // Final text block for the ultimate close-up
+          
+          setCurrentCameraStage(stage);
+          // console.log('Scroll progress:', self.progress, 'Stage:', stage);
+        }
+      });
+      
+      console.log('ScrollTrigger created:', st);
+      
+      // Force refresh to ensure proper initialization
+      st.refresh();
+      ScrollTrigger.refresh();
+    };
+    
+    // Set up scroll animation after a short delay to ensure scene is ready
+    setTimeout(() => {
+      setupScrollAnimation();
+    }, 100);
+    
+    // Test if page is scrollable
+    setTimeout(() => {
+      console.log('Document body height:', document.body.scrollHeight);
+      console.log('Window height:', window.innerHeight);
+      console.log('Is scrollable?', document.body.scrollHeight > window.innerHeight);
+      console.log('Scroll container exists?', !!document.getElementById('scroll-container'));
+      console.log('Current scroll position:', window.scrollY);
+    }, 1500);
+    
+    // Old scroll handler - keeping for fallback
+    const handleScroll = (event) => {
+      // Disabled - using ScrollTrigger instead
+      return;
       
       // Determine current stage based on progress
       let currentStage = 0;
@@ -2056,27 +1992,27 @@ const PalmsScene = () => {
       //   cameraActualPos: cameraRef.current ? `(${cameraRef.current.position.x.toFixed(2)}, ${cameraRef.current.position.y.toFixed(2)}, ${cameraRef.current.position.z.toFixed(2)})` : 'N/A'
       // });
       
-      // Define camera path keyframes - six stages
-      const startPos = new THREE.Vector3(2.4564, 1.2084, 24.3895); // Close-up Mary position
-      const midPos1 = new THREE.Vector3(2.2983, 1.2680, 26.2786); // Full interior view position
+      // Define camera path keyframes - from aerial to Mary's face
+      const startPos = new THREE.Vector3(10.4429, 12.8459, 48.9003); // High aerial view (starting position)
+      const midPos1 = new THREE.Vector3(2.4008, 2.6902, 46.3190); // Behind car view
       const midPos2 = new THREE.Vector3(2.5441, 1.2363, 30.7488); // License plate view
-      const midPos3 = new THREE.Vector3(2.4008, 2.6902, 46.3190); // Behind car view
-      const midPos4 = new THREE.Vector3(10.4429, 12.8459, 48.9003); // High aerial view
-      const endPos = new THREE.Vector3(10.4429, 12.8459, 48.9003); // Final position (same as midPos4)
+      const midPos3 = new THREE.Vector3(2.2983, 1.2680, 26.2786); // Full interior view position
+      const midPos4 = new THREE.Vector3(2.4564, 1.2084, 24.3895); // Close-up Mary position
+      const endPos = new THREE.Vector3(2.4564, 1.2084, 24.3895); // Final position (Mary close-up)
       
-      const startTarget = new THREE.Vector3(2.5729, 1.0383, 22.2069); // Looking at Mary
-      const midTarget1 = new THREE.Vector3(2.6041, 1.2667, 22.1906); // Looking at interior
+      const startTarget = new THREE.Vector3(0.2783, 12.8459, 24.1190); // Looking down at scene
+      const midTarget1 = new THREE.Vector3(4.7090, 0.1080, 25.6604); // Looking at car from behind
       const midTarget2 = new THREE.Vector3(2.6723, 0.6909, 25.8858); // Looking at license plate
-      const midTarget3 = new THREE.Vector3(4.7090, 0.1080, 25.6604); // Looking at car from behind
-      const midTarget4 = new THREE.Vector3(0.2783, 12.8459, 24.1190); // Looking down at scene
-      const endTarget = new THREE.Vector3(0.2783, 12.8459, 24.1190); // Final target (same as midTarget4)
+      const midTarget3 = new THREE.Vector3(2.6041, 1.2667, 22.1906); // Looking at interior
+      const midTarget4 = new THREE.Vector3(2.5729, 1.0383, 22.2069); // Looking at Mary
+      const endTarget = new THREE.Vector3(2.5729, 1.0383, 22.2069); // Final target (Mary)
       
-      const startFov = 20; // Close-up FOV
-      const midFov1 = 44.81375073518518; // FOV for full interior
+      const startFov = 45; // Aerial FOV
+      const midFov1 = 44.99702846471359; // FOV for behind view
       const midFov2 = 44.99445463822931; // FOV for license plate
-      const midFov3 = 44.99702846471359; // FOV for behind view
-      const midFov4 = 44.99702846471359; // FOV for aerial view
-      const endFov = 44.99702846471359; // Final FOV
+      const midFov3 = 44.81375073518518; // FOV for full interior
+      const midFov4 = 20; // Close-up FOV
+      const endFov = 20; // Final FOV (close-up)
       
       // Apply easing function for smoother movement
       const easedProgress = 1 - Math.pow(1 - scrollProgressRef.current, 3); // Cubic ease-out
@@ -2086,39 +2022,40 @@ const PalmsScene = () => {
       let stage = 0;
       
       if (easedProgress < 0.2) {
-        // Stage 1: Close-up Mary to full interior view (0-20% of scroll)
+        // Stage 1: Aerial view to behind car (0-20% of scroll)
         stage = 0;
         const stage1Progress = easedProgress * 5; // Map 0-0.2 to 0-1
         currentPos = new THREE.Vector3().lerpVectors(startPos, midPos1, stage1Progress);
         currentTarget = new THREE.Vector3().lerpVectors(startTarget, midTarget1, stage1Progress);
         currentFov = startFov + (midFov1 - startFov) * stage1Progress;
       } else if (easedProgress < 0.4) {
-        // Stage 2: Full interior to license plate (20-40% of scroll)
+        // Stage 2: Behind car to license plate (20-40% of scroll)
         stage = 1;
         const stage2Progress = (easedProgress - 0.2) * 5; // Map 0.2-0.4 to 0-1
         currentPos = new THREE.Vector3().lerpVectors(midPos1, midPos2, stage2Progress);
         currentTarget = new THREE.Vector3().lerpVectors(midTarget1, midTarget2, stage2Progress);
         currentFov = midFov1 + (midFov2 - midFov1) * stage2Progress;
       } else if (easedProgress < 0.6) {
-        // Stage 3: License plate to behind car (40-60% of scroll)
+        // Stage 3: License plate to full interior (40-60% of scroll)
         stage = 2;
         const stage3Progress = (easedProgress - 0.4) * 5; // Map 0.4-0.6 to 0-1
         currentPos = new THREE.Vector3().lerpVectors(midPos2, midPos3, stage3Progress);
         currentTarget = new THREE.Vector3().lerpVectors(midTarget2, midTarget3, stage3Progress);
         currentFov = midFov2 + (midFov3 - midFov2) * stage3Progress;
       } else if (easedProgress < 0.8) {
-        // Stage 4: Behind car to aerial view (60-80% of scroll)
+        // Stage 4: Full interior to close-up Mary (60-80% of scroll)
         stage = 3;
         const stage4Progress = (easedProgress - 0.6) * 5; // Map 0.6-0.8 to 0-1
         currentPos = new THREE.Vector3().lerpVectors(midPos3, midPos4, stage4Progress);
         currentTarget = new THREE.Vector3().lerpVectors(midTarget3, midTarget4, stage4Progress);
         currentFov = midFov3 + (midFov4 - midFov3) * stage4Progress;
       } else {
-        // Stage 5: Hold at final aerial view (80-100% of scroll)
+        // Stage 5: Final approach to Mary's face (80-100% of scroll)
         stage = 4;
-        currentPos = endPos;
-        currentTarget = endTarget;
-        currentFov = endFov;
+        const stage5Progress = (easedProgress - 0.8) * 5; // Map 0.8-1.0 to 0-1
+        currentPos = new THREE.Vector3().lerpVectors(midPos4, endPos, stage5Progress);
+        currentTarget = new THREE.Vector3().lerpVectors(midTarget4, endTarget, stage5Progress);
+        currentFov = midFov4 + (endFov - midFov4) * stage5Progress;
       }
       
       // Update current stage
@@ -2137,16 +2074,7 @@ const PalmsScene = () => {
       }
     };
     
-    // Toggle scroll camera with 'S' key
-    const toggleScrollCamera = () => {
-      scrollCameraEnabledRef.current = !scrollCameraEnabledRef.current;
-      setScrollCameraActive(scrollCameraEnabledRef.current);
-      if (controlsRef.current) {
-        controlsRef.current.enabled = !scrollCameraEnabledRef.current;
-      }
-      // console.log('Scroll camera:', scrollCameraEnabledRef.current ? 'ENABLED' : 'DISABLED');
-      // console.log('Orbit controls:', !scrollCameraEnabledRef.current ? 'ENABLED' : 'DISABLED');
-    };
+    // Toggle scroll camera removed - always active
     
     // Add scroll listener to multiple elements to ensure it's captured
     window.addEventListener('wheel', handleScroll, { passive: false });
@@ -2182,36 +2110,34 @@ const PalmsScene = () => {
         }
       });
       
-      // Scroll animation disabled - using cinematic intro instead
+      // Scroll camera animation
       
-      // GSAP handles the cinematic animation now
-      if (cinematicModeRef.current === 'design' || isCinematicComplete) {
-        // In design mode or after cinematic is complete
-        
+      // Handle scroll-based camera movement
+      if (scrollCameraEnabledRef.current) {
+        // Scroll camera is enabled - this handles the camera movement
+        // The actual camera updates happen in the handleScroll function
+      } else {
         // Only update controls if scroll camera is NOT enabled
-        if (!scrollCameraEnabledRef.current) {
-          // Dynamic maxPolarAngle based on camera distance
-          // Calculate current distance from camera to target
-          const cameraDistance = camera.position.distanceTo(controls.target);
-          
-          // Adjust maxPolarAngle based on distance
-          // When close (distance < 5), allow lower angles for dashboard view
-          // When far (distance > 20), restrict to prevent seeing below road
-          if (cameraDistance < 5) {
-            // Very close - allow almost horizontal view for dashboard
-            controls.maxPolarAngle = Math.PI * 0.55; // ~153 degrees
-          } else if (cameraDistance < 10) {
-            // Medium distance - moderate restriction
-            controls.maxPolarAngle = Math.PI * 0.55; // ~117 degrees
-          } else {
-            // Far distance - restrict to prevent seeing below road
-            controls.maxPolarAngle = Math.PI * 0.45; // ~81 degrees
-          }
-          
-          // Update orbit controls
-          controls.update();
+        // Dynamic maxPolarAngle based on camera distance
+        // Calculate current distance from camera to target
+        const cameraDistance = camera.position.distanceTo(controls.target);
+        
+        // Adjust maxPolarAngle based on distance
+        // When close (distance < 5), allow lower angles for dashboard view
+        // When far (distance > 20), restrict to prevent seeing below road
+        if (cameraDistance < 5) {
+          // Very close - allow almost horizontal view for dashboard
+          controls.maxPolarAngle = Math.PI * 0.55; // ~153 degrees
+        } else if (cameraDistance < 10) {
+          // Medium distance - moderate restriction
+          controls.maxPolarAngle = Math.PI * 0.55; // ~117 degrees
+        } else {
+          // Far distance - restrict to prevent seeing below road
+          controls.maxPolarAngle = Math.PI * 0.45; // ~81 degrees
         }
-        // If scroll camera is enabled, don't update controls as it would override scroll position
+        
+        // Update orbit controls
+        controls.update();
       }
       
       // Render the scene
@@ -2341,6 +2267,9 @@ const PalmsScene = () => {
 
     // Cleanup
     return () => {
+      // Kill all ScrollTriggers
+      ScrollTrigger.getAll().forEach(t => t.kill());
+      
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('click', handleClick);
@@ -2383,38 +2312,46 @@ const PalmsScene = () => {
 
 
   return (
-    <div ref={intersectionRef} style={{ position: 'relative', width: '100%', height: '100%', backgroundColor: 'black' }}>
-      {/* Loading screen */}
-      {isSceneLoading && (
-        <div style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: 'black',
-          zIndex: 1000
-        }}>
-          <CoinLoader size="large" showText={false} withSparkle={true} />
-        </div>
-      )}
-      
-      {/* Three.js scene container */}
-      <div style={{ 
-        position: 'relative', 
-        width: '100%', 
-        height: '100%', 
-        overflow: 'hidden', 
-        backgroundColor: 'black',
-        opacity: isSceneLoading ? 0 : 1,
-        transition: 'opacity 0.5s ease-in-out'
+    <div ref={intersectionRef} style={{ position: 'relative', width: '100%', backgroundColor: 'black' }}>
+      {/* Fixed viewport for Three.js scene */}
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100vh',
+        backgroundColor: 'black'
       }}>
-       
+        {/* Loading screen */}
+        {isSceneLoading && (
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'black',
+            zIndex: 1000
+          }}>
+            <CoinLoader size="large" showText={false} withSparkle={true} />
+          </div>
+        )}
         
-        <style jsx>{`
+        {/* Three.js scene container */}
+        <div style={{ 
+          position: 'absolute', 
+          width: '100%', 
+          height: '100%', 
+          overflow: 'hidden', 
+          backgroundColor: 'black',
+          opacity: isSceneLoading ? 0 : 1,
+          transition: 'opacity 0.5s ease-in-out'
+        }}>
+          
+          <style jsx>{`
           @keyframes fadeIn {
             from {
               opacity: 0;
@@ -2459,31 +2396,12 @@ const PalmsScene = () => {
           }}
         />
         
-        {/* Camera mode indicator */}
-        <div style={{
-          position: 'absolute',
-          bottom: '60px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          padding: '8px 16px',
-          backgroundColor: scrollCameraActive ? 'rgba(0, 255, 0, 0.8)' : 'rgba(0, 123, 255, 0.8)',
-          border: '1px solid rgba(255, 255, 255, 0.5)',
-          borderRadius: '4px',
-          color: '#ffffff',
-          fontSize: '14px',
-          fontFamily: 'monospace',
-          fontWeight: 'bold',
-          textAlign: 'center',
-          zIndex: 150,
-          transition: 'all 0.3s ease'
-        }}>
-          {scrollCameraActive ? '📜 SCROLL CAMERA' : '🎮 ORBIT CONTROLS'} (S: toggle | I: log position)
-        </div>
+        {/* Camera mode indicator removed for production */}
         
         
         
-        {/* Cinematic design mode UI */}
-        {cinematicMode === 'design' && (
+        {/* Cinematic design mode removed for production */}
+        {false && (
           <div style={{
             position: 'absolute',
             top: '20px',
@@ -2538,8 +2456,8 @@ const PalmsScene = () => {
           </div>
         )}
         
-        {/* Cinematic intro UI */}
-        {!isCinematicComplete && cinematicMode === 'playback' && (
+        {/* Cinematic intro UI removed */}
+        {false && (
           <div style={{
             position: 'absolute',
             top: 0,
@@ -2827,7 +2745,7 @@ const PalmsScene = () => {
       )}
       
       {/* Scrolling Text Section - Right Side */}
-      {!isSceneLoading && currentCameraStage < 3 && scrollCameraActive && (
+      {!isSceneLoading && scrollCameraActive && (
         <div 
           ref={textSectionRef}
           style={{
@@ -2906,39 +2824,11 @@ const PalmsScene = () => {
         </div>
       )}
       
-      {/* Scroll Camera Indicator */}
-      {!isSceneLoading && (
-        <div style={{
-          position: 'fixed',
-          top: '20px',
-          left: '20px',
-          backgroundColor: scrollCameraActive ? 'rgba(0, 255, 0, 0.2)' : 'rgba(255, 0, 0, 0.2)',
-          color: 'white',
-          padding: '10px 15px',
-          borderRadius: '5px',
-          fontFamily: 'monospace',
-          fontSize: '14px',
-          zIndex: 1000,
-          border: `1px solid ${scrollCameraActive ? '#00ff00' : '#ff0000'}`,
-          boxShadow: `0 0 10px ${scrollCameraActive ? 'rgba(0, 255, 0, 0.5)' : 'rgba(255, 0, 0, 0.5)'}`,
-          cursor: 'pointer',
-          userSelect: 'none',
-        }}
-        onClick={() => {
-          scrollCameraEnabledRef.current = !scrollCameraEnabledRef.current;
-          setScrollCameraActive(scrollCameraEnabledRef.current);
-          if (controlsRef.current) {
-            controlsRef.current.enabled = !scrollCameraEnabledRef.current;
-          }
-        }}
-        title="Click or press &apos;S&apos; to toggle">
-          Scroll Camera: {scrollCameraActive ? 'ON' : 'OFF'}
-          <div style={{ fontSize: '10px', opacity: 0.7, marginTop: '4px' }}>
-            Press &apos;S&apos; or click to toggle
-          </div>
-        </div>
-      )}
+      {/* Scroll Camera Indicator removed for production */}
+      </div>
       
+      {/* Scroll spacer to enable scrolling */}
+      <div id="scroll-container" style={{ height: '400vh' }} />
     </div>
   );
 };
