@@ -935,29 +935,10 @@ function Model({
     }
   }, [is80sMode]);
 
-  // Toggle floor textures when 80s mode changes
+  // Setup video texture for goldCircuit (only once, independent of 80s mode)
   useEffect(() => {
+    if (!gltf || !gltf.scene) return;
 
-    if (!gltf || !gltf.scene) {
-      console.warn('⚠️ Model.jsx: gltf or scene not available');
-      return;
-    }
-
-    // Create a texture loader
-    const textureLoader = new THREE.TextureLoader();
-
-    // Texture configuration - Edit these values to experiment with different textures
-    const textureConfig = {
-      path: "/80carpet.png", // Path to texture file
-      repeat: { x: 4, y: 4 }, // Tiling (higher numbers = smaller pattern)
-      offset: { x: 0.5, y: 0.5 }, // Offset (0-1 range)
-      anisotropy: 16, // Texture quality at angles (higher = better quality)
-      rotation: 0, // Rotation in radians (Math.PI/4 = 45 degrees)
-      emissive: true, // Enable emissive effect for neon glow
-      emissiveIntensity: 0.6, // Intensity of the glow (0-1 range)
-      // emissiveColor: 0xffffff, // Neutral white to preserve original colors
-    };
-    
     // Video texture configuration for goldCircuit
     const videoTextureConfig = {
       path: "/circuit1.mp4", // Changed to mp4 for smaller file size
@@ -969,39 +950,13 @@ function Model({
       emissiveIntensity: 0.3, // Lower intensity for video
     };
 
-    // Function to apply texture with settings
-    const applyTextureWithSettings = (texture, config) => {
-      texture.colorSpace = THREE.SRGBColorSpace;
-      texture.wrapS = THREE.RepeatWrapping;
-      texture.wrapT = THREE.RepeatWrapping;
-      texture.repeat.set(config.repeat.x, config.repeat.y);
-      texture.offset.set(config.offset.x, config.offset.y);
-      texture.anisotropy = config.anisotropy;
-      texture.rotation = config.rotation;
-      texture.needsUpdate = true;
-      return texture;
-    };
-
-    // Find floor objects in the model
-
-    let floorFound = false;
     let videoElement = null; // Store video element reference
     let videoTexture = null; // Store video texture reference
     
     gltf.scene.traverse(child => {
-      // Log all mesh names for debugging
-      if (child.isMesh) {
-
-        // Special logging for floor-like objects
-        if (child.name.toLowerCase().includes('floor')) {
-
-        }
-      }
-      
-      // Handle goldCircuit with video texture
+      // Handle goldCircuit with video texture ONLY
       if (child.isMesh && (child.name === "goldCircuit" || child.name.includes("goldCircuit"))) {
         console.log('🎬 Found goldCircuit mesh:', child.name);
-        console.log('🎬 Is 80s mode:', is80sMode);
         console.log('🎬 Material type:', child.material?.type);
         
         // Store original material if not already stored
@@ -1148,17 +1103,68 @@ function Model({
         
         return; // Skip further processing for goldCircuit
       }
-      
-      // Check for any mesh with "Floor" in its name - now also includes partial matches
+    });
+    
+    // Cleanup function for video textures
+    return () => {
+      if (gltf && gltf.scene) {
+        gltf.scene.traverse(child => {
+          if (child.userData.videoElement) {
+            console.log('🧹 Cleaning up video element');
+            child.userData.videoElement.pause();
+            child.userData.videoElement.removeAttribute('src');
+            child.userData.videoElement.load(); // Reset the video element
+            child.userData.videoElement = null;
+          }
+          if (child.userData.videoTexture) {
+            console.log('🧹 Disposing video texture');
+            child.userData.videoTexture.dispose();
+            child.userData.videoTexture = null;
+          }
+        });
+      }
+    };
+  }, [gltf]); // Only depend on gltf for video texture
+
+  // Toggle floor textures when 80s mode changes
+  useEffect(() => {
+    if (!gltf || !gltf.scene) return;
+
+    // Create a texture loader
+    const textureLoader = new THREE.TextureLoader();
+
+    // Texture configuration for 80s carpet
+    const textureConfig = {
+      path: "/80carpet.png", // Path to texture file
+      repeat: { x: 4, y: 4 }, // Tiling (higher numbers = smaller pattern)
+      offset: { x: 0.5, y: 0.5 }, // Offset (0-1 range)
+      anisotropy: 16, // Texture quality at angles (higher = better quality)
+      rotation: 0, // Rotation in radians (Math.PI/4 = 45 degrees)
+      emissive: true, // Enable emissive effect for neon glow
+      emissiveIntensity: 0.6, // Intensity of the glow (0-1 range)
+    };
+
+    // Function to apply texture with settings
+    const applyTextureWithSettings = (texture, config) => {
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.wrapS = THREE.RepeatWrapping;
+      texture.wrapT = THREE.RepeatWrapping;
+      texture.repeat.set(config.repeat.x, config.repeat.y);
+      texture.offset.set(config.offset.x, config.offset.y);
+      texture.anisotropy = config.anisotropy;
+      texture.rotation = config.rotation;
+      texture.needsUpdate = true;
+      return texture;
+    };
+
+    let floorFound = false;
+
+    gltf.scene.traverse(child => {
+      // Check for any mesh with "Floor" in its name
       if (child.isMesh && (child.name === "Floor" || child.name === "Floor2.002" || child.name.includes("Floor2"))) {
         floorFound = true;
-
-        console.log('   Material info:', {
-          hasMaterial: !!child.material,
-          hasMap: !!(child.material && child.material.map),
-          materialType: child.material ? child.material.type : 'none',
-          isArray: Array.isArray(child.material)
-        });
+        
+        console.log('🏠 Found floor mesh:', child.name);
         
         // Store the original texture if we haven't already
         if (!child.userData.originalTexture && child.material) {
@@ -1170,48 +1176,40 @@ function Model({
 
         // Toggle between original and 80s texture
         if (is80sMode) {
-
+          console.log('🎨 Applying 80s carpet texture to floor');
           textureLoader.load(
             textureConfig.path, 
             // Success callback
             texture => {
-
-              // Apply all texture settings
-              applyTextureWithSettings(texture, textureConfig);
-
-              if (child.material) {
-                // Create a new material or update existing one
-                const applyMaterial = mat => {
-                  mat.map = texture;
-
-                  // Add emissive properties if configured
-                  if (textureConfig.emissive) {
-                    // Use white as emissive color to preserve the original colors
-                    mat.emissive = new THREE.Color(textureConfig.emissiveColor);
-                    mat.emissiveMap = texture; // Use same texture for emissive map
-                    mat.emissiveIntensity = textureConfig.emissiveIntensity;
-
-                    // Make the black background truly black by adjusting material properties
-                    mat.roughness = 0.8; // Less shiny
-                    mat.metalness = 0.2; // Slight metallic look for neon effect
-                  }
-
-                  mat.needsUpdate = true;
-                };
-
-                // If the material is an array, update all materials
-                if (Array.isArray(child.material)) {
-                  child.material.forEach(applyMaterial);
-                } else {
-                  // Single material
-                  applyMaterial(child.material);
+              console.log('✅ 80s carpet texture loaded successfully');
+              
+              // Apply texture settings
+              const configuredTexture = applyTextureWithSettings(texture, textureConfig);
+              
+              // Apply to material
+              const applyMaterial = mat => {
+                mat.map = configuredTexture;
+                
+                if (textureConfig.emissive) {
+                  mat.emissive = new THREE.Color(0xffffff);
+                  mat.emissiveMap = configuredTexture;
+                  mat.emissiveIntensity = textureConfig.emissiveIntensity;
                 }
+                
+                mat.needsUpdate = true;
+              };
 
+              // If the material is an array, update all materials
+              if (Array.isArray(child.material)) {
+                child.material.forEach(applyMaterial);
+              } else {
+                // Single material
+                applyMaterial(child.material);
               }
             },
             // Progress callback
             progress => {
-
+              // Optional: log progress
             },
             // Error callback
             error => {
@@ -1221,7 +1219,8 @@ function Model({
           );
         } else if (child.userData.originalMaterial) {
           // Restore original material
-
+          console.log('🔄 Restoring original floor texture');
+          
           if (Array.isArray(child.material)) {
             // For material arrays, we need to restore properties individually
             child.material.forEach((mat, index) => {
@@ -1250,29 +1249,9 @@ function Model({
     });
     
     if (!floorFound) {
-      console.warn('⚠️ Floor2.002 object not found in the model');
+      console.warn('⚠️ Floor object not found in the model');
     }
-    
-    // Cleanup function for video textures
-    return () => {
-      if (gltf && gltf.scene) {
-        gltf.scene.traverse(child => {
-          if (child.userData.videoElement) {
-            console.log('🧹 Cleaning up video element');
-            child.userData.videoElement.pause();
-            child.userData.videoElement.removeAttribute('src');
-            child.userData.videoElement.load(); // Reset the video element
-            child.userData.videoElement = null;
-          }
-          if (child.userData.videoTexture) {
-            console.log('🧹 Disposing video texture');
-            child.userData.videoTexture.dispose();
-            child.userData.videoTexture = null;
-          }
-        });
-      }
-    };
-  }, [gltf]); // REMOVED is80sMode - only depend on gltf so video stays constant
+  }, [gltf, is80sMode]); // Re-run when is80sMode changes
 
   // Modify your applyUserImageToLabel function
   const applyUserImageToLabel = (candle, user) => {

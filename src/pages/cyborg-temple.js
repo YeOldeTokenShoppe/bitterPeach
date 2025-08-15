@@ -14,7 +14,7 @@ import { StarrySky } from '../components/3DVotiveStand/StarrySky';
 import BuyTokenFAB from '../components/BuyTokenFAB';
 import CandlePaginationUI from '../components/CandlePaginationUI';
 import CyberCalloutOverlay from '../components/3DVotiveStand/CyberCalloutOverlay';
-const SimpleMusicPlayer = dynamic(() => import('../components/SimpleMusicPlayer'), {
+const MusicPlayer3 = dynamic(() => import('../components/MusicPlayer3'), {
   ssr: false,
 });
 
@@ -27,7 +27,7 @@ export default function CyborgTemple({ is80sMode, setIs80sMode }) {
   const [musicPlayerVisible, setMusicPlayerVisible] = useState(false);
   const videoRef = useRef(null);
   const { setIsPlaying: setContextIsPlaying, setShowSpotify: setContextShowSpotify } = useMusic();
-  const [musicControls, setMusicControls] = useState(null);
+  const musicPlayerRef = useRef(null);
   const [paginationControls, setPaginationControls] = useState(null);
   const [showCalloutOverlay, setShowCalloutOverlay] = useState(true);
 
@@ -69,23 +69,14 @@ export default function CyborgTemple({ is80sMode, setIs80sMode }) {
 
 
 
-  const controlsInitializedRef = useRef(false);
-  
-  const handleMusicControlsReady = useCallback((controls) => {
-    console.log('🎵 Music controls updated in CyborgTemple');
-    setMusicControls(controls);
-    
-    // Only initialize player visibility once
-    if (!controlsInitializedRef.current) {
-      controlsInitializedRef.current = true;
-      setShowMobileMusicPlayer(true);
-      
-      // Auto-play when controls are ready (only once)
-      if (controls?.play && !isPlaying) {
-        controls.play();
-      }
+  // Auto-play music when component mounts
+  useEffect(() => {
+    if (showMobileMusicPlayer && musicPlayerRef.current && musicPlayerRef.current.play) {
+      setTimeout(() => {
+        musicPlayerRef.current.play();
+      }, 500);
     }
-  }, [isPlaying]);
+  }, [showMobileMusicPlayer]);
   
   const handleSceneLoad = useCallback(() => {
     console.log('Cyborg Temple Scene loaded');
@@ -300,17 +291,11 @@ export default function CyborgTemple({ is80sMode, setIs80sMode }) {
       
       {showMobileMusicPlayer && (
         <Box display="none">
-          <SimpleMusicPlayer
+          <MusicPlayer3
+            ref={musicPlayerRef}
             isVisible={true}
-            isMobile={true}
             autoPlay={true}
             is80sMode={is80sMode}
-            onControlsReady={handleMusicControlsReady}
-            onPlayingStateChange={(playing) => {
-              console.log('🎵 Music state changed:', playing);
-              setIsPlaying(playing);
-              setContextIsPlaying(playing);
-            }}
             onClose={() => {
               setShowMobileMusicPlayer(false);
               setMusicPlayerVisible(false);
@@ -340,11 +325,11 @@ export default function CyborgTemple({ is80sMode, setIs80sMode }) {
             animation={isPlaying ? "spin 4s linear infinite" : "none"}
             cursor="pointer"
             onClick={() => {
-              if (musicControls) {
+              if (musicPlayerRef.current) {
                 if (isPlaying) {
-                  musicControls.pause();
+                  musicPlayerRef.current.pause();
                 } else {
-                  musicControls.play();
+                  musicPlayerRef.current.play();
                 }
               }
             }}

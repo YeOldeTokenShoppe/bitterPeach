@@ -29,14 +29,25 @@ import Header3 from "../components/Header3";
 import CyberNav from "../components/CyberNav";
 import SocialBar from "../components/SocialBar";
 import styles from "../../styles/MusicPlayer.module.css";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { ClerkProvider } from "@clerk/nextjs";
 import { MusicProvider } from "../contexts/MusicContext";
 import GlobalMusicControl from "../components/GlobalMusicControl";
+import dynamic from "next/dynamic";
+
+// Import the original MusicPlayer3
+const MusicPlayer3 = dynamic(() => import("../components/MusicPlayer3"), {
+  ssr: false,
+});
 
 function MyApp({ Component, pageProps }) {
   const router = useRouter();
   const [is80sMode, setIs80sMode] = useState(false);
+  const [showGlobalPlayer, setShowGlobalPlayer] = useState(false);
+  const [globalPlayerAutoPlay, setGlobalPlayerAutoPlay] = useState(false);
+  
+  console.log('🎵 _app.jsx:', { showGlobalPlayer, globalPlayerAutoPlay });
+  const globalMusicPlayerRef = useRef(null);
 
   const isGalleryPage = router.pathname === "/gallery";
   const isIndexPage = router.pathname === "/";
@@ -191,8 +202,27 @@ function MyApp({ Component, pageProps }) {
                 }}
               >
                 {/* Render the main page content */}
-                <Component {...pageProps} is80sMode={is80sMode} setIs80sMode={setIs80sMode} />
+                <Component 
+                  {...pageProps} 
+                  is80sMode={is80sMode} 
+                  setIs80sMode={setIs80sMode}
+                  globalMusicPlayerRef={globalMusicPlayerRef}
+                  showGlobalPlayer={showGlobalPlayer}
+                  setShowGlobalPlayer={setShowGlobalPlayer}
+                  globalPlayerAutoPlay={globalPlayerAutoPlay}
+                  setGlobalPlayerAutoPlay={setGlobalPlayerAutoPlay}
+                />
               </ThemeProvider>
+            </div>
+            {/* Global Music Player - ALWAYS mounted, completely hidden */}
+            <div style={{ display: "none" }}>
+              <MusicPlayer3
+                ref={globalMusicPlayerRef}
+                isVisible={showGlobalPlayer}
+                onClose={() => setShowGlobalPlayer(false)}
+                autoPlay={globalPlayerAutoPlay}
+                is80sMode={is80sMode}
+              />
             </div>
             {/* Global Music Control - disabled, using page-specific controls */}
             {/* <GlobalMusicControl /> */}

@@ -12,9 +12,6 @@ const MobileMusicPlayer = dynamic(() => import("../components/MobileMusicPlayer"
   ssr: false,
 });
 
-// Import MusicPlayer3 directly to preserve ref forwarding
-import MusicPlayer3 from "../components/MusicPlayer3";
-
 // const NavBarDynamic = dynamic(() => import("../components/NavBar.client"), {
 //   ssr: false,
 // });
@@ -24,10 +21,18 @@ const BurnGalleryClient = dynamic(() => import("../components/BurnGallery"), {
   loading: () => <CoinLoader size="large" showText={false} withSparkle={true} />,
 });
 
-export default function GalleryPage() {
+export default function GalleryPage({ globalMusicPlayerRef, showGlobalPlayer, setShowGlobalPlayer } = {}) {
   const { user: currentUser } = useUser();
-  const { showSpotify, setShowSpotify } = useMusic(); // Use context for music state
-  const musicPlayerRef = useRef(null);
+  const { 
+    showSpotify, 
+    setShowSpotify, 
+    isPlaying: contextIsPlaying,
+    play: playMusic,
+    pause: pauseMusic,
+    loadTrack,
+    nextTrack: contextNextTrack
+  } = useMusic(); // Use context for music state
+  const musicPlayerRef = globalMusicPlayerRef; // Always use global ref
   const isTogglingRef = useRef(false); // Prevent multiple rapid toggles
   const isToggling80sRef = useRef(false); // Track 80s mode toggle state
   const [isLoading, setIsLoading] = useState(true);
@@ -40,6 +45,19 @@ export default function GalleryPage() {
   const [isDefinitelyPhone, setIsDefinitelyPhone] = useState(false); // Lock mobile view for phones
   const [componentLoaded, setComponentLoaded] = useState(false);
   const [threeDSceneLoaded, setThreeDSceneLoaded] = useState(false);
+
+  // Debug log the music state and sync with global player
+  useEffect(() => {
+    console.log("🎵 Gallery mounted - showSpotify:", showSpotify, "contextIsPlaying:", contextIsPlaying, "isMobileView:", isMobileView);
+    // Sync local state with global player state
+    if (showGlobalPlayer !== undefined) {
+      setShowSpotify(showGlobalPlayer);
+    }
+  }, [showGlobalPlayer]);
+  
+  useEffect(() => {
+    console.log("🎵 Gallery - showSpotify changed:", showSpotify);
+  }, [showSpotify, contextIsPlaying, isMobileView]);
 
   // Handle music toggle - control both visibility and playback
   const handleMusicToggle = useCallback((enabled) => {
@@ -66,23 +84,24 @@ export default function GalleryPage() {
     if (enabled) {
       // Show the player first
       setShowSpotify(true);
-      // Then play music after a delay to ensure component is mounted
+      if (setShowGlobalPlayer) setShowGlobalPlayer(true);
+      // Use context to play music
       setTimeout(() => {
-        if (musicPlayerRef.current && typeof musicPlayerRef.current.play === 'function') {
-  
-          musicPlayerRef.current.play();
+        // Load first track if needed, then play
+        if (!window.__globalAudioElement?.src) {
+          loadTrack(0, true);
+        } else {
+          playMusic();
         }
         isTogglingRef.current = false;
-      }, 300); // Slightly longer delay for mounting
+      }, 100);
     } else {
-      // Pause first, then hide
-      if (musicPlayerRef.current && typeof musicPlayerRef.current.pause === 'function') {
-
-        musicPlayerRef.current.pause();
-      }
+      // Pause using context
+      pauseMusic();
       // Hide after pausing
       setTimeout(() => {
         setShowSpotify(false);
+        if (setShowGlobalPlayer) setShowGlobalPlayer(false);
         isTogglingRef.current = false;
       }, 100);
     }
@@ -472,7 +491,9 @@ export default function GalleryPage() {
           zIndex: 10000, // Increased z-index to ensure it stays on top
           borderRadius: "8px",
           padding: "10px",
-          pointerEvents: "auto"
+          pointerEvents: "auto",
+          opacity: isLoading ? 0 : 1,
+          transition: "opacity 0.5s ease-in-out"
         }}>
           <div 
             id="text"
@@ -667,7 +688,9 @@ export default function GalleryPage() {
               {/* Skip Button */}
               <button
                 onClick={() => {
-                  if (musicPlayerRef.current && musicPlayerRef.current.nextTrack) {
+                  if (contextNextTrack) {
+                    contextNextTrack();
+                  } else if (musicPlayerRef.current && musicPlayerRef.current.nextTrack) {
                     musicPlayerRef.current.nextTrack();
                   }
                 }}
@@ -783,18 +806,8 @@ export default function GalleryPage() {
       )}
       
       
-      {/* Music Player for Desktop (hidden audio) - controlled by music button */}
-      {!isMobileView && (
-        <div style={{ display: "none" }}>
-          <MusicPlayer3
-            ref={musicPlayerRef}
-            isVisible={true}
-            onClose={() => setShowSpotify(false)}
-            autoPlay={false}
-            is80sMode={is80sMode}
-          />
-        </div>
-      )}
+      {/* Music Player for Desktop - use global player if available, otherwise local */}
+      {/* Removed local MusicPlayer3 - using global instance from _app.jsx */}
       
       {/* Add CSS for spin animation */}
       <style jsx>{`

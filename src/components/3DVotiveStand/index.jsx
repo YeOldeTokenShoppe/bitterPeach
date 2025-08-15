@@ -70,7 +70,7 @@ const HoldIndicator = ({ showIndicator, progress }) => {
       style={{
         position: "absolute",
         left: "50%",
-        bottom: "20%",
+        bottom: "10rem",
         transform: "translateX(-50%)",
         backgroundColor: "rgba(0,0,0,0.7)",
         padding: "10px",
@@ -1898,7 +1898,7 @@ const ThreeDVotiveStand = forwardRef(({
       {!isMobileView && desktopPaginationControls && !rocketModelVisible && (
         <div style={{
           position: 'absolute',
-          bottom: '20px',
+          bottom: '5rem',
           left: '50%',
           transform: 'translateX(-50%)',
           display: 'flex',

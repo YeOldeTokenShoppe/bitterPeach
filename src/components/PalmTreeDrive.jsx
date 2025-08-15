@@ -14,10 +14,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 
 
-// Dynamically import the Mobile Music Player component
-const SimpleMusicPlayer = dynamic(() => import('./SimpleMusicPlayer'), {
-  ssr: false,
-});
+// MusicPlayer3 removed - using global instance from _app.jsx
 
 // Register GSAP ScrollTrigger plugin
 gsap.registerPlugin(ScrollTrigger);
@@ -71,7 +68,7 @@ const textBlocks = [
   ]
 ];
 
-const PalmsScene = ({ onLoadingChange }) => {
+const PalmsScene = ({ onLoadingChange, globalMusicPlayerRef, showGlobalPlayer, setShowGlobalPlayer, globalPlayerAutoPlay, setGlobalPlayerAutoPlay }) => {
   const mountRef = useRef(null);
   const sceneRef = useRef(null);
   const rendererRef = useRef(null);
@@ -98,9 +95,9 @@ const PalmsScene = ({ onLoadingChange }) => {
   const [musicPlayerVisible, setMusicPlayerVisible] = useState(false);
   const [userClosedMusic, setUserClosedMusic] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [musicPlayerControls, setMusicPlayerControls] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
   const audioRef = useRef(null);
+  const musicPlayerRef = globalMusicPlayerRef; // Use global ref from _app.jsx
   
   // Performance detection for loader optimization
   const [isLowEndDevice, setIsLowEndDevice] = useState(false);
@@ -111,7 +108,29 @@ const PalmsScene = ({ onLoadingChange }) => {
     setShowSpotify: setContextShowSpotify,
     isPlaying: contextIsPlaying,
     setIsPlaying: setContextIsPlaying,
+    play: playMusic,
+    loadTrack,
+    nextTrack: contextNextTrack
   } = useMusic();
+  
+  // Sync music player UI with context state on mount
+  useEffect(() => {
+    // Sync with global player if available
+    if (showGlobalPlayer !== undefined) {
+      setShowMobileMusicPlayer(showGlobalPlayer);
+      setMusicPlayerVisible(showGlobalPlayer);
+      setContextShowSpotify(showGlobalPlayer);
+    } else if (contextIsPlaying && !userClosedMusic) {
+      console.log('🎵 PalmTreeDrive: Music is playing in context, showing player UI');
+      setShowMobileMusicPlayer(true);
+      setMusicPlayerVisible(true);
+    }
+  }, [showGlobalPlayer]); // React to global player changes
+  
+  // Sync local isPlaying state with context
+  useEffect(() => {
+    setIsPlaying(contextIsPlaying);
+  }, [contextIsPlaying]);
   
   // Add refs for lights
   const carSpotlightRef = useRef(null);
@@ -296,30 +315,18 @@ const PalmsScene = ({ onLoadingChange }) => {
     }
   }, [currentCameraStage, scrollCameraActive]);
   
-  // Callback to receive controls from MobileMusicPlayer
-  const handleMusicControlsReady = useCallback((controls) => {
-    setMusicPlayerControls(prevControls => {
-      if (prevControls) return prevControls;
-      return controls;
-    });
-    
-    // Auto-play when controls are ready and music player is visible
-    if (controls && controls.play && !contextIsPlaying && showMobileMusicPlayer) {
-      // console.log('🎵 Auto-playing music when controls ready');
-      setTimeout(() => {
-        controls.play();
-      }, 500); // Increased delay to ensure track is loaded
-    }
-  }, [contextIsPlaying, showMobileMusicPlayer]);
   
   // Music player close handler
   const handleMusicPlayerClose = useCallback(() => {
     // console.log('🎵 Closing music player');
     
-    // Stop the music first
-    if (musicPlayerControls && musicPlayerControls.pause) {
-      // console.log('🎵 Pausing music');
-      musicPlayerControls.pause();
+    // Stop the music via refs
+    if (musicPlayerRef.current && musicPlayerRef.current.pause) {
+      // console.log('🎵 Pausing music via MusicPlayer3 ref');
+      musicPlayerRef.current.pause();
+    } else if (globalMusicPlayerRef && globalMusicPlayerRef.current && globalMusicPlayerRef.current.pause) {
+      // console.log('🎵 Pausing music via global ref');
+      globalMusicPlayerRef.current.pause();
     }
     
     // Update context
@@ -330,7 +337,8 @@ const PalmsScene = ({ onLoadingChange }) => {
     setUserClosedMusic(true);
     setShowMobileMusicPlayer(false);
     setMusicPlayerVisible(false);
-  }, [musicPlayerControls, setContextIsPlaying, setContextShowSpotify]);
+    if (setShowGlobalPlayer) setShowGlobalPlayer(false);
+  }, [setContextIsPlaying, setContextShowSpotify, setShowGlobalPlayer, globalMusicPlayerRef]);
 
   const carModelRef = useRef(null);
   const intersectionRef = useRef(null);
@@ -2902,25 +2910,27 @@ const PalmsScene = ({ onLoadingChange }) => {
             cursor: 'pointer'
           }}
           onClick={() => {
-            console.log('🎵 Music icon clicked (div wrapper)');
+            console.log('🎵 Music icon clicked (div wrapper)', {
+              contextShowSpotify,
+              contextIsPlaying
+            });
             setUserClosedMusic(false);
             
-            if (contextShowSpotify && contextIsPlaying) {
-              // Music is already playing, just show the UI
-              setShowMobileMusicPlayer(true);
-              setMusicPlayerVisible(true);
-            } else {
-              // Start fresh music playback
-              setShowMobileMusicPlayer(true);
-              setMusicPlayerVisible(true);
-              setContextShowSpotify(true);
-              
-              // Trigger auto-play after a delay
-              setTimeout(() => {
-                if (musicPlayerControls && musicPlayerControls.play) {
-                  musicPlayerControls.play();
-                }
-              }, 500);
+            // Always show the UI
+            setShowMobileMusicPlayer(true);
+            setMusicPlayerVisible(true);
+            setContextShowSpotify(true);
+            if (setShowGlobalPlayer) setShowGlobalPlayer(true);
+            
+            // Play music directly using context
+            if (!contextIsPlaying) {
+              console.log('🎵 Starting music playback via context');
+              // Load first track if needed, then play
+              if (!window.__globalAudioElement?.src) {
+                loadTrack(0, true);
+              } else {
+                playMusic();
+              }
             }
           }}
         >
@@ -3024,13 +3034,20 @@ const PalmsScene = ({ onLoadingChange }) => {
               zIndex="10000"
               pointerEvents="auto"
               onClick={() => {
-                // console.log('🎵 Skip button clicked');
+                console.log('🎵 Skip button clicked');
                 
-                if (musicPlayerControls && musicPlayerControls.skipTrack) {
-                  // console.log('🎵 Using music player controls to skip');
-                  musicPlayerControls.skipTrack();
+                // Use context's nextTrack method
+                if (contextNextTrack) {
+                  console.log('🎵 Using context nextTrack');
+                  contextNextTrack();
+                } else if (musicPlayerRef.current && musicPlayerRef.current.nextTrack) {
+                  console.log('🎵 Using MusicPlayer3 ref to skip');
+                  musicPlayerRef.current.nextTrack();
+                } else if (globalMusicPlayerRef && globalMusicPlayerRef.current && globalMusicPlayerRef.current.nextTrack) {
+                  console.log('🎵 Using global MusicPlayer3 ref to skip');
+                  globalMusicPlayerRef.current.nextTrack();
                 } else {
-                  // console.log('⚠️ No skip controls available');
+                  console.log('⚠️ No skip controls available');
                   window.postMessage({ type: 'SKIP_TRACK' }, '*');
                 }
               }}
@@ -3082,23 +3099,8 @@ const PalmsScene = ({ onLoadingChange }) => {
         </>
       ) : null}
       
-      {/* Hidden Music Player Component - No auto-start */}
-      {showMobileMusicPlayer && (
-        <Box display="none">
-          <SimpleMusicPlayer
-            isVisible={true}
-            isMobile={true}
-            autoPlay={true}
-            onControlsReady={handleMusicControlsReady}
-            onPlayingStateChange={(playing) => {
-              // console.log('🎵 Music state changed:', playing);
-              setIsPlaying(playing);
-              setContextIsPlaying(playing);
-            }}
-            audioRef={audioRef}
-          />
-        </Box>
-      )}
+      {/* Hidden Music Player Component - Use global player if available */}
+      {/* Removed local MusicPlayer3 - using global instance from _app.jsx */}
       
       {/* Scrolling Text Section - Right Side */}
       {!isSceneLoading && scrollCameraActive && (
@@ -3188,7 +3190,7 @@ const PalmsScene = ({ onLoadingChange }) => {
         <div style={{
           position: 'fixed',
           right: isMobile ? '20px' : '15%',
-          bottom: '100px',
+          bottom: '18rem',
           width: isMobile ? '70%' : '40%',
           maxWidth: '600px',
           opacity: showEnterButton ? 1 : 0,
@@ -3213,6 +3215,7 @@ const PalmsScene = ({ onLoadingChange }) => {
                   box-shadow: 4px 0px 0px #00E6F6;
                   outline: transparent;
                   position: relative;
+                  top: 2rem;
                   cursor: pointer;
                   z-index: 10001;
                 }

@@ -240,9 +240,9 @@ const MobileSidePanel = ({
       showMobileMusicPlayer
     });
     
-    // If we're in moon scene and music is playing, show the player (unless user closed it)
-    if (activeScene === 'moon' && contextIsPlaying && !userClosedMusic) {
-      console.log('🎵 MobileSidePanel: Music is playing in lunar scene, showing player UI');
+    // If music is playing in ANY scene, show the player (unless user closed it)
+    if (contextIsPlaying && !userClosedMusic && !showMobileMusicPlayer) {
+      console.log('🎵 MobileSidePanel: Music is playing, showing player UI in', activeScene, 'scene');
       setShowMobileMusicPlayer(true);
       setMusicPlayerVisible(true);
       setContextShowSpotify(true); // Ensure context is synced
@@ -2761,7 +2761,8 @@ const MobileSidePanel = ({
       </Box>
       )}
       
-      {/* Bottom Navigation Bar */}
+      {/* Bottom Navigation Bar - Hidden per user request */}
+      {false && (
       <Box
         position="fixed"
         bottom="0"
@@ -3137,7 +3138,7 @@ const MobileSidePanel = ({
         {paginationState && !rocketModelVisible && (
           <Box
             position="absolute"
-            bottom="100px"
+            bottom="10rem"
             left="50%"
             transform="translateX(-50%)"
             display="flex"
@@ -3145,6 +3146,7 @@ const MobileSidePanel = ({
             alignItems="center"
             gap="4px"
             zIndex="1001"
+       
           >
             <Box
               display="flex"
@@ -3530,6 +3532,187 @@ const MobileSidePanel = ({
         })()}
         
       </Box>
+      )}
+
+      {/* Pagination Indicator with Arrows - Moved outside bottom bar to keep visible */}
+      {paginationState && !rocketModelVisible && (
+        <Box
+          position="fixed"
+          bottom="100px"
+          left="50%"
+          transform="translateX(-50%)"
+          display="flex"
+          flexDirection="column"
+          alignItems="center"
+          gap="4px"
+          zIndex="1001"
+        >
+          <Box
+            display="flex"
+            alignItems="center"
+            gap="12px"
+          >
+            {/* Left Arrow */}
+            <IconButton
+              aria-label="Previous Page"
+              icon={
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M15 18l-6-6 6-6"/>
+                </svg>
+              }
+              color="#ffffff"
+              bg="transparent"
+              borderRadius="full"
+              border="2px solid rgba(255,255,255,0.8)"
+              onClick={() => {
+                // Check if candle viewer is open and can handle navigation
+                if (window.isCandleViewerOpen && window.candleViewerNavigate) {
+                  window.candleViewerNavigate('prev');
+                  return;
+                }
+                
+                if (paginationState) {
+                  const { currentPage, totalPages, setCurrentPage } = paginationState;
+                  const newPage = (currentPage - 1 + totalPages) % totalPages;
+                  setCurrentPage(newPage);
+                }
+              }}
+              _hover={{
+                bg: "rgba(255,255,255,0.1)",
+                borderColor: "#ffffff",
+                transform: "scale(1.1)",
+              }}
+              size="lg"
+              minW="48px"
+              h="48px"
+              p="12px"
+            />
+            
+            <Text 
+              className={!is80sMode ? "thelma1" : ""}
+              fontSize="2rem"
+              // Override styles in 80s mode for chrome/neon effect
+              sx={is80sMode ? {
+                fontWeight: "900",
+                lineHeight: "0.8",
+                transform: "rotate(-8deg) skew(-15deg)",
+                background: "linear-gradient(45deg, #ff00ff, #00ffff, #ff00ff)",
+                backgroundClip: "text",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                position: "relative",
+                filter: `
+                  drop-shadow(0 0 8px rgba(255, 255, 255, 0.9))
+                  drop-shadow(0 0 16px rgba(255, 255, 255, 0.7))
+                  drop-shadow(0 0 24px rgba(255, 255, 255, 0.5))
+                  drop-shadow(0 0 40px rgba(0, 255, 255, 0.6))
+                  drop-shadow(0 0 60px rgba(255, 0, 255, 0.5))
+                `,
+                animation: "neonPulse 2s ease-in-out infinite alternate",
+                // Add TWO pseudo-elements - one for white outline, one for colorful text
+                _after: {
+                  content: "'THE ILLUMIN80'",
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  height: "100%",
+                  zIndex: -1,
+                  color: "transparent",
+                  WebkitTextStroke: "2px white",
+                  filter: "blur(3px)",
+                  opacity: 0.7,
+                },
+                "@keyframes neonPulse": {
+                  "0%": {
+                    filter: `
+                      drop-shadow(0 0 8px rgba(255, 255, 255, 0.9))
+                      drop-shadow(0 0 16px rgba(255, 255, 255, 0.7))
+                      drop-shadow(0 0 24px rgba(255, 255, 255, 0.5))
+                      drop-shadow(0 0 40px rgba(0, 255, 255, 0.6))
+                      drop-shadow(0 0 60px rgba(255, 0, 255, 0.5))
+                    `,
+                  },
+                  "100%": {
+                    filter: `
+                      drop-shadow(0 0 12px rgba(255, 255, 255, 1))
+                      drop-shadow(0 0 20px rgba(255, 255, 255, 0.8))
+                      drop-shadow(0 0 32px rgba(255, 255, 255, 0.6))
+                      drop-shadow(0 0 50px rgba(0, 255, 255, 0.8))
+                      drop-shadow(0 0 70px rgba(255, 0, 255, 0.6))
+                    `,
+                  }
+                }
+              } : {}}
+            >
+              THE ILLUMIN80
+            </Text>
+            
+            {/* Right Arrow */}
+            <IconButton
+              aria-label="Next Page"
+              icon={
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 18l6-6-6-6"/>
+                </svg>
+              }
+              color="#ffffff"
+              bg="transparent"
+              borderRadius="full"
+              border="2px solid rgba(255,255,255,0.8)"
+              onClick={() => {
+                // Check if candle viewer is open and can handle navigation
+                if (window.isCandleViewerOpen && window.candleViewerNavigate) {
+                  window.candleViewerNavigate('next');
+                  return;
+                }
+                
+                if (paginationState) {
+                  const { currentPage, totalPages, setCurrentPage } = paginationState;
+                  const newPage = (currentPage + 1) % totalPages;
+                  setCurrentPage(newPage);
+                }
+              }}
+              _hover={{
+                bg: "rgba(255,255,255,0.1)",
+                borderColor: "#ffffff",
+                transform: "scale(1.1)",
+              }}
+              size="lg"
+              minW="48px"
+              h="48px"
+              p="12px"
+            />
+          </Box>
+          
+          <Box display="flex" gap="4px" alignItems="center">
+            {paginationState.totalPages <= 10 ? (
+              Array.from({ length: paginationState.totalPages }).map((_, i) => (
+                <Box
+                  key={i}
+                  width={i === paginationState.currentPage ? "16px" : "6px"}
+                  height="6px"
+                  borderRadius={i === paginationState.currentPage ? "3px" : "50%"}
+                  bg={i === paginationState.currentPage ? "#ffffff" : "rgba(255,255,255,0.6)"}
+                  transition="all 0.3s ease"
+                />
+              ))
+            ) : (
+              <Text fontSize="1rem" color="#ffffff" opacity="0.8">
+                {paginationState.currentPage + 1} / {paginationState.totalPages}
+              </Text>
+            )}
+          </Box>
+          
+          <Text
+            fontSize="1rem"
+            color="#ffffff"
+            opacity="0.8"
+          >
+            {paginationState.visibleRange.start}-{paginationState.visibleRange.end} of {paginationState.total}
+          </Text>
+        </Box>
+      )}
 
       {/* Ensure no backdrop is visible when video screen is closed */}
       <Box
@@ -4092,7 +4275,7 @@ const MobileSidePanel = ({
               fontSize="18px"
               fontWeight="bold"
               textAlign="center"
-              marginBottom="20px"
+              marginBottom="7rem"
               textShadow="0 0 5px rgba(6, 182, 212, 0.7)"
             >
               Control Panel

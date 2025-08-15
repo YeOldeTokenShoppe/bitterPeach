@@ -8,7 +8,7 @@ import dynamic from 'next/dynamic';
 import { useMusic } from '../contexts/MusicContext';
 import BuyTokenFAB from '../components/BuyTokenFAB';
 
-const SimpleMusicPlayer = dynamic(() => import('../components/SimpleMusicPlayer'), {
+const MusicPlayer3 = dynamic(() => import('../components/MusicPlayer3'), {
   ssr: false,
 });
 
@@ -47,7 +47,7 @@ export default function CathedralPage({ is80sMode, setIs80sMode }) {
   const [showAnnotations, setShowAnnotations] = useState(true);
   const [showCyberOverlay, setShowCyberOverlay] = useState(true);
   const { isPlaying, setIsPlaying: setContextIsPlaying, setShowSpotify: setContextShowSpotify, showSpotify } = useMusic();
-  const musicControlsRef = useRef(null);
+  const musicPlayerRef = useRef(null);
 
   // Check if mobile on mount
   useEffect(() => {
@@ -193,27 +193,11 @@ export default function CathedralPage({ is80sMode, setIs80sMode }) {
     
     {/* Always render SimpleMusicPlayer but control its visibility */}
     <Box display="none">
-      <SimpleMusicPlayer
+      <MusicPlayer3
+        ref={musicPlayerRef}
         isVisible={showMobileMusicPlayer}
-        isMobile={true}
         autoPlay={false}
         is80sMode={is80sMode}
-        onControlsReady={(controls) => {
-          musicControlsRef.current = controls;
-          // Auto-play when first shown with a small delay
-          if (showMobileMusicPlayer && controls?.play) {
-            setTimeout(() => {
-              if (!isPlaying && musicControlsRef.current?.play) {
-                console.log('🎵 Auto-playing music...');
-                musicControlsRef.current.play();
-              }
-            }, 100);
-          }
-        }}
-        onPlayingStateChange={(playing) => {
-          console.log('🎵 Music state changed:', playing, 'from SimpleMusicPlayer');
-          setContextIsPlaying(playing);
-        }}
         onClose={() => {
           setShowMobileMusicPlayer(false);
           setMusicPlayerVisible(false);

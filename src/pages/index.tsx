@@ -13,7 +13,15 @@ import Link from "next/link";
 
 
 
-export default function SamplePage() {
+interface SamplePageProps {
+  globalMusicPlayerRef?: React.MutableRefObject<any>;
+  showGlobalPlayer?: boolean;
+  setShowGlobalPlayer?: (show: boolean) => void;
+  globalPlayerAutoPlay?: boolean;
+  setGlobalPlayerAutoPlay?: (autoPlay: boolean) => void;
+}
+
+export default function SamplePage({ globalMusicPlayerRef, showGlobalPlayer, setShowGlobalPlayer, globalPlayerAutoPlay, setGlobalPlayerAutoPlay }: SamplePageProps) {
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSceneLoading, setIsSceneLoading] = useState(true);
@@ -168,7 +176,14 @@ export default function SamplePage() {
         </div>
       )}
       
-      <PalmTreeDrive onLoadingChange={setIsSceneLoading} />
+      <PalmTreeDrive 
+        onLoadingChange={setIsSceneLoading}
+        globalMusicPlayerRef={globalMusicPlayerRef}
+        showGlobalPlayer={showGlobalPlayer}
+        setShowGlobalPlayer={setShowGlobalPlayer}
+        globalPlayerAutoPlay={globalPlayerAutoPlay}
+        setGlobalPlayerAutoPlay={setGlobalPlayerAutoPlay}
+      />
     
     </div>
   );

@@ -1,14 +1,34 @@
-import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { storage } from "../utilities/firebaseClient";
 import { ref as storageRefUtil, getDownloadURL } from "firebase/storage";
 import { useMusic } from "../contexts/MusicContext";
 
+// Initialize global state if it doesn't exist
+if (typeof window !== 'undefined' && !window.__musicPlayer3State) {
+  window.__musicPlayer3State = {
+    hasCheckedForAudio: false,
+    hasLoadedTrack: false
+  };
+}
+
 const MusicPlayer3 = React.forwardRef(
   ({ isVisible, onClose, autoPlay = true, is80sMode = false }, ref) => {
-    // State
-    const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
-    const [isPlaying, setIsPlaying] = useState(false);
+    // Use global persistent state instead of local refs
+    const hasCheckedForAudio = useRef(window.__musicPlayer3State?.hasCheckedForAudio || false);
+    const hasLoadedTrack = useRef(window.__musicPlayer3State?.hasLoadedTrack || false);
+    
+    // Create a unique ID for this instance
+    const instanceId = useRef(Math.random().toString(36).substr(2, 9));
+    
+
+    // Get shared audio element and context functions from MusicContext FIRST
+    const { audioRef, setCurrentTrackBPM, currentTrackIndex: contextTrackIndex, setCurrentTrackIndex: setContextTrackIndex, setIsPlaying: setContextIsPlaying, isPlaying: contextIsPlaying } = useMusic();
+    
+    // State - initialize from context where applicable
+    const [currentTrackIndex, setCurrentTrackIndex] = useState(contextTrackIndex || 0);
+    const [isPlaying, setIsPlaying] = useState(contextIsPlaying || false);
     const [isLoading, setIsLoading] = useState(false);
+    const isLoadingRef = useRef(false);
     const [currentTime, setCurrentTime] = useState("00:00");
     const [duration, setDuration] = useState("00:00");
     const [playProgress, setPlayProgress] = useState(0);
@@ -17,12 +37,44 @@ const MusicPlayer3 = React.forwardRef(
     const [volume, setVolume] = useState(0.2);
     const [isLoaded, setIsLoaded] = useState(false);
     
-    // Use ref to track current index for reliable access in callbacks
-    const currentTrackIndexRef = useRef(0);
+    // Use context track index as the source of truth, with local ref for quick access
+    const currentTrackIndexRef = useRef(contextTrackIndex || 0);
     const isInitializedRef = useRef(false);
     const lastModeRef = useRef(is80sMode);
-    // Get shared audio element and context functions from MusicContext
-    const { audioRef, setCurrentTrackBPM, setCurrentTrackIndex: setContextTrackIndex, setIsPlaying: setContextIsPlaying, isPlaying: contextIsPlaying } = useMusic();
+    
+    // Always sync ref with context
+    useEffect(() => {
+      currentTrackIndexRef.current = contextTrackIndex || 0;
+    }, [contextTrackIndex]);
+    
+    // Component mount effect - sync with global state
+    useEffect(() => {
+      console.log('🎵🟢 MusicPlayer3 MOUNTED', {
+        instanceId: instanceId.current,
+        hasGlobalAudio: !!window.__globalAudioElement?.src,
+        globalPaused: window.__globalAudioElement?.paused,
+        autoPlay,
+        isVisible,
+        globalHasLoadedTrack: window.__musicPlayer3State.hasLoadedTrack,
+        globalTrackIndex: window.__globalMusicTrackIndex
+      });
+      
+      // Sync with global state on mount
+      if (window.__globalAudioElement?.src && window.__globalMusicTrackIndex !== undefined) {
+        setCurrentTrackIndex(window.__globalMusicTrackIndex);
+        currentTrackIndexRef.current = window.__globalMusicTrackIndex;
+        setContextTrackIndex(window.__globalMusicTrackIndex);
+        setIsPlaying(!window.__globalAudioElement.paused);
+        setContextIsPlaying(!window.__globalAudioElement.paused);
+        setIsLoaded(true);
+      }
+      
+      return () => {
+        console.log('🎵🔴 MusicPlayer3 UNMOUNTING', {
+          instanceId: instanceId.current
+        });
+      };
+    }, []);
     
     // Track lists
     const non80sTracks = [
@@ -69,13 +121,81 @@ const MusicPlayer3 = React.forwardRef(
     
     // Load and play track
     const loadTrack = useCallback(async (index, shouldAutoPlay = null) => {
-      const playlist = is80sMode ? eightyTracks : non80sTracks;
+      console.log('🎵🔴 loadTrack called!', {
+        instanceId: instanceId.current,
+        index,
+        shouldAutoPlay,
+        autoPlay,
+        caller: new Error().stack.split('\n')[2] // Get immediate caller
+      });
       
+      // Check if we're trying to load the same track that's already loaded
+      const playlist = is80sMode ? eightyTracks : non80sTracks;
+      const currentLoadedTrack = audioRef.current?.src;
+      
+      // IMPROVED CHECK: If audio exists, check if it's the same track
+      if (audioRef.current?.src) {
+        // Check if we switched modes (80s vs non-80s)
+        const currentIs80s = eightyTracks.some(track => 
+          currentLoadedTrack && currentLoadedTrack.includes(track.path.split('/').pop())
+        );
+        
+        // Check if we're trying to load the exact same track index
+        const isSameTrack = window.__globalMusicTrackIndex === index && currentIs80s === is80sMode;
+        
+        if (isSameTrack) {
+          // Same track, just sync state and potentially resume
+          console.log('🎵 Same track already loaded, syncing state', {
+            isPaused: audioRef.current.paused,
+            requestedIndex: index,
+            currentIs80s,
+            is80sMode
+          });
+          
+          // Update UI state to match current audio
+          setIsLoaded(true);
+          setIsPlaying(!audioRef.current.paused);
+          setContextIsPlaying(!audioRef.current.paused);
+          
+          // Update track index if we have it from global state
+          if (window.__globalMusicTrackIndex !== undefined) {
+            setCurrentTrackIndex(window.__globalMusicTrackIndex);
+            currentTrackIndexRef.current = window.__globalMusicTrackIndex;
+            setContextTrackIndex(window.__globalMusicTrackIndex);
+          }
+          
+          // If paused and should play, just resume
+          if (audioRef.current.paused && (shouldAutoPlay || autoPlay)) {
+            console.log('🎵 Resuming existing audio');
+            audioRef.current.play().then(() => {
+              setIsPlaying(true);
+              setContextIsPlaying(true);
+            }).catch(e => console.log('Play blocked:', e));
+          }
+          return;
+        } else if (currentIs80s !== is80sMode) {
+          // Mode changed, need to load new track
+          console.log('🎵 Mode changed, loading new track for different playlist');
+        } else {
+          // Different track in same mode
+          console.log('🎵 Loading different track:', index, 'from current:', window.__globalMusicTrackIndex);
+        }
+      }
+      
+      console.log('🎵🔴 loadTrack - NO EXISTING AUDIO, proceeding', {
+        index,
+        shouldAutoPlay,
+        autoPlay
+      });
+      
+      // playlist already declared at the top of this function
       if (!audioRef.current || index < 0 || index >= playlist.length) return;
       
       setIsLoading(true);
+      isLoadingRef.current = true;
       
       try {
+        console.log('🎵🔴 ACTUALLY LOADING NEW TRACK!', index, playlist[index].name);
         // Get track URL from Firebase
         const trackRef = storageRefUtil(storage, playlist[index].path);
         const url = await getDownloadURL(trackRef);
@@ -99,6 +219,7 @@ const MusicPlayer3 = React.forwardRef(
         setCurrentTrackBPM(playlist[index].bpm || 100);
         setIsLoaded(true);
         setIsLoading(false);
+        isLoadingRef.current = false;
         
         // Auto-play if requested
         const shouldPlay = shouldAutoPlay !== null ? shouldAutoPlay : autoPlay;
@@ -110,15 +231,25 @@ const MusicPlayer3 = React.forwardRef(
       } catch (error) {
         console.error('Error loading track:', error);
         setIsLoading(false);
+        isLoadingRef.current = false;
       }
-    }, [audioRef, autoPlay, is80sMode, setCurrentTrackBPM, setContextTrackIndex]);
+    }, [audioRef, autoPlay, is80sMode, setCurrentTrackBPM, setContextTrackIndex, setContextIsPlaying, instanceId]);
     
     // Play/pause controls
     const play = useCallback(() => {
-      if (audioRef.current && !isLoading) {
+      console.log('🎵 play() called', {
+        hasAudio: !!audioRef.current,
+        hasSrc: !!audioRef.current?.src,
+        isLoading
+      });
+      
+      if (audioRef.current && audioRef.current.src && !isLoading) {
         audioRef.current.play().then(() => {
+          console.log('🎵 Playback started successfully');
           setIsPlaying(true);
         }).catch(e => console.log('Play blocked:', e));
+      } else if (audioRef.current && !audioRef.current.src) {
+        console.log('⚠️ No audio source loaded yet');
       }
     }, [audioRef, isLoading]);
     
@@ -173,12 +304,9 @@ const MusicPlayer3 = React.forwardRef(
       const nextIndex = getNextTrackIndex(direction);
       const wasPlaying = audioRef.current && !audioRef.current.paused;
       
-      await loadTrack(nextIndex);
-      
-      if (wasPlaying) {
-        play();
-      }
-    }, [loadTrack, getNextTrackIndex, isLoading, audioRef, play]);
+      // Force load the new track even if one is playing
+      await loadTrack(nextIndex, wasPlaying);
+    }, [loadTrack, getNextTrackIndex, isLoading, audioRef]);
     
     // Toggle shuffle
     const toggleShuffle = useCallback(() => {
@@ -225,31 +353,167 @@ const MusicPlayer3 = React.forwardRef(
       }
     }, [volume, audioRef]);
     
-    // Initialize first track - but only if music isn't already playing
+    // Initialize and sync with existing audio - ONLY sync, never load
     useEffect(() => {
-      if (lastModeRef.current !== is80sMode) {
-        lastModeRef.current = is80sMode;
-        currentTrackIndexRef.current = 0;
-        setCurrentTrackIndex(0);
-        isInitializedRef.current = false;
+      // Skip if audio element doesn't exist or we've already checked
+      if (!audioRef.current || hasCheckedForAudio.current) return;
+      
+      const hasAudioSource = !!audioRef.current.src;
+      const isAudioPlaying = hasAudioSource && !audioRef.current.paused;
+      
+      console.log('🎵 MusicPlayer3 Initial Mount Check:', {
+        hasAudioSource,
+        isAudioPlaying,
+        contextIsPlaying,
+        contextTrackIndex
+      });
+      
+      hasCheckedForAudio.current = true;
+      
+      // If audio exists (from any previous page), just sync the UI
+      if (hasAudioSource) {
+        console.log('🎵 Audio already exists on mount, syncing UI only');
+        setIsPlaying(isAudioPlaying);
+        setContextIsPlaying(isAudioPlaying); // Sync context state too
+        if (contextTrackIndex !== undefined) {
+          setCurrentTrackIndex(contextTrackIndex);
+          currentTrackIndexRef.current = contextTrackIndex;
+        }
+        updateProgress();
+        // Mark that we've already loaded
+        hasLoadedTrack.current = true;
+        window.__musicPlayer3State.hasLoadedTrack = true;
+        setIsLoaded(true); // Mark as loaded to enable controls
+      }
+      // DO NOT load new tracks here - let the visibility effect handle it
+    }, [audioRef, contextTrackIndex, updateProgress, setContextIsPlaying]);
+    
+    // Handle first-time initialization when becoming visible
+    const hasEverPlayed = useRef(false);
+    const lastAutoPlayState = useRef(autoPlay);
+    
+    useEffect(() => {
+      console.log('🎵🔍 Visibility/AutoPlay effect triggered', {
+        instanceId: instanceId.current,
+        isVisible,
+        autoPlay,
+        hasGlobalSrc: !!window.__globalAudioElement?.src,
+        hasAudioRefSrc: !!audioRef.current?.src,
+        globalHasLoadedTrack: window.__musicPlayer3State.hasLoadedTrack
+      });
+      
+      // EARLY RETURN if we've already loaded a track globally
+      if (window.__musicPlayer3State.hasLoadedTrack) {
+        console.log('🎵 Track already loaded globally, just syncing state');
+        if (audioRef.current) {
+          const isPaused = audioRef.current.paused;
+          setIsPlaying(!isPaused);
+          setContextIsPlaying(!isPaused);
+          updateProgress();
+          
+          // Resume if needed
+          if (autoPlay && isPaused) {
+            audioRef.current.play().catch(e => console.log('Play blocked:', e));
+          }
+        }
+        return;
       }
       
-      // Check if audio is already playing from another page
-      const isAudioAlreadyPlaying = audioRef.current && audioRef.current.src && !audioRef.current.paused;
-      
-      // If audio is already playing, sync our state with it
-      if (isAudioAlreadyPlaying) {
-        setIsPlaying(true);
-        isInitializedRef.current = true;
-        return; // Don't load a new track
+      // GLOBAL CHECK - Check for any existing audio
+      if (window.__globalAudioElement?.src || audioRef.current?.src) {
+        const hasSource = window.__globalAudioElement?.src || audioRef.current?.src;
+        const isPaused = audioRef.current?.paused ?? true;
+        
+        console.log('🎵✅ Audio exists, just syncing UI', {
+          hasSource,
+          isPaused,
+          autoPlay,
+          hasEverPlayed: hasEverPlayed.current,
+          autoPlayChanged: lastAutoPlayState.current !== autoPlay
+        });
+        
+        // Mark that we have loaded audio
+        hasLoadedTrack.current = true;
+        window.__musicPlayer3State.hasLoadedTrack = true;
+        setIsLoaded(true);
+        
+        // Just sync UI state
+        if (audioRef.current) {
+          setIsPlaying(!isPaused);
+          setContextIsPlaying(!isPaused);
+          updateProgress();
+          
+          // Only play if autoPlay is explicitly requested AND audio is paused
+          // BUT don't reload the track
+          if (autoPlay && isPaused) {
+            console.log('🎵 Resuming paused audio (no reload)');
+            audioRef.current.play().then(() => {
+              setIsPlaying(true);
+              setContextIsPlaying(true);
+            }).catch(e => console.log('Play blocked:', e));
+          }
+          
+          lastAutoPlayState.current = autoPlay;
+        }
+        return; // Audio already loaded, nothing to do
       }
       
-      // Only load track if not already initialized and autoPlay is true
-      if (isVisible && currentPlaylist.length > 0 && !isInitializedRef.current && autoPlay) {
-        isInitializedRef.current = true;
-        loadTrack(0);
+      if (!audioRef.current) return;
+      
+      const hasAudioSource = !!audioRef.current.src;
+      
+      console.log('🎵 Initialization check:', {
+        isVisible,
+        hasAudioSource,
+        hasLoadedTrack: hasLoadedTrack.current,
+        isLoading,
+        autoPlay,
+        autoPlayChanged: lastAutoPlayState.current !== autoPlay
+      });
+      
+      // If audio exists, just sync state
+      if (hasAudioSource) {
+        console.log('🎵 Audio source exists, syncing state only');
+        hasLoadedTrack.current = true;
+        window.__musicPlayer3State.hasLoadedTrack = true;
+        setIsPlaying(!audioRef.current.paused);
+        updateProgress();
+        
+        // If autoPlay changed from false to true, play the audio
+        if (autoPlay && !lastAutoPlayState.current && audioRef.current.paused) {
+          console.log('🎵🎯 AutoPlay toggled ON, playing existing audio');
+          audioRef.current.play().then(() => {
+            setIsPlaying(true);
+            setContextIsPlaying(true);
+          }).catch(e => console.log('Play blocked:', e));
+        }
+        
+        lastAutoPlayState.current = autoPlay;
+        return;
       }
-    }, [isVisible, currentPlaylist.length, loadTrack, is80sMode, autoPlay, audioRef]);
+      
+      // Only load ONCE - check if we've EVER loaded a track globally
+      if (isVisible && !window.__globalAudioElement?.src && !window.__musicPlayer3State.hasLoadedTrack && !isLoading) {
+        console.log('🎵 First time EVER initialization, loading track 0', {
+          autoPlay,
+          willPlay: autoPlay,
+          globalHasLoadedTrack: window.__musicPlayer3State.hasLoadedTrack
+        });
+        // Set the flag BEFORE loading to prevent double loads
+        window.__musicPlayer3State.hasLoadedTrack = true;
+        hasLoadedTrack.current = true;
+        lastAutoPlayState.current = autoPlay;
+        // Load and play if autoPlay is true
+        loadTrack(0, autoPlay);
+      } else if (isVisible) {
+        console.log('🎵 Not loading - audio already exists or has been loaded before', {
+          hasGlobalSrc: !!window.__globalAudioElement?.src,
+          hasLoadedBefore: window.__musicPlayer3State.hasLoadedTrack
+        });
+      }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isVisible]); // Only depend on visibility, not autoPlay
+    
     
     // Handle track end
     useEffect(() => {
@@ -297,13 +561,44 @@ const MusicPlayer3 = React.forwardRef(
     }, [isVisible, audioRef, isPlaying]);
     
     // Expose controls via ref
-    React.useImperativeHandle(ref, () => ({
-      play: () => play(),
-      pause: () => pause(),
-      togglePlayPause: () => togglePlayPause(),
-      nextTrack: () => changeTrack(1),
-      prevTrack: () => changeTrack(-1),
-    }));
+    React.useImperativeHandle(ref, () => {
+      console.log('🎵 Setting up imperative handle');
+      return {
+        play: async () => {
+          console.log('🎵 play() called via ref', {
+            hasAudioRef: !!audioRef.current,
+            hasSrc: !!audioRef.current?.src,
+            currentIsLoading: isLoadingRef.current
+          });
+          
+          // Wait for any current loading to finish
+          if (isLoadingRef.current) {
+            console.log('🎵 Waiting for current load to finish...');
+            await new Promise(resolve => {
+              const checkLoading = setInterval(() => {
+                if (!isLoadingRef.current) {
+                  clearInterval(checkLoading);
+                  resolve();
+                }
+              }, 100);
+            });
+          }
+          
+          // If no audio loaded yet, load first track
+          if (!audioRef.current?.src) {
+            console.log('🎵 No audio loaded, loading track 0 before playing');
+            await loadTrack(0, true);
+          } else {
+            console.log('🎵 Audio already loaded, calling play()');
+            play();
+          }
+        },
+        pause: () => pause(),
+        togglePlayPause: () => togglePlayPause(),
+        nextTrack: () => changeTrack(1),
+        prevTrack: () => changeTrack(-1),
+      };
+    }, [play, pause, togglePlayPause, changeTrack, loadTrack, audioRef]);
     
     // Define colors based on mode
     const accentColor = is80sMode ? "#ff71ce" : "#1DB954";
