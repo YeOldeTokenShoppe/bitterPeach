@@ -2518,22 +2518,31 @@ const MobileSidePanel = ({
       {/* Music Player - Top Right Above 80s Mode Toggle */}
       {!showMobileMusicPlayer ? (
         // Music Icon Button
-        <IconButton
+        <Box
+          as="button"
           position="fixed"
           top="20px"
           right="20px"
-          zIndex="1100"
+          width="48px"
+          height="48px"
+          borderRadius="50%"
+          backgroundColor="rgba(0, 0, 0, 0.7)"
+          border="2px solid rgba(255, 255, 255, 0.2)"
+          color="#ffffff"
+          display="flex"
+          alignItems="center"
+          justifyContent="center"
+          cursor="pointer"
+          transition="all 0.3s ease"
+          backdropFilter="blur(10px)"
+          boxShadow="0 2px 8px rgba(0, 0, 0, 0.3)"
+          zIndex={1100}
           aria-label="Music Player"
-          icon={
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9 18V5l12-2v13"/>
-              <circle cx="6" cy="18" r="3"/>
-              <circle cx="18" cy="16" r="3"/>
-            </svg>
-          }
-          color="white"
-          bg="transparent"
-          size="md"
+          _hover={{
+            backgroundColor: "rgba(0, 0, 0, 0.8)",
+            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.4)"
+          }}
+          title="Toggle Music"
           onClick={() => {
             console.log('🎵 Music icon clicked in lunar scene');
             // Reset the user closed flag since they're manually opening it
@@ -2557,10 +2566,13 @@ const MobileSidePanel = ({
               setContextShowSpotify(true);
             }
           }}
-          _hover={{
-            bg: "rgba(255, 255, 255, 0.1)",
-          }}
-        />
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 18V5l12-2v13"/>
+            <circle cx="6" cy="18" r="3"/>
+            <circle cx="18" cy="16" r="3"/>
+          </svg>
+        </Box>
       ) : (
         // Minimal Music Player with overlay to block 3D interactions
         <>
@@ -2706,36 +2718,28 @@ const MobileSidePanel = ({
       )}
       
       {/* 80s Mode Toggle - Top Right Below Music Icon - Hidden in lunar scene */}
-      {activeScene !== 'moon' && (
+ 
         <Box
+          as="button"
           position="fixed"
           top="70px"
           right="20px"
-          zIndex="10000"
+          width="48px"
+          height="48px"
+          borderRadius="50%"
+          backgroundColor={is80sMode ? "rgba(217, 70, 239, 0.3)" : "rgba(0, 0, 0, 0.7)"}
+          border={is80sMode ? "2px solid #D946EF" : "2px solid rgba(255, 255, 255, 0.2)"}
+          color={is80sMode ? "#67e8f9" : "#ffffff"}
           display="flex"
           alignItems="center"
-          gap="8px"
-        >
-        <Text
-          color="white"
-          fontSize="12px"
-          fontWeight="bold"
-          letterSpacing="0.5px"
-          textTransform="uppercase"
-          opacity={0.8}
-        >
-          80s Mode
-        </Text>
-        <Box
-          as="button"
-          position="relative"
-          width="44px"
-          height="24px"
-          borderRadius="12px"
-          bg={is80sMode ? "#d946ef" : "rgba(255, 255, 255, 0.2)"}
-          border={is80sMode ? "1px solid #d946ef" : "1px solid rgba(255, 255, 255, 0.3)"}
+          justifyContent="center"
           cursor="pointer"
           transition="all 0.3s ease"
+          backdropFilter="blur(10px)"
+          boxShadow={is80sMode 
+            ? "0 0 20px rgba(217, 70, 239, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3)" 
+            : "0 2px 8px rgba(0, 0, 0, 0.3)"}
+          zIndex={10000}
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -2743,23 +2747,79 @@ const MobileSidePanel = ({
             toggle80sMode();
           }}
           _hover={{
-            bg: is80sMode ? "#e879f9" : "rgba(255, 255, 255, 0.3)",
+            boxShadow: is80sMode 
+              ? "0 0 30px rgba(217, 70, 239, 0.7), 0 2px 8px rgba(0, 0, 0, 0.3)"
+              : undefined,
+            backgroundColor: !is80sMode ? "rgba(0, 0, 0, 0.8)" : undefined,
+          }}
+          title={is80sMode ? "Disable 80s Mode" : "Enable 80s Mode"}
+        >
+          <Text 
+            fontSize="20px" 
+            fontWeight="bold"
+            color={is80sMode ? "#00ff41" : "#67e8f9"}
+            textShadow={is80sMode ? "0 0 10px #00ff41" : "none"}
+            fontFamily="monospace"
+          >
+            80s
+          </Text>
+        </Box>
+        <Box
+          as="button"
+          position="fixed"
+          top="120px"
+          right="20px"
+          width="48px"
+          height="48px"
+          borderRadius="50%"
+          backgroundColor="rgba(0, 0, 0, 0.7)"
+          border="2px solid rgba(255, 255, 255, 0.2)"
+          color="#ffffff"
+          display="flex"
+          alignItems="center"
+          justifyContent="center"
+          cursor="pointer"
+          transition="all 0.3s ease"
+          backdropFilter="blur(10px)"
+          boxShadow="0 2px 8px rgba(0, 0, 0, 0.3)"
+          zIndex={1100}
+          aria-label="Music Player"
+          _hover={{
+            backgroundColor: "rgba(0, 0, 0, 0.8)",
+            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.4)"
+          }}
+          title="Toggle Music"
+          onClick={() => {
+            console.log('🎵 Music icon clicked in lunar scene');
+            // Reset the user closed flag since they're manually opening it
+            setUserClosedMusic(false);
+            
+            // In lunar scene, always just show the player UI if music is playing
+            if (activeScene === 'moon' && audioRef.current && !audioRef.current.paused) {
+              console.log('🎵 Music is playing in lunar scene, showing player UI');
+              setShowMobileMusicPlayer(true);
+              setMusicPlayerVisible(true);
+            } else if (contextShowSpotify && contextIsPlaying) {
+              // Music is already playing, just show the UI
+              console.log('🎵 Music already playing, showing UI');
+              setShowMobileMusicPlayer(true);
+              setMusicPlayerVisible(true);
+            } else {
+              // Start fresh music playback
+              setShowMusicChoice(false);
+              setShowMobileMusicPlayer(true);
+              setMusicPlayerVisible(true);
+              setContextShowSpotify(true);
+            }
           }}
         >
-          <Box
-            position="absolute"
-            top="2px"
-            left={is80sMode ? "22px" : "2px"}
-            width="18px"
-            height="18px"
-            borderRadius="50%"
-            bg="white"
-            transition="all 0.3s ease"
-            boxShadow={is80sMode ? "0 0 8px rgba(217, 70, 239, 0.6)" : "0 2px 4px rgba(0,0,0,0.2)"}
-          />
+
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-flame-icon lucide-flame">
+              <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>
+            </svg>
+          
         </Box>
-      </Box>
-      )}
+
       
       {/* Bottom Navigation Bar - Hidden per user request */}
       {false && (
@@ -3146,6 +3206,11 @@ const MobileSidePanel = ({
             alignItems="center"
             gap="4px"
             zIndex="1001"
+            pointerEvents="none"
+            sx={{
+'& button': { pointerEvents: 'auto'}
+
+            }}
        
           >
             <Box
@@ -3195,6 +3260,7 @@ const MobileSidePanel = ({
               <Text 
                 className={!is80sMode ? "thelma1" : ""}
                 fontSize="2rem"
+                pointerEvents="none"
                 // Override styles in 80s mode for chrome/neon effect
                 sx={is80sMode ? {
                   fontWeight: "900",
@@ -3205,7 +3271,7 @@ const MobileSidePanel = ({
                   WebkitBackgroundClip: "text",
                   WebkitTextFillColor: "transparent",
                   position: "relative",
-         
+                  pointerEvents: "none",
                   filter: `
                     drop-shadow(0 0 8px rgba(255, 255, 255, 0.9))
                     drop-shadow(0 0 16px rgba(255, 255, 255, 0.7))
@@ -3591,6 +3657,7 @@ const MobileSidePanel = ({
             <Text 
               className={!is80sMode ? "thelma1" : ""}
               fontSize="2rem"
+              pointerEvents="none"
               // Override styles in 80s mode for chrome/neon effect
               sx={is80sMode ? {
                 fontWeight: "900",
@@ -3601,6 +3668,7 @@ const MobileSidePanel = ({
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
                 position: "relative",
+                pointerEvents: "none",
                 filter: `
                   drop-shadow(0 0 8px rgba(255, 255, 255, 0.9))
                   drop-shadow(0 0 16px rgba(255, 255, 255, 0.7))
@@ -3685,14 +3753,14 @@ const MobileSidePanel = ({
             />
           </Box>
           
-          <Box display="flex" gap="4px" alignItems="center">
+          <Box display="flex" gap="6px" alignItems="center" py="8px">
             {paginationState.totalPages <= 10 ? (
               Array.from({ length: paginationState.totalPages }).map((_, i) => (
                 <Box
                   key={i}
-                  width={i === paginationState.currentPage ? "16px" : "6px"}
-                  height="6px"
-                  borderRadius={i === paginationState.currentPage ? "3px" : "50%"}
+                  width={i === paginationState.currentPage ? "24px" : "10px"}
+                  height="10px"
+                  borderRadius={i === paginationState.currentPage ? "5px" : "50%"}
                   bg={i === paginationState.currentPage ? "#ffffff" : "rgba(255,255,255,0.6)"}
                   transition="all 0.3s ease"
                 />

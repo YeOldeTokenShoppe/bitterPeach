@@ -3,9 +3,12 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 // import Loader from "../components/Loader";
 // import Magic8BallLoader from "../components/Magic8BallLoader";
-import CoinLoader from "../components/CoinLoader";
+// import CoinLoader from "../components/CoinLoader";
 import { useUser } from "@clerk/nextjs";
 import { useMusic } from "../contexts/MusicContext";
+import SimpleLoader from "../components/SimpleLoader";
+import CandleInteractionHint from "../components/CandleInteractionHint";
+
 
 // Dynamically import music players
 const MobileMusicPlayer = dynamic(() => import("../components/MobileMusicPlayer"), {
@@ -18,7 +21,7 @@ const MobileMusicPlayer = dynamic(() => import("../components/MobileMusicPlayer"
 
 const BurnGalleryClient = dynamic(() => import("../components/BurnGallery"), {
   ssr: false,
-  loading: () => <CoinLoader size="large" showText={false} withSparkle={true} />,
+  loading: () => <SimpleLoader/>,
 });
 
 export default function GalleryPage({ globalMusicPlayerRef, showGlobalPlayer, setShowGlobalPlayer } = {}) {
@@ -481,7 +484,10 @@ export default function GalleryPage({ globalMusicPlayerRef, showGlobalPlayer, se
       }}
     >
       {/* Loader with progress */}
-      {isLoading && <CoinLoader size="fullscreen" showText={false} withSparkle={true} />}
+      {isLoading && <SimpleLoader size="fullscreen" showText={false} withSparkle={true} />}
+
+      {/* Candle Interaction Hint */}
+      {!isLoading && <CandleInteractionHint isMobileView={isMobileView} />}
 
       {/* Main content - RL80 Logo */}
       <div style={{
@@ -593,7 +599,7 @@ export default function GalleryPage({ globalMusicPlayerRef, showGlobalPlayer, se
               height: "auto",
               transform: "translate(-50%, -50%)",
               objectFit: "cover",
-              opacity: 0.25,
+              opacity: 0.15,
               filter: "saturate(2) hue-rotate(15deg) brightness(0.8)",
             }}
             onLoadedData={(e) => {
@@ -741,67 +747,56 @@ export default function GalleryPage({ globalMusicPlayerRef, showGlobalPlayer, se
             </div>
           )}
           
-          {/* 80s Mode Toggle - positioned below music controls */}
-          <div
+          {/* 80s Mode Toggle Icon - positioned below music controls */}
+          <button
+            onClick={() => toggle80sMode(!is80sMode)}
             style={{
               position: "fixed",
               top: "80px",
               right: "20px",
-              zIndex: 9999,
+              width: "48px",
+              height: "48px",
+              borderRadius: "50%",
+              backgroundColor: is80sMode ? "rgba(217, 70, 239, 0.3)" : "rgba(0, 0, 0, 0.7)",
+              border: is80sMode ? "2px solid #D946EF" : "2px solid rgba(255, 255, 255, 0.2)",
+              color: is80sMode ? "#67e8f9" : "#ffffff",
               display: "flex",
               alignItems: "center",
-              gap: "10px",
-              backgroundColor: "rgba(0, 0, 0, 0.7)",
-              padding: "8px 16px",
-              borderRadius: "24px",
+              justifyContent: "center",
+              cursor: "pointer",
+              transition: "all 0.3s ease",
               backdropFilter: "blur(10px)",
-              border: "1px solid rgba(255, 255, 255, 0.2)",
+              boxShadow: is80sMode 
+                ? "0 0 20px rgba(217, 70, 239, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3)" 
+                : "0 2px 8px rgba(0, 0, 0, 0.3)",
+              zIndex: 9999,
             }}
+            onMouseEnter={(e) => {
+              if (is80sMode) {
+                e.currentTarget.style.boxShadow = "0 0 30px rgba(217, 70, 239, 0.7), 0 2px 8px rgba(0, 0, 0, 0.3)";
+              } else {
+                e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.8)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (is80sMode) {
+                e.currentTarget.style.boxShadow = "0 0 20px rgba(217, 70, 239, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3)";
+              } else {
+                e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.7)";
+              }
+            }}
+            title={is80sMode ? "Disable 80s Mode" : "Enable 80s Mode"}
           >
-            <span style={{ color: "#ffffff", fontSize: "14px", fontWeight: "500" }}>80S MODE</span>
-            <label
-              style={{
-                position: "relative",
-                display: "inline-block",
-                width: "48px",
-                height: "24px",
-                cursor: "pointer",
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={is80sMode}
-                onChange={() => toggle80sMode(!is80sMode)}
-                style={{ opacity: 0, width: 0, height: 0 }}
-              />
-              <span
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  backgroundColor: is80sMode ? "#67e8f9" : "rgba(255, 255, 255, 0.2)",
-                  borderRadius: "12px",
-                  transition: "all 0.3s ease",
-                  border: is80sMode ? "1px solid #67e8f9" : "1px solid rgba(255, 255, 255, 0.3)",
-                }}
-              >
-                <span
-                  style={{
-                    position: "absolute",
-                    left: is80sMode ? "26px" : "2px",
-                    top: "2px",
-                    width: "18px",
-                    height: "18px",
-                    backgroundColor: is80sMode ? "#00ff41" : "#ffffff",
-                    borderRadius: "50%",
-                    transition: "all 0.3s ease",
-                  }}
-                />
-              </span>
-            </label>
-          </div>
+            <span style={{ 
+              fontSize: "20px", 
+              fontWeight: "bold",
+              color: is80sMode ? "#00ff41" : "#67e8f9",
+              textShadow: is80sMode ? "0 0 10px #00ff41" : "none",
+              fontFamily: "monospace"
+            }}>
+              80s
+            </span>
+          </button>
         </>
       )}
       

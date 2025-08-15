@@ -506,7 +506,7 @@ const TickerDisplay = ({ modelRef, isMobileView, ...props }) => {
         depthTest: true, // Test depth so it's occluded properly
         depthWrite: false, // Don't write to depth buffer since it's transparent
         polygonOffset: true,
-        polygonOffsetFactor: -2, // Small offset to prevent z-fighting
+        polygonOffsetFactor: -3, // Small offset to prevent z-fighting
         polygonOffsetUnits: -1,
         alphaTest: 0.01, // Discard nearly transparent pixels to help with depth sorting
       });

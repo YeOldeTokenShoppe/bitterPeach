@@ -6,8 +6,9 @@ import NoiseParticleEffect from "../components/NoiseParticleEffect";
 import BookAnimation from "../components/Book";
 import Synthwave from "../components/Synthwave";
 import PalmTreeIsland from "../components/PalmTreeIsland";
-import AppLoader from "../components/AppLoader";
+// import AppLoader from "../components/AppLoader";
 import Link from "next/link";
+import SimpleLoader from "../components/SimpleLoader";
 
 
 
@@ -167,12 +168,13 @@ export default function SamplePage({ globalMusicPlayerRef, showGlobalPlayer, set
           backgroundColor: '#000',
           zIndex: 9999
         }}>
-          <AppLoader 
+          <SimpleLoader />
+          {/* <AppLoader 
             isInitialLoad={isInitialLoad}
             size="large"
             showText={true}
             withSparkle={!isInitialLoad}
-          />
+          /> */}
         </div>
       )}
       

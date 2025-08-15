@@ -163,7 +163,7 @@ const PostProcessingEffects = ({ is80sMode = false }) => {
         />
       )} */}
       <Bloom
-        intensity={2.5}           // Much stronger bloom for that 80s glow
+        intensity={1}           // Much stronger bloom for that 80s glow
         luminanceThreshold={0.1} // Lower threshold to catch more colors
         luminanceSmoothing={0.3}  // Sharper, more pronounced bloom
         height={512}              // Higher resolution for better quality
@@ -188,7 +188,7 @@ const PostProcessingEffects = ({ is80sMode = false }) => {
         mode={GlitchMode.SPORADIC} // Sporadic glitches for that 80s VHS feel
       />
       <Noise opacity={0.15} />    {/* More visible noise */}
-      <Vignette eskil={false} offset={0.05} darkness={0.9} /> {/* Stronger vignette */}
+      <Vignette eskil={false} offset={0.05} darkness={0.5} /> {/* Stronger vignette */}
     </>
   );
 

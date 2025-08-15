@@ -950,6 +950,21 @@ function Model({
       emissiveIntensity: 0.3, // Lower intensity for video
     };
 
+    // Check if video texture already exists and is playing
+    let existingVideo = null;
+    let existingTexture = null;
+    gltf.scene.traverse(child => {
+      if (child.userData.videoElement && child.userData.videoTexture) {
+        existingVideo = child.userData.videoElement;
+        existingTexture = child.userData.videoTexture;
+      }
+    });
+    
+    if (existingVideo && existingTexture) {
+      console.log('🎬 Video texture already exists, skipping creation');
+      return;
+    }
+
     let videoElement = null; // Store video element reference
     let videoTexture = null; // Store video texture reference
     
@@ -1125,6 +1140,41 @@ function Model({
       }
     };
   }, [gltf]); // Only depend on gltf for video texture
+  
+  // Ensure video texture persists through material updates
+  useEffect(() => {
+    if (!gltf || !gltf.scene) return;
+    
+    // Function to reapply video texture if it gets lost
+    const ensureVideoTexture = () => {
+      gltf.scene.traverse(child => {
+        if (child.isMesh && (child.name === "goldCircuit" || child.name.includes("goldCircuit"))) {
+          if (child.userData.videoTexture && child.material) {
+            const applyVideo = (mat) => {
+              if (mat.map !== child.userData.videoTexture) {
+                console.log('🔧 Reapplying video texture to goldCircuit');
+                mat.map = child.userData.videoTexture;
+                mat.emissive = new THREE.Color(0xffffff);
+                mat.emissiveMap = child.userData.videoTexture;
+                mat.emissiveIntensity = 0.3;
+                mat.needsUpdate = true;
+              }
+            };
+            
+            if (Array.isArray(child.material)) {
+              child.material.forEach(applyVideo);
+            } else {
+              applyVideo(child.material);
+            }
+          }
+        }
+      });
+    };
+    
+    // Check and fix video texture after a short delay
+    const timer = setTimeout(ensureVideoTexture, 100);
+    return () => clearTimeout(timer);
+  }, [gltf, is80sMode]); // Re-check when 80s mode changes
 
   // Toggle floor textures when 80s mode changes
   useEffect(() => {
@@ -1160,8 +1210,10 @@ function Model({
     let floorFound = false;
 
     gltf.scene.traverse(child => {
-      // Check for any mesh with "Floor" in its name
-      if (child.isMesh && (child.name === "Floor" || child.name === "Floor2.002" || child.name.includes("Floor2"))) {
+      // Check for any mesh with "Floor" in its name, but exclude goldCircuit
+      if (child.isMesh && 
+          (child.name === "Floor" || child.name === "Floor2.002" || child.name.includes("Floor2")) &&
+          !child.name.includes("goldCircuit")) {
         floorFound = true;
         
         console.log('🏠 Found floor mesh:', child.name);
@@ -1765,19 +1817,16 @@ function Model({
           object.renderOrder = -1; // Changed to negative to ensure it's always first
           if (object.material) {
             const applyFixes = material => {
+              // Only apply depth settings, don't touch texture properties
               material.depthWrite = true; // Enable depth writing
               material.depthTest = true; // Keep depth testing
               material.transparent = true;
               material.opacity = 1; // Adjust transparency (1.0 = opaque, 0.0 = invisible)
               material.blending = THREE.NormalBlending
-              material.needsUpdate = true;
               
-              // Don't override the video texture if it exists
-              if (object.userData.videoTexture) {
-                console.log('🔧 Preserving video texture in special handling');
-                material.map = object.userData.videoTexture;
-                material.emissiveMap = object.userData.videoTexture;
-              }
+              // IMPORTANT: Don't modify map or emissiveMap here
+              // The video texture is handled by its own useEffect
+              material.needsUpdate = true;
             };
             if (Array.isArray(object.material)) {
               object.material.forEach(applyFixes);
@@ -1785,6 +1834,7 @@ function Model({
               applyFixes(object.material);
             }
           }
+          return; // Skip the general material fixes for goldCircuit
         }
 
         if (object.material) {
@@ -1872,6 +1922,7 @@ function Model({
       onDesktopPaginationReady({
         currentPage: desktopCandlePage,
         totalPages,
+        totalCount: results?.length || 0,
         nextPage: () => spinAndChangePage(1),
         prevPage: () => spinAndChangePage(-1),
         isSpinning,

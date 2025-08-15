@@ -1904,8 +1904,9 @@ const ThreeDVotiveStand = forwardRef(({
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          gap: '10px',
+          // gap: '10px',
           zIndex: 100,
+          pointerEvents: 'none',
         }}>
           {/* THE ILLUMIN80 Title */}
           <div 
@@ -1920,6 +1921,7 @@ const ThreeDVotiveStand = forwardRef(({
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               position: 'relative',
+              pointerEvents: 'none',
               filter: `
                 drop-shadow(0 0 8px rgba(255, 255, 255, 0.9))
                 drop-shadow(0 0 16px rgba(255, 255, 255, 0.7))
@@ -1931,9 +1933,10 @@ const ThreeDVotiveStand = forwardRef(({
             } : {
               fontSize: '3rem', // Larger for desktop
               transform: 'rotate(-8deg) skew(-15deg)', // Keep skew in non-80s mode
+              pointerEvents: 'none',
             }}
           >
-            THE ILLUMIN80
+            <span style={{fontFamily: "UnifrakturCook", fontSize: "3rem", }}>T</span>HE             <span style={{fontFamily: "UnifrakturCook", fontSize: "3rem"}}>I</span>LLUMIN80
             {is80sMode && (
               <div style={{
                 content: "'THE ILLUMIN80'",
@@ -1954,26 +1957,17 @@ const ThreeDVotiveStand = forwardRef(({
             )}
           </div>
           
-          {/* Page info below title */}
-          <div style={{
-            color: '#fff',
-            fontSize: '1rem',
-            marginTop: '-5px',
-            marginBottom: '5px',
-            opacity: 0.8,
-          }}>
-            {desktopPaginationControls.currentPage + 1}-{Math.min((desktopPaginationControls.currentPage + 1) * 8, 26)} of 26
-          </div>
-          
           {/* Pagination Controls */}
           <div style={{
             display: 'flex',
-            gap: '20px',
+            gap: '2rem',
             alignItems: 'center',
             background: 'rgba(0, 0, 0, 0.7)',
             padding: '10px 20px',
             borderRadius: '25px',
             border: '1px solid rgba(255, 255, 255, 0.2)',
+            marginTop: '2rem',
+            pointerEvents: 'auto',
           }}>
           <button
             onClick={desktopPaginationControls.prevPage}
@@ -2006,6 +2000,16 @@ const ThreeDVotiveStand = forwardRef(({
           >
             ←
           </button>
+          
+          {/* Page info between arrows */}
+          <div style={{
+            color: '#fff',
+            fontSize: '1.2rem',
+            opacity: 0.9,
+            whiteSpace: 'nowrap',
+          }}>
+            {desktopPaginationControls.currentPage + 1}-{Math.min((desktopPaginationControls.currentPage + 1) * 8, desktopPaginationControls.totalCount || 0)} of {desktopPaginationControls.totalCount || 0}
+          </div>
           
           <button
             onClick={desktopPaginationControls.nextPage}

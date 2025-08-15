@@ -53,10 +53,14 @@ function OrbitalCandle({ angle, radius, candleObject, userData, index, onClick, 
               }
             }
             // Apply to Label2 objects (normal)
-            else if (child.name?.includes('Label2')) {
+            else if (child.name?.startsWith('Label1')) {
               if (child.material) {
                 child.material = child.material.clone();
                 child.material.map = texture;
+                // Add subtle emissive glow to Label2
+                child.material.emissive = new THREE.Color(0xffffff);
+                child.material.emissiveMap = texture;
+                child.material.emissiveIntensity = 0.2; // Subtle glow
                 child.material.needsUpdate = true;
               }
             }
@@ -533,7 +537,7 @@ export default function MobileCandleOrbital({ candleData = [], onCandleClick, mo
   }, [currentPage, totalPages, allSortedData.length, onPaginationChange, handleSetCurrentPage]);
 
   return (
-    <group ref={groupRef} position={[0, -1, 0]}>
+    <group ref={groupRef} position={[0, -2, 0]}>
       {/* The candles */}
       {combinedData.map((item, index) => {
         const angle = (index / Math.min(combinedData.length, 8)) * Math.PI * 2;

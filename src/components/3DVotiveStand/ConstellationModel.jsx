@@ -9,7 +9,7 @@ useGLTF.preload("/whale.glb");
 // useGLTF.preload("/InfinityStars.glb");
 
 function ConstellationModel({ 
-  isVisible = false, 
+  isVisible = true, 
   groupScale = [1, 1, 1], // Default scale if not provided
   groupPosition = [0, 0, 0], // Default position if not provided
   groupRotation = [0, 0, 0] // Default rotation if not provided

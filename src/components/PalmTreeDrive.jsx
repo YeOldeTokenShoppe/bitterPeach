@@ -3182,25 +3182,17 @@ const PalmsScene = ({ onLoadingChange, globalMusicPlayerRef, showGlobalPlayer, s
             </div>
           )}
           
-        </div>
-      )}
-      
-      {/* "Take me there" button - moved outside of text section */}
-      {!isSceneLoading && scrollCameraActive && showEnterButton && (
-        <div style={{
-          position: 'fixed',
-          right: isMobile ? '20px' : '15%',
-          bottom: '18rem',
-          width: isMobile ? '70%' : '40%',
-          maxWidth: '600px',
-          opacity: showEnterButton ? 1 : 0,
-          transition: 'opacity 2s ease-in',
-          textAlign: 'center',
-          zIndex: 100000,
-          pointerEvents: 'auto',
-          touchAction: 'auto',
-        }}>
-          <style jsx>{`
+          {/* "Take me there" button - inside text section container */}
+          {showEnterButton && (
+            <div style={{
+              marginTop: '30px',
+              opacity: showEnterButton ? 1 : 0,
+              transition: 'opacity 2s ease-in',
+              textAlign: 'center',
+              pointerEvents: 'auto',
+              touchAction: 'auto',
+            }}>
+              <style jsx>{`
                 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap');
                 
                 .cyberpunk, .cyberpunk::after {
@@ -3215,7 +3207,6 @@ const PalmsScene = ({ onLoadingChange, globalMusicPlayerRef, showGlobalPlayer, s
                   box-shadow: 4px 0px 0px #00E6F6;
                   outline: transparent;
                   position: relative;
-                  top: 2rem;
                   cursor: pointer;
                   z-index: 10001;
                 }
@@ -3293,9 +3284,12 @@ const PalmsScene = ({ onLoadingChange, globalMusicPlayerRef, showGlobalPlayer, s
                   }
                 }
               `}</style>
-          <Link href="/gallery" style={{ textDecoration: 'none', color: 'inherit', display: 'inline-block' }}>
-            <span className="cyberpunk">Take Me There</span>
-          </Link>
+              <Link href="/gallery" style={{ textDecoration: 'none', color: 'inherit', display: 'inline-block' }}>
+                <span className="cyberpunk">Take Me There</span>
+              </Link>
+            </div>
+          )}
+          
         </div>
       )}
       
